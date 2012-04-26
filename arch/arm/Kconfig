@@ -285,6 +285,21 @@ config ARCH_REALVIEW
 	help
 	  This enables support for ARM Ltd RealView boards.
 
+config ARCH_AW163X
+	bool "Allwinner Ltd. AW163x family"
+	select ARM_AMBA
+	select CLKDEV_LOOKUP
+	select ARM_GIC
+	select CPU_V7
+	select HAVE_SMP
+	select HAVE_MACH_CLKDEV
+	select GENERIC_CLOCKEVENTS
+	select NEED_MACH_MEMORY_H
+	select MIGHT_HAVE_CACHE_L2X0
+	select ARCH_HAS_BARRIERS if SMP
+	help
+	  This enables support for ARM Ltd RealView boards.
+
 config ARCH_VERSATILE
 	bool "ARM Ltd. Versatile family"
 	select ARM_AMBA

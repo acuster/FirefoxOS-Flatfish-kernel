@@ -41,6 +41,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <mach/platform.h>
 
 #include "8250.h"
 
@@ -1528,6 +1529,8 @@ EXPORT_SYMBOL_GPL(serial8250_modem_status);
 /*
  * This handles the interrupt from one port.
  */
+
+#define UART_USR (AW_UART_USR>>2)
 int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 {
 	unsigned char status;
@@ -1535,8 +1538,21 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	struct uart_8250_port *up =
 		container_of(port, struct uart_8250_port, port);
 
-	if (iir & UART_IIR_NO_INT)
+       if ((iir & 0x7) == UART_IIR_BUSY) {
+               unsigned int mcr_t = serial_inp(up, UART_MCR);
+               AW_UART_LOG(">>> ttyS%d bus busy...", up->port.line);
+               serial_outp(up, UART_MCR, mcr_t|(1<<4));
+               while (serial_in(up, UART_USR)&1)
+               serial_inp(up, UART_RX);
+               serial_outp(up, UART_LCR, up->lcr);
+               serial_outp(up, UART_MCR, mcr_t);
+               return 1;
+       }
+
+	if (iir & UART_IIR_NO_INT) {
+		AW_UART_LOG("no int");
 		return 0;
+	}
 
 	spin_lock_irqsave(&up->port.lock, flags);
 

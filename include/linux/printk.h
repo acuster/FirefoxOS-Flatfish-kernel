@@ -100,6 +100,8 @@ int vprintk(const char *fmt, va_list args);
 asmlinkage __printf(1, 2) __cold
 int printk(const char *fmt, ...);
 
+extern int aw_printk(u32 uart_base, const char *fmt, ...);
+
 /*
  * Please don't use printk_ratelimit(), because it shares ratelimiting state
  * with all other unrelated printk_ratelimit() callsites.  Instead use
