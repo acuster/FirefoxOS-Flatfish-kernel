@@ -47,7 +47,7 @@
 #define AW_CCM_BASE                 0x01c20000
 #define AW_PIO_BASE                 0x01c20800
 #define AW_GIC_DIST_BASE            0x01c81000
-#define AW_GIC_CPU_BASE             0x01c80100
+#define AW_GIC_CPU_BASE             0x01c82000
 #define AW_TIMER_BASE               0x01c20c00
 #define AW_SCU_BASE                 0x01c80000
 #define AW_TIMER_G_BASE             0x01c80200 /* CPU global timer, not used */
