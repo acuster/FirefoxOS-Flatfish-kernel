@@ -44,12 +44,37 @@ static void __iomem *scu_base_addr(void)
 	return __io_address(AW_SCU_BASE);
 }
 
+#define AW_R_CPUCFG_BASE 0x01f01c00
+
+static u32 get_nr_cores(void)
+{
+        u32 cores;
+
+        /* Read current CP15 Cache Size ID Register */
+        asm volatile ("mrc p15, 1, %0, c9, c0, 2" : "=r" (cores));
+
+	printk("[%s] cores=%x\n", __FUNCTION__, cores);
+	cores = ((cores >> 24) & 0x3) + 1;
+        return cores;
+}
+
+void enable_all_cpus(void)
+{
+	printk("[%s] enter\n", __FUNCTION__);
+
+	//let reset go
+	writel(0x1, 0xf0000000 + AW_R_CPUCFG_BASE + 0x80);
+	writel(0x1, 0xf0000000 + AW_R_CPUCFG_BASE + 0xc0);
+	writel(0x1, 0xf0000000 + AW_R_CPUCFG_BASE + 0x100);
+	printk("[%s] leave\n", __FUNCTION__);
+}
+
+
 void __init smp_init_cpus(void)
 {
-	void __iomem *scu_base = scu_base_addr();
 	unsigned int i, ncores;
 
-	ncores =  scu_get_core_count(scu_base);
+	ncores =  get_nr_cores();
 	printk("[%s] ncores=%d\n", __FUNCTION__, ncores);
 
 	for (i = 0; i < ncores; i++)
@@ -79,38 +104,6 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	gic_secondary_init(0);
 }
 
-#define AW_R_PRCM_BASE 0x01f01400
-#define AW_R_CPUCFG_BASE 0x01f01c00
-
-static void __iomem *r_prcm_base = NULL;
-static void __iomem *r_cpucfg_base = NULL;
-void switch_on_cpu1()
-{
-	volatile unsigned long prcm;
-
-	printk("[%s] enter\n", __FUNCTION__);
-
-	r_prcm_base = ioremap_nocache(AW_R_PRCM_BASE, 0x800);
-	r_cpucfg_base = ioremap_nocache(AW_R_CPUCFG_BASE, 0x800);
-
-
-	printk("[%s] %p, %p\n", __FUNCTION__, r_prcm_base, r_cpucfg_base);
-
-
-	prcm = readl(r_prcm_base+0x144);
-	prcm |= 0x1f;
-	writel(prcm, r_prcm_base+0x144);
-
-
-	smp_wmb();
-	flush_cache_all();
-
-	//let reset go
-	writel(0x1, r_cpucfg_base+0x80);
-
-	iounmap(r_prcm_base);
-	iounmap(r_cpucfg_base);
-}
 /*
  * for linux/arch/arm/kernel/smp.c:__cpu_up(..)
  */
@@ -129,10 +122,10 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	}
 
 	sram_a2_base[0] = paddr;
-	printk("set %p to 0x%x\n", sram_a2_base, paddr);
+	printk("set %p to 0x%x\n", sram_a2_base, (unsigned int)paddr);
 	smp_wmb();
 
-	switch_on_cpu1();
+	enable_all_cpus();
 	printk("[%s] leave\n", __FUNCTION__);
 	return 0;
 }
