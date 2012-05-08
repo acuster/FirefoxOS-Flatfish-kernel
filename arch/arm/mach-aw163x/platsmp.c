@@ -69,6 +69,25 @@ void enable_all_cpus(void)
 	printk("[%s] leave\n", __FUNCTION__);
 }
 
+void enable_aw_cpu(int cpu)
+{
+        printk("[%s] switchs on cpu%d\n", __FUNCTION__, cpu);
+
+        //let reset go
+
+	if (cpu == 1) {
+	        writel(0x1, 0xf0000000 + AW_R_CPUCFG_BASE + 0x80);
+	} else if (cpu == 2) {
+	        writel(0x1, 0xf0000000 + AW_R_CPUCFG_BASE + 0xc0);
+	} else if (cpu == 3) {
+	        writel(0x1, 0xf0000000 + AW_R_CPUCFG_BASE + 0x100);
+	} else {
+		printk("[%s] error cpu%d\n", __FUNCTION__, cpu);
+	}
+
+        printk("[%s] leave\n", __FUNCTION__);
+}
+
 
 void __init smp_init_cpus(void)
 {
@@ -110,22 +129,16 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	long paddr;
-	volatile long *sram_a2_base = NULL;
 
 	printk("[%s] enter\n", __FUNCTION__);
 
 	paddr = virt_to_phys(aw163x_secondary_startup);
-	sram_a2_base = ioremap_nocache(AW_SRAM_A2_BASE, 0x4);
-	if (!sram_a2_base) {
-		printk("[%s] remap failed\n", __FUNCTION__);
-		return -1;
-	}
-
-	sram_a2_base[0] = paddr;
-	printk("set %p to 0x%x\n", sram_a2_base, (unsigned int)paddr);
+	writel(paddr, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_P_REG0);
+	printk("set startup address to 0x%x\n", (unsigned int)paddr);
 	smp_wmb();
 
-	enable_all_cpus();
+	enable_aw_cpu(cpu);
+
 	printk("[%s] leave\n", __FUNCTION__);
 	return 0;
 }

@@ -74,13 +74,9 @@ static void __init gic_init_irq(void)
 	gic_dist_base = ioremap_nocache(AW_GIC_DIST_BASE, 0x1000);
 	gic_cpu_base = ioremap_nocache(AW_GIC_CPU_BASE, 0x1000);
 
-#if 0
-	gic_init(0, AW_IRQ_GIC_START,
-		 __io_address(AW_GIC_DIST_BASE),
-		 __io_address(AW_GIC_CPU_BASE));
-#endif
 	printk("[%s] gic_dist=%p, gic_cpu=%p\n", __FUNCTION__, gic_dist_base, gic_cpu_base);
 	gic_init(0, AW_IRQ_GIC_START, gic_dist_base, gic_cpu_base);
+	//gic_init(0, 16, gic_dist_base, gic_cpu_base);
 
 }
 

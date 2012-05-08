@@ -52,6 +52,7 @@
 #define AW_SCU_BASE                 0x01c80000
 #define AW_TIMER_G_BASE             0x01c80200 /* CPU global timer, not used */
 #define AW_TIMER_P_BASE             0x01c80600 /* CPU private timer, not used */
+#define AW_R_CPUCFG_BASE            0x01f01c00
 
 /*
  * Peripheral addresses
@@ -75,6 +76,12 @@
 #define AW_AVS_CNT0_REG             0x0084
 #define AW_AVS_CNT1_REG             0x0088
 #define AW_AVS_CNT_DIV_REG          0x008c
+
+/*
+ * CPUCFG
+ */
+#define AW_CPUCFG_P_REG0            0x01a4
+#define AW_CPUCFG_P_REG1            0x01a8
 
 /*
  * UART

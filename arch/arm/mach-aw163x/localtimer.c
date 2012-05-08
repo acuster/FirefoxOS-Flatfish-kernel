@@ -21,6 +21,6 @@
  */
 int __cpuinit local_timer_setup(struct clock_event_device *evt)
 {
-	printk("[%s] Not implemented\n", __FUNCTION__);
-	return -1;
+	printk("[%s] enter\n", __FUNCTION__);
+	return 0;
 }
