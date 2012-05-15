@@ -67,17 +67,7 @@ static struct amba_device *amba_devs[] __initdata = {
 
 static void __init gic_init_irq(void)
 {
-	void __iomem *gic_dist_base;
-	void __iomem *gic_cpu_base;
-	AW_UART_LOG("1");
-
-	gic_dist_base = ioremap_nocache(AW_GIC_DIST_BASE, 0x1000);
-	gic_cpu_base = ioremap_nocache(AW_GIC_CPU_BASE, 0x1000);
-
-	printk("[%s] gic_dist=%p, gic_cpu=%p\n", __FUNCTION__, gic_dist_base, gic_cpu_base);
-	gic_init(0, AW_IRQ_GIC_START, gic_dist_base, gic_cpu_base);
-	//gic_init(0, 16, gic_dist_base, gic_cpu_base);
-
+	gic_init(0, 29, (void *)IO_ADDRESS(AW_GIC_DIST_BASE), (void *)IO_ADDRESS(AW_GIC_CPU_BASE));
 }
 
 #define TIMER0_VALUE (AW_CLOCK_SRC / (AW_CLOCK_DIV*100))
@@ -140,8 +130,6 @@ static void __init aw163x_timer_init(void)
 {
 	int ret;
 
-	AW_UART_LOG("1");
-
 	timer_cpu_base = ioremap_nocache(AW_TIMER_BASE, 0x1000);
 	printk("[%s] base=%p\n", __FUNCTION__,timer_cpu_base);
 
@@ -155,7 +143,6 @@ static void __init aw163x_timer_init(void)
 
         ret = setup_irq(36, &aw163x_timer_irq);
         if (ret) {
-		AW_UART_LOG("2");
                 early_printk("failed to setup irq %d\n", 36);
         }
 
@@ -165,10 +152,9 @@ static void __init aw163x_timer_init(void)
         aw163x_timer0_clockevent.mult = div_sc(AW_CLOCK_SRC/AW_CLOCK_DIV, NSEC_PER_SEC, aw163x_timer0_clockevent.shift);
         aw163x_timer0_clockevent.max_delta_ns = clockevent_delta2ns(0xff, &aw163x_timer0_clockevent);
         aw163x_timer0_clockevent.min_delta_ns = clockevent_delta2ns(0x1, &aw163x_timer0_clockevent);
-        aw163x_timer0_clockevent.cpumask = cpumask_of(0);
+        aw163x_timer0_clockevent.cpumask = cpu_all_mask;
         aw163x_timer0_clockevent.irq = aw163x_timer_irq.irq;
         clockevents_register_device(&aw163x_timer0_clockevent);
-	AW_UART_LOG("3");
 }
 
 static struct sys_timer aw163x_timer = {
@@ -178,30 +164,28 @@ static struct sys_timer aw163x_timer = {
 static void aw163x_fixup(struct tag *tags, char **from,
 			       struct meminfo *meminfo)
 {
-	AW_UART_LOG("1");
+	printk("[%s] enter\n", __FUNCTION__);
 	meminfo->bank[0].start = 0x40000000;
-	meminfo->bank[0].size = SZ_64M;
+	meminfo->bank[0].size = SZ_128M;
 	meminfo->nr_banks = 1;
-	AW_UART_LOG("2");
 }
 
 static void aw163x_restart(char mode, const char *cmd)
 {
-	AW_UART_LOG("1");
+	printk("[%s] enter\n", __FUNCTION__);
 }
 
 extern void sw_pdev_init(void);
 static void __init aw163x_init(void)
 {
-	AW_UART_LOG("1");
+	printk("[%s] enter\n", __FUNCTION__);
 	sw_pdev_init();
-	AW_UART_LOG("2");
 	/* Register platform devices here!! */
 }
 
 void __init aw163x_init_early(void)
 {
-	AW_UART_LOG("1");
+	printk("[%s] enter\n", __FUNCTION__);
 }
 
 MACHINE_START(AW163X, "Allwinner AW163x")

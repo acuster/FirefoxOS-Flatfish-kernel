@@ -46,34 +46,9 @@ static void __iomem *scu_base_addr(void)
 
 #define AW_R_CPUCFG_BASE 0x01f01c00
 
-static u32 get_nr_cores(void)
-{
-        u32 cores;
-
-        /* Read current CP15 Cache Size ID Register */
-        asm volatile ("mrc p15, 1, %0, c9, c0, 2" : "=r" (cores));
-
-	printk("[%s] cores=%x\n", __FUNCTION__, cores);
-	cores = ((cores >> 24) & 0x3) + 1;
-        return cores;
-}
-
-void enable_all_cpus(void)
-{
-	printk("[%s] enter\n", __FUNCTION__);
-
-	//let reset go
-	writel(0x1, 0xf0000000 + AW_R_CPUCFG_BASE + 0x80);
-	writel(0x1, 0xf0000000 + AW_R_CPUCFG_BASE + 0xc0);
-	writel(0x1, 0xf0000000 + AW_R_CPUCFG_BASE + 0x100);
-	printk("[%s] leave\n", __FUNCTION__);
-}
-
 void enable_aw_cpu(int cpu)
 {
         printk("[%s] switchs on cpu%d\n", __FUNCTION__, cpu);
-
-        //let reset go
 
 	if (cpu == 1) {
 	        writel(0x1, 0xf0000000 + AW_R_CPUCFG_BASE + 0x80);
@@ -93,7 +68,7 @@ void __init smp_init_cpus(void)
 {
 	unsigned int i, ncores;
 
-	ncores =  get_nr_cores();
+	ncores =  scu_get_core_count(NULL);
 	printk("[%s] ncores=%d\n", __FUNCTION__, ncores);
 
 	for (i = 0; i < ncores; i++)
@@ -121,6 +96,10 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 {
 	printk("[%s] enter\n", __FUNCTION__);
 	gic_secondary_init(0);
+
+        spin_lock(&boot_lock);
+        spin_unlock(&boot_lock);
+	printk("[%s] leave\n", __FUNCTION__);
 }
 
 /*
@@ -132,12 +111,12 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 	printk("[%s] enter\n", __FUNCTION__);
 
+	spin_lock(&boot_lock);
+
 	paddr = virt_to_phys(aw163x_secondary_startup);
 	writel(paddr, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_P_REG0);
-	printk("set startup address to 0x%x\n", (unsigned int)paddr);
-	smp_wmb();
-
 	enable_aw_cpu(cpu);
+	spin_unlock(&boot_lock);
 
 	printk("[%s] leave\n", __FUNCTION__);
 	return 0;
