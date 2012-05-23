@@ -48,19 +48,26 @@ static void __iomem *scu_base_addr(void)
 
 void enable_aw_cpu(int cpu)
 {
-        printk("[%s] switchs on cpu%d\n", __FUNCTION__, cpu);
+	long paddr;
+	volatile long reg1 = 0x0;
+
+	paddr = virt_to_phys(aw163x_secondary_startup);
+        writel(paddr, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_P_REG0);
+
+	/* let cpus go */
+	writel(1, IO_ADDRESS(AW_R_CPUCFG_BASE) + 0x80);
+
+	reg1 = readl(IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_P_REG1);
 
 	if (cpu == 1) {
-	        writel(0x1, 0xf0000000 + AW_R_CPUCFG_BASE + 0x80);
+		reg1 |= 0x2;
 	} else if (cpu == 2) {
-	        writel(0x1, 0xf0000000 + AW_R_CPUCFG_BASE + 0xc0);
+		reg1 |= 0x4;
 	} else if (cpu == 3) {
-	        writel(0x1, 0xf0000000 + AW_R_CPUCFG_BASE + 0x100);
-	} else {
-		printk("[%s] error cpu%d\n", __FUNCTION__, cpu);
+		reg1 |= 0x8;
 	}
 
-        printk("[%s] leave\n", __FUNCTION__);
+	writel(reg1, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_P_REG1);
 }
 
 
@@ -107,14 +114,9 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
  */
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	long paddr;
-
 	printk("[%s] enter\n", __FUNCTION__);
 
 	spin_lock(&boot_lock);
-
-	paddr = virt_to_phys(aw163x_secondary_startup);
-	writel(paddr, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_P_REG0);
 	enable_aw_cpu(cpu);
 	spin_unlock(&boot_lock);
 
