@@ -53,6 +53,7 @@
 #define AW_TIMER_G_BASE             0x01c80200 /* CPU global timer, not used */
 #define AW_TIMER_P_BASE             0x01c80600 /* CPU private timer, not used */
 #define AW_R_CPUCFG_BASE            0x01f01c00
+#define AW_DMA_BASE                 0x01c02000
 
 /*
  * Peripheral addresses
