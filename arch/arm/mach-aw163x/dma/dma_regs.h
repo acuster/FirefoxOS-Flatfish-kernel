@@ -1,10 +1,10 @@
 /*
- * arch/arm/mach-sun4i/dma/dma_regs.h
+ * arch/arm/mach-aw163x/dma/dma_regs.h
  * (C) Copyright 2010-2015
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * liugang <liugang@allwinnertech.com>
  *
- * SUN4I dma regs defination
+ * aw163x dma regs defination
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -15,8 +15,6 @@
 
 #ifndef __DMA_REGS_H
 #define __DMA_REGS_H
-
-#include <linux/io.h>
 
 /*
  * dma reg virt base

@@ -1,10 +1,10 @@
 /*
- * arch/arm/mach-sun4i/dma/dma.c
+ * arch/arm/mach-aw163x/dma/dma.c
  * (C) Copyright 2010-2015
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * liugang <liugang@allwinnertech.com>
  *
- * SUN4I dma driver interface
+ * aw163x dma driver interface
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -13,20 +13,7 @@
  *
  */
 
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/module.h>
-//#include <linux/sysdev.h>
-#include <linux/serial_core.h>
-#include <linux/platform_device.h>
-//#include <mach/system.h>
-
-#include <linux/spinlock.h>
-#include <mach/dma.h>
-#include "dma_regs.h"
-#include "dma_common.h"
-#include "dma_csp.h"
-#include "dma_interface.h"
+#include "dma_include.h"
 
 /**
  * dma_drv_probe - dma driver inital function.
@@ -38,8 +25,7 @@ static int __devinit dma_drv_probe(struct platform_device *dev)
 {
 	int 	ret = 0;
 
-        DMA_DBG_FUN_LINE;
-
+	DMA_DBG_FUN_LINE;
 	ret = dma_init();
 	if (ret) {
 		DMA_ERR_FUN_LINE;
@@ -60,8 +46,7 @@ static int __devexit dma_drv_remove(struct platform_device *dev)
 {
 	int 	ret = 0;
 
-        DMA_DBG_FUN_LINE;
-
+	DMA_DBG_FUN_LINE;
 	ret = dma_deinit();
 	if (ret) {
 		DMA_ERR_FUN_LINE;

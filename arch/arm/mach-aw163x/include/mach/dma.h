@@ -1,10 +1,10 @@
 /*
- * arch/arm/mach-sun4i/include/mach/dma.h
+ * arch/arm/mach-aw163x/include/mach/dma.h
  * (C) Copyright 2010-2015
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * liugang <liugang@allwinnertech.com>
  *
- * SUN4I dma driver header file
+ * aw163x dma driver header file
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -198,6 +198,8 @@ struct dma_config_t {
 	u32		src_addr;	/* XXX */
 	u32		dst_addr;	/* XXX */
 	u32		byte_cnt;	/* XXX */
+
+	bool		bconti_mode;	/* continue mode */
 
 	u8		src_drq_type;	/* src drq type */
 	u8		dst_drq_type;	/* dst drq type */
@@ -400,7 +402,6 @@ u32 sw_dma_enqueue(dm_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt,
 u32 sw_dma_config(dm_hdl_t dma_hdl, struct dma_config_t *pcfg, enum dma_enque_phase_e phase);
 u32 sw_dma_ctl(dm_hdl_t dma_hdl, enum dma_op_type_e op, void *parg);
 int sw_dma_getposition(dm_hdl_t dma_hdl, u32 *pSrc, u32 *pDst);
-int sw_dma_getcurposition(dm_hdl_t dma_hdl, u32 *pSrc, u32 *pDst);
 void sw_dma_dump_chan(dm_hdl_t dma_hdl);
 u32 sw_dma_get_cur_bytes(dm_hdl_t dma_hdl);
 

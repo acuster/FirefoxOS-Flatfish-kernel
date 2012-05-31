@@ -1,10 +1,10 @@
 /*
- * arch/arm/mach-sun4i/dma/dma_csp.c
+ * arch/arm/mach-aw163x/dma/dma_csp.c
  * (C) Copyright 2010-2015
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * liugang <liugang@allwinnertech.com>
  *
- * SUN4I dma csp functions
+ * aw163x dma csp functions
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -13,19 +13,7 @@
  *
  */
 
-#include <linux/kernel.h>
-#include <linux/init.h>
-//#include <linux/sysdev.h>
-#include <linux/serial_core.h>
-#include <linux/platform_device.h>
-//#include <mach/system.h>
-
-#include <linux/spinlock.h>
-#include <mach/dma.h>
-#include "dma_regs.h"
-#include "dma_common.h"
-#include "dma_csp.h"
-#include "dma_interface.h"
+#include "dma_include.h"
 
 #ifdef FROM_SD_TESTCODE
 #include "dma_csp_from_sdtest.c"
@@ -262,9 +250,9 @@ u32 csp_dma_clear_irqpend(u32 index)
 	u32 	ureg_addr = 0;
 
 	if(0 == index) {
-		ureg_addr = DMA_IRQ_PEND_REG0;
+		ureg_addr = (u32)DMA_IRQ_PEND_REG0;
 	} else if(1 == index){
-		ureg_addr = DMA_IRQ_PEND_REG1;
+		ureg_addr = (u32)DMA_IRQ_PEND_REG1;
 	} else {
 		DMA_ERR_FUN_LINE;
 		return 0xffffffff;

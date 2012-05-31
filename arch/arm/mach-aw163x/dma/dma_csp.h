@@ -1,10 +1,10 @@
 /*
- * arch/arm/mach-sun4i/dma/dma_csp.h
+ * arch/arm/mach-aw163x/dma/dma_csp.h
  * (C) Copyright 2010-2015
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * liugang <liugang@allwinnertech.com>
  *
- * SUN4I dma csp header file
+ * aw163x dma csp header file
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as

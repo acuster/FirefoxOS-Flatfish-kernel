@@ -1,10 +1,10 @@
 /*
- * arch/arm/mach-sun4i/dma/dma_common.h
+ * arch/arm/mach-aw163x/dma/dma_common.h
  * (C) Copyright 2010-2015
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * liugang <liugang@allwinnertech.com>
  *
- * SUN4I dma common header file
+ * aw163x dma common header file
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -21,11 +21,6 @@
 #include <linux/spinlock.h>
 
 #define FROM_SD_TESTCODE	/* refrence the 1633 dma test code from sd */
-
-/*
- * test mem leak, trace kmem_cache_alloc/kmem_cache_free
- */
-//#define DMA_TRACE_KALLOC_FREE
 
 /*
  * dma print macro
@@ -72,12 +67,14 @@
 enum dma_chan_sta_e {
 	DMA_CHAN_STA_IDLE,  	/* maybe before start or after stop */
 	DMA_CHAN_STA_RUNING,	/* transferring */
-	DMA_CHAN_STA_DONE_WAIT,	/* running -> hw done, but __dma_chan_handle_qd not already dealed it, so clear the des,
-				 * if queueing now, just queued to des end, but not start, which done in __dma_chan_handle_qd
-				 * only normal/hd_cb/fd_cb/qd_cb queueing can change state from running to done wait, in
-				 * __dma_chan_handle_qd meet done wait:
+	DMA_CHAN_STA_WAIT_QD,	/* running -> last buffer has been retrived(the start addr reg is 0xfffff800), now when new buf
+				 * queueing, we cannot pause->queue->resume to run the new buffer, must restart dma. since
+				 * __dma_chan_handle_qd not already dealed, so we donnot restart in queueing func, just clear the des,
+				 * queued to des end, the new buffer will be-restarted in __dma_chan_handle_qd.
+				 * only normal/hd_cb/fd_cb/qd_cb queueing can change state from running to wait_qd, when
+				 * __dma_chan_handle_qd meet wait_qd:
 				 * 	(1) if there are new des(des is not null), start the des, and state -> running
-				 * 	(2) if there arenot new des(des is null), state -> done
+				 * 	(2) if there arenot new des(des is null), print err
 				 */
 	DMA_CHAN_STA_DONE	/* it is the case all des done, hw idle, des queue is empty */
 };
@@ -126,8 +123,8 @@ struct dma_channel_t {
 	u32		used;     	/* 1 used, 0 unuse */
 	u32		id;     	/* channel id, 0~15 */
 	char 		owner[MAX_OWNER_NAME_LEN];	/* dma chnnnel owner name */
-	s32		hash;   	/* owner hash value, for fast search without string compare */
 	u32		reg_base;	/* regs base addr */
+	u32		bconti_mode;	/* cotinue mode */
 
 	/* channel irq supprot type, used for irq handler
 	 * only enabled then can call irq callback function
@@ -146,15 +143,8 @@ struct dma_channel_t {
 						 * (2) state is done, des are all cleared, use des_info_save, so
 						 *	we should bkup des_info_save when done.
 						 */
-
-	enum dma_chan_sta_e 	state;	/* XXXX */
-
-	spinlock_t 	lock;		/* XXXX */
-
-#ifdef DMA_TRACE_KALLOC_FREE
-	atomic_t 	alloc_cnt;
-	atomic_t 	free_cnt;
-#endif /* DMA_TRACE_KALLOC_FREE */
+	enum dma_chan_sta_e 	state;		/* XXXX */
+	spinlock_t 		lock;		/* XXXX */
 };
 
 /*
@@ -164,5 +154,12 @@ struct dma_mgr_t {
 	struct dma_channel_t chnl[DMA_CHAN_TOTAL];
 };
 
+/*
+ * dma channel lock
+ */
+#define DMA_CHAN_LOCK_INIT(lock)	spin_lock_init((lock))
+#define DMA_CHAN_LOCK_DEINIT(lock)	do{}while(0)
+#define DMA_CHAN_LOCK(lock, flag)	spin_lock_irqsave((lock), (flag))
+#define DMA_CHAN_UNLOCK(lock, flag)	spin_unlock_irqrestore((lock), (flag))
 
 #endif  /* __DMA_COMMON_H */
