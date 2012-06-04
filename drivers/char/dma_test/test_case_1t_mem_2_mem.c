@@ -19,7 +19,8 @@
 /*
  * src/dst addr for loop dma transfer
  */
-#define DTC_1T_TOTAL_LEN	SIZE_32K
+//#define DTC_1T_TOTAL_LEN	SIZE_512K
+#define DTC_1T_TOTAL_LEN	SIZE_16K
 #define DTC_1T_ONE_LEN		SIZE_16K
 static u32 g_src_addr = 0, g_dst_addr = 0;
 static atomic_t g_acur_cnt = ATOMIC_INIT(0);
@@ -81,7 +82,11 @@ u32 __CB_fd_1t_mem_2_mem(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause
 	switch(cause) {
 	case DMA_CB_OK:
 		pr_info("%s: DMA_CB_OK!\n", __FUNCTION__);
-		if((DTC_1T_TOTAL_LEN / DTC_1T_ONE_LEN) == atomic_add_return(1, &g_acur_cnt)) {
+			/* temp */
+			DBG_FUN_LINE;
+			atomic_set(&g_adma_done, 1);
+			wake_up_interruptible(&g_dtc_queue[DTC_1T_MEM_2_MEM]);
+	/*	if((DTC_1T_TOTAL_LEN / DTC_1T_ONE_LEN) == atomic_add_return(1, &g_acur_cnt)) {
 			DBG_FUN_LINE;
 			atomic_set(&g_adma_done, 1);
 			wake_up_interruptible(&g_dtc_queue[DTC_1T_MEM_2_MEM]);
@@ -91,7 +96,7 @@ u32 __CB_fd_1t_mem_2_mem(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause
 			uCurDst = g_dst_addr + atomic_read(&g_acur_cnt) * DTC_1T_ONE_LEN;
 			if(0 != sw_dma_enqueue(dma_hdl, uCurSrc, uCurDst, DTC_1T_ONE_LEN, ENQUE_PHASE_FD))
 				ERR_FUN_LINE;
-		}
+		}*/
 		break;
 	case DMA_CB_ABORT:
 		pr_info("%s: DMA_CB_ABORT!\n", __FUNCTION__);
@@ -239,7 +244,7 @@ u32 __dtc_1t_mem_2_mem(void)
 	 * dump the init src buffer
 	 */
 	get_random_bytes(pSrcV, DTC_1T_TOTAL_LEN);
-	memset(pDstV, 0, DTC_1T_TOTAL_LEN);
+	memset(pDstV, 0x54, DTC_1T_TOTAL_LEN);
 
 	/*
 	 * init for loop transfer
@@ -324,14 +329,14 @@ u32 __dtc_1t_mem_2_mem(void)
 	/*
 	 * enqueue
 	 */
-	src_addr = uSrcP;
+/*	src_addr = uSrcP;
 	dst_addr = uDstP;
 	byte_cnt = DTC_1T_ONE_LEN;
 	if(0 != sw_dma_enqueue(dma_hdl, src_addr, dst_addr, byte_cnt, ENQUE_PHASE_NORMAL)) {
 		uRet = __LINE__;
 		goto End;
 	}
-	pr_info("%s: sw_dma_enqueue success\n", __FUNCTION__);
+	pr_info("%s: sw_dma_enqueue success\n", __FUNCTION__);*/
 
 	/*
 	 * dump chain
@@ -403,15 +408,17 @@ End:
 	/*
 	 * print err line
 	 */
-	if(0 != uRet)
+	if(0 != uRet) {
 		pr_err("%s err, line %d!\n", __FUNCTION__, uRet);
-	else
-		pr_info("%s success!\n", __FUNCTION__);
+	} else {
+		pr_info("%s, success!\n", __FUNCTION__);
+	}
 
 	/*
 	 * stop and free dma channel, if need
 	 */
 	if((dm_hdl_t)NULL != dma_hdl) {
+		pr_err("%s, stop and release dma handle now!\n", __FUNCTION__);
 		if(0 != sw_dma_ctl(dma_hdl, DMA_OP_STOP, NULL)) {
 			pr_err("%s err, line %d!\n", __FUNCTION__, __LINE__);
 		}
@@ -419,6 +426,8 @@ End:
 			pr_err("%s err, line %d!\n", __FUNCTION__, __LINE__);
 		}
 	}
+
+	pr_err("%s, line %d!\n", __FUNCTION__, __LINE__);
 
 	/*
 	 * free dma memory
@@ -429,6 +438,7 @@ End:
 	if(NULL != pDstV)
 		dma_free_coherent(NULL, DTC_1T_TOTAL_LEN, pDstV, uDstP);
 
+	pr_err("%s, line %d!\n", __FUNCTION__, __LINE__);
 	return uRet;
 }
 

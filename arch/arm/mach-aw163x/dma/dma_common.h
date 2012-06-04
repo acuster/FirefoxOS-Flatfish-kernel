@@ -104,6 +104,7 @@ struct des_save_info_t {
  */
 struct des_mgr_t {
 	struct cofig_des_t	*pdes;     	/* pointer to descriptor struct */
+	dma_addr_t		des_pa;		/* bus-specific DMA address for pdes, used by dma_pool_free */
 	u32			des_num;     	/* the vaild des num in pdes[], max is MAX_DES_ITEM_NUM. can be used to:
 						 * (1) get the last des, bkup it's des_save_info_t for next queueing
 						 * (2) when queue new buffer, queued to pdes[des_num], des_num++
@@ -115,6 +116,11 @@ struct des_mgr_t {
  * max dma descriptor item num for one des_mgr_t.pdes
  */
 #define MAX_DES_ITEM_NUM	256
+
+/*
+ * descriptor area length
+ */
+#define DES_AREA_LEN 		(MAX_DES_ITEM_NUM * sizeof(struct cofig_des_t))
 
 /*
  * define dma channel struct
@@ -157,9 +163,16 @@ struct dma_mgr_t {
 /*
  * dma channel lock
  */
+/* init lock */
 #define DMA_CHAN_LOCK_INIT(lock)	spin_lock_init((lock))
 #define DMA_CHAN_LOCK_DEINIT(lock)	do{}while(0)
+
+/* lock in process contex */
 #define DMA_CHAN_LOCK(lock, flag)	spin_lock_irqsave((lock), (flag))
 #define DMA_CHAN_UNLOCK(lock, flag)	spin_unlock_irqrestore((lock), (flag))
+
+/* lock in irq contex */
+#define DMA_CHAN_LOCK_IN_IRQHD(lock)	spin_lock(lock)
+#define DMA_CHAN_UNLOCK_IN_IRQHD(lock)	spin_unlock(lock)
 
 #endif  /* __DMA_COMMON_H */

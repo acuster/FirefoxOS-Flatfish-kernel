@@ -23,11 +23,6 @@ extern void __iomem *g_dma_reg_vbase;
 #define DMA_REG_VIRT_BASE			(g_dma_reg_vbase)
 
 /*
- * dma irq phys num
- */
-#define DMA_IRQ_PHYS_NUM			82 	/* gic spec */
-
-/*
  * dma reg off from DMAC_IO_BASE
  */
 #define DMA_IRQ_EN_REG0_OFF            		( 0x0000                        )

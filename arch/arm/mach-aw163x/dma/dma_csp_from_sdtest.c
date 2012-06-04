@@ -1,7 +1,7 @@
 
 
 extern void __iomem *g_dma_reg_vbase;
-#define CCM_BASE			(g_dma_reg_vbase)
+#define CCM_BASE			(g_ccm_reg_vbase)
 //#define CCM_BASE			(SW_VA_CCM_IO_BASE)
 
 

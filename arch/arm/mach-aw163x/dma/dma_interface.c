@@ -33,12 +33,8 @@ static DEFINE_MUTEX(dma_mutex);
 /*
  * XXX
  */
-struct kmem_cache *g_pdma_des_mgr = NULL;
-
-/*
- * XXX
- */
-struct kmem_cache *g_pdma_des;
+struct kmem_cache 	*g_pdma_des_mgr = NULL;
+struct dma_pool		*g_pdma_pool = NULL;
 
 /*
  * data length and burst length value in config reg
@@ -187,6 +183,9 @@ static void __dma_dump_config_para(struct dma_config_t *para)
  */
 void __dma_dump_channel(struct dma_channel_t *pchan)
 {
+	u32 	i = 0;
+	struct des_mgr_t *pdes_mgr = NULL;
+
 	if(NULL == pchan) {
 		DMA_ERR_FUN_LINE;
 		return;
@@ -196,6 +195,7 @@ void __dma_dump_channel(struct dma_channel_t *pchan)
 	DMA_DBG("  channel id:        %d\n", pchan->id);
 	DMA_DBG("  channel used:      %d\n", pchan->used);
 	DMA_DBG("  channel owner:     %s\n", pchan->owner);
+	DMA_DBG("  bconti_mode:       %d\n", pchan->bconti_mode);
 	DMA_DBG("  channel irq_spt:   0x%08x\n", pchan->irq_spt);
 	DMA_DBG("  channel reg_base:  0x%08x\n", pchan->reg_base);
 	DMA_DBG("          EN REG:             0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_EN));
@@ -211,16 +211,26 @@ void __dma_dump_channel(struct dma_channel_t *pchan)
 	DMA_DBG("  channel qd_cb:     (func: 0x%08x, parg: 0x%08x)\n", (u32)pchan->qd_cb.func, (u32)pchan->qd_cb.parg);
 	DMA_DBG("  channel op_cb:     (func: 0x%08x, parg: 0x%08x)\n", (u32)pchan->op_cb.func, (u32)pchan->op_cb.parg);
 	DMA_DBG("  channel pdes_mgr:  0x%08x\n", (u32)pchan->pdes_mgr);
-	{
-		struct des_mgr_t *pdes_mgr = pchan->pdes_mgr;
-		while(NULL != pdes_mgr) {
-			DMA_DBG("     pdes:        0x%08x\n", (u32)pdes_mgr->pdes);
-			DMA_DBG("     des_num:     0x%08x\n", pdes_mgr->des_num);
-			DMA_DBG("     pnext:       0x%08x\n", (u32)pdes_mgr->pnext);
-			DMA_DBG("\n");
-			pdes_mgr = pdes_mgr->pnext;
+
+	/* dump the des chain */
+	pdes_mgr = pchan->pdes_mgr;
+	while(NULL != pdes_mgr) {
+		DMA_DBG("     pdes:        0x%08x\n", (u32)pdes_mgr->pdes);
+		DMA_DBG("     des_pa:      0x%08x\n", (u32)pdes_mgr->des_pa);
+		DMA_DBG("     des_num:     0x%08x\n", pdes_mgr->des_num);
+
+		/* dump chain for cur des mgr */
+		for(i = 0; i < pdes_mgr->des_num; i++) {
+		DMA_DBG("          cofig/saddr/daddr/bcnt/param/pnext:     0x%08x/0x%08x/0x%08x/0x%08x/0x%08x/0x%08x/\n", \
+			pdes_mgr->pdes[i].cofig, pdes_mgr->pdes[i].saddr, pdes_mgr->pdes[i].daddr, \
+			pdes_mgr->pdes[i].bcnt, pdes_mgr->pdes[i].param, (u32)pdes_mgr->pdes[i].pnext);
 		}
+
+		DMA_DBG("     pnext:       0x%08x\n", (u32)pdes_mgr->pnext);
+		DMA_DBG("\n");
+		pdes_mgr = pdes_mgr->pnext;
 	}
+
 	DMA_DBG("  channel des_info_save:  (cofig: 0x%08x, param: 0x%08x)\n", pchan->des_info_save.cofig, \
 		pchan->des_info_save.param);
 	DMA_DBG("  channel state:     0x%08x\n", (u32)pchan->state);
@@ -260,7 +270,6 @@ static u32 __dma_check_channel_free(struct dma_channel_t *pchan)
 {
 	if(0 == pchan->used
 		&& 0 == pchan->owner[0]
-		&& 0 == pchan->reg_base
 		//&& CHAN_IRQ_NO == pchan->irq_spt /* maybe not use dma irq? */
 		&& NULL == pchan->hd_cb.func
 		&& NULL == pchan->fd_cb.func
@@ -315,18 +324,21 @@ bool __dma_channel_already_exist(char *name)
 u32 dma_chan_des_mgr_init(struct dma_channel_t *pchan)
 {
 	u32		uRet = 0;
+	dma_addr_t		des_paddr = 0; /* dma bus addr for pdes */
 	struct cofig_des_t	*pdes = NULL;
 	struct des_mgr_t	*pdes_mgr = NULL;
 
-	//use dma_alloc_coherent?
 	DMA_DBG_FUN_LINE_TOCHECK;
 
 	/* XXX */
-	pdes = kmem_cache_alloc(g_pdma_des, GFP_ATOMIC);
+	pdes = (struct cofig_des_t *)dma_pool_alloc(g_pdma_pool, GFP_ATOMIC, &des_paddr);
 	if (NULL == pdes) {
 		uRet = __LINE__;
 		goto End;
 	}
+
+	DMA_DBG("%s: dma_pool_alloc return va 0x%08x, pa 0x%08x, virt_to_phys(va) 0x%08x\n", __FUNCTION__, \
+		(u32)pdes, des_paddr, (u32)virt_to_phys(pdes));
 
 	/* XXX */
 	pdes_mgr = kmem_cache_alloc(g_pdma_des_mgr, GFP_ATOMIC);
@@ -339,16 +351,20 @@ End:
 	if(0 != uRet) {
 		DMA_ERR("%s err, line %d\n", __FUNCTION__, uRet);
 		if (NULL != pdes) {
-			kmem_cache_free(g_pdma_des, pdes);
+			dma_pool_free(g_pdma_pool, pdes, des_paddr);
 			pdes = NULL;
+			des_paddr = 0;
 		}
 		if (NULL != pdes_mgr) {
 			kmem_cache_free(g_pdma_des_mgr, pdes_mgr);
 			pdes_mgr = NULL;
 		}
 	} else {
+		DMA_DBG("%s: pdes_mgr 0x%08x, pdes 0x%08x, des_paddr 0x%08x\n", __FUNCTION__, \
+			(u32)pdes_mgr, (u32)pdes, des_paddr);
 		pchan->pdes_mgr = pdes_mgr;
 		pchan->pdes_mgr->pdes = pdes;
+		pchan->pdes_mgr->des_pa = des_paddr;
 	}
 
 	return uRet;
@@ -363,12 +379,13 @@ End:
  */
 u32 dma_chan_des_mgr_deinit(struct dma_channel_t *pchan)
 {
-	//use dma_alloc_coherent?
-	DMA_DBG_FUN_LINE_TOCHECK;
+	DMA_DBG("%s: pdes_mgr 0x%08x, pdes 0x%08x, des_pa 0x%08x\n", __FUNCTION__, \
+		(u32)pchan->pdes_mgr, (u32)pchan->pdes_mgr->pdes, pchan->pdes_mgr->des_pa);
 
 	if (NULL != pchan->pdes_mgr->pdes) {
-		kmem_cache_free(g_pdma_des, pchan->pdes_mgr->pdes);
+		dma_pool_free(g_pdma_pool, pchan->pdes_mgr->pdes, pchan->pdes_mgr->des_pa);
 		pchan->pdes_mgr->pdes = NULL;
+		pchan->pdes_mgr->des_pa = 0;
 	}
 
 	if (NULL != pchan->pdes_mgr) {
@@ -492,12 +509,63 @@ u32 sw_dma_release(dm_hdl_t dma_hdl)
 	memset(&pchan->fd_cb, 0, sizeof(pchan->fd_cb));
 	memset(&pchan->qd_cb, 0, sizeof(pchan->qd_cb));
 
+#if 0
+	/* same as dma_clean_des.
+	 */
+	if(0 != pchan->pdes_mgr->des_num) { /* maybe enqueued but not started, so free and clean des */
+		if(NULL != pchan->pdes_mgr->pnext) { /* there are extra des mgr in chain */
+			struct des_mgr_t *pcur, *pnext;
+
+
+			/* free extra des/desmgr */
+			pcur = pchan->pdes_mgr->pnext;
+			pnext = pcur->pnext;
+			do {
+				if(NULL == pnext) {
+					DMA_DBG_FUN_LINE;
+
+					/* free pcur des area */
+					dma_pool_free(g_pdma_pool, pcur->pdes, pcur->des_pa);
+
+					/* free pcur */
+					kmem_cache_free(g_pdma_des_mgr, pcur);
+					break;
+				} else {
+					/* free pcur des area */
+					dma_pool_free(g_pdma_pool, pcur->pdes, pcur->des_pa);
+
+					/* free pcur */
+					kmem_cache_free(g_pdma_des_mgr, pcur);
+
+					pcur = pnext;
+					pnext = pcur->pnext;
+				}
+			}while(1);
+		}
+
+		/* init main des/des_mgr */
+		dma_chan_init_main_des(pchan);
+	}
+
+	/* same as dma_chan_des_mgr_deinit.
+	 */
+	if (NULL != pchan->pdes_mgr->pdes) { /* free main des area */
+		dma_pool_free(g_pdma_pool, pchan->pdes_mgr->pdes, pchan->pdes_mgr->des_pa);
+		pchan->pdes_mgr->pdes = NULL;
+		pchan->pdes_mgr->des_pa = 0;
+	}
+	if (NULL != pchan->pdes_mgr) { /* free main des mgr */
+		kmem_cache_free(g_pdma_des_mgr, pchan->pdes_mgr);
+		pchan->pdes_mgr = NULL;
+	}
+#else
 	/* maybe enqueued but not started, so free and clean des */
 	if(0 != dma_clean_des(pchan))
 		DMA_ERR_FUN_LINE;
 
 	if(0 != dma_chan_des_mgr_deinit(pchan))
 		DMA_ERR_FUN_LINE;
+#endif
 
 	DMA_CHAN_UNLOCK(&pchan->lock, flags);
 	return 0;
@@ -638,6 +706,7 @@ EXPORT_SYMBOL(sw_dma_ctl);
  */
 u32 sw_dma_config(dm_hdl_t dma_hdl, struct dma_config_t *pcfg, enum dma_enque_phase_e phase)
 {
+	u32 		uret = 0;
 	u32		uConfig = 0;
 	unsigned long	flags = 0;
 	struct cofig_des_t	des;
@@ -666,7 +735,7 @@ u32 sw_dma_config(dm_hdl_t dma_hdl, struct dma_config_t *pcfg, enum dma_enque_ph
 #ifdef DBG_DMA
 	if(true == pcfg->bconti_mode) {
 		DMA_INF("%s: continue mode, temply set pnext to 0xFFFFF800, will changed to \
-			physaddr(pchan->pdes_mgr->pdes[0]) in __dma_enqueue_contimode\n", __FUNCTION__);
+			pdes_mgr->pdes's pa in __dma_enqueue_contimode\n", __FUNCTION__);
 	}
 #endif /*DBG_DMA*/
 	des.pnext = (struct cofig_des_t *)DMA_END_DES_LINK;
@@ -681,20 +750,35 @@ u32 sw_dma_config(dm_hdl_t dma_hdl, struct dma_config_t *pcfg, enum dma_enque_ph
 	pchan->des_info_save.cofig = uConfig;
 	pchan->des_info_save.param = pcfg->para;
 
-	DMA_CHAN_LOCK(&pchan->lock, flags);
+	/*
+	 * when called in irq, just use spin_lock, not spin_lock_irqsave
+	 */
+	if(ENQUE_PHASE_NORMAL == phase) {
+		DMA_CHAN_LOCK(&pchan->lock, flags);
+	} else {
+		DMA_CHAN_LOCK_IN_IRQHD(&pchan->lock);
+	}
 
 	/* irq enable */
 	csp_dma_chan_irq_enable(pchan, pcfg->irq_spt);
 
 	/* des enqueue */
 	if(0 != dma_enqueue(dma_hdl, &des, phase)) {
-		DMA_CHAN_UNLOCK(&pchan->lock, flags);
-		DMA_ERR_FUN_LINE;
-		return __LINE__;
+		uret = __LINE__;
+		goto End;
 	}
 
-	DMA_CHAN_UNLOCK(&pchan->lock, flags);
-	return 0;
+End:
+	if(ENQUE_PHASE_NORMAL == phase) {
+		DMA_CHAN_UNLOCK(&pchan->lock, flags);
+	} else {
+		DMA_CHAN_UNLOCK_IN_IRQHD(&pchan->lock);
+	}
+
+	if(0 != uret) {
+		DMA_ERR("%s err, line %d\n", __FUNCTION__, uret);
+	}
+	return uret;
 }
 EXPORT_SYMBOL(sw_dma_config);
 
@@ -708,8 +792,9 @@ EXPORT_SYMBOL(sw_dma_config);
 u32 sw_dma_enqueue(dm_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt,
 				enum dma_enque_phase_e phase)
 {
-	struct cofig_des_t	des;
+	u32 			uret = 0;
 	unsigned long		flags = 0;
+	struct cofig_des_t	des;
 	struct dma_channel_t 	*pchan = (struct dma_channel_t *)dma_hdl;
 
 	memset(&des, 0, sizeof(des));
@@ -721,20 +806,36 @@ u32 sw_dma_enqueue(dm_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt,
 #ifdef DBG_DMA
 	if(true == pchan->bconti_mode) {
 		DMA_INF("%s: continue mode, temply set pnext to 0xFFFFF800, will changed to \
-			the first des addr in __dma_enqueue_contimode\n", __FUNCTION__);
+			pdes_mgr->pdes's pa in __dma_enqueue_contimode\n", __FUNCTION__);
 	}
-#endif /*DBG_DMA*/
+#endif /* DBG_DMA */
 	des.pnext	= (struct cofig_des_t *)DMA_END_DES_LINK;
 
-	DMA_CHAN_LOCK(&pchan->lock, flags);
-	if(0 != dma_enqueue(dma_hdl, &des, phase)) {
-		DMA_CHAN_UNLOCK(&pchan->lock, flags);
-		DMA_ERR_FUN_LINE;
-		return __LINE__;
+	/*
+	 * when called in irq, just use spin_lock, not spin_lock_irqsave
+	 */
+	if(ENQUE_PHASE_NORMAL == phase) {
+		DMA_CHAN_LOCK(&pchan->lock, flags);
+	} else {
+		DMA_CHAN_LOCK_IN_IRQHD(&pchan->lock);
 	}
 
-	DMA_CHAN_UNLOCK(&pchan->lock, flags);
-	return 0;
+	if(0 != dma_enqueue(dma_hdl, &des, phase)) {
+		uret = __LINE__;
+		goto End;
+	}
+
+End:
+	if(ENQUE_PHASE_NORMAL == phase) {
+		DMA_CHAN_UNLOCK(&pchan->lock, flags);
+	} else {
+		DMA_CHAN_UNLOCK_IN_IRQHD(&pchan->lock);
+	}
+
+	if(0 != uret) {
+		DMA_ERR("%s err, line %d\n", __FUNCTION__, uret);
+	}
+	return uret;
 }
 EXPORT_SYMBOL(sw_dma_enqueue);
 

@@ -32,7 +32,7 @@ void __dma_dump_buf_chain(struct dma_channel_t *pchan)
 				pdes_mgr->pdes[i].cofig, pdes_mgr->pdes[i].saddr, pdes_mgr->pdes[i].daddr, \
 				pdes_mgr->pdes[i].bcnt, pdes_mgr->pdes[i].param, (u32)pdes_mgr->pdes[i].pnext);
 		}
-		DMA_DBG("\n");
+		DMA_DBG("\n\n");
 		pdes_mgr = pdes_mgr->pnext;
 	}
 
@@ -60,14 +60,22 @@ u32 dma_start(dm_hdl_t dma_hdl)
 	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
 
 	if(NULL == pchan || NULL == pchan->pdes_mgr
-		|| NULL == pchan->pdes_mgr->pdes) {
+		|| NULL == pchan->pdes_mgr->pdes
+		|| 0 == pchan->pdes_mgr->des_pa) {
+		uRet = __LINE__;
+		goto End;
+	}
+	if(0 == pchan->pdes_mgr->des_num) {
 		uRet = __LINE__;
 		goto End;
 	}
 
 	/* virt to phys */
-	udes_paddr = virt_to_phys((void *)pchan->pdes_mgr->pdes);
-	DMA_WRITE_REG(pchan->pdes_mgr->pdes, pchan->reg_base + DMA_OFF_REG_START);
+	//udes_paddr = virt_to_phys((void *)pchan->pdes_mgr->pdes);
+	udes_paddr = pchan->pdes_mgr->des_pa;
+	DMA_WRITE_REG(udes_paddr, pchan->reg_base + DMA_OFF_REG_START);
+
+	DMA_DBG("%s: write 0x%08x to reg 0x%08x\n", __FUNCTION__, udes_paddr, pchan->reg_base + DMA_OFF_REG_START);
 
 	/* start dma */
 	csp_dma_chan_start(pchan);

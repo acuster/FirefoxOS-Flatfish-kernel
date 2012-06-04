@@ -17,6 +17,7 @@
 #define __DMA_ENQUEUE_H
 
 u32 dma_clean_des(struct dma_channel_t *pchan);
+u32 dma_chan_init_main_des(struct dma_channel_t *pchan);
 u32 dma_enqueue(dm_hdl_t dma_hdl, struct cofig_des_t *pdes, enum dma_enque_phase_e phase);
 
 

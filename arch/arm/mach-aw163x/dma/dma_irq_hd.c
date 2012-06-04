@@ -177,6 +177,10 @@ irqreturn_t dma_irq_hdl(int irq, void *dev)
 	struct dma_channel_t *pchan = NULL;
 	struct dma_mgr_t *pdma_mgr = NULL;
 
+	DMA_DBG("%s, line %d, dma en0 0x%08x, en1 0x%08x, pd0 0x%08x, pd1 0x%08x\n", __FUNCTION__, __LINE__, \
+		DMA_READ_REG(DMA_IRQ_EN_REG0), DMA_READ_REG(DMA_IRQ_EN_REG1), \
+		DMA_READ_REG(DMA_IRQ_PEND_REG0), DMA_READ_REG(DMA_IRQ_PEND_REG1));
+
 	pdma_mgr = (struct dma_mgr_t *)dev;
 	for(i = 0; i < DMA_CHAN_TOTAL; i++) {
 		pchan = &pdma_mgr->chnl[i];

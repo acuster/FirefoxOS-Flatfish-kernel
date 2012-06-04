@@ -37,6 +37,7 @@
 
 #define AW_IRQ_ENMI      (AW_IRQ_GIC_START + 32)  /* External NMI  */
 
+#define AW_IRQ_DMA	 38 			  /* dma irq phys num in fpga */
 
 /*
  * GIC

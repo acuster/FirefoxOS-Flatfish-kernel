@@ -26,6 +26,8 @@
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmapool.h>
 
 #include <mach/dma.h>
 #include "dma_regs.h"

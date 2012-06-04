@@ -18,7 +18,7 @@
 
 extern struct dma_mgr_t  g_dma_mgr;
 extern struct kmem_cache *g_pdma_des_mgr;
-extern struct kmem_cache *g_pdma_des;
+extern struct dma_pool	 *g_pdma_pool;
 
 
 #endif  /* __DMA_INTERFACE_H */

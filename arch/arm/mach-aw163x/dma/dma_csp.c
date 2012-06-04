@@ -16,6 +16,7 @@
 #include "dma_include.h"
 
 #ifdef FROM_SD_TESTCODE
+void __iomem *g_ccm_reg_vbase = 0;
 #include "dma_csp_from_sdtest.c"
 #endif /* FROM_SD_TESTCODE */
 
@@ -27,6 +28,8 @@ void csp_dma_init(void)
 	u32 	i = 0;
 
 #ifdef FROM_SD_TESTCODE
+	g_ccm_reg_vbase = ioremap_nocache(AW_CCM_BASE, 0x1000);
+	DMA_DBG("%s: g_ccm_reg_vbase 0x%08x\n", __FUNCTION__, (u32)g_ccm_reg_vbase);
 	ccm_module_reset(DMA_CKID);
 	ccm_clock_enable(DMA_CKID);
 #endif /* FROM_SD_TESTCODE */

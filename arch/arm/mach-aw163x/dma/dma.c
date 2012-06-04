@@ -26,7 +26,7 @@ static int __devinit dma_drv_probe(struct platform_device *dev)
 	int 	ret = 0;
 
 	DMA_DBG_FUN_LINE;
-	ret = dma_init();
+	ret = dma_init(dev);
 	if (ret) {
 		DMA_ERR_FUN_LINE;
 	} else {
@@ -100,7 +100,10 @@ static struct platform_driver sw_dmac_driver = {
  */
 static int __init drv_dma_init(void)
 {
-        platform_driver_register(&sw_dmac_driver);
+#if 1 /* for validate dma_pool_alloc */
+	//platform_device_register(&sw_dmac_device);
+#endif
+	platform_driver_register(&sw_dmac_driver);
 	return 0;
 }
 

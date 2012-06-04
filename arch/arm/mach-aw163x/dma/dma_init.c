@@ -28,29 +28,15 @@ static void __des_mgr_cache_ctor(void *p)
 }
 
 /**
- * __des_cache_ctor - XXXXXX
- * XXXXXX
- * XXXXXX
- *
- * XXXXXX
- */
-static void __des_cache_ctor(void *p)
-{
-	memset(p, 0, MAX_DES_ITEM_NUM * sizeof(struct cofig_des_t));
-}
-
-/**
  * dma_init - initial the dma manager, request irq
  *
  * Returns 0 if sucess, the err line number if failed.
  */
-int dma_init(void)
+int dma_init(struct platform_device *device)
 {
 	int 		ret = 0;
 	int 		i = 0;
 	struct dma_channel_t *pchan = NULL;
-
-        DMA_DBG_FUN_LINE;
 
 	/* map dma regbase */
 	g_dma_reg_vbase = ioremap_nocache(AW_DMA_BASE, 0x1000);
@@ -81,42 +67,43 @@ int dma_init(void)
 		pchan->pdes_mgr = NULL;*/
 	}
 
-	//use dma_alloc_coherent?
 	DMA_DBG_FUN_LINE_TOCHECK;
-
-	/* alloc des area */
-	g_pdma_des = kmem_cache_create("dma_des", MAX_DES_ITEM_NUM * sizeof(struct cofig_des_t), 0,
-					SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA, __des_cache_ctor);
-	if (NULL == g_pdma_des) {
-		ret = __LINE__;
-		goto End;
-	}
 
 	/* alloc des mgr area */
 	g_pdma_des_mgr = kmem_cache_create("dma_des_mgr", sizeof(struct des_mgr_t), 0,
 					SLAB_HWCACHE_ALIGN, __des_mgr_cache_ctor);
-	if (NULL == g_pdma_des_mgr) {
+	if(NULL == g_pdma_des_mgr) {
+		ret = __LINE__;
+		goto End;
+	}
+	DMA_DBG_FUN_LINE;
+
+	/* alloc dma pool for des area */
+	g_pdma_pool = dmam_pool_create("dma_des", &device->dev, DES_AREA_LEN, 4, 0); /* DWORD align */
+	if(NULL == g_pdma_pool) {
 		ret = __LINE__;
 		goto End;
 	}
 
+	DMA_DBG_FUN_LINE;
 	/* register dma interrupt */
-	ret = request_irq(DMA_IRQ_PHYS_NUM, dma_irq_hdl, IRQF_DISABLED, "dma_irq", (void *)&g_dma_mgr);
+	ret = request_irq(AW_IRQ_DMA, dma_irq_hdl, IRQF_DISABLED, "dma_irq", (void *)&g_dma_mgr);
 	if(ret) {
 		DMA_ERR("%s err: request_irq return %d\n", __FUNCTION__, ret);
 		ret = __LINE__;
 		goto End;
 	}
+	DMA_DBG_FUN_LINE;
 
 End:
 	if(0 != ret) {
 		DMA_ERR("%s err, line %d\n", __FUNCTION__, ret);
 
-		/* destory cache mem */
-		if (NULL != g_pdma_des) {
-			kmem_cache_destroy(g_pdma_des);
-			g_pdma_des = NULL;
+		if (NULL != g_pdma_pool) {
+			dma_pool_destroy(g_pdma_pool);
+			g_pdma_pool = NULL;
 		}
+
 		if (NULL != g_pdma_des_mgr) {
 			kmem_cache_destroy(g_pdma_des_mgr);
 			g_pdma_des_mgr = NULL;
@@ -144,14 +131,12 @@ int dma_deinit(void)
         DMA_DBG_FUN_LINE_TOCHECK;
 
 	/* free dma irq */
-	free_irq(DMA_IRQ_PHYS_NUM, (void *)&g_dma_mgr);
+	free_irq(AW_IRQ_DMA, (void *)&g_dma_mgr);
 
-	/* destory cache mem */
-	if (NULL != g_pdma_des) {
-		kmem_cache_destroy(g_pdma_des);
-		g_pdma_des = NULL;
+	if (NULL != g_pdma_pool) {
+		dma_pool_destroy(g_pdma_pool);
+		g_pdma_pool = NULL;
 	}
-
 	if (NULL != g_pdma_des_mgr) {
 		kmem_cache_destroy(g_pdma_des_mgr);
 		g_pdma_des_mgr = NULL;

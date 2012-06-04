@@ -16,7 +16,7 @@
 #ifndef __DMA_INIT_H
 #define __DMA_INIT_H
 
-int dma_init(void);
+int dma_init(struct platform_device *device);
 int dma_deinit(void);
 
 
