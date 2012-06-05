@@ -25,7 +25,7 @@
 /*
  * dma print macro
  */
-#define DMA_DBG_LEVEL	1
+#define DMA_DBG_LEVEL		3
 
 #if (DMA_DBG_LEVEL == 1)
 	#define DMA_DBG(format,args...)   printk("[dma-dbg] "format,##args)
@@ -115,7 +115,7 @@ struct des_mgr_t {
 /*
  * max dma descriptor item num for one des_mgr_t.pdes
  */
-#define MAX_DES_ITEM_NUM	256
+#define MAX_DES_ITEM_NUM	64
 
 /*
  * descriptor area length

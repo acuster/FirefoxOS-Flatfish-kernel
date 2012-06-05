@@ -191,50 +191,50 @@ void __dma_dump_channel(struct dma_channel_t *pchan)
 		return;
 	}
 
-	DMA_DBG("+++++++++++%s+++++++++++\n", __FUNCTION__);
-	DMA_DBG("  channel id:        %d\n", pchan->id);
-	DMA_DBG("  channel used:      %d\n", pchan->used);
-	DMA_DBG("  channel owner:     %s\n", pchan->owner);
-	DMA_DBG("  bconti_mode:       %d\n", pchan->bconti_mode);
-	DMA_DBG("  channel irq_spt:   0x%08x\n", pchan->irq_spt);
-	DMA_DBG("  channel reg_base:  0x%08x\n", pchan->reg_base);
-	DMA_DBG("          EN REG:             0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_EN));
-	DMA_DBG("          PAUSE REG:          0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_PAUSE));
-	DMA_DBG("          START REG:          0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_START));
-	DMA_DBG("          CONFIG REG:         0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_CFG));
-	DMA_DBG("          CUR SRC REG:        0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_CUR_SRC));
-	DMA_DBG("          CUR DST REG:        0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_CUR_DST));
-	DMA_DBG("          BYTE CNT LEFT REG:  0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_BCNT_LEFT));
-	DMA_DBG("          PARA REG:           0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_PARA));
-	DMA_DBG("  channel hd_cb:     (func: 0x%08x, parg: 0x%08x)\n", (u32)pchan->hd_cb.func, (u32)pchan->hd_cb.parg);
-	DMA_DBG("  channel fd_cb:     (func: 0x%08x, parg: 0x%08x)\n", (u32)pchan->fd_cb.func, (u32)pchan->fd_cb.parg);
-	DMA_DBG("  channel qd_cb:     (func: 0x%08x, parg: 0x%08x)\n", (u32)pchan->qd_cb.func, (u32)pchan->qd_cb.parg);
-	DMA_DBG("  channel op_cb:     (func: 0x%08x, parg: 0x%08x)\n", (u32)pchan->op_cb.func, (u32)pchan->op_cb.parg);
-	DMA_DBG("  channel pdes_mgr:  0x%08x\n", (u32)pchan->pdes_mgr);
+	DMA_INF("+++++++++++%s+++++++++++\n", __FUNCTION__);
+	DMA_INF("  channel id:        %d\n", pchan->id);
+	DMA_INF("  channel used:      %d\n", pchan->used);
+	DMA_INF("  channel owner:     %s\n", pchan->owner);
+	DMA_INF("  bconti_mode:       %d\n", pchan->bconti_mode);
+	DMA_INF("  channel irq_spt:   0x%08x\n", pchan->irq_spt);
+	DMA_INF("  channel reg_base:  0x%08x\n", pchan->reg_base);
+	DMA_INF("          EN REG:             0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_EN));
+	DMA_INF("          PAUSE REG:          0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_PAUSE));
+	DMA_INF("          START REG:          0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_START));
+	DMA_INF("          CONFIG REG:         0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_CFG));
+	DMA_INF("          CUR SRC REG:        0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_CUR_SRC));
+	DMA_INF("          CUR DST REG:        0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_CUR_DST));
+	DMA_INF("          BYTE CNT LEFT REG:  0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_BCNT_LEFT));
+	DMA_INF("          PARA REG:           0x%08x\n", DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_PARA));
+	DMA_INF("  channel hd_cb:     (func: 0x%08x, parg: 0x%08x)\n", (u32)pchan->hd_cb.func, (u32)pchan->hd_cb.parg);
+	DMA_INF("  channel fd_cb:     (func: 0x%08x, parg: 0x%08x)\n", (u32)pchan->fd_cb.func, (u32)pchan->fd_cb.parg);
+	DMA_INF("  channel qd_cb:     (func: 0x%08x, parg: 0x%08x)\n", (u32)pchan->qd_cb.func, (u32)pchan->qd_cb.parg);
+	DMA_INF("  channel op_cb:     (func: 0x%08x, parg: 0x%08x)\n", (u32)pchan->op_cb.func, (u32)pchan->op_cb.parg);
+	DMA_INF("  channel pdes_mgr:  0x%08x\n", (u32)pchan->pdes_mgr);
 
 	/* dump the des chain */
 	pdes_mgr = pchan->pdes_mgr;
 	while(NULL != pdes_mgr) {
-		DMA_DBG("     pdes:        0x%08x\n", (u32)pdes_mgr->pdes);
-		DMA_DBG("     des_pa:      0x%08x\n", (u32)pdes_mgr->des_pa);
-		DMA_DBG("     des_num:     0x%08x\n", pdes_mgr->des_num);
+		DMA_INF("     pdes:        0x%08x\n", (u32)pdes_mgr->pdes);
+		DMA_INF("     des_pa:      0x%08x\n", (u32)pdes_mgr->des_pa);
+		DMA_INF("     des_num:     0x%08x\n", pdes_mgr->des_num);
 
 		/* dump chain for cur des mgr */
 		for(i = 0; i < pdes_mgr->des_num; i++) {
-		DMA_DBG("          cofig/saddr/daddr/bcnt/param/pnext:     0x%08x/0x%08x/0x%08x/0x%08x/0x%08x/0x%08x/\n", \
+		DMA_INF(" cofig/saddr/daddr/bcnt/param/pnext: 0x%08x/0x%08x/0x%08x/0x%08x/0x%08x/0x%08x/\n", \
 			pdes_mgr->pdes[i].cofig, pdes_mgr->pdes[i].saddr, pdes_mgr->pdes[i].daddr, \
 			pdes_mgr->pdes[i].bcnt, pdes_mgr->pdes[i].param, (u32)pdes_mgr->pdes[i].pnext);
 		}
 
-		DMA_DBG("     pnext:       0x%08x\n", (u32)pdes_mgr->pnext);
-		DMA_DBG("\n");
+		DMA_INF("     pnext:       0x%08x\n", (u32)pdes_mgr->pnext);
+		DMA_INF("\n");
 		pdes_mgr = pdes_mgr->pnext;
 	}
 
-	DMA_DBG("  channel des_info_save:  (cofig: 0x%08x, param: 0x%08x)\n", pchan->des_info_save.cofig, \
+	DMA_INF("  channel des_info_save:  (cofig: 0x%08x, param: 0x%08x)\n", pchan->des_info_save.cofig, \
 		pchan->des_info_save.param);
-	DMA_DBG("  channel state:     0x%08x\n", (u32)pchan->state);
-	DMA_DBG("-----------%s-----------\n", __FUNCTION__);
+	DMA_INF("  channel state:     0x%08x\n", (u32)pchan->state);
+	DMA_INF("-----------%s-----------\n", __FUNCTION__);
 }
 
 /**
@@ -379,7 +379,7 @@ End:
  */
 u32 dma_chan_des_mgr_deinit(struct dma_channel_t *pchan)
 {
-	DMA_DBG("%s: pdes_mgr 0x%08x, pdes 0x%08x, des_pa 0x%08x\n", __FUNCTION__, \
+	DMA_INF("%s: pdes_mgr 0x%08x, pdes 0x%08x, des_pa 0x%08x\n", __FUNCTION__, \
 		(u32)pchan->pdes_mgr, (u32)pchan->pdes_mgr->pdes, pchan->pdes_mgr->des_pa);
 
 	if (NULL != pchan->pdes_mgr->pdes) {
@@ -408,6 +408,12 @@ dm_hdl_t sw_dma_request(char * name)
 	unsigned long	flags = 0;
 	struct dma_channel_t	*pchan = NULL;
 
+#if 0
+	dma_addr_t		main_des_paddr = 0; /* dma bus addr for pmain_des */
+	struct cofig_des_t	*pmain_des = NULL;
+	struct des_mgr_t	*pmain_des_mgr = NULL;
+#endif
+
 	DMA_DBG("%s: name %s\n", __FUNCTION__, name);
 
 	/* para check */
@@ -415,6 +421,26 @@ dm_hdl_t sw_dma_request(char * name)
 		DMA_ERR("%s err: name %s exceed MAX_OWNER_NAME_LEN(32)\n", __FUNCTION__, name);
 		return NULL;
 	}
+
+#if 0
+	DMA_DBG_FUN_LINE_TOCHECK;
+
+	/* alloc des/des_mgr area at first */
+	pmain_des = (struct cofig_des_t *)dma_pool_alloc(g_pdma_pool, GFP_ATOMIC, &main_des_paddr);
+	//pmain_des = (struct cofig_des_t *)dma_pool_alloc(g_pdma_pool, GFP_KERNEL, &main_des_paddr);
+	if(NULL == pmain_des) {
+		DMA_ERR_FUN_LINE;
+		return NULL;
+	}
+	pmain_des_mgr = kmem_cache_alloc(g_pdma_des_mgr, GFP_ATOMIC);
+	if(NULL == pmain_des_mgr) {
+		dma_pool_free(g_pdma_pool, pmain_des, main_des_paddr);
+		DMA_ERR_FUN_LINE;
+		return NULL;
+	}
+	DMA_DBG("%s: pmain_des 0x%08x, main_des_paddr 0x%08x, pmain_des_mgr 0x%08x\n", __FUNCTION__, \
+		(u32)pmain_des, main_des_paddr, (u32)pmain_des_mgr);
+#endif
 
 	mutex_lock(&dma_mutex);
 
@@ -454,9 +480,19 @@ dm_hdl_t sw_dma_request(char * name)
 	pchan->used = 1;
 	if(NULL != name)
 		strcpy(pchan->owner, name);
+#if 0
+	pchan->pdes_mgr 	= pmain_des_mgr;
+	pchan->pdes_mgr->pdes 	= pmain_des;
+	pchan->pdes_mgr->des_pa	= main_des_paddr;
+#else
 	if(0 != dma_chan_des_mgr_init(pchan)) {
-		DMA_ERR_FUN_LINE;
+
+		mutex_unlock(&dma_mutex);
+
+		DMA_DBG("%s: dma_chan_des_mgr_init failed\n", __FUNCTION__);
+		return (dm_hdl_t)NULL;
 	}
+#endif
 
 	mutex_unlock(&dma_mutex);
 

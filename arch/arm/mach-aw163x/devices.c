@@ -69,7 +69,7 @@ static u64 sw_dmac_dmamask = DMA_BIT_MASK(32);
 static struct resource sw_dmac_resources[] = {
 	[0] = {
 		.start 	= AW_DMA_BASE,
-		.end 	= AW_DMA_BASE + 0x1000,
+		.end 	= AW_DMA_BASE + 0x1000, /* lead to boot_secondary->enable_aw_cpu halt? no */
 		.flags 	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -78,20 +78,6 @@ static struct resource sw_dmac_resources[] = {
 		.flags 	= IORESOURCE_IRQ
 	}
 };
-
-/*
-struct sw_dmac_platform_data {
-	int 		member1;
-	unsigned int 	member2;
-};
-
-static struct sw_dmac_platform_data sw_dmac_pdata[] = {
-	{
-		.member1   = 0,
-		.member2   = 1,
-	},
-};
-*/
 
 static struct platform_device sw_dmac_device = {
 	.name 		= "sw_dmac",	/* must be same as sw_dmac_driver's name */
@@ -113,7 +99,6 @@ static struct platform_device *sw_pdevs[] __initdata = {
 void sw_pdev_init(void)
 {
 	AW_UART_LOG("enter");
-	/* platform_device_register(&debug_uart); */
 	platform_add_devices(sw_pdevs, ARRAY_SIZE(sw_pdevs));
 	AW_UART_LOG("leave");
 }

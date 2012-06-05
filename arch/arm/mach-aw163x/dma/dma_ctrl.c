@@ -24,19 +24,26 @@ void __dma_dump_buf_chain(struct dma_channel_t *pchan)
 	u32 	i = 0;
 	struct des_mgr_t *pdes_mgr = pchan->pdes_mgr;
 
-	DMA_DBG("+++++++++++%s+++++++++++\n", __FUNCTION__);
+	DMA_INF("+++++++++++%s+++++++++++\n", __FUNCTION__);
 
 	while(NULL != pdes_mgr) {
+		if(0 == pdes_mgr->des_num) {
+			DMA_DBG_FUN_LINE; /* des_num never be 0 since pdes_mgr valid */
+			break;
+		}
+
+		DMA_INF("pdes_mgr 0x%08x, des_num %d\n", (u32)pdes_mgr, pdes_mgr->des_num);
 		for(i = 0; i < pdes_mgr->des_num; i++) {
-			DMA_DBG("  cofig/saddr/daddr/bcnt/param/pnext:  0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x\n", \
+			DMA_INF("cofig/saddr/daddr/bcnt/param/pnext:0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x\n", \
 				pdes_mgr->pdes[i].cofig, pdes_mgr->pdes[i].saddr, pdes_mgr->pdes[i].daddr, \
 				pdes_mgr->pdes[i].bcnt, pdes_mgr->pdes[i].param, (u32)pdes_mgr->pdes[i].pnext);
 		}
-		DMA_DBG("\n\n");
+		DMA_INF("\n");
+
 		pdes_mgr = pdes_mgr->pnext;
 	}
 
-	DMA_DBG("-----------%s-----------\n", __FUNCTION__);
+	DMA_INF("-----------%s-----------\n", __FUNCTION__);
 }
 
 /**
@@ -71,11 +78,11 @@ u32 dma_start(dm_hdl_t dma_hdl)
 	}
 
 	/* virt to phys */
-	//udes_paddr = virt_to_phys((void *)pchan->pdes_mgr->pdes);
+	//udes_paddr = virt_to_phys((void *)pchan->pdes_mgr->pdes); /* err */
 	udes_paddr = pchan->pdes_mgr->des_pa;
 	DMA_WRITE_REG(udes_paddr, pchan->reg_base + DMA_OFF_REG_START);
 
-	DMA_DBG("%s: write 0x%08x to reg 0x%08x\n", __FUNCTION__, udes_paddr, pchan->reg_base + DMA_OFF_REG_START);
+	//DMA_DBG("%s: write 0x%08x to reg 0x%08x\n", __FUNCTION__, udes_paddr, pchan->reg_base + DMA_OFF_REG_START);
 
 	/* start dma */
 	csp_dma_chan_start(pchan);
@@ -161,21 +168,24 @@ u32 dma_stop(dm_hdl_t dma_hdl)
 #endif /* DBG_DMA */
 
 	/*
+	 * abort dma transfer if state is running or wait_qd
+	 */
+	DMA_DBG_FUN_LINE_TOCHECK;
+	if(DMA_CHAN_STA_RUNING == pchan->state
+		|| DMA_CHAN_STA_WAIT_QD == pchan->state) {
+		if(NULL != pchan->qd_cb.func) {
+			if(0 != pchan->qd_cb.func(dma_hdl, pchan->qd_cb.parg, DMA_CB_ABORT)) {
+				uret = __LINE__;
+				goto End;
+			}
+		}
+	}
+
+	/*
 	 * stop dma channle and clear irq pending
 	 */
 	csp_dma_chan_stop(pchan);
 	csp_dma_chan_clear_irqpend(pchan, CHAN_IRQ_HD | CHAN_IRQ_FD | CHAN_IRQ_QD);
-
-	/*
-	 * abort dma transfer
-	 */
-	DMA_DBG_FUN_LINE_TOCHECK; /* only in transferring(buffer running) can we abort? or we can abort all the time? */
-	if(NULL != pchan->qd_cb.func) {
-		if(0 != pchan->qd_cb.func(dma_hdl, pchan->qd_cb.parg, DMA_CB_ABORT)) {
-			uret = __LINE__;
-			goto End;
-		}
-	}
 
 	/*
 	 * free the extra des(except the main des)

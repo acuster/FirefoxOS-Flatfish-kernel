@@ -100,9 +100,6 @@ static struct platform_driver sw_dmac_driver = {
  */
 static int __init drv_dma_init(void)
 {
-#if 1 /* for validate dma_pool_alloc */
-	//platform_device_register(&sw_dmac_device);
-#endif
 	platform_driver_register(&sw_dmac_driver);
 	return 0;
 }

@@ -121,6 +121,7 @@ u32 __dma_chan_handle_qd(struct dma_channel_t *pchan)
 	 */
 	if(DMA_CHAN_STA_WAIT_QD == pchan->state) {
 		DMA_DBG_FUN_LINE;
+
 		/* start the new queue(from begin) */
 		if(NULL != pchan->op_cb.func) {
 			if(0 != pchan->op_cb.func((dm_hdl_t)pchan, pchan->op_cb.parg, DMA_OP_START)) {

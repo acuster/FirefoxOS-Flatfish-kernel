@@ -22,7 +22,7 @@
 /*
  * cur test case
  */
-enum dma_test_case_e g_cur_test_case = DTC_1T_MEM_2_MEM;
+enum dma_test_case_e g_cur_test_case = DTC_2T_MEM_2_MEM;
 //enum dma_test_case_e g_cur_test_case = DTC_MAX;
 
 /*
@@ -61,8 +61,14 @@ static int __dma_test_thread(void * arg)
 	case DTC_1T_MEM_2_MEM:
 		uResult = __dtc_1t_mem_2_mem();
 		break;
-	case DTC_1T_ENQ_AFTER_LASTDONE:
-		uResult = __dtc_enque_after_done();
+	case DTC_1T_ENQ_AFT_DONE:
+		uResult = __dtc_case_enq_aftdone();
+		break;
+	case DTC_1TM2M_MANY_ENQ:
+		uResult = __dtc_many_enq();
+		break;
+	case DTC_1TM2M_CONTI_MOD:
+		uResult = __dtc_conti_mode();
 		break;
 	case DTC_1T_CMD_STOP:
 		uResult = __dtc_stopcmd();

@@ -18,7 +18,7 @@
 
 u32 __dtc_1t_mem_2_mem(void);
 u32 __dtc_app_cb_eque(void);
-u32 __dtc_enque_after_done(void);
+u32 __dtc_case_enq_aftdone(void);
 
 
 #endif /* __TEST_CASE_1T_MEM_2_MEM_H */

@@ -19,8 +19,8 @@
 #define THREAD1_DMA_NAME 	"m2m_dma_thread1"
 #define THREAD2_DMA_NAME 	"m2m_dma_thread2"
 
-#define DTC_2T_TOTAL_LEN	SIZE_256K
-#define DTC_2T_ONE_LEN		SIZE_16K
+#define DTC_2T_TOTAL_LEN	SIZE_64K
+#define DTC_2T_ONE_LEN		SIZE_8K
 
 #define TEST_TIME_THREAD1 	0x0fffffff	/* ms */
 #define TEST_TIME_THREAD2 	0x0fffffff
@@ -64,22 +64,36 @@ u32 __CB_qd_2(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {
 	u32 	uRet = 0;
 	u32	uCurSrc = 0, uCurDst = 0;
+	u32	uloop_cnt = DTC_2T_TOTAL_LEN / DTC_2T_ONE_LEN;
+	u32 	ucur_cnt = 0;
 
 	pr_info("%s: called!\n", __FUNCTION__);
 
 	switch(cause) {
 	case DMA_CB_OK:
-		pr_info("%s: DMA_CB_OK!\n", __FUNCTION__);
-		if((DTC_2T_TOTAL_LEN / DTC_2T_ONE_LEN) == atomic_add_return(1, &g_acur_cnt2)) {
-			DBG_FUN_LINE;
+		//pr_info("%s: DMA_CB_OK!\n", __FUNCTION__);
+		ucur_cnt = atomic_add_return(1, &g_acur_cnt2);
+		if(ucur_cnt < uloop_cnt) {
+			//DBG_FUN_LINE;
+			uCurSrc = g_sadr2 + atomic_read(&g_acur_cnt2) * DTC_2T_ONE_LEN;
+			uCurDst = g_dadr2 + atomic_read(&g_acur_cnt2) * DTC_2T_ONE_LEN;
+			if(0 != sw_dma_enqueue(dma_hdl, uCurSrc, uCurDst, DTC_2T_ONE_LEN, ENQUE_PHASE_QD))
+				ERR_FUN_LINE;
+		} else if(ucur_cnt == uloop_cnt){
+			//DBG_FUN_LINE;
+
+			//sw_dma_dump_chan(dma_hdl); /* for debug */
+
+			/* maybe it's the last irq; or next will be the last irq, need think about */
 			atomic_set(&g_adma_done2, 1);
 			wake_up_interruptible(&g_dtc_queue[2]);
 		} else {
-			DBG_FUN_LINE;
-			uCurSrc = g_sadr2 + atomic_read(&g_acur_cnt2) * DTC_2T_ONE_LEN;
-			uCurDst = g_dadr2 + atomic_read(&g_acur_cnt2) * DTC_2T_ONE_LEN;
-			if(0 != sw_dma_enqueue(dma_hdl, uCurSrc, uCurDst, DTC_2T_ONE_LEN, ENQUE_PHASE_FD))
-				ERR_FUN_LINE;
+			//DBG_FUN_LINE;
+			//sw_dma_dump_chan(dma_hdl); /* for debug */
+
+			/* maybe it's the last irq */
+			atomic_set(&g_adma_done2, 1);
+			wake_up_interruptible(&g_dtc_queue[2]);
 		}
 		break;
 
@@ -107,24 +121,12 @@ End:
 u32 __CB_fd_2(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {
 	u32 	uRet = 0;
-	u32	uCurSrc = 0, uCurDst = 0;
 
 	pr_info("%s: called!\n", __FUNCTION__);
 
 	switch(cause) {
 	case DMA_CB_OK:
 		pr_info("%s: DMA_CB_OK!\n", __FUNCTION__);
-		if((DTC_2T_TOTAL_LEN / DTC_2T_ONE_LEN) == atomic_add_return(1, &g_acur_cnt2)) {
-			DBG_FUN_LINE;
-			atomic_set(&g_adma_done2, 1);
-			wake_up_interruptible(&g_dtc_queue[2]);
-		} else {
-			DBG_FUN_LINE;
-			uCurSrc = g_sadr2 + atomic_read(&g_acur_cnt2) * DTC_2T_ONE_LEN;
-			uCurDst = g_dadr2 + atomic_read(&g_acur_cnt2) * DTC_2T_ONE_LEN;
-			if(0 != sw_dma_enqueue(dma_hdl, uCurSrc, uCurDst, DTC_2T_ONE_LEN, ENQUE_PHASE_FD))
-				ERR_FUN_LINE;
-		}
 		break;
 
 	case DMA_CB_ABORT:
@@ -210,7 +212,7 @@ u32 __CB_op_2(dm_hdl_t dma_hdl, enum dma_op_type_e op)
 }
 
 /**
- * __Waitdone_2 - wait dma done for DTC_1T_MEM_2_MEM
+ * __Waitdone_2 - wait dma done for DTC_2T_MEM_2_MEM
  *
  * Returns 0 if success, the err line number if failed.
  */
@@ -276,7 +278,7 @@ u32 _thread2_proc(void)
 	 * dump the init src buffer
 	 */
 	get_random_bytes(pSrcV, DTC_2T_TOTAL_LEN);
-	memset(pDstV, 0, DTC_2T_TOTAL_LEN);
+	memset(pDstV, 0x53, DTC_2T_TOTAL_LEN);
 
 	/*
 	 * init for loop transfer
@@ -347,21 +349,12 @@ u32 _thread2_proc(void)
 	DmaConfig.src_addr = uSrcP;
 	DmaConfig.dst_addr = uDstP;
 	DmaConfig.byte_cnt = DTC_2T_ONE_LEN;
-	DmaConfig.para = 0; /* to check here */
+	DmaConfig.para = 0;
 	if(0 != sw_dma_config(dma_hdl, &DmaConfig, ENQUE_PHASE_NORMAL)) {
 		uRet = __LINE__;
 		goto End;
 	}
 	pr_info("%s: sw_dma_config success\n", __FUNCTION__);
-
-	src_addr = uSrcP;
-	dst_addr = uDstP;
-	byte_cnt = DTC_2T_ONE_LEN;
-	if(0 != sw_dma_enqueue(dma_hdl, src_addr, dst_addr, byte_cnt, ENQUE_PHASE_NORMAL)) {
-		uRet = __LINE__;
-		goto End;
-	}
-	pr_info("%s: sw_dma_enqueue success\n", __FUNCTION__);
 
 	sw_dma_dump_chan(dma_hdl);
 
@@ -387,21 +380,6 @@ u32 _thread2_proc(void)
 		pr_info("%s: data check ok!\n", __FUNCTION__);
 	} else {
 		pr_err("%s: data check err!\n", __FUNCTION__);
-
-		/*
-		 * dump the dst mem
-		 */
-		pr_info("%s: first bytes in src mem is:\n", __FUNCTION__);
-		for(i = 0; i < 100; i++) {
-			pr_info("%d, ", *(u8 *)((u8 *)pSrcV + i));
-		}
-		pr_info("\n");
-		pr_info("%s: first bytes in dst mem is:\n", __FUNCTION__);
-		for(i = 0; i < 100; i++) {
-			pr_info("%d, ", *(u8 *)((u8 *)pDstV + i));
-		}
-		pr_info("\n");
-
 		uRet = __LINE__; /* return err */
 		goto End;
 	}
@@ -465,22 +443,36 @@ u32 __CB_qd_1(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {
 	u32 	uRet = 0;
 	u32	uCurSrc = 0, uCurDst = 0;
+	u32	uloop_cnt = DTC_2T_TOTAL_LEN / DTC_2T_ONE_LEN;
+	u32 	ucur_cnt = 0;
 
 	pr_info("%s: called!\n", __FUNCTION__);
 
 	switch(cause) {
 	case DMA_CB_OK:
-		pr_info("%s: DMA_CB_OK!\n", __FUNCTION__);
-		if((DTC_2T_TOTAL_LEN / DTC_2T_ONE_LEN) == atomic_add_return(1, &g_acur_cnt1)) {
-			DBG_FUN_LINE;
+		//pr_info("%s: DMA_CB_OK!\n", __FUNCTION__);
+		ucur_cnt = atomic_add_return(1, &g_acur_cnt1);
+		if(ucur_cnt < uloop_cnt) {
+			//DBG_FUN_LINE;
+			uCurSrc = g_sadr1 + atomic_read(&g_acur_cnt1) * DTC_2T_ONE_LEN;
+			uCurDst = g_dadr1 + atomic_read(&g_acur_cnt1) * DTC_2T_ONE_LEN;
+			if(0 != sw_dma_enqueue(dma_hdl, uCurSrc, uCurDst, DTC_2T_ONE_LEN, ENQUE_PHASE_QD))
+				ERR_FUN_LINE;
+		} else if(ucur_cnt == uloop_cnt){
+			//DBG_FUN_LINE;
+
+			//sw_dma_dump_chan(dma_hdl); /* for debug */
+
+			/* maybe it's the last irq; or next will be the last irq, need think about */
 			atomic_set(&g_adma_done1, 1);
 			wake_up_interruptible(&g_dtc_queue[1]);
 		} else {
-			DBG_FUN_LINE;
-			uCurSrc = g_sadr1 + atomic_read(&g_acur_cnt1) * DTC_2T_ONE_LEN;
-			uCurDst = g_dadr1 + atomic_read(&g_acur_cnt1) * DTC_2T_ONE_LEN;
-			if(0 != sw_dma_enqueue(dma_hdl, uCurSrc, uCurDst, DTC_2T_ONE_LEN, ENQUE_PHASE_FD))
-				ERR_FUN_LINE;
+			//DBG_FUN_LINE;
+			//sw_dma_dump_chan(dma_hdl); /* for debug */
+
+			/* maybe it's the last irq */
+			atomic_set(&g_adma_done1, 1);
+			wake_up_interruptible(&g_dtc_queue[1]);
 		}
 		break;
 
@@ -508,24 +500,12 @@ End:
 u32 __CB_fd_1(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {
 	u32 	uRet = 0;
-	u32	uCurSrc = 0, uCurDst = 0;
 
 	pr_info("%s: called!\n", __FUNCTION__);
 
 	switch(cause) {
 	case DMA_CB_OK:
 		pr_info("%s: DMA_CB_OK!\n", __FUNCTION__);
-		if((DTC_2T_TOTAL_LEN / DTC_2T_ONE_LEN) == atomic_add_return(1, &g_acur_cnt1)) {
-			DBG_FUN_LINE;
-			atomic_set(&g_adma_done1, 1);
-			wake_up_interruptible(&g_dtc_queue[1]);
-		} else {
-			DBG_FUN_LINE;
-			uCurSrc = g_sadr1 + atomic_read(&g_acur_cnt1) * DTC_2T_ONE_LEN;
-			uCurDst = g_dadr1 + atomic_read(&g_acur_cnt1) * DTC_2T_ONE_LEN;
-			if(0 != sw_dma_enqueue(dma_hdl, uCurSrc, uCurDst, DTC_2T_ONE_LEN, ENQUE_PHASE_FD))
-				ERR_FUN_LINE;
-		}
 		break;
 
 	case DMA_CB_ABORT:
@@ -611,7 +591,7 @@ u32 __CB_op_1(dm_hdl_t dma_hdl, enum dma_op_type_e op)
 }
 
 /**
- * __Waitdone_1 - wait dma done for DTC_1T_MEM_2_MEM
+ * __Waitdone_1 - wait dma done for DTC_2T_MEM_2_MEM
  *
  * Returns 0 if success, the err line number if failed.
  */
@@ -677,7 +657,7 @@ u32 _thread1_proc(void)
 	 * dump the init src buffer
 	 */
 	get_random_bytes(pSrcV, DTC_2T_TOTAL_LEN);
-	memset(pDstV, 0, DTC_2T_TOTAL_LEN);
+	memset(pDstV, 0x56, DTC_2T_TOTAL_LEN);
 
 	/*
 	 * init for loop transfer
@@ -748,21 +728,12 @@ u32 _thread1_proc(void)
 	DmaConfig.src_addr = uSrcP;
 	DmaConfig.dst_addr = uDstP;
 	DmaConfig.byte_cnt = DTC_2T_ONE_LEN;
-	DmaConfig.para = 0; /* to check here */
+	DmaConfig.para = 0;
 	if(0 != sw_dma_config(dma_hdl, &DmaConfig, ENQUE_PHASE_NORMAL)) {
 		uRet = __LINE__;
 		goto End;
 	}
 	pr_info("%s: sw_dma_config success\n", __FUNCTION__);
-
-	src_addr = uSrcP;
-	dst_addr = uDstP;
-	byte_cnt = DTC_2T_ONE_LEN;
-	if(0 != sw_dma_enqueue(dma_hdl, src_addr, dst_addr, byte_cnt, ENQUE_PHASE_NORMAL)) {
-		uRet = __LINE__;
-		goto End;
-	}
-	pr_info("%s: sw_dma_enqueue success\n", __FUNCTION__);
 
 	sw_dma_dump_chan(dma_hdl);
 
@@ -788,21 +759,6 @@ u32 _thread1_proc(void)
 		pr_info("%s: data check ok!\n", __FUNCTION__);
 	} else {
 		pr_err("%s: data check err!\n", __FUNCTION__);
-
-		/*
-		 * dump the dst mem
-		 */
-		pr_info("%s: first bytes in src mem is:\n", __FUNCTION__);
-		for(i = 0; i < 100; i++) {
-			pr_info("%d, ", *(u8 *)((u8 *)pSrcV + i));
-		}
-		pr_info("\n");
-		pr_info("%s: first bytes in dst mem is:\n", __FUNCTION__);
-		for(i = 0; i < 100; i++) {
-			pr_info("%d, ", *(u8 *)((u8 *)pDstV + i));
-		}
-		pr_info("\n");
-
 		uRet = __LINE__; /* return err */
 		goto End;
 	}
@@ -877,7 +833,7 @@ int __test_thread1(void * arg)
 			goto End;
 		}
 
-		msleep(20);
+		//msleep(20);
 
 		end_ms = (jiffies * 1000) / HZ;
 		pr_info("%s: cur_ms 0x%08x\n", __FUNCTION__, end_ms);
@@ -916,7 +872,7 @@ int __test_thread2(void * arg)
 			goto End;
 		}
 
-		msleep(10);
+		//msleep(10);
 
 		end_ms = (jiffies * 1000) / HZ;
 		if(end_ms - begin_ms >= TEST_TIME_THREAD2) {

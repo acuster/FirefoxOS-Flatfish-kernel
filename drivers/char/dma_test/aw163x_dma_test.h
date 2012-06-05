@@ -58,6 +58,10 @@ enum dma_test_case_e {
 				 * memory range should not be conflict, eg: thread one
 				 * from memory-A to memory-B, thread two from C to D.
 				 */
+	DTC_1TM2M_MANY_ENQ, 	/* dma test case one-thread memory to memory, many enqueue
+				 */
+	DTC_1TM2M_CONTI_MOD, 	/* dma test case one-thread memory to memory, continue mode
+				 */
 
 	DTC_2T_USB_COPY_MANUAL, /* dma test case two-thread usb read/write nand, eg: one
 				 * thread copy files from PC to nand-udisk, the other thread
@@ -70,7 +74,7 @@ enum dma_test_case_e {
 				 * and loop the operation. test in nand_init as DTC_1T_NAND_DMA_RW case
 				 */
 	DTC_1T_APP_CB_ENQUE,	/* app and callback enqueue simutanously */
-	DTC_1T_ENQ_AFTER_LASTDONE, /* test enqueue after done */
+	DTC_1T_ENQ_AFT_DONE, 	/* test enqueue after done */
 	DTC_1T_CMD_STOP, 	/* stop when dma running */
 	DTC_MAX
 };

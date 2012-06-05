@@ -17,6 +17,8 @@
 #define __TEST_CASE_OTHER_H
 
 u32 __dtc_stopcmd(void);
+u32 __dtc_many_enq(void);
+u32 __dtc_conti_mode(void);
 
 
 #endif /* __TEST_CASE_OTHER_H */

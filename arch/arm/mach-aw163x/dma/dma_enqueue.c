@@ -117,13 +117,13 @@ u32 __add_des_to_chain(struct dma_channel_t *pchan, struct cofig_des_t *pdes)
 
 	/* deal with empty chain */
 	if(0 == pchan->pdes_mgr->des_num) {
-		DMA_DBG_FUN_LINE;
+		//DMA_DBG_FUN_LINE;
 		memcpy(&pchan->pdes_mgr->pdes[0], pdes, sizeof(struct cofig_des_t));
 		pchan->pdes_mgr->des_num = 1;
 		return 0;
 	}
 
-	DMA_DBG_FUN_LINE;
+	//DMA_DBG_FUN_LINE;
 
 	/* move to the last des mgr */
 	pdes_mgr = pchan->pdes_mgr;
@@ -143,11 +143,11 @@ u32 __add_des_to_chain(struct dma_channel_t *pchan, struct cofig_des_t *pdes)
 		memcpy(&pdes_mgr->pdes[des_num], pdes, sizeof(struct cofig_des_t));
 
 		/* change the last des's link to pdes */
-		//cur_des_paddr = virt_to_phys(&pdes_mgr->pdes[des_num]);
+		//cur_des_paddr = virt_to_phys(&pdes_mgr->pdes[des_num]); /* err */
 		//cur_des_paddr = pdes_mgr->des_pa + des_num * sizeof(struct cofig_des_t *);
 		cur_des_paddr = pdes_mgr->des_pa + (des_num << 4) + (des_num << 3); /* sizeof(struct cofig_des_t *) = 24 */
-		DMA_DBG("%s: the last des's link(0x%08x) to 0x%08x\n", __FUNCTION__, \
-			(u32)pdes_mgr->pdes[des_num - 1].pnext, cur_des_paddr);
+		//DMA_DBG("%s: the last des's link(0x%08x) to 0x%08x\n", __FUNCTION__, \
+		//	(u32)pdes_mgr->pdes[des_num - 1].pnext, cur_des_paddr);
 		pdes_mgr->pdes[des_num - 1].pnext = (struct cofig_des_t *)cur_des_paddr;
 
 		/* increase the des num */
@@ -160,7 +160,7 @@ u32 __add_des_to_chain(struct dma_channel_t *pchan, struct cofig_des_t *pdes)
 			goto End;
 		}
 
-		DMA_DBG("%s: dma_pool_alloc return va 0x%08x, pa 0x%08x, virt_to_phys(va) 0x%08x\n", \
+		DMA_INF("%s: dma_pool_alloc return va 0x%08x, pa 0x%08x, virt_to_phys(va) 0x%08x\n", \
 			__FUNCTION__, (u32)pdes_new, des_new_paddr, (u32)virt_to_phys(pdes_new));
 
 		pdes_mgr_new = kmem_cache_alloc(g_pdma_des_mgr, GFP_ATOMIC);
@@ -181,8 +181,8 @@ u32 __add_des_to_chain(struct dma_channel_t *pchan, struct cofig_des_t *pdes)
 		/* last des link to pdes_new[0] */
 		//cur_des_paddr = virt_to_phys(&pdes_new[0]);
 		cur_des_paddr = des_new_paddr;
-		DMA_DBG("%s: the last des's link(0x%08x) to 0x%08x\n", __FUNCTION__, \
-			(u32)pdes_mgr->pdes[MAX_DES_ITEM_NUM - 1].pnext, cur_des_paddr);
+		//DMA_DBG("%s: the last des's link(0x%08x) to 0x%08x\n", __FUNCTION__, \
+		//	(u32)pdes_mgr->pdes[MAX_DES_ITEM_NUM - 1].pnext, cur_des_paddr);
 		pdes_mgr->pdes[MAX_DES_ITEM_NUM - 1].pnext = (struct cofig_des_t *)cur_des_paddr;
 
 		/* pdes_mgr->pnext point to pdes_mgr_new */
@@ -273,7 +273,7 @@ u32 dma_clean_des(struct dma_channel_t *pchan)
 #endif /* DBG_DMA */
 
 	if(0 == pchan->pdes_mgr->des_num) {
-		DMA_ERR("%s to check, des is empty\n", __FUNCTION__, __LINE__);
+		DMA_INF("%s: des is empty, maybe cleared in qd handle!\n", __FUNCTION__, __LINE__);
 		return 0;
 	}
 
@@ -292,13 +292,15 @@ u32 dma_clean_des(struct dma_channel_t *pchan)
 		/* free extra des/desmgr */
 		do {
 			if(NULL == pnext) {
-				DMA_DBG_FUN_LINE;
+				DMA_INF("%s, line %d\n", __FUNCTION__, __LINE__);
 
 				/* free pcur */
 				dma_pool_free(g_pdma_pool, pcur->pdes, pcur->des_pa);
 				kmem_cache_free(g_pdma_des_mgr, pcur);
 				break;
 			} else {
+				DMA_INF("%s, line %d\n", __FUNCTION__, __LINE__);
+
 				/* free pcur */
 				dma_pool_free(g_pdma_pool, pcur->pdes, pcur->des_pa);
 				kmem_cache_free(g_pdma_des_mgr, pcur);

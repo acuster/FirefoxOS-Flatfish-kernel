@@ -76,7 +76,6 @@ int dma_init(struct platform_device *device)
 		ret = __LINE__;
 		goto End;
 	}
-	DMA_DBG_FUN_LINE;
 
 	/* alloc dma pool for des area */
 	g_pdma_pool = dmam_pool_create("dma_des", &device->dev, DES_AREA_LEN, 4, 0); /* DWORD align */
@@ -85,7 +84,6 @@ int dma_init(struct platform_device *device)
 		goto End;
 	}
 
-	DMA_DBG_FUN_LINE;
 	/* register dma interrupt */
 	ret = request_irq(AW_IRQ_DMA, dma_irq_hdl, IRQF_DISABLED, "dma_irq", (void *)&g_dma_mgr);
 	if(ret) {
