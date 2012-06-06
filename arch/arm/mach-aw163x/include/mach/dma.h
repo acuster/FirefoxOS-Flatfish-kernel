@@ -195,26 +195,14 @@ struct dma_config_t {
 	u32		para;		/* dma para reg */
 	u32 		irq_spt;	/* channel irq supported, eg: CHAN_IRQ_HD | CHAN_IRQ_FD */
 
-	u32		src_addr;	/* XXX */
-	u32		dst_addr;	/* XXX */
-	u32		byte_cnt;	/* XXX */
+	u32		src_addr;	/* src phys addr */
+	u32		dst_addr;	/* dst phys addr */
+	u32		byte_cnt;	/* byte cnt for src_addr/dst_addr transfer */
 
 	bool		bconti_mode;	/* continue mode */
 
 	u8		src_drq_type;	/* src drq type */
 	u8		dst_drq_type;	/* dst drq type */
-};
-
-/*
- * XXX
- */
-struct dma_buf_t {
-	struct dma_buf_t *pnext;	/* XXXXX */
-
-	u32		src_addr;     	/* XXXXX */
-	u32		dst_addr;     	/* XXXXX */
-	u32		byte_cnt;     	/* XXXXX */
-	void 		*private;     	/* XXXXX */
 };
 
 /*
@@ -319,13 +307,13 @@ enum dma_cb_cause_e {
 };
 
 /*
- * XXXX
+ * phase for dma enqueue operation, i.e. when do we call enqueue operation
  */
 enum dma_enque_phase_e {
-	ENQUE_PHASE_NORMAL,	/* XXXX */
-	ENQUE_PHASE_HD,		/* XXXX */
-	ENQUE_PHASE_FD,		/* XXXX */
-	ENQUE_PHASE_QD		/* XXXX */
+	ENQUE_PHASE_NORMAL,	/* enqueued by app(dma's caller) directly, not by callback func */
+	ENQUE_PHASE_HD,		/* enqueued by half_done callback function */
+	ENQUE_PHASE_FD,		/* enqueued by full_done callback function */
+	ENQUE_PHASE_QD		/* enqueued by queue_done callback function */
 };
 
 /*
@@ -343,16 +331,16 @@ typedef u32 (* dma_op_cb)(dm_hdl_t dma_hdl, void *parg, enum dma_op_type_e op);
  * dma callback struct
  */
 struct dma_cb_t {
-	dma_cb 		func;	/* XXXX */
-	void 		*parg;	/* XXXX */
+	dma_cb 		func;	/* dma callback fuction */
+	void 		*parg;	/* args of func */
 };
 
 /*
  * dma operation callback struct
  */
 struct dma_op_cb_t {
-	dma_op_cb 	func;	/* XXXX */
-	void 		*parg;	/* XXXX */
+	dma_op_cb 	func;	/* dma operation callback fuction */
+	void 		*parg;	/* args of func */
 };
 
 /*

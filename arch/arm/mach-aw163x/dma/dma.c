@@ -17,7 +17,7 @@
 
 /**
  * dma_drv_probe - dma driver inital function.
- * @dev:	XXXXXXX
+ * @dev:	platform device pointer
  *
  * Returns 0 if success, otherwise return the err line number.
  */
@@ -38,7 +38,7 @@ static int __devinit dma_drv_probe(struct platform_device *dev)
 
 /**
  * dma_drv_remove - dma driver deinital function.
- * @dev:	XXXXXXX
+ * @dev:	platform device pointer
  *
  * Returns 0 if success, otherwise means err.
  */
@@ -59,38 +59,38 @@ static int __devexit dma_drv_remove(struct platform_device *dev)
 
 /**
  * dma_drv_suspend - dma driver suspend function.
- * @dev:	XXXXXXX
- * @state:	XXXXXXX
+ * @dev:	platform device pointer
+ * @state:	power state
  *
  * Returns 0 if success, otherwise means err.
  */
 static int dma_drv_suspend(struct platform_device *dev, pm_message_t state)
 {
-DMA_DBG_FUN_LINE;
-return 0;
+	DMA_DBG_FUN_LINE;
+	return 0;
 }
 
 /**
  * dma_drv_resume - dma driver resume function.
- * @dev:	XXXXXXX
+ * @dev:	platform device pointer
  *
  * Returns 0 if success, otherwise means err.
  */
 static int dma_drv_resume(struct platform_device *dev)
 {
-DMA_DBG_FUN_LINE;
-return 0;
+	DMA_DBG_FUN_LINE;
+	return 0;
 }
 
 static struct platform_driver sw_dmac_driver = {
-.probe          = dma_drv_probe,
-.remove         = __devexit_p(dma_drv_remove),
-.suspend        = dma_drv_suspend,
-.resume         = dma_drv_resume,
-.driver         = {
-.name   = "sw_dmac",
-.owner  = THIS_MODULE,
-},
+	.probe          = dma_drv_probe,
+	.remove         = __devexit_p(dma_drv_remove),
+	.suspend        = dma_drv_suspend,
+	.resume         = dma_drv_resume,
+	.driver         = {
+		.name   = "sw_dmac",
+		.owner  = THIS_MODULE,
+		},
 };
 
 /**

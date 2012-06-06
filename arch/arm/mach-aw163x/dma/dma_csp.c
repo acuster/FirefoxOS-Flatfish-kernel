@@ -47,7 +47,7 @@ void csp_dma_init(void)
 }
 
 /**
- * csp_dma_chan_set_startaddr - XXX
+ * csp_dma_chan_set_startaddr - set the des's start phys addr to start reg, then we can start the dma
  * @pchan:	dma channel handle
  * @ustart_addr: dma channel start physcal address to set
  */

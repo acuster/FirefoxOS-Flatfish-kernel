@@ -16,11 +16,8 @@
 #include "dma_include.h"
 
 /**
- * __des_mgr_cache_ctor - XXXXXX
- * XXXXXX
- * XXXXXX
- *
- * XXXXXX
+ * __des_mgr_cache_ctor - init function for g_pdma_des_mgr
+ * @p:	pointer to g_pdma_des_mgr
  */
 static void __des_mgr_cache_ctor(void *p)
 {
@@ -29,6 +26,7 @@ static void __des_mgr_cache_ctor(void *p)
 
 /**
  * dma_init - initial the dma manager, request irq
+ * @device:	platform device pointer
  *
  * Returns 0 if sucess, the err line number if failed.
  */

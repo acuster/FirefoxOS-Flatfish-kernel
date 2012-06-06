@@ -31,9 +31,9 @@ extern wait_queue_head_t g_dtc_queue[];
 //#define pr_info
 
 /**
- * __CB_qd_stopcmd - XXX
+ * __CB_qd_stopcmd - queue done callback for DTC_1T_CMD_STOP
  *
- * XXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __CB_qd_stopcmd(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {
@@ -205,7 +205,7 @@ u32 __Waitdone_stopcmd(void)
 	long 	timeout = 50 * HZ; /* 50 */
 
 	//DBG_FUN_LINE;
-ret = wait_event_interruptible_timeout(g_dtc_queue[0], \
+	ret = wait_event_interruptible_timeout(g_dtc_queue[0], \
 		atomic_read(&g_adma_done)== 1, timeout);
 	atomic_set(&g_adma_done, 0);
 
@@ -393,9 +393,9 @@ u32 __dtc_stopcmd(void)
 		//msleep(1);
 	}
 #endif
-	//msleep(5);
 
-#if 0	/* for meet stop which des not null  */
+#if 0
+	/* for meet stop which des not null  */
 	/*
 	 * wait dma done
 	 */
@@ -469,9 +469,9 @@ End:
 }
 
 /**
- * __CB_qd_many_enq - XXX
+ * __CB_qd_many_enq - queue done callback for DTC_1TM2M_MANY_ENQ
  *
- * XXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __CB_qd_many_enq(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {
@@ -542,9 +542,9 @@ End:
 }
 
 /**
- * __CB_fd_many_enq - dma full done callback for XXX
+ * __CB_fd_many_enq - full done callback for DTC_1TM2M_MANY_ENQ
  *
- * Returns 0 if success, the err line number if failed.
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __CB_fd_many_enq(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {
@@ -587,9 +587,9 @@ End:
 }
 
 /**
- * __CB_hd_many_enq - dma half done callback for XXX
+ * __CB_hd_many_enq - half done callback for DTC_1TM2M_MANY_ENQ
  *
- * Returns 0 if success, the err line number if failed.
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __CB_hd_many_enq(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {
@@ -632,7 +632,7 @@ End:
 }
 
 /**
- * __CB_op_many_enq - dma op callback for XXX
+ * __CB_op_many_enq - dma op callback for DTC_1TM2M_MANY_ENQ
  *
  * Returns 0 if success, the err line number if failed.
  */
@@ -666,7 +666,7 @@ u32 __CB_op_many_enq(dm_hdl_t dma_hdl, void *parg, enum dma_op_type_e op)
 }
 
 /**
- * __Waitdone_many_enq - wait dma done for XXX
+ * __Waitdone_many_enq - wait dma done for DTC_1TM2M_MANY_ENQ
  *
  * Returns 0 if success, the err line number if failed.
  */
@@ -693,7 +693,7 @@ u32 __Waitdone_many_enq(void)
 }
 
 /**
- * __dtc_many_enq - XXX
+ * __dtc_many_enq - dma test case for DTC_1TM2M_MANY_ENQ
  *
  * Returns 0 if success, the err line number if failed.
  */
@@ -937,9 +937,9 @@ End:
 }
 
 /**
- * __CB_qd_conti_mode - XXX
+ * __CB_qd_conti_mode - queue done callback for DTC_1TM2M_CONTI_MOD
  *
- * XXX
+ * Returns 0 if success, the err line number if failed.
  */
 u32 __CB_qd_conti_mode(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {
@@ -996,7 +996,7 @@ End:
 }
 
 /**
- * __CB_fd_conti_mode - dma full done callback for XXX
+ * __CB_fd_conti_mode - dma full done callback for DTC_1TM2M_CONTI_MOD
  *
  * Returns 0 if success, the err line number if failed.
  */
@@ -1041,7 +1041,7 @@ End:
 }
 
 /**
- * __CB_hd_conti_mode - dma half done callback for XXX
+ * __CB_hd_conti_mode - dma half done callback for DTC_1TM2M_CONTI_MOD
  *
  * Returns 0 if success, the err line number if failed.
  */
@@ -1086,7 +1086,7 @@ End:
 }
 
 /**
- * __CB_op_conti_mode - dma op callback for XXX
+ * __CB_op_conti_mode - dma op callback for DTC_1TM2M_CONTI_MOD
  *
  * Returns 0 if success, the err line number if failed.
  */
@@ -1120,7 +1120,7 @@ u32 __CB_op_conti_mode(dm_hdl_t dma_hdl, void *parg, enum dma_op_type_e op)
 }
 
 /**
- * __Waitdone_conti_mode - wait dma done for XXX
+ * __Waitdone_conti_mode - wait dma done for DTC_1TM2M_CONTI_MOD
  *
  * Returns 0 if success, the err line number if failed.
  */
@@ -1147,7 +1147,7 @@ u32 __Waitdone_conti_mode(void)
 }
 
 /**
- * __dtc_conti_mode - XXX
+ * __dtc_conti_mode - dma test case for DTC_1TM2M_CONTI_MOD
  *
  * Returns 0 if success, the err line number if failed.
  */

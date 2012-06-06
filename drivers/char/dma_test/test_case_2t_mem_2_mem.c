@@ -56,9 +56,9 @@ u32 __dump_cur_mem_info(void)
 }
 
 /**
- * __CB_qd_2 - XXX
+ * __CB_qd_2 - queue done callback for thread2
  *
- * XXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __CB_qd_2(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {
@@ -435,9 +435,9 @@ End:
 }
 
 /**
- * __CB_qd_1 - XXX
+ * __CB_qd_1 - queue done callback for thread1
  *
- * XXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __CB_qd_1(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {

@@ -26,9 +26,9 @@ static u32 g_src_addr = 0, g_dst_addr = 0;
 static atomic_t g_acur_cnt = ATOMIC_INIT(0);
 
 /**
- * __CB_qd_1t_mem_2_mem - XXX
+ * __CB_qd_1t_mem_2_mem - queue done callback for case DTC_1T_MEM_2_MEM
  *
- * XXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __CB_qd_1t_mem_2_mem(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {
@@ -497,9 +497,9 @@ End:
 }
 
 /**
- * __CB_qd_case_enq_aftdone - XXX
+ * __CB_qd_case_enq_aftdone - queue done callback for case DTC_1T_ENQ_AFT_DONE
  *
- * XXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __CB_qd_case_enq_aftdone(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {

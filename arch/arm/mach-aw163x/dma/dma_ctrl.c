@@ -16,7 +16,7 @@
 #include "dma_include.h"
 
 /**
- * __dma_dump_buf_chain - XXX
+ * __dma_dump_buf_chain - dump dma buf chain
  * @pchan:	dma handle
  */
 void __dma_dump_buf_chain(struct dma_channel_t *pchan)
@@ -207,10 +207,11 @@ End:
 }
 
 /**
- * XXXX - XXXX
- * @XXXX:	XXXX
+ * dma_get_status - get hardware status of dma channel
+ * @dma_hdl:	dma handle
+ * @pval:	value to get
  *
- * XXXX
+ * return 0.
  */
 u32 dma_get_status(dm_hdl_t dma_hdl, u32 *pval)
 {
@@ -223,10 +224,11 @@ u32 dma_get_status(dm_hdl_t dma_hdl, u32 *pval)
 }
 
 /**
- * XXXX - XXXX
- * @XXXX:	XXXX
+ * dma_get_cur_src_addr - get dma channel's cur src addr reg value
+ * @dma_hdl:	dma handle
+ * @pval:	value to get
  *
- * XXXX
+ * return 0.
  */
 u32 dma_get_cur_src_addr(dm_hdl_t dma_hdl, u32 *pval)
 {
@@ -239,10 +241,11 @@ u32 dma_get_cur_src_addr(dm_hdl_t dma_hdl, u32 *pval)
 }
 
 /**
- * XXXX - XXXX
- * @XXXX:	XXXX
+ * dma_get_cur_dst_addr - get dma channel's cur dst addr reg value
+ * @dma_hdl:	dma handle
+ * @pval:	value to get
  *
- * XXXX
+ * return 0.
  */
 u32 dma_get_cur_dst_addr(dm_hdl_t dma_hdl, u32 *pval)
 {
@@ -255,10 +258,11 @@ u32 dma_get_cur_dst_addr(dm_hdl_t dma_hdl, u32 *pval)
 }
 
 /**
- * XXXX - XXXX
- * @XXXX:	XXXX
+ * dma_get_left_bytecnt - get dma channel's left byte cnt
+ * @dma_hdl:	dma handle
+ * @pval:	value to get
  *
- * XXXX
+ * return 0.
  */
 u32 dma_get_left_bytecnt(dm_hdl_t dma_hdl, u32 *pval)
 {
@@ -337,10 +341,11 @@ u32 dma_set_fd_cb(dm_hdl_t dma_hdl, struct dma_cb_t *pcb)
 }
 
 /**
- * XXXX - XXXX
- * @XXXX:	XXXX
+ * dma_set_qd_cb - set dma queue done callback function
+ * @dma_hdl:	dma handle
+ * @pcb:	call back function to set
  *
- * XXXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 dma_set_qd_cb(dm_hdl_t dma_hdl, struct dma_cb_t *pcb)
 {

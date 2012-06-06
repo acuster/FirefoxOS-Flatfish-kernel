@@ -62,7 +62,7 @@
 #define DMA_END_DES_LINK	0xFFFFF800
 
 /*
- * XXX
+ * dam channel state, software state
  */
 enum dma_chan_sta_e {
 	DMA_CHAN_STA_IDLE,  	/* maybe before start or after stop */
@@ -149,8 +149,8 @@ struct dma_channel_t {
 						 * (2) state is done, des are all cleared, use des_info_save, so
 						 *	we should bkup des_info_save when done.
 						 */
-	enum dma_chan_sta_e 	state;		/* XXXX */
-	spinlock_t 		lock;		/* XXXX */
+	enum dma_chan_sta_e 	state;		/* dam channel state, software state */
+	spinlock_t 		lock;		/* dma channel lock */
 };
 
 /*

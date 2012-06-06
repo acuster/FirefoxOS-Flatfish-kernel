@@ -31,7 +31,7 @@ struct dma_mgr_t g_dma_mgr; /* compile warining if "g_dma_mgr = {0}" */
 static DEFINE_MUTEX(dma_mutex);
 
 /*
- * XXX
+ * global ptr for dma descriptor and descriptor manager
  */
 struct kmem_cache 	*g_pdma_des_mgr = NULL;
 struct dma_pool		*g_pdma_pool = NULL;
@@ -238,8 +238,10 @@ void __dma_dump_channel(struct dma_channel_t *pchan)
 }
 
 /**
- * __dma_check_handle - XXX
+ * __dma_check_handle - check if dma handle is valid
  * @dma_hdl:	dma handle
+ *
+ * return 0 if vaild, the err line number if not vaild
  */
 static u32 __dma_check_handle(dm_hdl_t dma_hdl)
 {
@@ -259,7 +261,7 @@ static u32 __dma_check_handle(dm_hdl_t dma_hdl)
 
 /**
  * __dma_check_channel_free - check if channel is free
- * @dma_hdl:	dma handle
+ * @pchan:	dma handle
  *
  * return true if channel is free, false if not
  *
@@ -288,11 +290,10 @@ static u32 __dma_check_channel_free(struct dma_channel_t *pchan)
 }
 
 /**
- * __dma_channel_already_exist - XXXXXX
- * XXXXXX
- * XXXXXX
+ * __dma_channel_already_exist - check if channel already requested by others
+ * @name:	channel name
  *
- * XXXXXX
+ * return true if channel already requested, false if not
  */
 bool __dma_channel_already_exist(char *name)
 {
@@ -316,10 +317,9 @@ bool __dma_channel_already_exist(char *name)
 
 /**
  * dma_chan_des_mgr_init - init the channel's descriptor manager
- * XXXXXX
- * XXXXXX
+ * @pchan:	dma handle
  *
- * XXXXXX
+ * return 0 if success, the err line number if not
  */
 u32 dma_chan_des_mgr_init(struct dma_channel_t *pchan)
 {
@@ -330,7 +330,7 @@ u32 dma_chan_des_mgr_init(struct dma_channel_t *pchan)
 
 	DMA_DBG_FUN_LINE_TOCHECK;
 
-	/* XXX */
+	/* use dma_pool_alloc to alloc uncached mem for descriptor, which will be set to hw */
 	pdes = (struct cofig_des_t *)dma_pool_alloc(g_pdma_pool, GFP_ATOMIC, &des_paddr);
 	if (NULL == pdes) {
 		uRet = __LINE__;
@@ -340,7 +340,7 @@ u32 dma_chan_des_mgr_init(struct dma_channel_t *pchan)
 	DMA_DBG("%s: dma_pool_alloc return va 0x%08x, pa 0x%08x, virt_to_phys(va) 0x%08x\n", __FUNCTION__, \
 		(u32)pdes, des_paddr, (u32)virt_to_phys(pdes));
 
-	/* XXX */
+	/* use kmem_cache_alloc to alloc cached mem, for des mgr not need to be uncached */
 	pdes_mgr = kmem_cache_alloc(g_pdma_des_mgr, GFP_ATOMIC);
 	if (NULL == pdes_mgr) {
 		uRet = __LINE__;
@@ -372,10 +372,9 @@ End:
 
 /**
  * dma_chan_des_mgr_deinit - deinit the channel's descriptor manager
- * XXXXXX
- * XXXXXX
+ * @pchan:	dma handle
  *
- * XXXXXX
+ * return 0 if success, the err line number if not
  */
 u32 dma_chan_des_mgr_deinit(struct dma_channel_t *pchan)
 {
@@ -408,12 +407,6 @@ dm_hdl_t sw_dma_request(char * name)
 	unsigned long	flags = 0;
 	struct dma_channel_t	*pchan = NULL;
 
-#if 0
-	dma_addr_t		main_des_paddr = 0; /* dma bus addr for pmain_des */
-	struct cofig_des_t	*pmain_des = NULL;
-	struct des_mgr_t	*pmain_des_mgr = NULL;
-#endif
-
 	DMA_DBG("%s: name %s\n", __FUNCTION__, name);
 
 	/* para check */
@@ -421,26 +414,6 @@ dm_hdl_t sw_dma_request(char * name)
 		DMA_ERR("%s err: name %s exceed MAX_OWNER_NAME_LEN(32)\n", __FUNCTION__, name);
 		return NULL;
 	}
-
-#if 0
-	DMA_DBG_FUN_LINE_TOCHECK;
-
-	/* alloc des/des_mgr area at first */
-	pmain_des = (struct cofig_des_t *)dma_pool_alloc(g_pdma_pool, GFP_ATOMIC, &main_des_paddr);
-	//pmain_des = (struct cofig_des_t *)dma_pool_alloc(g_pdma_pool, GFP_KERNEL, &main_des_paddr);
-	if(NULL == pmain_des) {
-		DMA_ERR_FUN_LINE;
-		return NULL;
-	}
-	pmain_des_mgr = kmem_cache_alloc(g_pdma_des_mgr, GFP_ATOMIC);
-	if(NULL == pmain_des_mgr) {
-		dma_pool_free(g_pdma_pool, pmain_des, main_des_paddr);
-		DMA_ERR_FUN_LINE;
-		return NULL;
-	}
-	DMA_DBG("%s: pmain_des 0x%08x, main_des_paddr 0x%08x, pmain_des_mgr 0x%08x\n", __FUNCTION__, \
-		(u32)pmain_des, main_des_paddr, (u32)pmain_des_mgr);
-#endif
 
 	mutex_lock(&dma_mutex);
 
@@ -480,11 +453,6 @@ dm_hdl_t sw_dma_request(char * name)
 	pchan->used = 1;
 	if(NULL != name)
 		strcpy(pchan->owner, name);
-#if 0
-	pchan->pdes_mgr 	= pmain_des_mgr;
-	pchan->pdes_mgr->pdes 	= pmain_des;
-	pchan->pdes_mgr->des_pa	= main_des_paddr;
-#else
 	if(0 != dma_chan_des_mgr_init(pchan)) {
 
 		mutex_unlock(&dma_mutex);
@@ -492,7 +460,6 @@ dm_hdl_t sw_dma_request(char * name)
 		DMA_DBG("%s: dma_chan_des_mgr_init failed\n", __FUNCTION__);
 		return (dm_hdl_t)NULL;
 	}
-#endif
 
 	mutex_unlock(&dma_mutex);
 
@@ -545,62 +512,12 @@ u32 sw_dma_release(dm_hdl_t dma_hdl)
 	memset(&pchan->fd_cb, 0, sizeof(pchan->fd_cb));
 	memset(&pchan->qd_cb, 0, sizeof(pchan->qd_cb));
 
-#if 0
-	/* same as dma_clean_des.
-	 */
-	if(0 != pchan->pdes_mgr->des_num) { /* maybe enqueued but not started, so free and clean des */
-		if(NULL != pchan->pdes_mgr->pnext) { /* there are extra des mgr in chain */
-			struct des_mgr_t *pcur, *pnext;
-
-			/* free extra des/desmgr */
-			pcur = pchan->pdes_mgr->pnext;
-			pnext = pcur->pnext;
-			do {
-				if(NULL == pnext) {
-					DMA_DBG_FUN_LINE;
-
-					/* free pcur des area */
-					dma_pool_free(g_pdma_pool, pcur->pdes, pcur->des_pa);
-
-					/* free pcur */
-					kmem_cache_free(g_pdma_des_mgr, pcur);
-					break;
-				} else {
-					/* free pcur des area */
-					dma_pool_free(g_pdma_pool, pcur->pdes, pcur->des_pa);
-
-					/* free pcur */
-					kmem_cache_free(g_pdma_des_mgr, pcur);
-
-					pcur = pnext;
-					pnext = pcur->pnext;
-				}
-			}while(1);
-		}
-
-		/* init main des/des_mgr */
-		dma_chan_init_main_des(pchan);
-	}
-
-	/* same as dma_chan_des_mgr_deinit.
-	 */
-	if (NULL != pchan->pdes_mgr->pdes) { /* free main des area */
-		dma_pool_free(g_pdma_pool, pchan->pdes_mgr->pdes, pchan->pdes_mgr->des_pa);
-		pchan->pdes_mgr->pdes = NULL;
-		pchan->pdes_mgr->des_pa = 0;
-	}
-	if (NULL != pchan->pdes_mgr) { /* free main des mgr */
-		kmem_cache_free(g_pdma_des_mgr, pchan->pdes_mgr);
-		pchan->pdes_mgr = NULL;
-	}
-#else
 	/* maybe enqueued but not started, so free and clean des */
 	if(0 != dma_clean_des(pchan))
 		DMA_ERR_FUN_LINE;
 
 	if(0 != dma_chan_des_mgr_deinit(pchan))
 		DMA_ERR_FUN_LINE;
-#endif
 
 	DMA_CHAN_UNLOCK(&pchan->lock, flags);
 	return 0;
@@ -733,11 +650,12 @@ End:
 EXPORT_SYMBOL(sw_dma_ctl);
 
 /**
- * sw_dma_config - XXXXXX
- * XXXXXX
- * XXXXXX
+ * sw_dma_config - config dma channel, enqueue the buffer
+ * @dma_hdl:	dma handle
+ * @pcfg:	dma cofig para
+ * @phase:	dma enqueue phase
  *
- * XXXXXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 sw_dma_config(dm_hdl_t dma_hdl, struct dma_config_t *pcfg, enum dma_enque_phase_e phase)
 {
@@ -818,11 +736,14 @@ End:
 EXPORT_SYMBOL(sw_dma_config);
 
 /**
- * sw_dma_enqueue - XXXXXX
- * XXXXXX
- * XXXXXX
+ * sw_dma_enqueue - enqueue the buffer to des chain
+ * @dma_hdl:	dma handle
+ * @src_addr:	buffer src phys addr
+ * @dst_addr:	buffer dst phys addr
+ * @byte_cnt:	buffer byte cnt
+ * @phase:	enqueue phase
  *
- * XXXXXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 sw_dma_enqueue(dm_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt,
 				enum dma_enque_phase_e phase)
@@ -940,10 +861,8 @@ EXPORT_SYMBOL(sw_dma_getcurposition);
 #endif
 
 /**
- * sw_dma_dump_chan - XXX
- * XXX		XXX
- *
- * XXX
+ * sw_dma_dump_chan - dump dma chain
+ * @dma_hdl:	dma handle
  */
 void sw_dma_dump_chan(dm_hdl_t dma_hdl)
 {

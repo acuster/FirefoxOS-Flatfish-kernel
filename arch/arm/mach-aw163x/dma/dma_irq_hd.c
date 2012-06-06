@@ -16,11 +16,10 @@
 #include "dma_include.h"
 
 /**
- * __dma_chan_handle_hd - XXXXXX
- * XXXXXX
- * XXXXXX
+ * __dma_chan_handle_hd - deal for half done irq
+ * @pchan:	dma handle
  *
- * XXXXXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __dma_chan_handle_hd(struct dma_channel_t *pchan)
 {
@@ -34,11 +33,10 @@ u32 __dma_chan_handle_hd(struct dma_channel_t *pchan)
 }
 
 /**
- * __dma_chan_handle_fd - XXXXXX
- * XXXXXX
- * XXXXXX
+ * __dma_chan_handle_fd - deal for full done irq
+ * @pchan:	dma handle
  *
- * XXXXXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __dma_chan_handle_fd(struct dma_channel_t *pchan)
 {
@@ -52,11 +50,10 @@ u32 __dma_chan_handle_fd(struct dma_channel_t *pchan)
 }
 
 /**
- * __dma_chan_handle_qd - XXXXXX
- * XXXXXX
- * XXXXXX
+ * __dma_chan_handle_qd - deal for queue done irq
+ * @pchan:	dma handle
  *
- * XXXXXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __dma_chan_handle_qd(struct dma_channel_t *pchan)
 {
@@ -161,7 +158,7 @@ End:
 /**
  * dma_irq_hdl - dma irq process function
  * @irq:	dma physical irq num
- * @dev:	XXXXXXX
+ * @dev:	para passed in request_irq function
  *
  * Returns 0 if sucess, the err line number if failed.
  *

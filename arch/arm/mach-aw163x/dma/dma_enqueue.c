@@ -16,11 +16,11 @@
 #include "dma_include.h"
 
 /**
- * __need_restart_dma - XXXXXX
- * XXXXXX
- * XXXXXX
+ * __need_restart_dma - check if we must restart dma for the new enqueued buffer,
+ * 	or if we can just pause->resume
+ * @pchan:	dma handle
  *
- * XXXXXX
+ * return true if we must restart dma, false if not
  */
 bool __need_restart_dma(struct dma_channel_t *pchan)
 {
@@ -42,11 +42,10 @@ bool __need_restart_dma(struct dma_channel_t *pchan)
 }
 
 /**
- * __des_chain_is_empty - XXXXXX
- * XXXXXX
- * XXXXXX
+ * __des_chain_is_empty - check if the channel's descriptor is empty
+ * @pchan:	dma handle
  *
- * XXXXXX
+ * return true if empty, false if not
  */
 bool __des_chain_is_empty(struct dma_channel_t *pchan)
 {
@@ -71,11 +70,11 @@ bool __des_chain_is_empty(struct dma_channel_t *pchan)
 }
 
 /**
- * __add_des_to_chain - XXXXXX common for continue_mode/no_continue_mode
- * XXXXXX
- * XXXXXX
+ * __add_des_to_chain - add new descriptor to descriptor chain, common for continue/no_continue mode
+ * @pchan:	dma handle
+ * @pdes:	descriptor to add
  *
- * XXXXXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __add_des_to_chain(struct dma_channel_t *pchan, struct cofig_des_t *pdes)
 {
@@ -218,11 +217,10 @@ End:
 }
 
 /**
- * dma_chan_init_main_des - XXXXXX
- * XXXXXX
- * XXXXXX
+ * dma_chan_init_main_des - init the main des
+ * @pchan:	dma handle
  *
- * XXXXXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 dma_chan_init_main_des(struct dma_channel_t *pchan)
 {
@@ -248,11 +246,10 @@ u32 dma_chan_init_main_des(struct dma_channel_t *pchan)
 }
 
 /**
- * dma_clean_des - free extra des/des_mgr if there is, init main des/des_mgr
- * XXXXXX
- * XXXXXX
+ * dma_clean_des - free extra des/des_mgr if there is, and init main des/des_mgr
+ * @pchan:	dma handle
  *
- * XXXXXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 dma_clean_des(struct dma_channel_t *pchan)
 {
@@ -322,11 +319,11 @@ End:
 }
 
 /**
- * __dma_enqueue_contimode - XXXXXX
- * XXXXXX
- * XXXXXX
+ * __dma_enqueue_contimode - enqueue buffer while dma channel works in continue mode
+ * @pchan:	dma handle
+ * @pdes:	descriptor to add
  *
- * XXXXXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __dma_enqueue_contimode(dm_hdl_t dma_hdl, struct cofig_des_t *pdes)
 {
@@ -412,11 +409,11 @@ End:
 }
 
 /**
- * __dma_enqueue_phase_normal - XXXXXX
- * XXXXXX
- * XXXXXX
+ * __dma_enqueue_phase_normal - enqueue buffer in normal phase
+ * @pchan:	dma handle
+ * @pdes:	descriptor to add
  *
- * XXXXXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __dma_enqueue_phase_normal(dm_hdl_t dma_hdl, struct cofig_des_t *pdes)
 {
@@ -550,11 +547,11 @@ End:
 }
 
 /**
- * __dma_enqueue_phase_hd - XXXXXX
- * XXXXXX
- * XXXXXX
+ * __dma_enqueue_phase_hd - enqueue buffer in half done callback
+ * @pchan:	dma handle
+ * @pdes:	descriptor to add
  *
- * XXXXXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __dma_enqueue_phase_hd(dm_hdl_t dma_hdl, struct cofig_des_t *pdes)
 {
@@ -667,11 +664,11 @@ End:
 }
 
 /**
- * __dma_enqueue_phase_fd - XXXXXX
- * XXXXXX
- * XXXXXX
+ * __dma_enqueue_phase_fd - enqueue buffer in full done callback
+ * @pchan:	dma handle
+ * @pdes:	descriptor to add
  *
- * XXXXXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __dma_enqueue_phase_fd(dm_hdl_t dma_hdl, struct cofig_des_t *pdes)
 {
@@ -784,11 +781,11 @@ End:
 }
 
 /**
- * __dma_enqueue_phase_qd - XXXXXX
- * XXXXXX
- * XXXXXX
+ * __dma_enqueue_phase_qd - enqueue buffer in queue done callback
+ * @pchan:	dma handle
+ * @pdes:	descriptor to add
  *
- * XXXXXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 __dma_enqueue_phase_qd(dm_hdl_t dma_hdl, struct cofig_des_t *pdes)
 {
@@ -880,11 +877,12 @@ End:
 }
 
 /**
- * dma_enqueue - XXXXXX
- * XXXXXX
- * XXXXXX
+ * dma_enqueue - dma enqueue function, i.e. add buffer to des chain
+ * @pchan:	dma handle
+ * @pdes:	descriptor to add
+ * @phase:	phase when enqueueing
  *
- * XXXXXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 dma_enqueue(dm_hdl_t dma_hdl, struct cofig_des_t *pdes, enum dma_enque_phase_e phase)
 {
