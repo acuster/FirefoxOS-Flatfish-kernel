@@ -182,7 +182,7 @@ End:
  *
  * Returns 0 if success, the err line number if failed.
  */
-u32 __CB_op_2(dm_hdl_t dma_hdl, enum dma_op_type_e op)
+u32 __CB_op_2(dm_hdl_t dma_hdl, void *parg, enum dma_op_type_e op)
 {
 	pr_info("%s: called!\n", __FUNCTION__);
 
@@ -246,10 +246,8 @@ ret = wait_event_interruptible_timeout(g_dtc_queue[2], \
 u32 _thread2_proc(void)
 {
 	u32 	uRet = 0;
-	u32 	i = 0;
 	void 	*pSrcV = NULL, *pDstV = NULL;
 	u32 	uSrcP = 0, uDstP = 0;
-	u32 	src_addr = 0, dst_addr = 0, byte_cnt = 0;
 	struct dma_cb_t done_cb;
 	struct dma_op_cb_t op_cb;
 
@@ -561,7 +559,7 @@ End:
  *
  * Returns 0 if success, the err line number if failed.
  */
-u32 __CB_op_1(dm_hdl_t dma_hdl, enum dma_op_type_e op)
+u32 __CB_op_1(dm_hdl_t dma_hdl, void *parg, enum dma_op_type_e op)
 {
 	pr_info("%s: called!\n", __FUNCTION__);
 
@@ -625,10 +623,10 @@ ret = wait_event_interruptible_timeout(g_dtc_queue[1], \
 u32 _thread1_proc(void)
 {
 	u32 	uRet = 0;
-	u32 	i = 0;
+	//u32 	i = 0;
 	void 	*pSrcV = NULL, *pDstV = NULL;
 	u32 	uSrcP = 0, uDstP = 0;
-	u32 	src_addr = 0, dst_addr = 0, byte_cnt = 0;
+	//u32 	src_addr = 0, dst_addr = 0, byte_cnt = 0;
 	struct dma_cb_t done_cb;
 	struct dma_op_cb_t op_cb;
 

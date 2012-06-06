@@ -142,9 +142,11 @@ End:
 u32 __CB_hd_1t_mem_2_mem(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {
 	u32 	uRet = 0;
+#if 0
 	u32	uCurSrc = 0, uCurDst = 0;
 	u32	uloop_cnt = DTC_1T_TOTAL_LEN / DTC_1T_ONE_LEN;
 	u32 	ucur_cnt = 0;
+#endif
 
 	pr_info("%s: called!\n", __FUNCTION__);
 
@@ -250,11 +252,11 @@ u32 __Waitdone_1t_mem_2_mem(void)
 u32 __dtc_1t_mem_2_mem(void)
 {
 	u32 	uRet = 0;
-	u32 	i = 0;
+	//u32 	i = 0;
 	void 	*pSrcV = NULL, *pDstV = NULL;
 	u32 	uSrcP = 0, uDstP = 0;
-	u32 	usrcp_temp = 0, udstp_temp = 0;
-	u32 	src_addr = 0, dst_addr = 0, byte_cnt = 0;
+	//u32 	usrcp_temp = 0, udstp_temp = 0;
+	//u32 	src_addr = 0, dst_addr = 0, byte_cnt = 0;
 	struct dma_cb_t done_cb;
 	struct dma_op_cb_t op_cb;
 
@@ -567,7 +569,6 @@ End:
 u32 __CB_fd_case_enq_aftdone(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {
 	u32 	uRet = 0;
-	u32	uCurSrc = 0, uCurDst = 0;
 
 	pr_info("%s: called!\n", __FUNCTION__);
 
@@ -696,7 +697,7 @@ u32 __dtc_case_enq_aftdone(void)
 	u32 	i = 0;
 	void 	*pSrcV = NULL, *pDstV = NULL;
 	u32 	uSrcP = 0, uDstP = 0;
-	u32 	src_addr = 0, dst_addr = 0, byte_cnt = 0;
+	//u32 	src_addr = 0, dst_addr = 0, byte_cnt = 0;
 	struct dma_cb_t done_cb;
 	struct dma_op_cb_t op_cb;
 

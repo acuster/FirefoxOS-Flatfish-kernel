@@ -101,11 +101,11 @@ End:
 u32 __CB_fd_stopcmd(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {
 	u32 	uRet = 0;
-	u32	uCurSrc = 0, uCurDst = 0;
+/*	u32	uCurSrc = 0, uCurDst = 0;
 
 	//pr_info("%s: called!\n", __FUNCTION__);
 
-/*	switch(cause) {
+	switch(cause) {
 	case DMA_CB_OK:
 		//pr_info("%s: DMA_CB_OK!\n", __FUNCTION__);
 		break;
@@ -163,7 +163,7 @@ End:
  *
  * Returns 0 if success, the err line number if failed.
  */
-u32 __CB_op_stopcmd(dm_hdl_t dma_hdl, enum dma_op_type_e op)
+u32 __CB_op_stopcmd(dm_hdl_t dma_hdl, void *parg, enum dma_op_type_e op)
 {
 /*	u32 		result = 0;
 	static u32 	enq_cnt = 30;
@@ -237,7 +237,6 @@ u32 __dtc_stopcmd(void)
 
 	dm_hdl_t	dma_hdl = (dm_hdl_t)NULL;
 	struct dma_config_t DmaConfig;
-	u32 	src_addr = 0, dst_addr = 0, byte_cnt = 0;
 
 	pr_info("%s enter\n", __FUNCTION__);
 
@@ -700,11 +699,11 @@ u32 __Waitdone_many_enq(void)
 u32 __dtc_many_enq(void)
 {
 	u32 	uRet = 0;
-	u32 	i = 0;
+	//u32 	i = 0;
 	void 	*pSrcV = NULL, *pDstV = NULL;
 	u32 	uSrcP = 0, uDstP = 0;
-	u32 	usrcp_temp = 0, udstp_temp = 0;
-	u32 	src_addr = 0, dst_addr = 0, byte_cnt = 0;
+	//u32 	usrcp_temp = 0, udstp_temp = 0;
+	//u32 	src_addr = 0, dst_addr = 0, byte_cnt = 0;
 	struct dma_cb_t done_cb;
 	struct dma_op_cb_t op_cb;
 
@@ -944,9 +943,11 @@ End:
 u32 __CB_qd_conti_mode(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 {
 	u32 	uRet = 0;
+#if 0
 	u32	uCurSrc = 0, uCurDst = 0;
 	u32	uloop_cnt = DTC_1T_TOTAL_LEN / DTC_1T_ONE_LEN;
 	u32 	ucur_cnt = 0;
+#endif
 
 	pr_info("%s: called!\n", __FUNCTION__);
 
@@ -1154,11 +1155,11 @@ u32 __Waitdone_conti_mode(void)
 u32 __dtc_conti_mode(void)
 {
 	u32 	uRet = 0;
-	u32 	i = 0;
+	//u32 	i = 0;
 	void 	*pSrcV = NULL, *pDstV = NULL;
 	u32 	uSrcP = 0, uDstP = 0;
-	u32 	usrcp_temp = 0, udstp_temp = 0;
-	u32 	src_addr = 0, dst_addr = 0, byte_cnt = 0;
+	//u32 	usrcp_temp = 0, udstp_temp = 0;
+	//u32 	src_addr = 0, dst_addr = 0, byte_cnt = 0;
 	struct dma_cb_t done_cb;
 	struct dma_op_cb_t op_cb;
 
