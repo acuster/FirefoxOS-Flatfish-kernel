@@ -205,7 +205,7 @@ u32 __Waitdone_stopcmd(void)
 	long 	timeout = 50 * HZ; /* 50 */
 
 	//DBG_FUN_LINE;
-        ret = wait_event_interruptible_timeout(g_dtc_queue[0], \
+ret = wait_event_interruptible_timeout(g_dtc_queue[0], \
 		atomic_read(&g_adma_done)== 1, timeout);
 	atomic_set(&g_adma_done, 0);
 
@@ -675,7 +675,7 @@ u32 __Waitdone_many_enq(void)
 	long 	ret = 0;
 	long 	timeout = 3 * HZ; /* 3s */
 
-        ret = wait_event_interruptible_timeout(g_dtc_queue[0], \
+	ret = wait_event_interruptible_timeout(g_dtc_queue[0], \
 		atomic_read(&g_adma_done)== 1, timeout);
 
 	atomic_set(&g_adma_done, 0);
@@ -860,7 +860,7 @@ u32 __dtc_many_enq(void)
 	 * we just delay 3s, and check data ok. because we don't know witch is the last
 	 *  qd irq to sigal g_adma_done
 	 */
-	 __Waitdone_many_enq();
+	__Waitdone_many_enq();
 #else
 	/*
 	 * wait dma done
@@ -1129,7 +1129,7 @@ u32 __Waitdone_conti_mode(void)
 	long 	ret = 0;
 	long 	timeout = 50 * HZ; /* 50s */
 
-        ret = wait_event_interruptible_timeout(g_dtc_queue[0], \
+	ret = wait_event_interruptible_timeout(g_dtc_queue[0], \
 		atomic_read(&g_adma_done)== 1, timeout);
 
 	atomic_set(&g_adma_done, 0);

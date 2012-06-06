@@ -126,7 +126,7 @@ int dma_deinit(void)
 	int 	ret = 0;
 	u32 	i = 0;
 
-        DMA_DBG_FUN_LINE_TOCHECK;
+	DMA_DBG_FUN_LINE_TOCHECK;
 
 	/* free dma irq */
 	free_irq(AW_IRQ_DMA, (void *)&g_dma_mgr);

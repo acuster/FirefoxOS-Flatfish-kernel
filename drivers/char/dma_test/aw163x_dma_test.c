@@ -18,7 +18,7 @@
 #include "test_case_1t_mem_2_mem.h"
 #include "test_case_2t_mem_2_mem.h"
 #include "test_case_other.h"
-
+	smp_
 /*
  * cur test case
  */

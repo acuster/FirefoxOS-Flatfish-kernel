@@ -66,8 +66,8 @@ static int __devexit dma_drv_remove(struct platform_device *dev)
  */
 static int dma_drv_suspend(struct platform_device *dev, pm_message_t state)
 {
-        DMA_DBG_FUN_LINE;
-        return 0;
+DMA_DBG_FUN_LINE;
+return 0;
 }
 
 /**
@@ -78,19 +78,19 @@ static int dma_drv_suspend(struct platform_device *dev, pm_message_t state)
  */
 static int dma_drv_resume(struct platform_device *dev)
 {
-        DMA_DBG_FUN_LINE;
-        return 0;
+DMA_DBG_FUN_LINE;
+return 0;
 }
 
 static struct platform_driver sw_dmac_driver = {
-        .probe          = dma_drv_probe,
-        .remove         = __devexit_p(dma_drv_remove),
-        .suspend        = dma_drv_suspend,
-        .resume         = dma_drv_resume,
-        .driver         = {
-                .name   = "sw_dmac",
-                .owner  = THIS_MODULE,
-        },
+.probe          = dma_drv_probe,
+.remove         = __devexit_p(dma_drv_remove),
+.suspend        = dma_drv_suspend,
+.resume         = dma_drv_resume,
+.driver         = {
+.name   = "sw_dmac",
+.owner  = THIS_MODULE,
+},
 };
 
 /**

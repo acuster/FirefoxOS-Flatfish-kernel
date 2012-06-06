@@ -221,7 +221,7 @@ u32 __Waitdone_2(void)
 	long 	ret = 0;
 	long 	timeout = 50 * HZ; /* 50 */
 
-        ret = wait_event_interruptible_timeout(g_dtc_queue[2], \
+ret = wait_event_interruptible_timeout(g_dtc_queue[2], \
 		atomic_read(&g_adma_done2)== 1, timeout);
 
 	atomic_set(&g_adma_done2, 0);
@@ -600,7 +600,7 @@ u32 __Waitdone_1(void)
 	long 	ret = 0;
 	long 	timeout = 50 * HZ; /* 50 */
 
-        ret = wait_event_interruptible_timeout(g_dtc_queue[1], \
+ret = wait_event_interruptible_timeout(g_dtc_queue[1], \
 		atomic_read(&g_adma_done1)== 1, timeout);
 
 	atomic_set(&g_adma_done1, 0);

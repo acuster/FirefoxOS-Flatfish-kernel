@@ -225,7 +225,7 @@ u32 __Waitdone_1t_mem_2_mem(void)
 	long 	ret = 0;
 	long 	timeout = 50 * HZ; /* 50s */
 
-        ret = wait_event_interruptible_timeout(g_dtc_queue[DTC_1T_MEM_2_MEM], \
+	ret = wait_event_interruptible_timeout(g_dtc_queue[DTC_1T_MEM_2_MEM], \
 		atomic_read(&g_adma_done)== 1, timeout);
 
 	atomic_set(&g_adma_done, 0);
@@ -668,7 +668,7 @@ u32 __Waitdone_case_enq_aftdone(void)
 	long 	ret = 0;
 	long 	timeout = 50 * HZ; /* 50 */
 
-        ret = wait_event_interruptible_timeout(g_dtc_queue[DTC_1T_MEM_2_MEM], \
+	ret = wait_event_interruptible_timeout(g_dtc_queue[DTC_1T_MEM_2_MEM], \
 		atomic_read(&g_adma_done)== 1, timeout);
 
 	atomic_set(&g_adma_done, 0);
