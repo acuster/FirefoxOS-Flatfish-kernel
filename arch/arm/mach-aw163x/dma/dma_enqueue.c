@@ -215,7 +215,6 @@ End:
 	}
 
 	return uret;
-
 }
 
 /**

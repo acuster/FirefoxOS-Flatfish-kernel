@@ -552,7 +552,6 @@ u32 sw_dma_release(dm_hdl_t dma_hdl)
 		if(NULL != pchan->pdes_mgr->pnext) { /* there are extra des mgr in chain */
 			struct des_mgr_t *pcur, *pnext;
 
-
 			/* free extra des/desmgr */
 			pcur = pchan->pdes_mgr->pnext;
 			pnext = pcur->pnext;
