@@ -1,14 +1,9 @@
 #ifndef __ASM_MACH_CLKDEV_H
 #define __ASM_MACH_CLKDEV_H
 
-struct clk {
-	unsigned long		rate;
-	const struct clk_ops	*ops;
-	const struct icst_params *params;
-	void __iomem		*vcoreg;
-};
+#include <linux/clk.h>
 
-#define __clk_get(clk) ({ 1; })
-#define __clk_put(clk) do { } while (0)
+int __clk_get(struct clk *hclk);
+void __clk_put(struct clk *clk);
 
 #endif

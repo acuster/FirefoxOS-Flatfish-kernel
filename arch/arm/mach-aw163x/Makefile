@@ -2,7 +2,8 @@
 # Makefile for the linux kernel.
 #
 
-obj-y=core.o clock.o printk.o devices.o
+obj-y=core.o printk.o devices.o
+obj-y += clock/
 
 ifeq ($(CONFIG_SMP),y)
 obj-y += platsmp.o headsmp.o
