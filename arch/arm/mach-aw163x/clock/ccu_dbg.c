@@ -22,15 +22,9 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/errno.h>
-#include <linux/err.h>
 #include <linux/string.h>
 #include <linux/clk.h>
-#include <linux/mutex.h>
-#include <linux/platform_device.h>
-#include <linux/cpufreq.h>
 #include <linux/debugfs.h>
-#include <linux/io.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include "ccm_i.h"
@@ -268,8 +262,6 @@ void clk_dbg_inf(void)
     print_clk_inf(Usb, Ohci1Gate);
     print_clk_inf(Usb, Ohci2Gate);
 
-
-
     print_module0_clock("Mdfs", &aw_ccu_reg->Mdfs);
 
     printk("\nDramCfg clk infor:\n");
@@ -279,7 +271,6 @@ void clk_dbg_inf(void)
     print_clk_inf(DramCfg, ClkSrc0);
     print_clk_inf(DramCfg, SdrClkUpd);
     print_clk_inf(DramCfg, CtrlerRst);
-
 
     printk("\nDramGate clk infor:\n");
     print_clk_inf(DramGate, Ve      );
@@ -314,7 +305,6 @@ void clk_dbg_inf(void)
     print_clk_inf(Csi0, SClkSrc);
     print_clk_inf(Csi0, SClkGate);
 
-
     printk("\nCsi1 clk infor:\n");
     print_clk_inf(Csi1, MClkDiv      );
     print_clk_inf(Csi1, MClkSrc);
@@ -322,7 +312,6 @@ void clk_dbg_inf(void)
     print_clk_inf(Csi1, SClkDiv);
     print_clk_inf(Csi1, SClkSrc);
     print_clk_inf(Csi1, SClkGate);
-
 
     printk("\nVe clk infor:\n");
     print_clk_inf(Ve, ClkDiv      );
@@ -461,6 +450,49 @@ EXPORT_SYMBOL(clk_dbg_inf);
 #ifdef CONFIG_PROC_FS
 
 #define sprintf_clk_inf(buf, x, y)     do{seq_printf(buf, "\t"#x"."#y":%d\n", aw_ccu_reg->x.y);}while(0)
+
+static void sprintf_module0_clock(struct seq_file *buf, char *name, volatile __ccmu_module0_clk_t *reg)
+{
+    seq_printf(buf, "\n%s clk infor:\n", name);
+    seq_printf(buf, "%s.DivM:%d\n", name, reg->DivM);
+    seq_printf(buf, "%s.OutClkCtrl:%d\n", name, reg->OutClkCtrl);
+    seq_printf(buf, "%s.DivN:%d\n", name, reg->DivN);
+    seq_printf(buf, "%s.SampClkCtrl:%d\n", name, reg->SampClkCtrl);
+    seq_printf(buf, "%s.ClkSrc:%d\n", name, reg->ClkSrc);
+    seq_printf(buf, "%s.ClkGate:%d\n", name, reg->ClkGate);
+}
+
+static void sprintf_module1_clock(struct seq_file *buf, char *name, volatile __ccmu_module1_clk_t *reg)
+{
+    seq_printf(buf, "\n%s clk infor:\n", name);
+    seq_printf(buf, "%s.ClkSrc:%d\n", name, reg->ClkSrc);
+    seq_printf(buf, "%s.ClkGate:%d\n", name, reg->ClkGate);
+}
+
+
+static void sprintf_disp_clock(struct seq_file *buf, char *name, volatile __ccmu_disp_clk_t *reg)
+{
+    seq_printf(buf, "\n%s clk infor:\n", name);
+    seq_printf(buf, "%s.DivM:%d\n", name, reg->DivM);
+    seq_printf(buf, "%s.ClkSrc:%d\n", name, reg->ClkSrc);
+    seq_printf(buf, "%s.ClkGate:%d\n", name, reg->ClkGate);
+}
+
+
+static void sprintf_mediapll_clock(struct seq_file *buf, char *name, volatile __ccmu_media_pll_t *reg)
+{
+    seq_printf(buf, "\n%s clk infor:\n", name);
+    seq_printf(buf, "%s.FactorM:%d\n", name, reg->FactorM);
+    seq_printf(buf, "%s.FactorN:%d\n", name, reg->FactorN);
+    seq_printf(buf, "%s.SdmEn:%d\n", name, reg->SdmEn);
+    seq_printf(buf, "%s.ModeSel:%d\n", name, reg->ModeSel);
+    seq_printf(buf, "%s.FracMod:%d\n", name, reg->FracMod);
+    seq_printf(buf, "%s.Lock:%d\n", name, reg->Lock);
+    seq_printf(buf, "%s.CtlMode:%d\n", name, reg->CtlMode);
+    seq_printf(buf, "%s.PLLEn:%d\n", name, reg->PLLEn);
+}
+
+
 static int ccmu_stats_show(struct seq_file *m, void *unused)
 {
     seq_printf(m, "---------------------------------------------\n");
@@ -474,6 +506,371 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, Pll1Ctl, SigmaEn  );
     sprintf_clk_inf(m, Pll1Ctl, Lock     );
     sprintf_clk_inf(m, Pll1Ctl, PLLEn    );
+
+    seq_printf(m, "\nPLL1 clk infor:\n");
+    sprintf_clk_inf(m, Pll1Ctl, FactorM  );
+    sprintf_clk_inf(m, Pll1Ctl, FactorK  );
+    sprintf_clk_inf(m, Pll1Ctl, FactorN  );
+    sprintf_clk_inf(m, Pll1Ctl, SigmaEn  );
+    sprintf_clk_inf(m, Pll1Ctl, Lock     );
+    sprintf_clk_inf(m, Pll1Ctl, PLLEn    );
+
+    seq_printf(m, "\nPLL2 clk infor:\n");
+    sprintf_clk_inf(m, Pll2Ctl, FactorM  );
+    sprintf_clk_inf(m, Pll2Ctl, FactorN  );
+    sprintf_clk_inf(m, Pll2Ctl, FactorP  );
+    sprintf_clk_inf(m, Pll2Ctl, SdmEn    );
+    sprintf_clk_inf(m, Pll2Ctl, Lock     );
+    sprintf_clk_inf(m, Pll2Ctl, PLLEn    );
+
+    seq_printf(m, "\nPLL3 clk infor:\n");
+    sprintf_clk_inf(m, Pll3Ctl, FactorM  );
+    sprintf_clk_inf(m, Pll3Ctl, FactorN  );
+    sprintf_clk_inf(m, Pll3Ctl, SdmEn    );
+    sprintf_clk_inf(m, Pll3Ctl, ModeSel  );
+    sprintf_clk_inf(m, Pll3Ctl, FracMod  );
+    sprintf_clk_inf(m, Pll3Ctl, Lock     );
+    sprintf_clk_inf(m, Pll3Ctl, CtlMode  );
+    sprintf_clk_inf(m, Pll3Ctl, PLLEn    );
+
+    sprintf_mediapll_clock(m, "Pll4Ctl", &aw_ccu_reg->Pll4Ctl);
+
+    seq_printf(m, "\nPll5Ctl clk infor:\n");
+    sprintf_clk_inf(m, Pll5Ctl, FactorM      );
+    sprintf_clk_inf(m, Pll5Ctl, FactorK      );
+    sprintf_clk_inf(m, Pll5Ctl, FactorN      );
+    sprintf_clk_inf(m, Pll5Ctl, PLLCfgUpdate );
+    sprintf_clk_inf(m, Pll5Ctl, SigmaDeltaEn );
+    sprintf_clk_inf(m, Pll5Ctl, Lock         );
+    sprintf_clk_inf(m, Pll5Ctl, PLLEn        );
+
+    seq_printf(m, "\nPll6Ctl clk infor:\n");
+    sprintf_clk_inf(m, Pll6Ctl, FactorM      );
+    sprintf_clk_inf(m, Pll6Ctl, FactorK      );
+    sprintf_clk_inf(m, Pll6Ctl, FactorN      );
+    sprintf_clk_inf(m, Pll6Ctl, Pll24MPdiv   );
+    sprintf_clk_inf(m, Pll6Ctl, Pll24MOutEn  );
+    sprintf_clk_inf(m, Pll6Ctl, PllClkOutEn  );
+    sprintf_clk_inf(m, Pll6Ctl, PLLBypass    );
+    sprintf_clk_inf(m, Pll6Ctl, Lock         );
+    sprintf_clk_inf(m, Pll6Ctl, PLLEn        );
+
+    sprintf_mediapll_clock(m, "Pll7Ctl", &aw_ccu_reg->Pll7Ctl);
+    sprintf_mediapll_clock(m, "Pll8Ctl", &aw_ccu_reg->Pll8Ctl);
+
+    seq_printf(m, "\nMipiPllCtl clk infor:\n");
+    sprintf_clk_inf(m, MipiPllCtl, FactorM   );
+    sprintf_clk_inf(m, MipiPllCtl, FactorK   );
+    sprintf_clk_inf(m, MipiPllCtl, FactorN   );
+    sprintf_clk_inf(m, MipiPllCtl, VfbSel    );
+    sprintf_clk_inf(m, MipiPllCtl, FeedBackDiv   );
+    sprintf_clk_inf(m, MipiPllCtl, SdmEn     );
+    sprintf_clk_inf(m, MipiPllCtl, PllSrc    );
+    sprintf_clk_inf(m, MipiPllCtl, Ldo2En    );
+    sprintf_clk_inf(m, MipiPllCtl, Ldo1En    );
+    sprintf_clk_inf(m, MipiPllCtl, Sel625Or750   );
+    sprintf_clk_inf(m, MipiPllCtl, SDiv2     );
+    sprintf_clk_inf(m, MipiPllCtl, FracMode  );
+    sprintf_clk_inf(m, MipiPllCtl, Lock      );
+    sprintf_clk_inf(m, MipiPllCtl, PLLEn     );
+
+    sprintf_mediapll_clock(m, "Pll9Ctl", &aw_ccu_reg->Pll9Ctl);
+    sprintf_mediapll_clock(m, "Pll10Ctl", &aw_ccu_reg->Pll10Ctl);
+
+    seq_printf(m, "\nSysClkDiv clk infor:\n");
+    sprintf_clk_inf(m, SysClkDiv, AXIClkDiv   );
+    sprintf_clk_inf(m, SysClkDiv, CpuClkSrc   );
+
+    seq_printf(m, "\nAhb1Div clk infor:\n");
+    sprintf_clk_inf(m, Ahb1Div, Ahb1Div      );
+    sprintf_clk_inf(m, Ahb1Div, Ahb1PreDiv   );
+    sprintf_clk_inf(m, Ahb1Div, Apb1Div      );
+    sprintf_clk_inf(m, Ahb1Div, Ahb1ClkSrc   );
+
+    seq_printf(m, "\nApb2Div clk infor:\n");
+    sprintf_clk_inf(m, Apb2Div, DivM      );
+    sprintf_clk_inf(m, Apb2Div, DivN      );
+    sprintf_clk_inf(m, Apb2Div, ClkSrc      );
+
+    seq_printf(m, "\nAxiGate clk infor:\n");
+    sprintf_clk_inf(m, AxiGate, Sdram      );
+
+    seq_printf(m, "\nAhbGate0 clk infor:\n");
+    sprintf_clk_inf(m, AhbGate0, MipiCsi      );
+    sprintf_clk_inf(m, AhbGate0, MipiDsi );
+    sprintf_clk_inf(m, AhbGate0, Ss      );
+    sprintf_clk_inf(m, AhbGate0, Dma     );
+    sprintf_clk_inf(m, AhbGate0, Sd0     );
+    sprintf_clk_inf(m, AhbGate0, Sd1     );
+    sprintf_clk_inf(m, AhbGate0, Sd2     );
+    sprintf_clk_inf(m, AhbGate0, Sd3     );
+    sprintf_clk_inf(m, AhbGate0, Nand1   );
+    sprintf_clk_inf(m, AhbGate0, Nand0   );
+    sprintf_clk_inf(m, AhbGate0, Dram    );
+    sprintf_clk_inf(m, AhbGate0, Gmac    );
+    sprintf_clk_inf(m, AhbGate0, Ts      );
+    sprintf_clk_inf(m, AhbGate0, HsTmr   );
+    sprintf_clk_inf(m, AhbGate0, Spi0    );
+    sprintf_clk_inf(m, AhbGate0, Spi1    );
+    sprintf_clk_inf(m, AhbGate0, Spi2    );
+    sprintf_clk_inf(m, AhbGate0, Spi3    );
+    sprintf_clk_inf(m, AhbGate0, Otg     );
+    sprintf_clk_inf(m, AhbGate0, Ehci0   );
+    sprintf_clk_inf(m, AhbGate0, Ehci1   );
+    sprintf_clk_inf(m, AhbGate0, Ohci0   );
+    sprintf_clk_inf(m, AhbGate0, Ohci1   );
+    sprintf_clk_inf(m, AhbGate0, Ohci2   );
+
+    seq_printf(m, "\nAhbGate1 clk infor:\n");
+    sprintf_clk_inf(m, AhbGate1, Ve      );
+    sprintf_clk_inf(m, AhbGate1, Lcd0);
+    sprintf_clk_inf(m, AhbGate1, Lcd1);
+    sprintf_clk_inf(m, AhbGate1, Csi0);
+    sprintf_clk_inf(m, AhbGate1, Csi1);
+    sprintf_clk_inf(m, AhbGate1, Hdmi);
+    sprintf_clk_inf(m, AhbGate1, Be0);
+    sprintf_clk_inf(m, AhbGate1, Be1);
+    sprintf_clk_inf(m, AhbGate1, Fe0);
+    sprintf_clk_inf(m, AhbGate1, Fe1);
+    sprintf_clk_inf(m, AhbGate1, Mp);
+    sprintf_clk_inf(m, AhbGate1, Gpu);
+    sprintf_clk_inf(m, AhbGate1, MsgBox);
+    sprintf_clk_inf(m, AhbGate1, SpinLock);
+    sprintf_clk_inf(m, AhbGate1, Deu0);
+    sprintf_clk_inf(m, AhbGate1, Deu1);
+    sprintf_clk_inf(m, AhbGate1, Drc0);
+    sprintf_clk_inf(m, AhbGate1, Drc1);
+    sprintf_clk_inf(m, AhbGate1, MtcAcc);
+
+    seq_printf(m, "\nApb1Gate clk infor:\n");
+    sprintf_clk_inf(m, Apb1Gate, Adda      );
+    sprintf_clk_inf(m, Apb1Gate, Spdif);
+    sprintf_clk_inf(m, Apb1Gate, Pio);
+    sprintf_clk_inf(m, Apb1Gate, I2s0);
+    sprintf_clk_inf(m, Apb1Gate, I2s1);
+
+    seq_printf(m, "\nApb2Gate clk infor:\n");
+    sprintf_clk_inf(m, Apb2Gate, Twi0      );
+    sprintf_clk_inf(m, Apb2Gate, Twi1);
+    sprintf_clk_inf(m, Apb2Gate, Twi2);
+    sprintf_clk_inf(m, Apb2Gate, Twi3);
+    sprintf_clk_inf(m, Apb2Gate, Uart0);
+    sprintf_clk_inf(m, Apb2Gate, Uart1);
+    sprintf_clk_inf(m, Apb2Gate, Uart2);
+    sprintf_clk_inf(m, Apb2Gate, Uart3);
+    sprintf_clk_inf(m, Apb2Gate, Uart4);
+    sprintf_clk_inf(m, Apb2Gate, Uart5);
+
+    sprintf_module0_clock(m, "Nand0", &aw_ccu_reg->Nand0);
+    sprintf_module0_clock(m, "Nand1", &aw_ccu_reg->Nand1);
+    sprintf_module0_clock(m, "Sd0", &aw_ccu_reg->Sd0);
+    sprintf_module0_clock(m, "Sd1", &aw_ccu_reg->Sd1);
+    sprintf_module0_clock(m, "Sd2", &aw_ccu_reg->Sd2);
+    sprintf_module0_clock(m, "Sd3", &aw_ccu_reg->Sd3);
+    sprintf_module0_clock(m, "Sd1", &aw_ccu_reg->Ts);
+    sprintf_module0_clock(m, "Sd1", &aw_ccu_reg->Ss);
+    sprintf_module0_clock(m, "Spi0", &aw_ccu_reg->Spi0);
+    sprintf_module0_clock(m, "Spi1", &aw_ccu_reg->Spi1);
+    sprintf_module0_clock(m, "Spi2", &aw_ccu_reg->Spi2);
+    sprintf_module0_clock(m, "Spi3", &aw_ccu_reg->Spi3);
+
+    sprintf_module1_clock(m, "I2s0", &aw_ccu_reg->I2s0);
+    sprintf_module1_clock(m, "I2s1", &aw_ccu_reg->I2s1);
+    sprintf_module1_clock(m, "Spdif", &aw_ccu_reg->Spdif);
+
+    seq_printf(m, "\nUsb clk infor:\n");
+    sprintf_clk_inf(m, Usb, UsbPhy0Rst      );
+    sprintf_clk_inf(m, Usb, UsbPhy1Rst);
+    sprintf_clk_inf(m, Usb, UsbPhy2Rst);
+    sprintf_clk_inf(m, Usb, Phy0Gate);
+    sprintf_clk_inf(m, Usb, Phy1Gate);
+    sprintf_clk_inf(m, Usb, Phy2Gate);
+    sprintf_clk_inf(m, Usb, Ohci0Gate);
+    sprintf_clk_inf(m, Usb, Ohci1Gate);
+    sprintf_clk_inf(m, Usb, Ohci2Gate);
+
+    sprintf_module0_clock(m, "Mdfs", &aw_ccu_reg->Mdfs);
+
+    seq_printf(m, "\nDramCfg clk infor:\n");
+    sprintf_clk_inf(m, DramCfg, Div1M      );
+    sprintf_clk_inf(m, DramCfg, ClkSrc1);
+    sprintf_clk_inf(m, DramCfg, Div0M);
+    sprintf_clk_inf(m, DramCfg, ClkSrc0);
+    sprintf_clk_inf(m, DramCfg, SdrClkUpd);
+    sprintf_clk_inf(m, DramCfg, CtrlerRst);
+
+    seq_printf(m, "\nDramGate clk infor:\n");
+    sprintf_clk_inf(m, DramGate, Ve      );
+    sprintf_clk_inf(m, DramGate, Csi0);
+    sprintf_clk_inf(m, DramGate, Csi1);
+    sprintf_clk_inf(m, DramGate, Ts);
+    sprintf_clk_inf(m, DramGate, Drc0);
+    sprintf_clk_inf(m, DramGate, Drc1);
+    sprintf_clk_inf(m, DramGate, Deu0);
+    sprintf_clk_inf(m, DramGate, Deu1);
+    sprintf_clk_inf(m, DramGate, Fe0);
+    sprintf_clk_inf(m, DramGate, Fe1);
+    sprintf_clk_inf(m, DramGate, Be0);
+    sprintf_clk_inf(m, DramGate, Be1);
+    sprintf_clk_inf(m, DramGate, Mp);
+
+    sprintf_disp_clock(m, "Be0", &aw_ccu_reg->Be0);
+    sprintf_disp_clock(m, "Be1", &aw_ccu_reg->Be1);
+    sprintf_disp_clock(m, "Fe0", &aw_ccu_reg->Fe0);
+    sprintf_disp_clock(m, "Fe1", &aw_ccu_reg->Fe1);
+    sprintf_disp_clock(m, "Mp", &aw_ccu_reg->Mp);
+    sprintf_disp_clock(m, "Lcd0Ch0", &aw_ccu_reg->Lcd0Ch0);
+    sprintf_disp_clock(m, "Lcd0Ch1", &aw_ccu_reg->Lcd0Ch1);
+    sprintf_disp_clock(m, "Lcd1Ch0", &aw_ccu_reg->Lcd1Ch0);
+    sprintf_disp_clock(m, "Lcd1Ch1", &aw_ccu_reg->Lcd1Ch1);
+
+    seq_printf(m, "\nCsi0 clk infor:\n");
+    sprintf_clk_inf(m, Csi0, MClkDiv      );
+    sprintf_clk_inf(m, Csi0, MClkSrc);
+    sprintf_clk_inf(m, Csi0, MClkGate);
+    sprintf_clk_inf(m, Csi0, SClkDiv);
+    sprintf_clk_inf(m, Csi0, SClkSrc);
+    sprintf_clk_inf(m, Csi0, SClkGate);
+
+    seq_printf(m, "\nCsi1 clk infor:\n");
+    sprintf_clk_inf(m, Csi1, MClkDiv      );
+    sprintf_clk_inf(m, Csi1, MClkSrc);
+    sprintf_clk_inf(m, Csi1, MClkGate);
+    sprintf_clk_inf(m, Csi1, SClkDiv);
+    sprintf_clk_inf(m, Csi1, SClkSrc);
+    sprintf_clk_inf(m, Csi1, SClkGate);
+
+    seq_printf(m, "\nVe clk infor:\n");
+    sprintf_clk_inf(m, Ve, ClkDiv      );
+    sprintf_clk_inf(m, Ve, ClkGate      );
+
+    sprintf_module1_clock(m, "Adda", &aw_ccu_reg->Adda);
+    sprintf_module1_clock(m, "Avs", &aw_ccu_reg->Avs);
+
+    seq_printf(m, "\nHdmi clk infor:\n");
+    sprintf_clk_inf(m, Hdmi, ClkDiv);
+    sprintf_clk_inf(m, Hdmi, ClkSrc);
+    sprintf_clk_inf(m, Hdmi, DDCGate);
+    sprintf_clk_inf(m, Hdmi, ClkGate);
+
+    sprintf_module1_clock(m, "Ps", &aw_ccu_reg->Ps);
+    sprintf_module0_clock(m, "MtcAcc", &aw_ccu_reg->MtcAcc);
+    sprintf_module0_clock(m, "MBus0", &aw_ccu_reg->MBus0);
+    sprintf_module0_clock(m, "MBus1", &aw_ccu_reg->MBus1);
+
+    seq_printf(m, "\nMipiDsi clk infor:\n");
+    sprintf_clk_inf(m, MipiDsi, PClkDiv);
+    sprintf_clk_inf(m, MipiDsi, PClkSrc);
+    sprintf_clk_inf(m, MipiDsi, PClkGate);
+    sprintf_clk_inf(m, MipiDsi, SClkDiv);
+    sprintf_clk_inf(m, MipiDsi, SClkSrc);
+    sprintf_clk_inf(m, MipiDsi, SClkGate);
+
+    seq_printf(m, "\nMipiCsi clk infor:\n");
+    sprintf_clk_inf(m, MipiCsi, PClkDiv);
+    sprintf_clk_inf(m, MipiCsi, PClkSrc);
+    sprintf_clk_inf(m, MipiCsi, PClkGate);
+    sprintf_clk_inf(m, MipiCsi, SClkDiv);
+    sprintf_clk_inf(m, MipiCsi, SClkSrc);
+    sprintf_clk_inf(m, MipiCsi, SClkGate);
+
+    sprintf_module0_clock(m, "IepDrc0", &aw_ccu_reg->IepDrc0);
+    sprintf_module0_clock(m, "IepDrc1", &aw_ccu_reg->IepDrc1);
+    sprintf_module0_clock(m, "IepDeu0", &aw_ccu_reg->IepDeu0);
+    sprintf_module0_clock(m, "IepDeu1", &aw_ccu_reg->IepDeu1);
+    sprintf_module0_clock(m, "GpuCore", &aw_ccu_reg->GpuCore);
+    sprintf_module0_clock(m, "GpuMem", &aw_ccu_reg->GpuMem);
+    sprintf_module0_clock(m, "GpuHyd", &aw_ccu_reg->GpuHyd);
+
+    seq_printf(m, "\nPllLock clk infor:\n");
+    sprintf_clk_inf(m, PllLock, LockTime);
+
+    seq_printf(m, "\nAhbReset0 clk infor:\n");
+    sprintf_clk_inf(m, AhbReset0, MipiCsi);
+    sprintf_clk_inf(m, AhbReset0, MipiDsi);
+    sprintf_clk_inf(m, AhbReset0, Ss);
+    sprintf_clk_inf(m, AhbReset0, Dma);
+    sprintf_clk_inf(m, AhbReset0, Sd0);
+    sprintf_clk_inf(m, AhbReset0, Sd1);
+    sprintf_clk_inf(m, AhbReset0, Sd2);
+    sprintf_clk_inf(m, AhbReset0, Sd3);
+    sprintf_clk_inf(m, AhbReset0, Nand1);
+    sprintf_clk_inf(m, AhbReset0, Nand0);
+    sprintf_clk_inf(m, AhbReset0, Sdram);
+    sprintf_clk_inf(m, AhbReset0, Gmac);
+    sprintf_clk_inf(m, AhbReset0, Ts);
+    sprintf_clk_inf(m, AhbReset0, HsTmr);
+    sprintf_clk_inf(m, AhbReset0, Spi0);
+    sprintf_clk_inf(m, AhbReset0, Spi1);
+    sprintf_clk_inf(m, AhbReset0, Spi2);
+    sprintf_clk_inf(m, AhbReset0, Spi3);
+    sprintf_clk_inf(m, AhbReset0, Otg);
+    sprintf_clk_inf(m, AhbReset0, Ehci0);
+    sprintf_clk_inf(m, AhbReset0, Ehci1);
+    sprintf_clk_inf(m, AhbReset0, Ohci0);
+    sprintf_clk_inf(m, AhbReset0, Ohci1);
+    sprintf_clk_inf(m, AhbReset0, Ohci2);
+
+    seq_printf(m, "\nAhbReset1 clk infor:\n");
+    sprintf_clk_inf(m, AhbReset1, Ve);
+    sprintf_clk_inf(m, AhbReset1, Lcd0);
+    sprintf_clk_inf(m, AhbReset1, Lcd1);
+    sprintf_clk_inf(m, AhbReset1, Csi0);
+    sprintf_clk_inf(m, AhbReset1, Csi1);
+    sprintf_clk_inf(m, AhbReset1, Hdmi);
+    sprintf_clk_inf(m, AhbReset1, Be0);
+    sprintf_clk_inf(m, AhbReset1, Be1);
+    sprintf_clk_inf(m, AhbReset1, Fe0);
+    sprintf_clk_inf(m, AhbReset1, Fe1);
+    sprintf_clk_inf(m, AhbReset1, Mp);
+    sprintf_clk_inf(m, AhbReset1, Gpu);
+    sprintf_clk_inf(m, AhbReset1, MsgBox);
+    sprintf_clk_inf(m, AhbReset1, SpinLock);
+    sprintf_clk_inf(m, AhbReset1, Deu0);
+    sprintf_clk_inf(m, AhbReset1, Deu1);
+    sprintf_clk_inf(m, AhbReset1, Drc0);
+    sprintf_clk_inf(m, AhbReset1, Drc1);
+    sprintf_clk_inf(m, AhbReset1, MtcAcc);
+
+    seq_printf(m, "\nAhbReset2 clk infor:\n");
+    sprintf_clk_inf(m, AhbReset2, Lvds);
+
+    seq_printf(m, "\nApb1Reset clk infor:\n");
+    sprintf_clk_inf(m, Apb1Reset, Adda);
+    sprintf_clk_inf(m, Apb1Reset, Spdif);
+    sprintf_clk_inf(m, Apb1Reset, Pio);
+    sprintf_clk_inf(m, Apb1Reset, I2s0);
+    sprintf_clk_inf(m, Apb1Reset, I2s1);
+
+    seq_printf(m, "\nApb2Reset clk infor:\n");
+    sprintf_clk_inf(m, Apb2Reset, Twi0);
+    sprintf_clk_inf(m, Apb2Reset, Twi1);
+    sprintf_clk_inf(m, Apb2Reset, Twi2);
+    sprintf_clk_inf(m, Apb2Reset, Twi3);
+    sprintf_clk_inf(m, Apb2Reset, Uart0);
+    sprintf_clk_inf(m, Apb2Reset, Uart1);
+    sprintf_clk_inf(m, Apb2Reset, Uart2);
+    sprintf_clk_inf(m, Apb2Reset, Uart3);
+    sprintf_clk_inf(m, Apb2Reset, Uart4);
+    sprintf_clk_inf(m, Apb2Reset, Uart5);
+
+    seq_printf(m, "\nClkOutA clk infor:\n");
+    sprintf_clk_inf(m, ClkOutA, DivM);
+    sprintf_clk_inf(m, ClkOutA, DivN);
+    sprintf_clk_inf(m, ClkOutA, ClkSrc);
+    sprintf_clk_inf(m, ClkOutA, ClkEn);
+
+    seq_printf(m, "\nClkOutB clk infor:\n");
+    sprintf_clk_inf(m, ClkOutB, DivM);
+    sprintf_clk_inf(m, ClkOutB, DivN);
+    sprintf_clk_inf(m, ClkOutB, ClkSrc);
+    sprintf_clk_inf(m, ClkOutB, ClkEn);
+
+    seq_printf(m, "\nClkOutC clk infor:\n");
+    sprintf_clk_inf(m, ClkOutC, DivM);
+    sprintf_clk_inf(m, ClkOutC, DivN);
+    sprintf_clk_inf(m, ClkOutC, ClkSrc);
+    sprintf_clk_inf(m, ClkOutC, ClkEn);
 
 	return 0;
 }

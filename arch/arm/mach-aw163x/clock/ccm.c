@@ -228,8 +228,8 @@ int aw_ccu_init(void)
     CCU_DBG("%s\n", __func__);
 
     /* initialise the CCU io base */
-    aw_ccu_reg = (__ccmu_reg_list_t *)SW_VA_CCM_IO_BASE;
-    aw_cpu0_reg = (__ccmu_reg_cpu0_list_t *)SW_VA_CPU0_IO_BASE;
+    aw_ccu_reg = (__ccmu_reg_list_t *)ioremap_nocache(AW_CCM_BASE, 0x400);
+    aw_cpu0_reg = (__ccmu_reg_cpu0_list_t *)ioremap_nocache(AW_R_CPUCFG_BASE, 0x200);;
     return 0;
 }
 

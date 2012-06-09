@@ -30,8 +30,6 @@ extern __ccmu_reg_cpu0_list_t  *aw_cpu0_reg;
 extern __clk_ops_t sys_clk_ops;
 extern __clk_ops_t mod_clk_ops;
 
-#define SW_VA_CCM_IO_BASE   0x00000000
-#define SW_VA_CPU0_IO_BASE  0x00000000
 
 #if (1)
     #define CCU_DBG(format,args...)   printk("[ccmu] "format,##args)
