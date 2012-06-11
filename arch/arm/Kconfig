@@ -285,7 +285,7 @@ config ARCH_REALVIEW
 	help
 	  This enables support for ARM Ltd RealView boards.
 
-config ARCH_AW163X
+config ARCH_SUN6I
 	bool "Allwinner Ltd. AW163x family"
 	select ARM_AMBA
 	select CLKDEV_LOOKUP

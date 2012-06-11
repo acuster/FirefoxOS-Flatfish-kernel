@@ -53,11 +53,11 @@ build_kernel()
 {
 	if [ ! -e .config ]; then
 		echo -e "\n\t\tUsing default config... ...!\n"
-		cp arch/arm/configs/aw163xsmp_defconfig .config
+		cp arch/arm/configs/sun6ismp_defconfig .config
 	fi
 
 #	build_standby
-make ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- -j8 uImage
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- -j8 uImage modules
 
 arm-linux-gnueabi-objcopy -R .note.gnu.build-id -S -O binary vmlinux bImage
 

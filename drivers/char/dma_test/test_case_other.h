@@ -4,7 +4,7 @@
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * liugang <liugang@allwinnertech.com>
  *
- * aw163x dma test head file
+ * sun6i dma test head file
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as

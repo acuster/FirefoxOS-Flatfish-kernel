@@ -1,10 +1,10 @@
 /*
- * drivers/char/dma_test/test_case_2t_mem_2_mem.h
+ * arch/arm/mach-sun6i/dma/dma_enqueue.h
  * (C) Copyright 2010-2015
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * liugang <liugang@allwinnertech.com>
  *
- * sun6i dma test head file
+ * sun6i dma header file
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -13,10 +13,12 @@
  *
  */
 
-#ifndef __TEST_CASE_2T_MEM_2_MEM_H
-#define __TEST_CASE_2T_MEM_2_MEM_H
+#ifndef __DMA_ENQUEUE_H
+#define __DMA_ENQUEUE_H
 
-u32 __dtc_2t_mem_2_mem(void);
+u32 dma_clean_des(struct dma_channel_t *pchan);
+u32 dma_chan_init_main_des(struct dma_channel_t *pchan);
+u32 dma_enqueue(dm_hdl_t dma_hdl, struct cofig_des_t *pdes, enum dma_enque_phase_e phase);
 
 
-#endif /* __TEST_CASE_2T_MEM_2_MEM_H */
+#endif  /* __DMA_ENQUEUE_H */

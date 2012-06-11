@@ -100,7 +100,7 @@ enum mclk_src {
 /*=============================================================================*/
 /*                              aw1633 platform                                */
 /*=============================================================================*/
-#ifdef CONFIG_ARCH_AW163X
+#ifdef CONFIG_ARCH_SUN6I
 #define  SUNXI_MMC_HOST_NUM     4
 #define  SUNXI_MMC_USED_CTRL    (SUNXI_MMC0_USED | SUNXI_MMC1_USED | SUNXI_MMC2_USED | SUNXI_MMC3_USED)
 #define  SUNXI_MMC_MAX_DMA_DES_BIT  16

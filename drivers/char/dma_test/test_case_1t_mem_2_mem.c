@@ -4,7 +4,7 @@
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * liugang <liugang@allwinnertech.com>
  *
- * aw163x dma test driver
+ * sun6i dma test driver
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -13,7 +13,7 @@
  *
  */
 
-#include "aw163x_dma_test.h"
+#include "sun6i_dma_test.h"
 #include <linux/random.h>
 
 /*
