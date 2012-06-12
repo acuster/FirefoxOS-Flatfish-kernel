@@ -1121,6 +1121,13 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_xls_driver
 #endif
 
+#ifdef CONFIG_USB_SW_SUN6I_HCI
+#include "ohci_sun6i.c"
+#define	PLATFORM_DRIVER		sw_ohci_hcd_driver
+#endif
+
+
+
 #if	!defined(PCI_DRIVER) &&		\
 	!defined(PLATFORM_DRIVER) &&	\
 	!defined(OMAP1_PLATFORM_DRIVER) &&	\
@@ -1137,6 +1144,8 @@ MODULE_LICENSE ("GPL");
 static int __init ohci_hcd_mod_init(void)
 {
 	int retval = 0;
+
+	printk("Line:%d:%s\n", __LINE__, __func__);
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -1266,7 +1275,8 @@ static int __init ohci_hcd_mod_init(void)
 	clear_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 	return retval;
 }
-module_init(ohci_hcd_mod_init);
+//module_init(ohci_hcd_mod_init);
+fs_initcall(ohci_hcd_mod_init);
 
 static void __exit ohci_hcd_mod_exit(void)
 {

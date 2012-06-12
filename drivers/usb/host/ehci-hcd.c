@@ -319,6 +319,7 @@ static int ehci_reset (struct ehci_hcd *ehci)
 {
 	int	retval;
 	u32	command = ehci_readl(ehci, &ehci->regs->command);
+	printk("Line:%d:%s\n", __LINE__, __func__);
 
 	/* If the EHCI debug controller is active, special care must be
 	 * taken before and after a host controller reset */
@@ -732,6 +733,7 @@ static int ehci_run (struct usb_hcd *hcd)
 	u32			hcc_params;
 
 	hcd->uses_new_polling = 1;
+	printk("Line:%d:%s\n", __LINE__, __func__);
 
 	/* EHCI spec section 4.1 */
 
@@ -814,6 +816,7 @@ static int __maybe_unused ehci_setup (struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int retval;
+	printk("Line:%d:%s\n", __LINE__, __func__);
 
 	ehci->regs = (void __iomem *)ehci->caps +
 	    HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
@@ -848,6 +851,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	int			bh;
 
 	spin_lock (&ehci->lock);
+	//printk("Line:%d:%s\n", __LINE__, __func__);
 
 	status = ehci_readl(ehci, &ehci->regs->status);
 
@@ -1376,6 +1380,13 @@ MODULE_LICENSE ("GPL");
 #define        PLATFORM_DRIVER         ehci_mv_driver
 #endif
 
+#ifdef CONFIG_USB_SW_SUN6I_HCI
+#include "ehci_sun6i.c"
+#define	PLATFORM_DRIVER		sw_ehci_hcd_driver
+#endif
+
+
+
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \
     !defined(PS3_SYSTEM_BUS_DRIVER) && !defined(OF_PLATFORM_DRIVER) && \
     !defined(XILINX_OF_PLATFORM_DRIVER)
@@ -1468,7 +1479,8 @@ err_debug:
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 	return retval;
 }
-module_init(ehci_hcd_init);
+fs_initcall(ehci_hcd_init);
+//module_init(ehci_hcd_init);
 
 static void __exit ehci_hcd_cleanup(void)
 {

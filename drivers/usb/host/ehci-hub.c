@@ -52,6 +52,7 @@ static void ehci_handover_companion_ports(struct ehci_hcd *ehci)
 	int		port;
 	__le32		buf;
 	struct usb_hcd	*hcd = ehci_to_hcd(ehci);
+	printk("Line:%d:%s\n", __LINE__, __func__);
 
 	if (!ehci->owned_ports)
 		return;
@@ -112,6 +113,7 @@ static int ehci_port_change(struct ehci_hcd *ehci)
 	int i = HCS_N_PORTS(ehci->hcs_params);
 
 	/* First check if the controller indicates a change event */
+	printk("Line:%d:%s\n", __LINE__, __func__);
 
 	if (ehci_readl(ehci, &ehci->regs->status) & STS_PCD)
 		return 1;
@@ -134,6 +136,7 @@ static __maybe_unused void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 	int		port;
 	u32		temp;
 	unsigned long	flags;
+	printk("Line:%d:%s\n", __LINE__, __func__);
 
 	/* If remote wakeup is enabled for the root hub but disabled
 	 * for the controller, we must adjust all the port wakeup flags
@@ -207,6 +210,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	int			port;
 	int			mask;
 	int			changed;
+	printk("Line:%d:%s\n", __LINE__, __func__);
 
 	ehci_dbg(ehci, "suspend root hub\n");
 
@@ -342,6 +346,7 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	u32			power_okay;
 	int			i;
 	unsigned long		resume_needed = 0;
+	printk("Line:%d:%s\n", __LINE__, __func__);
 
 	if (time_before (jiffies, ehci->next_statechange))
 		msleep(5);
@@ -512,6 +517,7 @@ static int check_reset_complete (
 ) {
 	if (!(port_status & PORT_CONNECT))
 		return port_status;
+	printk("Line:%d:%s\n", __LINE__, __func__);
 
 	/* if reset finished and it's still not enabled -- handoff */
 	if (!(port_status & PORT_PE)) {
@@ -559,6 +565,7 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 	int		ports, i, retval = 1;
 	unsigned long	flags;
 	u32		ppcd = 0;
+	printk("Line:%d:%s\n", __LINE__, __func__);
 
 	/* if !USB_SUSPEND, root hub timers won't get shut down ... */
 	if (ehci->rh_state != EHCI_RH_RUNNING)
@@ -630,6 +637,7 @@ ehci_hub_descriptor (
 ) {
 	int		ports = HCS_N_PORTS (ehci->hcs_params);
 	u16		temp;
+	//printk("Line:%d:%s\n", __LINE__, __func__);
 
 	desc->bDescriptorType = 0x29;
 	desc->bPwrOn2PwrGood = 10;	/* ehci 1.0, 2.3.9 says 20ms max */
@@ -675,6 +683,7 @@ static int ehci_hub_control (
 	unsigned long	flags;
 	int		retval = 0;
 	unsigned	selector;
+	//printk("Line:%d:%s\n", __LINE__, __func__);
 
 	/*
 	 * FIXME:  support SetPortFeatures USB_PORT_FEAT_INDICATOR.
@@ -1079,10 +1088,12 @@ error_exit:
 static void ehci_relinquish_port(struct usb_hcd *hcd, int portnum)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
+	printk("Line:%d:%s\n", __LINE__, __func__);
 
 	if (ehci_is_TDI(ehci))
 		return;
 	set_owner(ehci, --portnum, PORT_OWNER);
+	printk("The port change to OHCI now!\n");
 }
 
 static int ehci_port_handed_over(struct usb_hcd *hcd, int portnum)
