@@ -563,6 +563,7 @@ CONFIG_BLK_DEV=y
 # CONFIG_CDROM_PKTCDVD is not set
 # CONFIG_ATA_OVER_ETH is not set
 # CONFIG_BLK_DEV_RBD is not set
+CONFIG_SUN6I_NANDFLASH=y
 
 #
 # Misc devices
