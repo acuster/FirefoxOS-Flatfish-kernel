@@ -412,7 +412,7 @@ static __s32 usb_script_parse(struct usb_cfg *cfg)
 	cfg->port[0].enable = 1;
 
 	/* usbc port type */
-	cfg->port[0].port_type = USB_PORT_TYPE_HOST;
+	cfg->port[0].port_type = USB_PORT_TYPE_DEVICE;
 
 	/* usbc detect type */
 	cfg->port[0].detect_type = USB_DETECT_TYPE_VBUS_ID;
