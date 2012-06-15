@@ -7,7 +7,9 @@
 #include <mach/hardware.h>
 
 #define __OS_LINUX_SYSTEM__
+#define __OS_USE_VADDR__
 #define __FPGA_TEST__
+
 #ifndef __FPGA_TEST__
     #define NAND_IO_BASE_ADDR		SW_VA_NANDFLASHC_IO_BASE
 #else
@@ -28,6 +30,7 @@ extern int NAND_GetClk(void);
 
 extern __s32 NAND_CleanFlushDCacheRegion(__u32 buff_addr, __u32 len);
 extern __s32 NAND_WaitDmaFinish(void);
+extern __u32 NAND_VA_TO_PA(__u32 buff_addr);
 
 extern void NAND_PIORequest(void);
 extern void NAND_PIORelease(void);

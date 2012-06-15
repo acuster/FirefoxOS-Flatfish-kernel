@@ -123,14 +123,20 @@ __s32 _wait_cmd_finish(void)
 void _dma_config_start(__u8 rw, __u32 buff_addr, __u32 len)
 {
 	__u32 reg_val;
+	__u32 mem_addr;
 
 	NAND_CleanFlushDCacheRegion(buff_addr, len);
+	#ifdef __OS_USE_VADDR__
+	    mem_addr = NAND_VA_TO_PA(buff_addr);
+	#else
+	    mem_addr = buff_addr;
+	#endif
 
 	//set mbus dma mode
 	reg_val = NFC_READ_REG(NFC_REG_CTL);
 	reg_val &= (~(0x1<<15));
 	NFC_WRITE_REG(NFC_REG_CTL, reg_val);
-	NFC_WRITE_REG(NFC_REG_MDMA_ADDR, buff_addr);
+	NFC_WRITE_REG(NFC_REG_MDMA_ADDR, mem_addr);
 	NFC_WRITE_REG(NFC_REG_DMA_CNT, len);
 }
 
@@ -140,7 +146,13 @@ __s32 _wait_dma_end(void)
 
 	while ( (timeout--) && (!(NFC_READ_REG(NFC_REG_ST) & NFC_DMA_INT_FLAG)) );
 	if (timeout <= 0)
+	{
+	    PRINT("nand _wait_dma_end time out, status:0x%x\n", NFC_READ_REG(NFC_REG_ST));
 		return -ERR_TIMEOUT;
+    }
+
+	NFC_WRITE_REG(NFC_REG_ST, NFC_READ_REG(NFC_REG_ST) & NFC_DMA_INT_FLAG);
+
 	return 0;
 }
 
@@ -261,7 +273,7 @@ void _set_addr(__u8 *addr, __u8 cnt)
 
 __s32 _read_in_page_mode(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,__u8 dma_wait_mode)
 {
-	__s32 ret,ret1;
+	__s32 ret;
 	__s32 i;
 	__u32 cfg;
 	NFC_CMD_LIST *cur_cmd,*read_addr_cmd;
@@ -321,6 +333,9 @@ __s32 _read_in_page_mode(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,__u8 d
 	NFC_WRITE_REG(NFC_REG_CMD,cfg);
 
     NAND_WaitDmaFinish();
+    ret = _wait_dma_end();
+	if (ret)
+		return ret;
 
 	/*wait cmd fifo free and cmd finish*/
 	ret = _wait_cmdfifo_free();
@@ -337,13 +352,6 @@ __s32 _read_in_page_mode(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,__u8 d
 	/*ecc check and disable ecc*/
 	ret = _check_ecc(pagesize/1024);
 	_disable_ecc();
-
-	/*if dma mode is wait*/
-	if(0 == dma_wait_mode){
-		ret1 = _wait_dma_end();
-		if (ret1)
-			return ret1;
-	}
 
 	return ret;
 }

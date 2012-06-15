@@ -145,6 +145,11 @@ __s32 NAND_WaitDmaFinish(void)
     return 0;
 }
 
+__u32 NAND_VA_TO_PA(__u32 buff_addr)
+{
+    return (__u32)(__pa((void *)buff_addr));
+}
+
 
 void NAND_EnRbInt(void)
 {
