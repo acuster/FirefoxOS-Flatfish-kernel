@@ -37,6 +37,7 @@
 #include <linux/sched.h>
 #include <asm/cacheflush.h>
 #include "../src/include/nfc.h"
+#include "../osal/nand_osal.h"
 #ifndef __FPGA_TEST__
     #include <mach/sys_config.h>
 #endif
@@ -47,8 +48,12 @@ static struct clk *mod_nand_clk = NULL;
 int seq=0;
 int nand_handle=0;
 
+#ifdef __OS_NAND_SUPPORT_INT__
 static int nandrb_ready_flag = 1;
+static int nanddma_ready_flag = 1;
 static DECLARE_WAIT_QUEUE_HEAD(NAND_RB_WAIT);
+static DECLARE_WAIT_QUEUE_HEAD(NAND_DMA_WAIT);
+#endif
 
 //#define RB_INT_MSG_ON
 #ifdef  RB_INT_MSG_ON
@@ -57,11 +62,25 @@ static DECLARE_WAIT_QUEUE_HEAD(NAND_RB_WAIT);
 #define dbg_rbint(fmt, ...)  ({})
 #endif
 
-//#define RB_INT_WRN_ON
+#define RB_INT_WRN_ON
 #ifdef  RB_INT_WRN_ON
 #define dbg_rbint_wrn(fmt, args...) printk(fmt, ## args)
 #else
 #define dbg_rbint_wrn(fmt, ...)  ({})
+#endif
+
+//#define DMA_INT_MSG_ON
+#ifdef  DMA_INT_MSG_ON
+#define dbg_dmaint(fmt, args...) printk(fmt, ## args)
+#else
+#define dbg_dmaint(fmt, ...)  ({})
+#endif
+
+#define DMA_INT_WRN_ON
+#ifdef  DMA_INT_WRN_ON
+#define dbg_dmaint_wrn(fmt, args...) printk(fmt, ## args)
+#else
+#define dbg_dmaint_wrn(fmt, ...)  ({})
 #endif
 
 /*
@@ -137,19 +156,92 @@ void eLIBs_CleanFlushDCacheRegion_nand(void *adr, size_t bytes)
 __s32 NAND_CleanFlushDCacheRegion(__u32 buff_addr, __u32 len)
 {
 	eLIBs_CleanFlushDCacheRegion_nand((void *)buff_addr, (size_t)len);
+    return 0;
+}
+
+#ifdef __OS_NAND_SUPPORT_INT__
+void NAND_EnDMAInt(void)
+{
+	//clear interrupt
+	NFC_WRITE_REG(NFC_REG_ST,NFC_DMA_INT_FLAG);
+	if(NFC_READ_REG(NFC_REG_ST)&NFC_DMA_INT_FLAG)
+	{
+		dbg_rbint_wrn("nand clear dma int status error in int enable \n");
+		dbg_rbint_wrn("rb status: 0x%x\n", NFC_READ_REG(NFC_REG_ST));
+	}
+
+	nanddma_ready_flag = 0;
+
+	//enable interrupt
+	NFC_WRITE_REG(NFC_REG_INT, NFC_READ_REG(NFC_REG_INT)|NFC_DMA_INT_ENABLE);
+
+	dbg_rbint("dma int en\n");
+}
+
+void NAND_ClearDMAInt(void)
+{
+
+	//disable interrupt
+	NFC_WRITE_REG(NFC_REG_INT, NFC_READ_REG(NFC_REG_INT)&(~(NFC_DMA_INT_ENABLE)));
+
+	dbg_dmaint("rb int clear\n");
+
+	//clear interrupt
+	NFC_WRITE_REG(NFC_REG_ST,NFC_DMA_INT_FLAG);
+	if(NFC_READ_REG(NFC_REG_ST)&NFC_DMA_INT_FLAG)
+	{
+		dbg_dmaint_wrn("nand clear dma int status error in int clear \n");
+		dbg_dmaint_wrn("rb status: 0x%x\n", NFC_READ_REG(NFC_REG_ST));
+	}
+
+	nanddma_ready_flag = 0;
+}
+
+void NAND_DMAInterrupt(void)
+{
+
+	dbg_dmaint("dma int occor! \n");
+	if(!(NFC_READ_REG(NFC_REG_ST)&NFC_DMA_INT_FLAG))
+	{
+		dbg_dmaint_wrn("nand rb int late, dma status: 0x%x, dma int en: 0x%x \n",NFC_READ_REG(NFC_REG_ST),NFC_READ_REG(NFC_REG_INT));
+	}
+
+    NAND_ClearDMAInt();
+
+    nanddma_ready_flag = 1;
+	wake_up( &NAND_DMA_WAIT );
 
 }
 
 __s32 NAND_WaitDmaFinish(void)
 {
+#ifdef __OS_SUPPORT_DMA_INT__
+    NAND_EnDMAInt();
+
+	//wait_event(NAND_RB_WAIT, nandrb_ready_flag);
+	dbg_dmaint("dma wait, nfc_ctl: 0x%x, dma status: 0x%x, dma int en: 0x%x\n", NFC_READ_REG(NFC_REG_CTL), NFC_READ_REG(NFC_REG_ST), NFC_READ_REG(NFC_REG_INT));
+
+	if(nanddma_ready_flag)
+	{
+		dbg_rbint("fast dma int\n");
+		NAND_ClearDMAInt();
+		return 0;
+	}
+
+    if(wait_event_timeout(NAND_DMA_WAIT, nanddma_ready_flag, 1*HZ)==0)
+	{
+		dbg_dmaint_wrn("nand wait rb ready time out\n");
+		dbg_dmaint_wrn("rb wait time out, nfc_ctl: 0x%x, dma status: 0x%x, dma int en: 0x%x\n", NFC_READ_REG(NFC_REG_CTL), NFC_READ_REG(NFC_REG_ST), NFC_READ_REG(NFC_REG_INT));
+	    NAND_ClearDMAInt();
+	}
+	else
+	{
+		dbg_rbint("nand wait dma ready ok\n");
+		NAND_ClearDMAInt();
+	}
+#endif
     return 0;
 }
-
-__u32 NAND_VA_TO_PA(__u32 buff_addr)
-{
-    return (__u32)(__pa((void *)buff_addr));
-}
-
 
 void NAND_EnRbInt(void)
 {
@@ -164,7 +256,7 @@ void NAND_EnRbInt(void)
 	nandrb_ready_flag = 0;
 
 	//enable interrupt
-	NFC_WRITE_REG(NFC_REG_INT, NFC_B2R_INT_ENABLE);
+	NFC_WRITE_REG(NFC_REG_INT, NFC_READ_REG(NFC_REG_INT)|NFC_B2R_INT_ENABLE);
 
 	dbg_rbint("rb int en\n");
 }
@@ -174,12 +266,12 @@ void NAND_ClearRbInt(void)
 {
 
 	//disable interrupt
-	NFC_WRITE_REG(NFC_REG_INT, 0);
+	NFC_WRITE_REG(NFC_REG_INT, NFC_READ_REG(NFC_REG_INT)&(~(NFC_B2R_INT_ENABLE)));
 
 	dbg_rbint("rb int clear\n");
 
 	//clear interrupt
-	NFC_WRITE_REG(NFC_REG_ST,NFC_READ_REG(NFC_REG_ST));
+	NFC_WRITE_REG(NFC_REG_ST,NFC_RB_B2R);
 	if(NFC_READ_REG(NFC_REG_ST)&NFC_RB_B2R)
 	{
 		dbg_rbint_wrn("nand clear rb int status error in int clear \n");
@@ -206,9 +298,9 @@ void NAND_RbInterrupt(void)
 
 }
 
-
 __s32 NAND_WaitRbReady(void)
 {
+#ifdef __OS_SUPPORT_RB_INT__
 	__u32 rb;
 
 	NAND_EnRbInt();
@@ -256,10 +348,25 @@ __s32 NAND_WaitRbReady(void)
 	{
 		dbg_rbint("nand wait rb ready ok\n");
 	}
-
+#endif
+    return 0;
+}
+#else
+__s32 NAND_WaitDmaFinish(void)
+{
     return 0;
 }
 
+__s32 NAND_WaitRbReady(void)
+{
+    return 0;
+}
+#endif
+
+__u32 NAND_VA_TO_PA(__u32 buff_addr)
+{
+    return (__u32)(__pa((void *)buff_addr));
+}
 
 void NAND_PIORequest(void)
 {
@@ -277,6 +384,22 @@ void NAND_PIORequest(void)
 	#endif
 
 
+}
+
+void NAND_Interrupt(void)
+{
+#ifdef __OS_NAND_SUPPORT_INT__
+    if((NFC_READ_REG(NFC_REG_ST)&NFC_RB_B2R)&&(NFC_READ_REG(NFC_REG_INT)&NFC_B2R_INT_ENABLE))
+    {
+        //printk("nand rb int\n");
+        NAND_RbInterrupt();
+    }
+    else if((NFC_READ_REG(NFC_REG_ST)&NFC_DMA_INT_FLAG)&&(NFC_READ_REG(NFC_REG_INT)&NFC_DMA_INT_ENABLE))
+    {
+        //printk("nand dma int\n");
+        NAND_DMAInterrupt();
+    }
+#endif
 }
 
 void NAND_PIORelease(void)

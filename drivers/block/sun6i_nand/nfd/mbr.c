@@ -134,7 +134,7 @@ int mbr2disks(struct nand_disk* disk_array)
 
     part_cnt = 2;
     disk_array[0].offset = 0;
-    disk_array[0].size = 1024*128;
+    disk_array[0].size = DiskSize/2;
     disk_array[1].offset = disk_array[0].size;
     disk_array[1].size = DiskSize - disk_array[0].size;
     return part_cnt;

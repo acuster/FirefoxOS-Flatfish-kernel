@@ -142,16 +142,19 @@ void _dma_config_start(__u8 rw, __u32 buff_addr, __u32 len)
 
 __s32 _wait_dma_end(void)
 {
-	__s32 timeout = 0xffff;
+#ifndef __OS_NAND_SUPPORT_DMA_INT__
+	__s32 timeout = 0xffffff;
 
 	while ( (timeout--) && (!(NFC_READ_REG(NFC_REG_ST) & NFC_DMA_INT_FLAG)) );
 	if (timeout <= 0)
 	{
 	    PRINT("nand _wait_dma_end time out, status:0x%x\n", NFC_READ_REG(NFC_REG_ST));
+	    while(1);
 		return -ERR_TIMEOUT;
     }
 
 	NFC_WRITE_REG(NFC_REG_ST, NFC_READ_REG(NFC_REG_ST) & NFC_DMA_INT_FLAG);
+#endif
 
 	return 0;
 }

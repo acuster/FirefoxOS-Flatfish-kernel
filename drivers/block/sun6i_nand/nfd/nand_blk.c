@@ -100,19 +100,21 @@ static unsigned char volatile IS_IDLE = 1;
 static int nand_flush(struct nand_blk_dev *dev);
 static int nand_flush_force(__u32 dev_num);
 
-spinlock_t     nand_rb_lock;
 
-static irqreturn_t nand_rb_interrupt(int irq, void *dev_id)
-{
-    unsigned long iflags;
+#ifdef __OS_NAND_SUPPORT_INT__
+    spinlock_t     nand_int_lock;
 
-    spin_lock_irqsave(&nand_rb_lock, iflags);
-    NAND_RbInterrupt();
-    spin_unlock_irqrestore(&nand_rb_lock, iflags);
+    static irqreturn_t nand_interrupt(int irq, void *dev_id)
+    {
+        unsigned long iflags;
+
+        spin_lock_irqsave(&nand_int_lock, iflags);
+        NAND_Interrupt();
+        spin_unlock_irqrestore(&nand_int_lock, iflags);
 
 	return IRQ_HANDLED;
-}
-
+    }
+#endif
 
 #if USE_BIO_MERGE==0
 static int cache_align_page_request(struct nand_blk_ops * nandr, struct nand_blk_dev * dev, struct request * req)
@@ -1037,8 +1039,9 @@ int cal_partoff_within_disk(char *name,struct inode *i)
 static int __init init_blklayer(void)
 {
 	int ret;
+#ifdef __OS_NAND_SUPPORT_INT__
 	unsigned long irqflags;
-
+#endif
 	ClearNandStruct();
 
 	ret = PHY_Init();
@@ -1051,12 +1054,15 @@ static int __init init_blklayer(void)
 	if (ret < 0)
 		return ret;
 
-	printk("[NAND] nand driver version: 0x%x 0x%x \n", NAND_VERSION_0,NAND_VERSION_1);
+#ifdef __OS_NAND_SUPPORT_INT__
+    printk("[NAND] nand driver version: 0x%x 0x%x, support int! \n", NAND_VERSION_0,NAND_VERSION_1);
     NAND_ClearRbInt();
-    spin_lock_init(&nand_rb_lock);
+    NAND_ClearDMAInt();
+
+    spin_lock_init(&nand_int_lock);
 	irqflags = IRQF_DISABLED;
 
-	if (request_irq(SW_INT_IRQNO_NAND, nand_rb_interrupt, irqflags, mytr.name, &mytr))
+	if (request_irq(SW_INT_IRQNO_NAND, nand_interrupt, irqflags, mytr.name, &mytr))
 	{
 	    printk("nand interrupte register error\n");
 	    return -EAGAIN;
@@ -1065,7 +1071,7 @@ static int __init init_blklayer(void)
 	{
 	    printk("nand interrupte register ok\n");
 	}
-
+#endif
 
 	ret = PHY_ChangeMode(1);
 	if (ret < 0)
@@ -1210,9 +1216,9 @@ static struct platform_driver nand_driver = {
 static int __init nand_init(void)
 {
 	s32 ret;
-	int nand_used = 0;
-
 #ifndef __FPGA_TEST__
+    int nand_used = 0;
+
     ret = script_parser_fetch("nand_para","nand_used", &nand_used, sizeof(int));
     if (ret)
     {
@@ -1248,9 +1254,9 @@ static int __init nand_init(void)
 
 static void __exit nand_exit(void)
 {
+#ifndef __FPGA_TEST__
     s32 ret;
 	int nand_used = 0;
-#ifndef __FPGA_TEST__
     ret = script_parser_fetch("nand_para","nand_used", &nand_used, sizeof(int));
     if (ret)
     {
