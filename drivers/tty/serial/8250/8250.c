@@ -2272,6 +2272,8 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned char cval, fcr = 0;
 	unsigned long flags;
 	unsigned int baud, quot;
+	unsigned char mcr_tmp=0x00;
+	unsigned int count_tmp;
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
@@ -2416,11 +2418,36 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 #endif
 
+	mcr_tmp = serial_inp(up, UART_MCR);
+
 	if (up->capabilities & UART_NATSEMI) {
 		/* Switch to bank 2 not bank 1, to avoid resetting EXCR2 */
-		serial_outp(up, UART_LCR, 0xe0);
+
+		count_tmp=0;
+		mcr_tmp = serial_inp(up, UART_MCR);
+		serial_out(up, UART_MCR, mcr_tmp |(1<<4));
+		do{
+			count_tmp++;
+			serial_out(up, UART_FCR,0x07);
+			serial_outp(up, UART_LCR, 0xe0);
+			if(count_tmp==1000)
+				 break;
+		}while(serial_inp(up, UART_USR)&0x01);
 	} else {
-		serial_outp(up, UART_LCR, cval | UART_LCR_DLAB);/* set DLAB */
+
+		/*loopback mode to set lcr*/
+		mcr_tmp	= serial_inp(up, UART_MCR);
+		serial_out(up, UART_MCR, mcr_tmp |(1<<4));
+
+		count_tmp=0;
+		do{
+			count_tmp++;
+
+			serial_out(up, UART_FCR,0x07);
+			serial_outp(up, UART_LCR, cval | UART_LCR_DLAB);/* set DLAB */
+			if(count_tmp==1000)
+				break;
+		}while(serial_inp(up, UART_USR)&0x01);
 	}
 
 	serial_dl_write(up, quot);
@@ -2431,7 +2458,17 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	 */
 	if (up->port.type == PORT_16750)
 		serial_outp(up, UART_FCR, fcr);
+		count_tmp=0;
+	do{
+		count_tmp++;
 
+		serial_out(up, UART_FCR,0x07);
+		serial_outp(up, UART_LCR, cval);		/* reset DLAB */
+		if(count_tmp==1000)
+			break;
+	}while(serial_inp(up, UART_USR)&0x01);
+	/*to normal from loopback*/
+	serial_out(up, UART_MCR, mcr_tmp);
 	serial_outp(up, UART_LCR, cval);		/* reset DLAB */
 	up->lcr = cval;					/* Save LCR */
 	if (up->port.type != PORT_16750) {
