@@ -2,11 +2,11 @@
 # MMC/SD host controller drivers
 #
 
-comment "MMC/SD/SDIO Card Power Management Drivers"
+comment "SDIO Card Power Management Drivers"
 
-config MMC_SUNXI_POWER_CONTROL
-	tristate "SUNXI Card Power Management support"
-	depends on MMC_SUNXI
+config MMC_SDIOPM
+	tristate "Winner's SDIO Power Management Support"
+	depends on MMC
 	help
-	  This selects Allwinner MMC Card Power Management support.
-	  All power relative gpio control here.
+	  This selects Allwinner SDIO Card Power Management support.
+	  All power related gpio control here.

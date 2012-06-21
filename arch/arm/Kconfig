@@ -297,6 +297,7 @@ config ARCH_SUN6I
 	select NEED_MACH_MEMORY_H
 	select MIGHT_HAVE_CACHE_L2X0
 	select ARCH_HAS_BARRIERS if SMP
+	select ZONE_DMA
 	help
 	  This enables support for ARM Ltd RealView boards.
 
