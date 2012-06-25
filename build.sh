@@ -70,6 +70,7 @@ arm-linux-gnueabi-objcopy -R .note.gnu.build-id -S -O binary vmlinux bImage
 	cp bImage output/
 	cp -vf arch/arm/boot/[zu]Image output/
 	cp .config output/
+	cp output/uImage output/boot.img
 #	cp rootfs/sun5i_rootfs.cpio.gz output/
 
 #        mkbootimg --kernel output/bImage \
