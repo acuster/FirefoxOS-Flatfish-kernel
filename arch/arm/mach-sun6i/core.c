@@ -24,6 +24,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl061.h>
 #include <linux/amba/mmci.h>
+#include <linux/memblock.h>
 #include <linux/amba/pl022.h>
 #include <linux/io.h>
 
@@ -167,6 +168,9 @@ static void sun6i_fixup(struct tag *tags, char **from,
 	printk("[%s] enter\n", __FUNCTION__);
 	meminfo->bank[0].start = 0x40000000;
 	meminfo->bank[0].size = SZ_128M;
+
+	memblock_reserve(0x40000000 + 0x4000000, SZ_32M);
+
 	meminfo->nr_banks = 1;
 }
 
