@@ -99,6 +99,7 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 /*
  * for linux/arch/arm/kernel/smp.c:secondary_start_kernel(void)
  */
+extern int arch_timer_common_register(void);
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
 	printk("[%s] enter\n", __FUNCTION__);
@@ -106,6 +107,9 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 
         spin_lock(&boot_lock);
         spin_unlock(&boot_lock);
+
+	arch_timer_common_register();
+
 	printk("[%s] leave\n", __FUNCTION__);
 }
 

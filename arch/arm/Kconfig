@@ -282,6 +282,7 @@ config ARCH_REALVIEW
 	select ARM_TIMER_SP804
 	select GPIO_PL061 if GPIOLIB
 	select NEED_MACH_MEMORY_H
+	select SPARSE_IRQ
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -298,6 +299,7 @@ config ARCH_SUN6I
 	select MIGHT_HAVE_CACHE_L2X0
 	select ARCH_HAS_BARRIERS if SMP
 	select ZONE_DMA
+	select HAVE_SCHED_CLOCK
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -1179,6 +1181,15 @@ if !MMU
 source "arch/arm/Kconfig-nommu"
 endif
 
+config ARM_ERRATA_326103
+	bool "ARM errata: FSR write bit incorrect on a SWP to read-only memory"
+	depends on CPU_V6
+	help
+	  Executing a SWP instruction to read-only memory does not set bit 11
+	  of the FSR on the ARM 1136 prior to r1p0. This causes the kernel to
+	  treat the access as a read, preventing a COW from occurring and
+	  causing the faulting task to livelock.
+
 config ARM_ERRATA_411920
 	bool "ARM errata: Invalidation of the Instruction Cache operation can fail"
 	depends on CPU_V6 || CPU_V6K
@@ -1535,6 +1546,13 @@ config HAVE_ARM_SCU
 	bool
 	help
 	  This option enables support for the ARM system coherency unit
+
+config ARM_ARCH_TIMER
+	bool "Architected timer support"
+	depends on CPU_V7
+	select TICK_ONESHOT
+	help
+	  This option enables support for the ARM architected timer
 
 config HAVE_ARM_TWD
 	bool
