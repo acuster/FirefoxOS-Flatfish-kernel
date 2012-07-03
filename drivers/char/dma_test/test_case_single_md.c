@@ -27,7 +27,7 @@ static atomic_t g_acur_cnt = ATOMIC_INIT(0);
 
 static u32 g_qd_cnt = 0;
 
-#define pr_info		//
+//#define pr_info
 
 /**
  * __CB_qd_single_mode - queue done callback for case DTC_SINGLE_MODE
@@ -57,7 +57,8 @@ u32 __CB_qd_single_mode(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause)
 				ERR_FUN_LINE;
 		} else if(ucur_cnt >= uloop_cnt){
 			/* we have complete enqueueing, but not means it's the last qd irq */
-			if(true == sw_dma_sgmd_buflist_empty(dma_hdl)) {
+			//if(true == sw_dma_sgmd_buflist_empty(dma_hdl)) {
+			if(true) {
 				/* 这里也不能认为是传完, 测试发现两次到这里,原因, __dtc_single_mode中enqueue
 				之前加了cnt, 但enqueue被irq打断, 一直挂着, 只等irq的enqueue和transfer结束, 此时
 				当然buflist_empty, 这时__dtc_single_mode才有机会继续未完成的唯一enqueue, 导致两次

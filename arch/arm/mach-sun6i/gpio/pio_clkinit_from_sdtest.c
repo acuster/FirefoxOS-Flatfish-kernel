@@ -9,7 +9,7 @@
 #define APB1_BUS0			(4)
 #define APB2_BUS0			(5)
 
-#define DMA_CKID			((AHB1_BUS0 << 8) | 6 )
+#define PIO_CKID			((APB1_BUS0 << 8) | 5)
 
 #define CCM_AHB1_RST_REG0		(CCM_BASE+0x02C0)
 #define CCM_AHB1_RST_REG1		(CCM_BASE+0x02C4)
@@ -99,8 +99,69 @@ static void ccm_clock_enable(u32 clk_id)
 	}
 }
 
-static void dma_clk_init(void)
+static s32 gpio_clk_init(void)
 {
-	ccm_module_reset(DMA_CKID);
-	ccm_clock_enable(DMA_CKID);
+	ccm_module_reset(PIO_CKID);
+	ccm_clock_enable(PIO_CKID);
+	return 0;
+}
+
+/* for r gpio below */
+
+#define R_PIO_CKID			(0)
+
+#define R_PRCM_BASE			(g_r_prcm_reg_vbase)
+//#define R_PRCM_BASE			(0x01f01400)
+
+#define R_APB0_MOD_RST_REG		(R_PRCM_BASE + 0xb0)
+#define R_APB0_CLK_GATE_REG		(R_PRCM_BASE + 0x28)
+#define R_CPU0_CLK_CFG_REG		(R_PRCM_BASE + 0x00)
+void r_prcm_module_enable(u32 clkid)
+{
+	set_wbit(R_APB0_MOD_RST_REG, 0x1U << clkid);
+}
+
+void r_prcm_module_disable(u32 clkid)
+{
+	clr_wbit(R_APB0_MOD_RST_REG, 0x1U << clkid);
+}
+
+void r_prcm_module_reset(u32 clkid)
+{
+	r_prcm_module_disable(clkid);
+	r_prcm_module_enable(clkid);
+}
+
+void r_prcm_clock_enable(u32 clkid)
+{
+	set_wbit(R_APB0_CLK_GATE_REG, 0x1U << clkid);
+}
+
+void r_prcm_clock_disable(u32 clkid)
+{
+	clr_wbit(R_APB0_CLK_GATE_REG, 0x1U << clkid);
+}
+
+void r_prcm_core_init(void)
+{
+	u32 rval;
+
+	//enable cpu0 clock
+	rval = readl(R_CPU0_CLK_CFG_REG);
+	writel(rval | 0x1, R_CPU0_CLK_CFG_REG);
+
+}
+
+s32 init_r_gpio(void)
+{
+	r_prcm_module_reset(R_PIO_CKID);
+	r_prcm_clock_enable(R_PIO_CKID);
+	return 0;
+}
+
+static s32 r_gpio_clk_init(void)
+{
+	r_prcm_core_init();
+	init_r_gpio();
+	return 0;
 }

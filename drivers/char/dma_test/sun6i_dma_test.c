@@ -23,8 +23,8 @@
 /*
  * cur test case
  */
-enum dma_test_case_e g_cur_test_case = DTC_1T_CMD_STOP;
-//enum dma_test_case_e g_cur_test_case = DTC_MAX;
+static enum dma_test_case_e g_cur_test_case = DTC_1T_CMD_STOP;
+//static enum dma_test_case_e g_cur_test_case = DTC_MAX;
 
 /*
  * wait dma done queue, used for wait dma done

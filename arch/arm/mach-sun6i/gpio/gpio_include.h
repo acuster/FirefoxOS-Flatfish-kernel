@@ -1,10 +1,10 @@
 /*
- * arch/arm/XXX/gpio_includes.h
+ * arch/arm/mach-sun6i/gpio/gpio_includes.h
  * (C) Copyright 2010-2015
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * liugang <liugang@allwinnertech.com>
  *
- * XXX
+ * sun6i gpio header file
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -37,5 +37,7 @@
 #include "gpio_init.h"
 #include "gpio_base.h"
 #include "gpio_multi_func.h"
+
+#define PIO_FROM_SD_TESTCODE /* init gpio clock from sd test code */
 
 #endif  /* __GPIO_INCLUDES_H */

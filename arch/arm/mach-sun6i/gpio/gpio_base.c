@@ -1,10 +1,10 @@
 /*
- * arch/arm/XXX/gpio_base.c
+ * arch/arm/mach-sun6i/gpio/gpio_base.c
  * (C) Copyright 2010-2015
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * liugang <liugang@allwinnertech.com>
  *
- * XXX
+ * sun6i gpio driver
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -15,12 +15,13 @@
 
 #include "gpio_include.h"
 
-#if 0
+#if 0 /* in order to remove warning: defined but not used */
 /**
- * XXX - XXX
- * XXX:	XXX
+ * __gpio_request - platform gpio request, do nothing
+ * @chip:	gpio_chip struct for the gpio
+ * @offset:	offset from gpio_chip->base
  *
- * XXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 static int __gpio_request(struct gpio_chip *chip, unsigned offset)
 {
@@ -32,10 +33,9 @@ static int __gpio_request(struct gpio_chip *chip, unsigned offset)
 }
 
 /**
- * XXX - XXX
- * XXX:	XXX
- *
- * XXX
+ * __gpio_free - platform gpio release, do nothing
+ * @chip:	gpio_chip struct for the gpio
+ * @offset:	offset from gpio_chip->base
  */
 static void __gpio_free(struct gpio_chip *chip, unsigned offset)
 {
@@ -47,10 +47,12 @@ static void __gpio_free(struct gpio_chip *chip, unsigned offset)
 }
 
 /**
- * XXX - XXX
- * XXX:	XXX
+ * __gpio_set_debounce - set debounce, for gpio int?
+ * @chip:	gpio_chip struct for the gpio
+ * @offset:	offset from gpio_chip->base
+ * @debounce:	debounce val to set
  *
- * XXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 static int __gpio_set_debounce(struct gpio_chip *chip, unsigned offset, unsigned debounce)
 {
@@ -64,10 +66,11 @@ static int __gpio_set_debounce(struct gpio_chip *chip, unsigned offset, unsigned
 }
 
 /**
- * XXX - XXX
- * XXX:	XXX
+ * __gpio_index_to_irq - get irq num for the gpio index
+ * @chip:	gpio_chip struct for the gpio
+ * @offset:	offset from gpio_chip->base
  *
- * XXX
+ * Returns the irq num if the gpio can be configured as external irq
  */
 static int __gpio_index_to_irq(struct gpio_chip *chip, unsigned offset)
 {
@@ -93,10 +96,19 @@ static int __gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	unsigned long flags;
 	struct aw_gpio_chip *pchip = to_aw_gpiochip(chip);
 
+#if 0
+//#ifdef DBG_GPIO
+	PIO_DBG("%s: chip 0x%08x, offset %d, aw chip 0x%08x\n", __FUNCTION__,
+		(u32)chip, offset, (u32)pchip);
+#endif /* DBG_GPIO */
+
 	ureg_off = ((offset << 2) >> 5) << 2; 	/* ureg_off = ((offset * 4) / 32) * 4 */
 	ubits_off = (offset << 2) % 32;		/* ubits_off = (offset * 4) % 32 */
 
 	PIO_CHIP_LOCK(&pchip->lock, flags);
+
+	PIO_DBG("%s: write cfg reg 0x%08x, bits_off %d, width %d, cfg_val %d\n", __FUNCTION__,
+		(u32)(ureg_off + pchip->vbase), ubits_off, PIO_BITS_WIDTH_CFG, PIO_CFG_INPUT);
 
 	PIO_WRITE_REG_BITS(ureg_off + pchip->vbase, ubits_off, PIO_BITS_WIDTH_CFG, PIO_CFG_INPUT);
 
@@ -105,10 +117,12 @@ static int __gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 }
 
 /**
- * XXX - XXX
- * XXX:	XXX
+ * __gpio_direction_output - set the gpio as ouput, and set the val
+ * @chip:	gpio_chip
+ * @offset:	offset from gpio_chip->base
+ * @value:	the val to set
  *
- * XXX
+ * Returns 0 if success, the err line number otherwise.
  */
 static int __gpio_direction_output(struct gpio_chip *chip, unsigned offset, int value)
 {
@@ -116,23 +130,37 @@ static int __gpio_direction_output(struct gpio_chip *chip, unsigned offset, int 
 	unsigned long flags;
 	struct aw_gpio_chip *pchip = to_aw_gpiochip(chip);
 
+#if 0
+//#ifdef DBG_GPIO
+	PIO_DBG("%s: chip 0x%08x, offset %d, val %d, aw chip 0x%08x\n", __FUNCTION__,
+		(u32)chip, offset, value, (u32)pchip);
+#endif /* DBG_GPIO */
+
 	ureg_off = ((offset << 2) >> 5) << 2; 	/* ureg_off = ((offset * 4) / 32) * 4 */
 	ubits_off = (offset << 2) % 32;		/* ubits_off = (offset * 4) % 32 */
 
 	PIO_CHIP_LOCK(&pchip->lock, flags);
 
+	PIO_DBG("%s: write cfg reg 0x%08x, bits_off %d, width %d, cfg_val %d\n", __FUNCTION__,
+		(u32)(ureg_off + pchip->vbase), ubits_off, PIO_BITS_WIDTH_CFG, PIO_CFG_OUTPUT);
+
 	PIO_WRITE_REG_BITS(ureg_off + pchip->vbase, ubits_off, PIO_BITS_WIDTH_CFG, PIO_CFG_OUTPUT);
-	PIO_WRITE_REG(PIO_OFF_REG_DATA + pchip->vbase, BIT(offset));
+
+	PIO_DBG("%s: write data reg 0x%08x, offset %d, val %d\n", __FUNCTION__, \
+		(u32)(PIO_OFF_REG_DATA + pchip->vbase), offset, (0 != value ? 1 : 0));
+
+	PIO_WRITE_REG_BITS(PIO_OFF_REG_DATA + pchip->vbase, offset, 1, (0 != value ? 1 : 0));
 
 	PIO_CHIP_UNLOCK(&pchip->lock, flags);
 	return 0;
 }
 
 /**
- * XXX - XXX NOTE: pio is already input, so just get the value
- * XXX:	XXX
+ * __gpio_get - get the gpio value. NOTE: the gpio is already input.
+ * @chip:	gpio_chip
+ * @offset:	offset from gpio_chip->base
  *
- * XXX
+ * Return the gpio value(data).
  */
 static int __gpio_get(struct gpio_chip *chip, unsigned offset)
 {
@@ -140,38 +168,56 @@ static int __gpio_get(struct gpio_chip *chip, unsigned offset)
 	unsigned long flags;
 	struct aw_gpio_chip *pchip = to_aw_gpiochip(chip);
 
+#if 0
+//#ifdef DBG_GPIO
+	PIO_DBG("%s: chip 0x%08x, offset %d, aw chip 0x%08x\n", __FUNCTION__,
+		(u32)chip, offset, (u32)pchip);
+#endif /* DBG_GPIO */
+
 	PIO_CHIP_LOCK(&pchip->lock, flags);
 
-	iret = (PIO_READ_REG(PIO_OFF_REG_DATA + pchip->vbase)) & BIT(offset);
+	iret = PIO_READ_REG_BITS(PIO_OFF_REG_DATA + pchip->vbase, offset, 1);
+
+	PIO_DBG("%s: read data reg 0x%08x - 0x%08x, offset %d, ret %d\n", __FUNCTION__,
+		(u32)(PIO_OFF_REG_DATA + pchip->vbase),	PIO_READ_REG(PIO_OFF_REG_DATA + pchip->vbase), offset, iret);
 
 	PIO_CHIP_UNLOCK(&pchip->lock, flags);
 	return iret;
 }
 
 /**
- * XXX - XXX NOTE: pio is already output, so just set the value
- * XXX:	XXX
- *
- * XXX
+ * __gpio_set - set the gpio value. NOTE: the gpio is already output.
+ * @chip:	gpio_chip
+ * @offset:	offset from gpio_chip->base
+ * @value:	the val to set
  */
 static void __gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	unsigned long flags;
 	struct aw_gpio_chip *pchip = to_aw_gpiochip(chip);
 
+#if 0
+//#ifdef DBG_GPIO
+	PIO_DBG("%s: chip 0x%08x, offset %d, value %d, aw chip 0x%08x\n", __FUNCTION__,
+		(u32)chip, offset, value, (u32)pchip);
+#endif /* DBG_GPIO */
+
 	PIO_CHIP_LOCK(&pchip->lock, flags);
 
-	PIO_WRITE_REG(PIO_OFF_REG_DATA + pchip->vbase, (0 == value ? 0 : BIT(offset)));
+	PIO_DBG("%s: write data reg 0x%08x, offset %d, val %d\n", __FUNCTION__,
+		(u32)(PIO_OFF_REG_DATA + pchip->vbase), offset, (0 != value ? 1 : 0));
+
+	PIO_WRITE_REG_BITS(PIO_OFF_REG_DATA + pchip->vbase, offset, 1, (0 != value ? 1 : 0));
 
 	PIO_CHIP_UNLOCK(&pchip->lock, flags);
 	return;
 }
 
 /**
- * XXX - XXX
- * XXX:	XXX
+ * aw_gpiochip_add - init gpio_chip struct, and register the chip to gpiolib
+ * @chip:	gpio_chip
  *
- * XXX
+ * Returns 0 if success, the err line number otherwise.
  */
 int aw_gpiochip_add(struct gpio_chip *chip)
 {

@@ -18,14 +18,14 @@
 
 #include <linux/spinlock.h>
 
-#define DBG_DMA /* debug dma driver */
+//#define DBG_DMA /* debug dma driver */
 
 #define FROM_SD_TESTCODE	/* refrence the 1633 dma test code from sd */
 
 /*
  * dma print macro
  */
-#define DMA_DBG_LEVEL		2
+#define DMA_DBG_LEVEL		3
 
 #if (DMA_DBG_LEVEL == 1)
 	#define DMA_DBG(format,args...)   printk("[dma-dbg] "format,##args)
@@ -86,7 +86,9 @@ enum st_md_chain_e {
 enum st_md_single_e {
 	SINGLE_STA_IDLE,  	/* maybe before start or after stop */
 	SINGLE_STA_RUNING,	/* transferring */
-	SINGLE_STA_LAST_DONE	/* XXX */
+	SINGLE_STA_LAST_DONE	/* the last buffer has done,
+				 * in this state, any enqueueing will start dma also.
+				 */
 };
 
 /*
@@ -137,11 +139,11 @@ struct des_mgr_t {
 #define DES_AREA_LEN 		(MAX_DES_ITEM_NUM * sizeof(struct cofig_des_t))
 
 /*
- * XXX
+ * dma channle state
  */
 union dma_chan_sta_u {
-	enum st_md_chain_e 	st_md_ch;	/* dam channel state, software state */
-	enum st_md_single_e 	st_md_sg;	/* XXX */
+	enum st_md_chain_e 	st_md_ch;	/* channel state for chain mode */
+	enum st_md_single_e 	st_md_sg;	/* channel state for single mode */
 };
 
 /*
@@ -175,17 +177,17 @@ struct dma_channel_t {
 
 	enum dma_work_mode_e	work_mode;
 
-	union dma_chan_sta_u	state;
+	union dma_chan_sta_u	state;		/* channel state for chain/single mode */
 
 	/*
-	 * for chan mode only
+	 * for chain mode only
 	 */
 	struct des_mgr_t	*pdes_mgr;	/* dma config descriptor manager */
 
 	/*
 	 * for single mode only
 	 */
-	struct des_item_t	*pcur_des;	/* XXXX */
+	struct des_item_t	*pcur_des;	/* cur buffer which is transferring */
 	struct list_head 	buf_list_head;
 };
 

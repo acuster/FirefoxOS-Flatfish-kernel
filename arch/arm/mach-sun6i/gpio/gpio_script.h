@@ -1,10 +1,10 @@
 /*
- * arch/arm/XXX/gpio_script.h
+ * arch/arm/mach-sun6i/gpio/gpio_script.h
  * (C) Copyright 2010-2015
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * liugang <liugang@allwinnertech.com>
  *
- * XXX
+ * sun6i gpio header file
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -115,7 +115,7 @@ extern int script_parser_init(char *script_buf);
 extern int script_parser_exit(void);
 extern int script_parser_fetch(char *main_name, char *sub_name, int value[], int count);
 extern int script_parser_fetch_ex(char *main_name, char *sub_name, int value[],
-               script_parser_value_type_t *type, int count);
+script_parser_value_type_t *type, int count);
 extern int script_parser_subkey_count(char *main_name);
 extern int script_parser_mainkey_count(void);
 extern int script_parser_mainkey_get_gpio_count(char *main_name);

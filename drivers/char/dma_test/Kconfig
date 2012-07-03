@@ -5,8 +5,8 @@
 menuconfig SUN6I_DMA_TEST
 	tristate "sun4i dma test drivers"
 	---help---
-	  This module is to test dma module, which builted in lichee kernel,
-	  source is in "arch\arm\mach-sun6i\dma" directory.
+	This module is to test dma module, which builted in lichee kernel,
+	source is in "arch\arm\mach-sun6i\dma" directory.
 
 if SUN6I_DMA_TEST
 
@@ -14,6 +14,6 @@ config DMA_TEST_DRIVER
 	tristate "sun6i dma test driver"
 	default m
 	help
-	  Nothing help.
+	Nothing help.
 
 endif # SUN6I_DMA_TEST

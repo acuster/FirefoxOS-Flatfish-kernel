@@ -17,12 +17,12 @@
 #define __DMA_SINGLE_H
 
 /*
- * XXX
+ * descriptor item struct
  */
 struct des_item_t {
-	struct cofig_des_t	des;     	/* XXX */
+	struct cofig_des_t	des;     	/* descriptor */
 	u32 			paddr;		/* paddr of des_item_t */
-	struct list_head	list;     	/* XXX */
+	struct list_head	list;     	/* list node */
 };
 
 u32 dma_irq_hdl_sgmd(struct dma_channel_t *pchan, u32 upend_bits);

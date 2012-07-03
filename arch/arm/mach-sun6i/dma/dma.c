@@ -25,14 +25,10 @@ static int __devinit dma_drv_probe(struct platform_device *dev)
 {
 	int 	ret = 0;
 
-	DMA_DBG_FUN_LINE;
 	ret = dma_init(dev);
 	if (ret) {
 		DMA_ERR_FUN_LINE;
-	} else {
-		DMA_DBG_FUN_LINE;
 	}
-
 	return ret;
 }
 
@@ -46,14 +42,10 @@ static int __devexit dma_drv_remove(struct platform_device *dev)
 {
 	int 	ret = 0;
 
-	DMA_DBG_FUN_LINE;
 	ret = dma_deinit();
 	if (ret) {
 		DMA_ERR_FUN_LINE;
-	} else {
-		DMA_DBG_FUN_LINE;
 	}
-
 	return ret;
 }
 

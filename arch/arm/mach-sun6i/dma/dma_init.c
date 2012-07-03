@@ -69,8 +69,6 @@ int dma_init(struct platform_device *device)
 		pchan->pdes_mgr = NULL;*/
 	}
 
-	DMA_DBG_FUN_LINE_TOCHECK;
-
 	/* alloc des mgr area */
 #ifdef USE_UNCACHED_FOR_DESMGR
 	g_pdes_mgr = dmam_pool_create("dma_des_mgr", &device->dev, sizeof(struct des_mgr_t), 4, 0); /* DWORD align */

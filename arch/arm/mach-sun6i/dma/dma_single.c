@@ -92,7 +92,6 @@ u32 __dma_free_allbuf(struct dma_channel_t *pchan)
 
 void __dump_buf_list_sgmd(struct dma_channel_t *pchan)
 {
-	u32 	i = 0;
 	struct list_head *p, *n;
 	struct des_item_t *pitem = NULL;
 
@@ -237,154 +236,13 @@ u32 __dma_set_qd_cb(dm_hdl_t dma_hdl, struct dma_cb_t *pcb)
 	return 0;
 }
 
-/**
- * XXX - XXX
- * @XXX:	XXX
- *
- * XXX
- */
-u32 dma_release_single(dm_hdl_t dma_hdl)
-{
-	unsigned long 	flags = 0;
-	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
-
-	DMA_CHAN_LOCK(&pchan->lock, flags);
-
-#ifdef DBG_DMA
-	if(0 != dma_check_handle(dma_hdl)) {
-		DMA_CHAN_UNLOCK(&pchan->lock, flags);
-		DMA_ERR_FUN_LINE;
-		return __LINE__;
-	}
-#endif /* DBG_DMA */
-
-	/* if not idle, call stop first */
-	if(SINGLE_STA_IDLE != STATE_SGL(pchan)) {
-		DMA_INF("%s maybe err: line %d, state(%d) not idle, call stop dma first!\n", \
-			__FUNCTION__, __LINE__, STATE_SGL(pchan));
-		if(0 != __dma_stop(dma_hdl)) {
-			DMA_ERR_FUN_LINE;
-		}
-	}
-
-	//memset(pchan, 0, sizeof(*pchan)); /* donot do that, because id...shouldnot be cleared */
-	pchan->used 	= 0;
-	memset(pchan->owner, 0, sizeof(pchan->owner));
-
-	pchan->irq_spt 	= CHAN_IRQ_NO;
-	pchan->bconti_mode = false;
-	memset(&pchan->des_info_save, 0, sizeof(pchan->des_info_save));
-
-	pchan->work_mode = DMA_WORK_MODE_INVALID;
-
-	memset(&pchan->op_cb, 0, sizeof(pchan->op_cb));
-	memset(&pchan->hd_cb, 0, sizeof(pchan->hd_cb));
-	memset(&pchan->fd_cb, 0, sizeof(pchan->fd_cb));
-	memset(&pchan->qd_cb, 0, sizeof(pchan->qd_cb));
-
-	/* maybe enqueued but not started, so free buf */
-	DMA_ASSERT(NULL == pchan->pcur_des);
-	__dma_free_buflist(pchan);
-
-	DMA_CHAN_UNLOCK(&pchan->lock, flags);
-	return 0;
-}
-
-/**
- * XXX - XXX
- * @XXX:	XXX
- *
- * XXX
- */
-u32 dma_ctrl_single(dm_hdl_t dma_hdl, enum dma_op_type_e op, void *parg)
-{
-	u32		uret = 0;
-	unsigned long	flags = 0;
-	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
-
-	/* only in start/stop/pause/resume case can parg be NULL  */
-	if((NULL == parg)
-		&& (DMA_OP_START != op)
-		&& (DMA_OP_PAUSE != op)
-		&& (DMA_OP_RESUME != op)
-		&& (DMA_OP_STOP != op)) {
-		DMA_ERR_FUN_LINE;
-		return __LINE__;
-	}
-
-	DMA_CHAN_LOCK(&pchan->lock, flags);
-
-#ifdef DBG_DMA
-	if(0 != dma_check_handle(dma_hdl)) {
-		DMA_CHAN_UNLOCK(&pchan->lock, flags);
-		DMA_ERR_FUN_LINE;
-		return __LINE__;
-	}
-#endif /* DBG_DMA */
-
-	/* let the caller to do some operation before op */
-	if((DMA_OP_SET_OP_CB != op) && (NULL != pchan->op_cb.func)) {
-		if(0 != pchan->op_cb.func(dma_hdl, pchan->op_cb.parg, op))
-			DMA_ERR_FUN_LINE;
-	}
-
-	switch(op) {
-	case DMA_OP_START:
-		uret = __dma_start(dma_hdl);
-		break;
-	case DMA_OP_PAUSE:
-		uret = __dma_pause(dma_hdl);
-		break;
-	case DMA_OP_RESUME:
-		uret = __dma_resume(dma_hdl);
-		break;
-	case DMA_OP_STOP:
-		uret = __dma_stop(dma_hdl);
-		break;
-
-	case DMA_OP_GET_STATUS:
-		dma_get_status(dma_hdl, parg);
-		break;
-	case DMA_OP_GET_CUR_SRC_ADDR:
-		dma_get_cur_src_addr(dma_hdl, parg);
-		break;
-	case DMA_OP_GET_CUR_DST_ADDR:
-		dma_get_cur_dst_addr(dma_hdl, parg);
-		break;
-	case DMA_OP_GET_BYTECNT_LEFT:
-		dma_get_left_bytecnt(dma_hdl, parg);
-		break;
-
-	case DMA_OP_SET_OP_CB:
-		uret = __dma_set_op_cb(dma_hdl, (struct dma_op_cb_t *)parg);
-		break;
-	case DMA_OP_SET_HD_CB:
-		uret = __dma_set_hd_cb(dma_hdl, (struct dma_cb_t *)parg);
-		break;
-	case DMA_OP_SET_FD_CB:
-		uret = __dma_set_fd_cb(dma_hdl, (struct dma_cb_t *)parg);
-		break;
-	case DMA_OP_SET_QD_CB:
-		uret = __dma_set_qd_cb(dma_hdl, (struct dma_cb_t *)parg);
-		break;
-	default:
-		uret = __LINE__;
-		goto End;
-	}
-
-End:
-	DMA_CHAN_UNLOCK(&pchan->lock, flags);
-	if(0 != uret) {
-		DMA_ERR("%s err, line %d, dma_hdl 0x%08x\n", __FUNCTION__, uret, (u32)dma_hdl);
-	}
-	return uret;
-}
-
 u32 __dma_enqueue(dm_hdl_t dma_hdl, struct cofig_des_t *pdes, enum dma_enque_phase_e phase)
 {
 	u32 	uret = 0;
 	u32 	utemp = 0;
+#ifdef TEST_LOCK_IMPROVE_FOR_ALLOC
 	unsigned long	flags = 0;
+#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
 	struct dma_channel_t 	*pchan = (struct dma_channel_t *)dma_hdl;
 	struct des_item_t	*pdes_itm = NULL;
 
@@ -422,133 +280,6 @@ End:
 		DMA_CHAN_LOCK(&pchan->lock, flags);
 	} else {
 		DMA_CHAN_LOCK_IN_IRQHD(&pchan->lock);
-	}
-#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
-
-	if(0 != uret) {
-		DMA_ERR("%s err, line %d\n", __FUNCTION__, uret);
-	}
-	return uret;
-}
-
-/**
- * XXX - XXX
- * @XXX:	XXX
- *
- * XXX
- */
-u32 dma_config_single(dm_hdl_t dma_hdl, struct dma_config_t *pcfg, enum dma_enque_phase_e phase)
-{
-	u32 		uret = 0;
-	u32		uConfig = 0;
-	unsigned long	flags = 0;
-	struct cofig_des_t	des;
-	struct dma_channel_t	*pchan = (struct dma_channel_t *)dma_hdl;
-
-	/* get dma config val */
-	uConfig |= xfer_arr[pcfg->xfer_type]; /* src/dst burst length and data width */
-	uConfig |= addrtype_arr[pcfg->address_type]; /* src/dst address mode */
-	uConfig |= (pcfg->src_drq_type << DMA_OFF_BITS_SDRQ)
-			| (pcfg->dst_drq_type << DMA_OFF_BITS_DDRQ); /* src/dst drq type */
-
-	/* fill cofig_des_t struct */
-	memset(&des, 0, sizeof(des));
-	des.cofig = uConfig;
-	des.saddr = pcfg->src_addr;
-	des.daddr = pcfg->dst_addr;
-	des.bcnt  = pcfg->byte_cnt;
-	des.param = pcfg->para;
-	des.pnext = (struct cofig_des_t *)DMA_END_DES_LINK;
-
-	/* get continue mode flag */
-	pchan->bconti_mode = pcfg->bconti_mode;
-
-	/* get irq surport type for channel handle */
-	pchan->irq_spt = pcfg->irq_spt;
-
-	/* bkup config/param */
-	pchan->des_info_save.cofig = uConfig;
-	pchan->des_info_save.param = pcfg->para;
-
-	/*
-	 * when called in irq, just use spin_lock, not spin_lock_irqsave
-	 */
-#ifndef TEST_LOCK_IMPROVE_FOR_ALLOC
-	if(ENQUE_PHASE_NORMAL == phase) {
-		DMA_CHAN_LOCK(&pchan->lock, flags);
-	} else {
-		DMA_CHAN_LOCK_IN_IRQHD(&pchan->lock);
-	}
-#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
-
-	/* irq enable */
-	csp_dma_chan_irq_enable(pchan, pcfg->irq_spt);
-
-	/* des enqueue */
-	if(0 != __dma_enqueue(dma_hdl, &des, phase)) {
-		uret = __LINE__;
-		goto End;
-	}
-
-End:
-#ifndef TEST_LOCK_IMPROVE_FOR_ALLOC
-	if(ENQUE_PHASE_NORMAL == phase) {
-		DMA_CHAN_UNLOCK(&pchan->lock, flags);
-	} else {
-		DMA_CHAN_UNLOCK_IN_IRQHD(&pchan->lock);
-	}
-#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
-
-	if(0 != uret) {
-		DMA_ERR("%s err, line %d\n", __FUNCTION__, uret);
-	}
-	return uret;
-}
-
-/**
- * XXX - XXX
- * @XXX:	XXX
- *
- * XXX
- */
-u32 dma_enqueue_single(dm_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt,
-				enum dma_enque_phase_e phase)
-{
-	u32 			uret = 0;
-	unsigned long		flags = 0;
-	struct cofig_des_t	des;
-	struct dma_channel_t 	*pchan = (struct dma_channel_t *)dma_hdl;
-
-	memset(&des, 0, sizeof(des));
-	des.saddr 	= src_addr;
-	des.daddr 	= dst_addr;
-	des.bcnt 	= byte_cnt;
-	des.cofig 	= pchan->des_info_save.cofig;
-	des.param 	= pchan->des_info_save.param;
-	des.pnext	= (struct cofig_des_t *)DMA_END_DES_LINK;
-
-	/*
-	 * when called in irq, just use spin_lock, not spin_lock_irqsave
-	 */
-#ifndef TEST_LOCK_IMPROVE_FOR_ALLOC
-	if(ENQUE_PHASE_NORMAL == phase) {
-		DMA_CHAN_LOCK(&pchan->lock, flags);
-	} else {
-		DMA_CHAN_LOCK_IN_IRQHD(&pchan->lock);
-	}
-#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
-
-	if(0 != __dma_enqueue(dma_hdl, &des, phase)) {
-		uret = __LINE__;
-		goto End;
-	}
-
-End:
-#ifndef TEST_LOCK_IMPROVE_FOR_ALLOC
-	if(ENQUE_PHASE_NORMAL == phase) {
-		DMA_CHAN_UNLOCK(&pchan->lock, flags);
-	} else {
-		DMA_CHAN_UNLOCK_IN_IRQHD(&pchan->lock);
 	}
 #endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
 
@@ -639,10 +370,289 @@ End:
 }
 
 /**
- * XXX - XXX
- * @XXX:	XXX
+ * dma_release_single - release dma channel, for single mode
+ * @dma_hdl:	dma handle
  *
- * XXX
+ * return 0 if success, the err line number if not
+ */
+u32 dma_release_single(dm_hdl_t dma_hdl)
+{
+	unsigned long 	flags = 0;
+	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
+
+	DMA_CHAN_LOCK(&pchan->lock, flags);
+
+#ifdef DBG_DMA
+	if(0 != dma_check_handle(dma_hdl)) {
+		DMA_CHAN_UNLOCK(&pchan->lock, flags);
+		DMA_ERR_FUN_LINE;
+		return __LINE__;
+	}
+#endif /* DBG_DMA */
+
+	/* if not idle, call stop first */
+	if(SINGLE_STA_IDLE != STATE_SGL(pchan)) {
+		DMA_INF("%s maybe err: line %d, state(%d) not idle, call stop dma first!\n", \
+			__FUNCTION__, __LINE__, STATE_SGL(pchan));
+		if(0 != __dma_stop(dma_hdl)) {
+			DMA_ERR_FUN_LINE;
+		}
+	}
+
+	//memset(pchan, 0, sizeof(*pchan)); /* donot do that, because id...shouldnot be cleared */
+	pchan->used 	= 0;
+	memset(pchan->owner, 0, sizeof(pchan->owner));
+
+	pchan->irq_spt 	= CHAN_IRQ_NO;
+	pchan->bconti_mode = false;
+	memset(&pchan->des_info_save, 0, sizeof(pchan->des_info_save));
+
+	pchan->work_mode = DMA_WORK_MODE_INVALID;
+
+	memset(&pchan->op_cb, 0, sizeof(pchan->op_cb));
+	memset(&pchan->hd_cb, 0, sizeof(pchan->hd_cb));
+	memset(&pchan->fd_cb, 0, sizeof(pchan->fd_cb));
+	memset(&pchan->qd_cb, 0, sizeof(pchan->qd_cb));
+
+	/* maybe enqueued but not started, so free buf */
+	DMA_ASSERT(NULL == pchan->pcur_des);
+	__dma_free_buflist(pchan);
+
+	DMA_CHAN_UNLOCK(&pchan->lock, flags);
+	return 0;
+}
+
+/**
+ * dma_ctrl_single - dma ctrl, for single mode
+ * @dma_hdl:	dma handle
+ * @op:		dma operation type
+ * @parg:	arg for the op
+ *
+ * Returns 0 if sucess, the err line number if failed.
+ */
+u32 dma_ctrl_single(dm_hdl_t dma_hdl, enum dma_op_type_e op, void *parg)
+{
+	u32		uret = 0;
+	unsigned long	flags = 0;
+	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
+
+	/* only in start/stop/pause/resume case can parg be NULL  */
+	if((NULL == parg)
+		&& (DMA_OP_START != op)
+		&& (DMA_OP_PAUSE != op)
+		&& (DMA_OP_RESUME != op)
+		&& (DMA_OP_STOP != op)) {
+		DMA_ERR_FUN_LINE;
+		return __LINE__;
+	}
+
+	DMA_CHAN_LOCK(&pchan->lock, flags);
+
+#ifdef DBG_DMA
+	if(0 != dma_check_handle(dma_hdl)) {
+		DMA_CHAN_UNLOCK(&pchan->lock, flags);
+		DMA_ERR_FUN_LINE;
+		return __LINE__;
+	}
+#endif /* DBG_DMA */
+
+	/* let the caller to do some operation before op */
+	if((DMA_OP_SET_OP_CB != op) && (NULL != pchan->op_cb.func)) {
+		if(0 != pchan->op_cb.func(dma_hdl, pchan->op_cb.parg, op))
+			DMA_ERR_FUN_LINE;
+	}
+
+	switch(op) {
+	case DMA_OP_START:
+		uret = __dma_start(dma_hdl);
+		break;
+	case DMA_OP_PAUSE:
+		uret = __dma_pause(dma_hdl);
+		break;
+	case DMA_OP_RESUME:
+		uret = __dma_resume(dma_hdl);
+		break;
+	case DMA_OP_STOP:
+		uret = __dma_stop(dma_hdl);
+		break;
+
+	case DMA_OP_GET_STATUS:
+		dma_get_status(dma_hdl, parg);
+		break;
+	case DMA_OP_GET_CUR_SRC_ADDR:
+		dma_get_cur_src_addr(dma_hdl, parg);
+		break;
+	case DMA_OP_GET_CUR_DST_ADDR:
+		dma_get_cur_dst_addr(dma_hdl, parg);
+		break;
+	case DMA_OP_GET_BYTECNT_LEFT:
+		dma_get_left_bytecnt(dma_hdl, parg);
+		break;
+
+	case DMA_OP_SET_OP_CB:
+		uret = __dma_set_op_cb(dma_hdl, (struct dma_op_cb_t *)parg);
+		break;
+	case DMA_OP_SET_HD_CB:
+		uret = __dma_set_hd_cb(dma_hdl, (struct dma_cb_t *)parg);
+		break;
+	case DMA_OP_SET_FD_CB:
+		uret = __dma_set_fd_cb(dma_hdl, (struct dma_cb_t *)parg);
+		break;
+	case DMA_OP_SET_QD_CB:
+		uret = __dma_set_qd_cb(dma_hdl, (struct dma_cb_t *)parg);
+		break;
+	default:
+		uret = __LINE__;
+		goto End;
+	}
+
+End:
+	DMA_CHAN_UNLOCK(&pchan->lock, flags);
+	if(0 != uret) {
+		DMA_ERR("%s err, line %d, dma_hdl 0x%08x\n", __FUNCTION__, uret, (u32)dma_hdl);
+	}
+	return uret;
+}
+
+/**
+ * dma_config_single - config dma channel, enqueue the buffer, for single mode only
+ * @dma_hdl:	dma handle
+ * @pcfg:	dma cofig para
+ * @phase:	dma enqueue phase
+ *
+ * Returns 0 if sucess, the err line number if failed.
+ */
+u32 dma_config_single(dm_hdl_t dma_hdl, struct dma_config_t *pcfg, enum dma_enque_phase_e phase)
+{
+	u32 		uret = 0;
+	u32		uConfig = 0;
+	unsigned long	flags = 0;
+	struct cofig_des_t	des;
+	struct dma_channel_t	*pchan = (struct dma_channel_t *)dma_hdl;
+
+	/* get dma config val */
+	uConfig |= xfer_arr[pcfg->xfer_type]; /* src/dst burst length and data width */
+	uConfig |= addrtype_arr[pcfg->address_type]; /* src/dst address mode */
+	uConfig |= (pcfg->src_drq_type << DMA_OFF_BITS_SDRQ)
+			| (pcfg->dst_drq_type << DMA_OFF_BITS_DDRQ); /* src/dst drq type */
+
+	/* fill cofig_des_t struct */
+	memset(&des, 0, sizeof(des));
+	des.cofig = uConfig;
+	des.saddr = pcfg->src_addr;
+	des.daddr = pcfg->dst_addr;
+	des.bcnt  = pcfg->byte_cnt;
+	des.param = pcfg->para;
+	des.pnext = (struct cofig_des_t *)DMA_END_DES_LINK;
+
+	/* get continue mode flag */
+	pchan->bconti_mode = pcfg->bconti_mode;
+
+	/* get irq surport type for channel handle */
+	pchan->irq_spt = pcfg->irq_spt;
+
+	/* bkup config/param */
+	pchan->des_info_save.cofig = uConfig;
+	pchan->des_info_save.param = pcfg->para;
+
+	/*
+	 * when called in irq, just use spin_lock, not spin_lock_irqsave
+	 */
+#ifndef TEST_LOCK_IMPROVE_FOR_ALLOC
+	if(ENQUE_PHASE_NORMAL == phase) {
+		DMA_CHAN_LOCK(&pchan->lock, flags);
+	} else {
+		DMA_CHAN_LOCK_IN_IRQHD(&pchan->lock);
+	}
+#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
+
+	/* irq enable */
+	csp_dma_chan_irq_enable(pchan, pcfg->irq_spt);
+
+	/* des enqueue */
+	if(0 != __dma_enqueue(dma_hdl, &des, phase)) {
+		uret = __LINE__;
+		goto End;
+	}
+
+End:
+#ifndef TEST_LOCK_IMPROVE_FOR_ALLOC
+	if(ENQUE_PHASE_NORMAL == phase) {
+		DMA_CHAN_UNLOCK(&pchan->lock, flags);
+	} else {
+		DMA_CHAN_UNLOCK_IN_IRQHD(&pchan->lock);
+	}
+#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
+
+	if(0 != uret) {
+		DMA_ERR("%s err, line %d\n", __FUNCTION__, uret);
+	}
+	return uret;
+}
+
+/**
+ * sw_dma_enqueue - enqueue the buffer, for single mode only
+ * @dma_hdl:	dma handle
+ * @src_addr:	buffer src phys addr
+ * @dst_addr:	buffer dst phys addr
+ * @byte_cnt:	buffer byte cnt
+ * @phase:	enqueue phase
+ *
+ * Returns 0 if sucess, the err line number if failed.
+ */
+u32 dma_enqueue_single(dm_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt,
+				enum dma_enque_phase_e phase)
+{
+	u32 			uret = 0;
+	unsigned long		flags = 0;
+	struct cofig_des_t	des;
+	struct dma_channel_t 	*pchan = (struct dma_channel_t *)dma_hdl;
+
+	memset(&des, 0, sizeof(des));
+	des.saddr 	= src_addr;
+	des.daddr 	= dst_addr;
+	des.bcnt 	= byte_cnt;
+	des.cofig 	= pchan->des_info_save.cofig;
+	des.param 	= pchan->des_info_save.param;
+	des.pnext	= (struct cofig_des_t *)DMA_END_DES_LINK;
+
+	/*
+	 * when called in irq, just use spin_lock, not spin_lock_irqsave
+	 */
+#ifndef TEST_LOCK_IMPROVE_FOR_ALLOC
+	if(ENQUE_PHASE_NORMAL == phase) {
+		DMA_CHAN_LOCK(&pchan->lock, flags);
+	} else {
+		DMA_CHAN_LOCK_IN_IRQHD(&pchan->lock);
+	}
+#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
+
+	if(0 != __dma_enqueue(dma_hdl, &des, phase)) {
+		uret = __LINE__;
+		goto End;
+	}
+
+End:
+#ifndef TEST_LOCK_IMPROVE_FOR_ALLOC
+	if(ENQUE_PHASE_NORMAL == phase) {
+		DMA_CHAN_UNLOCK(&pchan->lock, flags);
+	} else {
+		DMA_CHAN_UNLOCK_IN_IRQHD(&pchan->lock);
+	}
+#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
+
+	if(0 != uret) {
+		DMA_ERR("%s err, line %d\n", __FUNCTION__, uret);
+	}
+	return uret;
+}
+
+/**
+ * dma_irq_hdl_sgmd - dma irq handle, for single mode only
+ * @pchan:	dma channel handle
+ * @upend_bits:	irq pending for the channel
+ *
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 dma_irq_hdl_sgmd(struct dma_channel_t *pchan, u32 upend_bits)
 {
@@ -654,29 +664,35 @@ u32 dma_irq_hdl_sgmd(struct dma_channel_t *pchan, u32 upend_bits)
 	uirq_spt = pchan->irq_spt;
 
 	/* deal half done */
-	if((upend_bits & CHAN_IRQ_HD) && (uirq_spt & CHAN_IRQ_HD)) {
+	if(upend_bits & CHAN_IRQ_HD) {
 		csp_dma_chan_clear_irqpend(pchan, CHAN_IRQ_HD);
-		if(0 != __handle_hd_sgmd(pchan)) {
-			uret = __LINE__;
-			goto End;
+		if(uirq_spt & CHAN_IRQ_HD) {
+			if(0 != __handle_hd_sgmd(pchan)) {
+				uret = __LINE__;
+				goto End;
+			}
 		}
 	}
 
 	/* deal full done */
-	if((upend_bits & CHAN_IRQ_FD) && (uirq_spt & CHAN_IRQ_FD)) {
+	if(upend_bits & CHAN_IRQ_FD) {
 		csp_dma_chan_clear_irqpend(pchan, CHAN_IRQ_FD);
-		if(0 != __handle_fd_sgmd(pchan)) {
-			uret = __LINE__;
-			goto End;
+		if(uirq_spt & CHAN_IRQ_FD) {
+			if(0 != __handle_fd_sgmd(pchan)) {
+				uret = __LINE__;
+				goto End;
+			}
 		}
 	}
 
 	/* deal queue done */
-	if((upend_bits & CHAN_IRQ_QD) && (uirq_spt & CHAN_IRQ_QD)) {
+	if(upend_bits & CHAN_IRQ_QD) {
 		csp_dma_chan_clear_irqpend(pchan, CHAN_IRQ_QD);
-		if(0 != __handle_qd_sgmd(pchan)) {
-			uret = __LINE__;
-			goto End;
+		if(uirq_spt & CHAN_IRQ_QD) {
+			if(0 != __handle_qd_sgmd(pchan)) {
+				uret = __LINE__;
+				goto End;
+			}
 		}
 	}
 

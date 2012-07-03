@@ -37,9 +37,6 @@
 #include <mach/system.h>
 #include <mach/platform.h>
 
-#define ADD_DMA_BY_LIUGANG /* add dma to platform device */
-
-#ifdef ADD_DMA_BY_LIUGANG
 /* uart */
 static struct plat_serial8250_port debug_uart_platform_data[] = {
 	{
@@ -86,7 +83,7 @@ static struct platform_device sw_dmac_device = {
 	.resource 	= sw_dmac_resources,
 	.dev 		= {
 				.dma_mask = &sw_dmac_dmamask,
-				.coherent_dma_mask = DMA_BIT_MASK(32),	/* for validate dma_pool_alloc */
+				.coherent_dma_mask = DMA_BIT_MASK(32),	/* validate dma_pool_alloc */
 				// .platform_data = (void *) &sw_dmac_pdata,
 			  },
 };
@@ -102,34 +99,4 @@ void sw_pdev_init(void)
 	platform_add_devices(sw_pdevs, ARRAY_SIZE(sw_pdevs));
 	AW_UART_LOG("leave");
 }
-#else
-/* uart */
-static struct plat_serial8250_port debug_uart_platform_data[] = {
-	{
-		.membase        = (void __iomem *)(IO_ADDRESS(AW_UART0_BASE)),
-		.mapbase        = (resource_size_t)AW_UART0_BASE,
-		.irq            = 33,
-		.flags          = UPF_BOOT_AUTOCONF|UPF_IOREMAP,
-		.iotype         = UPIO_MEM32,
-		.regshift       = 2,
-		.uartclk        = 24000000,
-	}, {
-		.flags          = 0,
-	}
- };
 
-static struct platform_device debug_uart = {
-	.name = "serial8250",
-	.id = PLAT8250_DEV_PLATFORM,
-	.dev = {
-		.platform_data = &debug_uart_platform_data[0],
-	},
-};
-
-void sw_pdev_init(void)
-{
-	AW_UART_LOG("enter");
-	platform_device_register(&debug_uart);
-	AW_UART_LOG("leave");
-}
-#endif /* ADD_DMA_BY_LIUGANG */

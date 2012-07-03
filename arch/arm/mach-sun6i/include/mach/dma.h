@@ -344,12 +344,18 @@ struct dma_op_cb_t {
 };
 
 /*
- * XXX
+ * dma channle work mode:
  */
 enum dma_work_mode_e {
-	DMA_WORK_MODE_INVALID,	/* XXX */
-	DMA_WORK_MODE_CHAIN,	/* XXX */
-	DMA_WORK_MODE_SINGLE	/* XXX */
+	DMA_WORK_MODE_INVALID,	/* invalid work mode */
+	DMA_WORK_MODE_CHAIN,	/* chain mode
+				 * buffer will link in chain, hw can transfer them at one time.
+				 * in this case, irq for the middle buffer maybe lost.
+				 */
+	DMA_WORK_MODE_SINGLE	/* single mode
+				 * buffer will NOT link in chain, hw can only transfer one buffer at once.
+				 * irq for every buffer will be treated.
+				 */
 };
 
 /*
@@ -402,7 +408,9 @@ int sw_dma_getposition(dm_hdl_t dma_hdl, u32 *pSrc, u32 *pDst);
 void sw_dma_dump_chan(dm_hdl_t dma_hdl);
 u32 sw_dma_get_cur_bytes(dm_hdl_t dma_hdl);
 
+#if 0
 u32 sw_dma_getsoftsta(dm_hdl_t dma_hdl);
 u32 sw_dma_sgmd_buflist_empty(dm_hdl_t dma_hdl);
+#endif
 
 #endif /* __SW_DMA_H */

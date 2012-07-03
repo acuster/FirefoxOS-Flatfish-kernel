@@ -24,7 +24,9 @@
  */
 bool __need_restart_dma(struct dma_channel_t *pchan)
 {
+#ifdef DBG_DMA
 	u32 	utemp = 0;
+#endif /* DBG_DMA */
 	bool 	bret = false;
 
 	if(DMA_END_DES_LINK == csp_dma_chan_get_startaddr(pchan))

@@ -645,6 +645,7 @@ config TILE_SROM
 	  how to partition a single ROM for multiple purposes.
 
 source "drivers/char/dma_test/Kconfig"
+source "drivers/char/gpio_test/Kconfig"
 
 endmenu
 

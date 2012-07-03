@@ -200,29 +200,35 @@ irqreturn_t dma_irq_hdl(int irq, void *dev)
 		uirq_spt = pchan->irq_spt;
 
 		/* deal half done */
-		if((upend_bits & CHAN_IRQ_HD) && (uirq_spt & CHAN_IRQ_HD)) {
+		if(upend_bits & CHAN_IRQ_HD) {
 			csp_dma_chan_clear_irqpend(pchan, CHAN_IRQ_HD);
-			if(0 != __dma_chan_handle_hd(pchan)) {
-				uline = __LINE__;
-				goto End;
+			if(uirq_spt & CHAN_IRQ_HD) {
+				if(0 != __dma_chan_handle_hd(pchan)) {
+					uline = __LINE__;
+					goto End;
+				}
 			}
 		}
 
 		/* deal full done */
-		if((upend_bits & CHAN_IRQ_FD) && (uirq_spt & CHAN_IRQ_FD)) {
+		if(upend_bits & CHAN_IRQ_FD) {
 			csp_dma_chan_clear_irqpend(pchan, CHAN_IRQ_FD);
-			if(0 != __dma_chan_handle_fd(pchan)) {
-				uline = __LINE__;
-				goto End;
+			if(uirq_spt & CHAN_IRQ_FD) {
+				if(0 != __dma_chan_handle_fd(pchan)) {
+					uline = __LINE__;
+					goto End;
+				}
 			}
 		}
 
 		/* deal queue done */
-		if((upend_bits & CHAN_IRQ_QD) && (uirq_spt & CHAN_IRQ_QD)) {
+		if(upend_bits & CHAN_IRQ_QD) {
 			csp_dma_chan_clear_irqpend(pchan, CHAN_IRQ_QD);
-			if(0 != __dma_chan_handle_qd(pchan)) {
-				uline = __LINE__;
-				goto End;
+			if(uirq_spt & CHAN_IRQ_QD) {
+				if(0 != __dma_chan_handle_qd(pchan)) {
+					uline = __LINE__;
+					goto End;
+				}
 			}
 		}
 	}

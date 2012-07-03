@@ -41,7 +41,7 @@ struct kmem_cache 	*g_pdes_mgr = NULL;
 struct dma_pool		*g_pool_ch = NULL;
 
 /*
- * XXX, for single mode only
+ * dma des pool, for single mode only
  */
 struct dma_pool		*g_pool_sg = NULL;
 
@@ -202,6 +202,16 @@ void __dma_dump_channel(struct dma_channel_t *pchan)
 		return;
 	}
 
+#if 0
+	printk("irq en 0x%08x, irq pd 0x%08x, en: 0x%08x, cfg 0x%08x, start 0x%08x, src 0x%08x, dst 0x%08x, bcnt 0x%08x\n", \
+		DMA_READ_REG(DMA_IRQ_EN_REG0), DMA_READ_REG(DMA_IRQ_PEND_REG0), \
+		DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_EN), \
+		DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_CFG), \
+		DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_START), \
+		DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_CUR_SRC), \
+		DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_CUR_DST), \
+		DMA_READ_REG(pchan->reg_base + DMA_OFF_REG_BCNT_LEFT));
+#else
 	DMA_DBG("+++++++++++%s+++++++++++\n", __FUNCTION__);
 	DMA_DBG("  channel id:        %d\n", pchan->id);
 	DMA_DBG("  channel used:      %d\n", pchan->used);
@@ -246,6 +256,7 @@ void __dma_dump_channel(struct dma_channel_t *pchan)
 		pchan->des_info_save.param);
 	DMA_DBG("  channel state:     0x%08x\n", (u32)STATE_CHAIN(pchan));
 	DMA_DBG("-----------%s-----------\n", __FUNCTION__);
+#endif
 }
 
 /**
@@ -279,6 +290,7 @@ End:
 	return uret;
 }
 
+#if 0
 /**
  * __dma_check_channel_free - check if channel is free
  * @pchan:	dma handle
@@ -309,6 +321,7 @@ static u32 __dma_check_channel_free(struct dma_channel_t *pchan)
 
 	return false;
 }
+#endif
 
 /**
  * __dma_channel_already_exist - check if channel already requested by others
@@ -529,7 +542,7 @@ u32 sw_dma_release(dm_hdl_t dma_hdl)
 	unsigned long 	flags = 0;
 	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
 
-	/* XXX */
+	/* handle single mode first */
 	if(DMA_WORK_MODE_SINGLE == pchan->work_mode)
 		return dma_release_single(dma_hdl);
 
@@ -579,8 +592,10 @@ u32 sw_dma_release(dm_hdl_t dma_hdl)
 EXPORT_SYMBOL(sw_dma_release);
 
 /**
- * sw_dma_ctl - start a dma channel
+ * sw_dma_ctl - dma ctrl operation
  * @dma_hdl:	dma handle
+ * @op:		dma operation type
+ * @parg:	arg for the op
  *
  * Returns 0 if sucess, the err line number if failed.
  */
@@ -590,7 +605,7 @@ u32 sw_dma_ctl(dm_hdl_t dma_hdl, enum dma_op_type_e op, void *parg)
 	unsigned long	flags = 0;
 	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
 
-	/* XXX */
+	/* handle single mode first */
 	if(DMA_WORK_MODE_SINGLE == pchan->work_mode)
 		return dma_ctrl_single(dma_hdl, op, parg);
 
@@ -730,7 +745,7 @@ u32 sw_dma_config(dm_hdl_t dma_hdl, struct dma_config_t *pcfg, enum dma_enque_ph
 	}
 #endif /* DBG_DMA */
 
-	/* XXX */
+	/* handle single mode first */
 	if(DMA_WORK_MODE_SINGLE == pchan->work_mode) {
 		if(true == pcfg->bconti_mode) {
 			DMA_ERR_FUN_LINE;
@@ -738,6 +753,8 @@ u32 sw_dma_config(dm_hdl_t dma_hdl, struct dma_config_t *pcfg, enum dma_enque_ph
 		}
 		return dma_config_single(dma_hdl, pcfg, phase);
 	}
+
+	DMA_ERR_FUN_LINE;
 
 	/* get dma config val */
 	uConfig |= xfer_arr[pcfg->xfer_type]; /* src/dst burst length and data width */
@@ -820,10 +837,11 @@ u32 sw_dma_enqueue(dm_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt,
 	struct cofig_des_t	des;
 	struct dma_channel_t 	*pchan = (struct dma_channel_t *)dma_hdl;
 
-	/* XXX */
+	/* handle single mode first */
 	if(DMA_WORK_MODE_SINGLE == pchan->work_mode)
 		return dma_enqueue_single(dma_hdl, src_addr, dst_addr, byte_cnt, phase);
 
+	DMA_ERR_FUN_LINE;
 	memset(&des, 0, sizeof(des));
 	des.saddr 	= src_addr;
 	des.daddr 	= dst_addr;
@@ -866,11 +884,12 @@ End:
 }
 EXPORT_SYMBOL(sw_dma_enqueue);
 
+#if 0
 /**
- * XXX - XXX
- * @XXX:	XXX
+ * sw_dma_getsoftsta - get current transfer state, soft state
+ * @dma_hdl:	dma handle
  *
- * XXX
+ * return 0xFFFFFFFF if failed, else success
  */
 u32 sw_dma_getsoftsta(dm_hdl_t dma_hdl)
 {
@@ -894,10 +913,10 @@ u32 sw_dma_getsoftsta(dm_hdl_t dma_hdl)
 EXPORT_SYMBOL(sw_dma_getsoftsta);
 
 /**
- * XXX - XXX
- * @XXX:	XXX
+ * sw_dma_sgmd_buflist_empty - check if buffer list is empty, for single mode only.
+ * @dma_hdl:	dma handle
  *
- * XXX
+ * return true indicate buffer list is empty, false otherwise.
  */
 u32 sw_dma_sgmd_buflist_empty(dm_hdl_t dma_hdl)
 {
@@ -915,6 +934,7 @@ u32 sw_dma_sgmd_buflist_empty(dm_hdl_t dma_hdl)
 	return bret;
 }
 EXPORT_SYMBOL(sw_dma_sgmd_buflist_empty);
+#endif
 
 /**
  * sw_dma_getposition - get the src and dst address from the reg

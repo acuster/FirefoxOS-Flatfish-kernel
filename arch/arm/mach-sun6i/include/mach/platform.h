@@ -63,6 +63,7 @@
 #define AW_UART0_BASE               0x01c28000 /* UART 0 */
 #define AW_UART1_BASE               0x01c28400 /* UART 1 */
 #define AW_UART2_BASE               0x01c28800 /* UART 2 */
+#define AW_R_PRCM_BASE              0x01f01400 /* for r-prcm */
 
 
 /*

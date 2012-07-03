@@ -1,10 +1,10 @@
 /*
- * arch/arm/XXX/gpio_init.c
+ * arch/arm/mach-sun6i/gpio/gpio_init.c
  * (C) Copyright 2010-2015
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * liugang <liugang@allwinnertech.com>
  *
- * XXX
+ * sun6i gpio driver
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -19,10 +19,10 @@ u32 	g_pio_vbase = 0;
 u32 	g_rpio_vbase = 0;
 
 /**
- * XXX - XXX
- * XXX:	XXX
+ * gpio_save - save somethig for the chip before enter sleep
+ * @chip:	aw_gpio_chip which will be saved
  *
- * XXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 gpio_save(struct aw_gpio_chip *pchip)
 {
@@ -33,10 +33,10 @@ u32 gpio_save(struct aw_gpio_chip *pchip)
 }
 
 /**
- * XXX - XXX
- * XXX:	XXX
+ * gpio_resume - restore somethig for the chip after wake up
+ * @chip:	aw_gpio_chip which will be saved
  *
- * XXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 u32 gpio_resume(struct aw_gpio_chip *pchip)
 {
@@ -47,7 +47,7 @@ u32 gpio_resume(struct aw_gpio_chip *pchip)
 }
 
 /*
- * XXX - XXX
+ * gpio power api struct
  */
 struct gpio_pm_t g_pm = {
 	gpio_save,
@@ -55,7 +55,7 @@ struct gpio_pm_t g_pm = {
 };
 
 /*
- * XXX - XXX
+ * gpio config api struct
  */
 struct gpio_cfg_t g_cfg = {
 	gpio_set_cfg,
@@ -67,7 +67,7 @@ struct gpio_cfg_t g_cfg = {
 };
 
 /*
- * XXX - XXX
+ * gpio chips for the platform
  */
 struct aw_gpio_chip gpio_chips[] = {
 	{
@@ -153,16 +153,31 @@ struct aw_gpio_chip gpio_chips[] = {
 	}
 };
 
+#ifdef PIO_FROM_SD_TESTCODE
+static void __iomem *g_ccm_reg_vbase = 0;
+static void __iomem *g_r_prcm_reg_vbase = 0;
+#include "pio_clkinit_from_sdtest.c"
+#endif /* PIO_FROM_SD_TESTCODE */
+
 /**
- * XXX - XXX
- * XXX:	XXX
+ * aw_gpio_init - gpio driver init function
  *
- * XXX
+ * Returns 0 if sucess, the err line number if failed.
  */
 static __init int aw_gpio_init(void)
 {
 	u32	uret = 0;
 	u32 	i = 0;
+
+#ifdef PIO_FROM_SD_TESTCODE
+	g_ccm_reg_vbase = ioremap_nocache(AW_CCM_BASE, 0x1000);
+	g_r_prcm_reg_vbase = ioremap_nocache(AW_R_PRCM_BASE, 0x1000);
+	PIO_DBG("%s: g_ccm_reg_vbase 0x%08x, g_r_prcm_reg_vbase 0x%08x\n", __FUNCTION__,
+		(u32)g_ccm_reg_vbase, (u32)g_r_prcm_reg_vbase);
+	PIO_DBG("%s: NOTE - r_gpio currently NOT pass tested############################\n", __FUNCTION__);
+	gpio_clk_init();
+	r_gpio_clk_init();
+#endif /* PIO_FROM_SD_TESTCODE */
 
 	g_pio_vbase = (u32)ioremap_nocache(AW_PIO_BASE, 0x400);
 	g_rpio_vbase = (u32)ioremap_nocache(AW_RPIO_BASE, 0x400);
