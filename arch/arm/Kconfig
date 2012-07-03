@@ -300,6 +300,7 @@ config ARCH_SUN6I
 	select ARCH_HAS_BARRIERS if SMP
 	select ZONE_DMA
 	select HAVE_SCHED_CLOCK
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  This enables support for ARM Ltd RealView boards.
 

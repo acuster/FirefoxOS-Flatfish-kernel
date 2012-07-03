@@ -344,6 +344,15 @@ struct dma_op_cb_t {
 };
 
 /*
+ * XXX
+ */
+enum dma_work_mode_e {
+	DMA_WORK_MODE_INVALID,	/* XXX */
+	DMA_WORK_MODE_CHAIN,	/* XXX */
+	DMA_WORK_MODE_SINGLE	/* XXX */
+};
+
+/*
  * size macros
  */
 #define SIZE_1			(1)
@@ -383,7 +392,7 @@ struct dma_op_cb_t {
 /*
  * dma export symbol
  */
-dm_hdl_t sw_dma_request(char * name);
+dm_hdl_t sw_dma_request(char * name, enum dma_work_mode_e work_mode);
 u32 sw_dma_release(dm_hdl_t dma_hdl);
 u32 sw_dma_enqueue(dm_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt,
 				enum dma_enque_phase_e phase);
@@ -393,5 +402,7 @@ int sw_dma_getposition(dm_hdl_t dma_hdl, u32 *pSrc, u32 *pDst);
 void sw_dma_dump_chan(dm_hdl_t dma_hdl);
 u32 sw_dma_get_cur_bytes(dm_hdl_t dma_hdl);
 
+u32 sw_dma_getsoftsta(dm_hdl_t dma_hdl);
+u32 sw_dma_sgmd_buflist_empty(dm_hdl_t dma_hdl);
 
 #endif /* __SW_DMA_H */

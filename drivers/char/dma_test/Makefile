@@ -7,6 +7,7 @@ PWD=$(shell pwd)
 obj-$(CONFIG_DMA_TEST_DRIVER)+=test_case_1t_mem_2_mem.o	\
 			test_case_2t_mem_2_mem.o	\
 			test_case_other.o		\
+			test_case_single_md.o	\
 			sun6i_dma_test.o 		\
 
 install: build

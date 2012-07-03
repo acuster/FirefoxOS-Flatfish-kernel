@@ -272,7 +272,8 @@ u32 __dtc_stopcmd(void)
 	/*
 	 * start data transfer
 	 */
-	dma_hdl = sw_dma_request("case_stp_dma");
+	//dma_hdl = sw_dma_request("case_stp_dma", DMA_WORK_MODE_CHAIN);
+	dma_hdl = sw_dma_request("case_stp_dma", DMA_WORK_MODE_SINGLE);
 	if(NULL == dma_hdl) {
 		uRet = __LINE__;
 		goto End;
@@ -744,7 +745,7 @@ u32 __dtc_many_enq(void)
 	/*
 	 * start data transfer
 	 */
-	dma_hdl = sw_dma_request("m2m_dma");
+	dma_hdl = sw_dma_request("m2m_dma", DMA_WORK_MODE_CHAIN);
 	if(NULL == dma_hdl) {
 		uRet = __LINE__;
 		goto End;
@@ -1200,7 +1201,7 @@ u32 __dtc_conti_mode(void)
 	/*
 	 * start data transfer
 	 */
-	dma_hdl = sw_dma_request("m2m_dma");
+	dma_hdl = sw_dma_request("m2m_dma", DMA_WORK_MODE_CHAIN);
 	if(NULL == dma_hdl) {
 		uRet = __LINE__;
 		goto End;

@@ -88,7 +88,8 @@ u32 dma_start(dm_hdl_t dma_hdl)
 	csp_dma_chan_start(pchan);
 
 	/* change state to running */
-	pchan->state = DMA_CHAN_STA_RUNING;
+	//pchan->state.st_md_ch = DMA_CHAN_STA_RUNING;
+	STATE_CHAIN(pchan) = DMA_CHAN_STA_RUNING;;
 
 End:
 	if(0 != uRet) {
@@ -142,10 +143,12 @@ u32 dma_stop(dm_hdl_t dma_hdl)
 	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
 
 #ifdef DBG_DMA
-	DMA_INF("%s: state %d, buf chain: \n", __FUNCTION__, (u32)pchan->state);
+	//DMA_INF("%s: state %d, buf chain: \n", __FUNCTION__, (u32)pchan->state.st_md_ch);
+	DMA_INF("%s: state %d, buf chain: \n", __FUNCTION__, (u32)STATE_CHAIN(pchan));
 	__dma_dump_buf_chain(pchan);
 
-	switch(pchan->state) {
+	//switch(pchan->state.st_md_ch) {
+	switch(STATE_CHAIN(pchan)) {
 	case DMA_CHAN_STA_IDLE:
 		DMA_INF("%s: state idle, maybe before start or already stopped\n", __FUNCTION__);
 		break;
@@ -171,8 +174,8 @@ u32 dma_stop(dm_hdl_t dma_hdl)
 	 * abort dma transfer if state is running or wait_qd
 	 */
 	DMA_DBG_FUN_LINE_TOCHECK;
-	if(DMA_CHAN_STA_RUNING == pchan->state
-		|| DMA_CHAN_STA_WAIT_QD == pchan->state) {
+	if(DMA_CHAN_STA_RUNING == STATE_CHAIN(pchan)
+		|| DMA_CHAN_STA_WAIT_QD == STATE_CHAIN(pchan)) {
 		if(NULL != pchan->qd_cb.func) {
 			if(0 != pchan->qd_cb.func(dma_hdl, pchan->qd_cb.parg, DMA_CB_ABORT)) {
 				uret = __LINE__;
@@ -196,7 +199,7 @@ u32 dma_stop(dm_hdl_t dma_hdl)
 	}
 
 	/* change channel state to idle */
-	pchan->state = DMA_CHAN_STA_IDLE;
+	STATE_CHAIN(pchan) = DMA_CHAN_STA_IDLE;
 
 End:
 	if(0 != uret) {
@@ -286,7 +289,7 @@ u32 dma_set_op_cb(dm_hdl_t dma_hdl, struct dma_op_cb_t *pcb)
 	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
 
 	/* only in idle state can set callback */
-	if(DMA_CHAN_STA_IDLE != pchan->state) {
+	if(DMA_CHAN_STA_IDLE != STATE_CHAIN(pchan)) {
 		DMA_ERR_FUN_LINE;
 		return __LINE__;
 	}
@@ -308,7 +311,7 @@ u32 dma_set_hd_cb(dm_hdl_t dma_hdl, struct dma_cb_t *pcb)
 	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
 
 	/* only in idle state can set callback */
-	if(DMA_CHAN_STA_IDLE != pchan->state) {
+	if(DMA_CHAN_STA_IDLE != STATE_CHAIN(pchan)) {
 		DMA_ERR_FUN_LINE;
 		return __LINE__;
 	}
@@ -330,7 +333,7 @@ u32 dma_set_fd_cb(dm_hdl_t dma_hdl, struct dma_cb_t *pcb)
 	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
 
 	/* only in idle state can set callback */
-	if(DMA_CHAN_STA_IDLE != pchan->state) {
+	if(DMA_CHAN_STA_IDLE != STATE_CHAIN(pchan)) {
 		DMA_ERR_FUN_LINE;
 		return __LINE__;
 	}
@@ -352,7 +355,7 @@ u32 dma_set_qd_cb(dm_hdl_t dma_hdl, struct dma_cb_t *pcb)
 	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
 
 	/* only in idle state can set callback */
-	if(DMA_CHAN_STA_IDLE != pchan->state) {
+	if(DMA_CHAN_STA_IDLE != STATE_CHAIN(pchan)) {
 		DMA_ERR_FUN_LINE;
 		return __LINE__;
 	}

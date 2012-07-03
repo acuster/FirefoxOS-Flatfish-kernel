@@ -87,7 +87,7 @@ u32 __dma_chan_handle_qd(struct dma_channel_t *pchan)
 	/*
 	 * stopped when hd_cb calling?
 	 */
-	if(DMA_CHAN_STA_IDLE == pchan->state) {
+	if(DMA_CHAN_STA_IDLE == STATE_CHAIN(pchan)) {
 		DMA_CHAN_UNLOCK(&pchan->lock, flags);
 		DMA_ERR("%s err, line %d, state idle, stopped during hd_cb/fd_cb/qd_cb or somewhere else? just return ok\n", \
 			__FUNCTION__, __LINE__);
@@ -98,7 +98,7 @@ u32 __dma_chan_handle_qd(struct dma_channel_t *pchan)
 	 * no changed to wait_qd in normal/hd_cb/fd_cb/qd_cb queueing, the des is old,
 	 * clear des and change state to done
 	 */
-	if(DMA_CHAN_STA_RUNING == pchan->state) {
+	if(DMA_CHAN_STA_RUNING == STATE_CHAIN(pchan)) {
 		/* free the extra des, clear des */
 		if(0 != dma_clean_des(pchan)) {
 			uRet = __LINE__;
@@ -106,7 +106,7 @@ u32 __dma_chan_handle_qd(struct dma_channel_t *pchan)
 		}
 
 		/* change state to done */
-		pchan->state = DMA_CHAN_STA_DONE;
+		STATE_CHAIN(pchan) = DMA_CHAN_STA_DONE;
 
 		DMA_CHAN_UNLOCK(&pchan->lock, flags);
 		return 0;
@@ -116,7 +116,7 @@ u32 __dma_chan_handle_qd(struct dma_channel_t *pchan)
 	 * changed to wait_qd before(in normal/hd_cb/fd_cb/qd_cb queueing), the des is new,
 	 * run the new buffer chain
 	 */
-	if(DMA_CHAN_STA_WAIT_QD == pchan->state) {
+	if(DMA_CHAN_STA_WAIT_QD == STATE_CHAIN(pchan)) {
 		DMA_DBG_FUN_LINE;
 
 		/* start the new queue(from begin) */
@@ -132,7 +132,7 @@ u32 __dma_chan_handle_qd(struct dma_channel_t *pchan)
 		}
 
 		/* change state to running */
-		//pchan->state = DMA_CHAN_STA_RUNING; /* done in dma_start */
+		//STATE_CHAIN(pchan) = DMA_CHAN_STA_RUNING; /* done in dma_start */
 
 		DMA_CHAN_UNLOCK(&pchan->lock, flags);
 		return 0;
@@ -141,7 +141,7 @@ u32 __dma_chan_handle_qd(struct dma_channel_t *pchan)
 	/*
 	 * should never be done
 	 */
-	if(DMA_CHAN_STA_DONE == pchan->state) {
+	if(DMA_CHAN_STA_DONE == STATE_CHAIN(pchan)) {
 		uRet = __LINE__;
 		goto End;
 	}
@@ -182,12 +182,22 @@ irqreturn_t dma_irq_hdl(int irq, void *dev)
 	pdma_mgr = (struct dma_mgr_t *)dev;
 	for(i = 0; i < DMA_CHAN_TOTAL; i++) {
 		pchan = &pdma_mgr->chnl[i];
-		uirq_spt = pdma_mgr->chnl[i].irq_spt;
 
 		/* get channel irq pend bits */
 		upend_bits = csp_dma_chan_get_irqpend(pchan);
 		if(0 == upend_bits)
 			continue;
+
+		/* deal single mode */
+		if(DMA_WORK_MODE_SINGLE == pchan->work_mode) {
+			if(0 != dma_irq_hdl_sgmd(pchan, upend_bits)) {
+				uline = __LINE__;
+				goto End;
+			}
+			continue;
+		}
+
+		uirq_spt = pchan->irq_spt;
 
 		/* deal half done */
 		if((upend_bits & CHAN_IRQ_HD) && (uirq_spt & CHAN_IRQ_HD)) {

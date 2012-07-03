@@ -15,5 +15,7 @@ obj-y += localtimer.o
 endif
 
 obj-y += dma/
+obj-y += gpio/
+obj-y += sys_config.o
 
 endif

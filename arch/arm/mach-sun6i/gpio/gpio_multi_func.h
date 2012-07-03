@@ -1,0 +1,26 @@
+/*
+ * arch/arm/XXX/gpio_multi_func.h
+ * (C) Copyright 2010-2015
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * liugang <liugang@allwinnertech.com>
+ *
+ * XXX
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
+
+#ifndef __GPIO_MULTI_FUNC_H
+#define __GPIO_MULTI_FUNC_H
+
+u32 gpio_set_cfg(struct aw_gpio_chip *pchip, u32 offset, u32 val);
+u32 gpio_get_cfg(struct aw_gpio_chip *pchip, u32 offset);
+u32 gpio_set_pull(struct aw_gpio_chip *pchip, u32 offset, u32 val);
+u32 gpio_get_pull(struct aw_gpio_chip *pchip, u32 offset);
+u32 gpio_set_drvlevel(struct aw_gpio_chip *pchip, u32 offset, u32 val);
+u32 gpio_get_drvlevel(struct aw_gpio_chip *pchip, u32 offset);
+
+#endif /* __GPIO_MULTI_FUNC_H */

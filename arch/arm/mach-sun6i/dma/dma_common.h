@@ -16,16 +16,16 @@
 #ifndef __DMA_COMMON_H
 #define __DMA_COMMON_H
 
-#define DBG_DMA /* debug dma driver */
-
 #include <linux/spinlock.h>
+
+#define DBG_DMA /* debug dma driver */
 
 #define FROM_SD_TESTCODE	/* refrence the 1633 dma test code from sd */
 
 /*
  * dma print macro
  */
-#define DMA_DBG_LEVEL		3
+#define DMA_DBG_LEVEL		2
 
 #if (DMA_DBG_LEVEL == 1)
 	#define DMA_DBG(format,args...)   printk("[dma-dbg] "format,##args)
@@ -41,10 +41,11 @@
 	#define DMA_ERR(format,args...)   printk("[dma-err] "format,##args)
 #endif
 
-#define DMA_DBG_FUN_LINE   		DMA_DBG("%s(%d)\n", __FUNCTION__, __LINE__)
+#define DMA_DBG_FUN_LINE   		DMA_INF("%s(%d)\n", __FUNCTION__, __LINE__)
 #define DMA_ERR_FUN_LINE   		DMA_ERR("%s(%d)\n", __FUNCTION__, __LINE__)
-#define DMA_DBG_FUN_LINE_TODO  		DMA_DBG("%s(%d) - todo########\n", __FUNCTION__, __LINE__)
-#define DMA_DBG_FUN_LINE_TOCHECK 	DMA_DBG("%s(%d) - tocheck########\n", __FUNCTION__, __LINE__)
+#define DMA_DBG_FUN_LINE_TODO  		DMA_INF("%s(%d) - todo########\n", __FUNCTION__, __LINE__)
+#define DMA_DBG_FUN_LINE_TOCHECK 	DMA_INF("%s(%d) - tocheck########\n", __FUNCTION__, __LINE__)
+#define DMA_ASSERT(x)			if(!(x)) {DMA_INF("%s err, line %d\n", __FUNCTION__, __LINE__);}
 
 /*
  * dma channel total
@@ -64,7 +65,7 @@
 /*
  * dam channel state, software state
  */
-enum dma_chan_sta_e {
+enum st_md_chain_e {
 	DMA_CHAN_STA_IDLE,  	/* maybe before start or after stop */
 	DMA_CHAN_STA_RUNING,	/* transferring */
 	DMA_CHAN_STA_WAIT_QD,	/* running -> last buffer has been retrived(the start addr reg is 0xfffff800), now when new buf
@@ -77,6 +78,15 @@ enum dma_chan_sta_e {
 				 * 	(2) if there arenot new des(des is null), print err
 				 */
 	DMA_CHAN_STA_DONE	/* it is the case all des done, hw idle, des queue is empty */
+};
+
+/*
+ * dam channel state for single mode
+ */
+enum st_md_single_e {
+	SINGLE_STA_IDLE,  	/* maybe before start or after stop */
+	SINGLE_STA_RUNING,	/* transferring */
+	SINGLE_STA_LAST_DONE	/* XXX */
 };
 
 /*
@@ -103,6 +113,10 @@ struct des_save_info_t {
  * define dma config descriptor manager
  */
 struct des_mgr_t {
+#ifdef USE_UNCACHED_FOR_DESMGR
+	dma_addr_t		des_mgr_pa;
+#endif /* USE_UNCACHED_FOR_DESMGR */
+
 	struct cofig_des_t	*pdes;     	/* pointer to descriptor struct */
 	dma_addr_t		des_pa;		/* bus-specific DMA address for pdes, used by dma_pool_free */
 	u32			des_num;     	/* the vaild des num in pdes[], max is MAX_DES_ITEM_NUM. can be used to:
@@ -121,6 +135,14 @@ struct des_mgr_t {
  * descriptor area length
  */
 #define DES_AREA_LEN 		(MAX_DES_ITEM_NUM * sizeof(struct cofig_des_t))
+
+/*
+ * XXX
+ */
+union dma_chan_sta_u {
+	enum st_md_chain_e 	st_md_ch;	/* dam channel state, software state */
+	enum st_md_single_e 	st_md_sg;	/* XXX */
+};
 
 /*
  * define dma channel struct
@@ -142,16 +164,33 @@ struct dma_channel_t {
 	struct dma_cb_t		qd_cb;		/* queue done call back func */
 	struct dma_op_cb_t	op_cb;		/* dma operation call back func */
 
-	struct des_mgr_t	*pdes_mgr;	/* dma config descriptor manager */
+	spinlock_t 		lock;		/* dma channel lock */
+
 	struct des_save_info_t	des_info_save;	/* save the last descriptor for enqueue, when enqueue with no
 						 * no config/para:
 						 * (1) state is running or idle, use the above des's config/para
 						 * (2) state is done, des are all cleared, use des_info_save, so
 						 *	we should bkup des_info_save when done.
 						 */
-	enum dma_chan_sta_e 	state;		/* dam channel state, software state */
-	spinlock_t 		lock;		/* dma channel lock */
+
+	enum dma_work_mode_e	work_mode;
+
+	union dma_chan_sta_u	state;
+
+	/*
+	 * for chan mode only
+	 */
+	struct des_mgr_t	*pdes_mgr;	/* dma config descriptor manager */
+
+	/*
+	 * for single mode only
+	 */
+	struct des_item_t	*pcur_des;	/* XXXX */
+	struct list_head 	buf_list_head;
 };
+
+#define STATE_CHAIN(dma_hdl)	(((struct dma_channel_t *)(dma_hdl))->state.st_md_ch)
+#define STATE_SGL(dma_hdl)	(((struct dma_channel_t *)(dma_hdl))->state.st_md_sg)
 
 /*
  * dma manager struct
@@ -163,6 +202,19 @@ struct dma_mgr_t {
 /*
  * dma channel lock
  */
+#if 0
+/* init lock */
+#define DMA_CHAN_LOCK_INIT(lock)	do{}while(0)
+#define DMA_CHAN_LOCK_DEINIT(lock)	do{}while(0)
+
+/* lock in process contex */
+#define DMA_CHAN_LOCK(lock, flag)	do{}while(0)
+#define DMA_CHAN_UNLOCK(lock, flag)	do{}while(0)
+
+/* lock in irq contex */
+#define DMA_CHAN_LOCK_IN_IRQHD(lock)	do{}while(0)
+#define DMA_CHAN_UNLOCK_IN_IRQHD(lock)	do{}while(0)
+#else
 /* init lock */
 #define DMA_CHAN_LOCK_INIT(lock)	spin_lock_init((lock))
 #define DMA_CHAN_LOCK_DEINIT(lock)	do{}while(0)
@@ -174,5 +226,6 @@ struct dma_mgr_t {
 /* lock in irq contex */
 #define DMA_CHAN_LOCK_IN_IRQHD(lock)	spin_lock(lock)
 #define DMA_CHAN_UNLOCK_IN_IRQHD(lock)	spin_unlock(lock)
+#endif
 
 #endif  /* __DMA_COMMON_H */

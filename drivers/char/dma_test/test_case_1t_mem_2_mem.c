@@ -297,7 +297,7 @@ u32 __dtc_1t_mem_2_mem(void)
 	/*
 	 * start data transfer
 	 */
-	dma_hdl = sw_dma_request("m2m_dma");
+	dma_hdl = sw_dma_request("m2m_dma", DMA_WORK_MODE_CHAIN);
 	if(NULL == dma_hdl) {
 		uRet = __LINE__;
 		goto End;
@@ -738,7 +738,7 @@ u32 __dtc_case_enq_aftdone(void)
 	/*
 	 * start data transfer
 	 */
-	dma_hdl = sw_dma_request("m2m_dma");
+	dma_hdl = sw_dma_request("m2m_dma", DMA_WORK_MODE_CHAIN);
 	if(NULL == dma_hdl) {
 		uRet = __LINE__;
 		goto End;

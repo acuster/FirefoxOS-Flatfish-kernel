@@ -50,17 +50,19 @@
  */
 enum dma_test_case_e {
 	DTC_1T_MEM_2_MEM,      /* dma test case one-thread from memory to memory */
-	DTC_1T_NAND_DMA_RW,    /* dma test case one-thread from memory to nand,
-				* 2012-5-16 09:13, as we cannot compile open(/dev/nanda...), read(...),
-				* we cannot open nand dev to raw read/write, so we
-				* test in nand driver (nand_init -> __dma_rw_thread)
-				*/
+	DTC_SINGLE_MODE,       /* dma test case for single mode */
 	DTC_2T_MEM_2_MEM,      /* dma test case two-thread from memory to memory,
 				* memory range should not be conflict, eg: thread one
 				* from memory-A to memory-B, thread two from C to D.
 				*/
 	DTC_1TM2M_MANY_ENQ, 	/* dma test case one-thread memory to memory, many enqueue */
 	DTC_1TM2M_CONTI_MOD,   /* dma test case one-thread memory to memory, continue mode */
+
+	DTC_1T_NAND_DMA_RW,    /* dma test case one-thread from memory to nand,
+				* 2012-5-16 09:13, as we cannot compile open(/dev/nanda...), read(...),
+				* we cannot open nand dev to raw read/write, so we
+				* test in nand driver (nand_init -> __dma_rw_thread)
+				*/
 
 	DTC_2T_USB_COPY_MANUAL,/* dma test case two-thread usb read/write nand, eg: one
 				* thread copy files from PC to nand-udisk, the other thread

@@ -17,8 +17,17 @@
 #define __DMA_INTERFACE_H
 
 extern struct dma_mgr_t  g_dma_mgr;
-extern struct kmem_cache *g_pdma_des_mgr;
-extern struct dma_pool	 *g_pdma_pool;
+#ifdef USE_UNCACHED_FOR_DESMGR
+extern struct dma_pool	 *g_pdes_mgr;
+#else
+extern struct kmem_cache *g_pdes_mgr;
+#endif /* USE_UNCACHED_FOR_DESMGR */
+extern struct dma_pool	 *g_pool_ch;
 
+extern struct dma_pool	 *g_pool_sg;
+
+u32 dma_check_handle(dm_hdl_t dma_hdl);
+extern unsigned long addrtype_arr[];
+extern unsigned long xfer_arr[];
 
 #endif  /* __DMA_INTERFACE_H */

@@ -288,7 +288,7 @@ u32 _thread2_proc(void)
 	/*
 	 * start data transfer
 	 */
-	dma_hdl = sw_dma_request(THREAD2_DMA_NAME);
+	dma_hdl = sw_dma_request(THREAD2_DMA_NAME, DMA_WORK_MODE_CHAIN);
 	if(NULL == dma_hdl) {
 		uRet = __LINE__;
 		goto End;
@@ -667,7 +667,7 @@ u32 _thread1_proc(void)
 	/*
 	 * start data transfer
 	 */
-	dma_hdl = sw_dma_request(THREAD1_DMA_NAME);
+	dma_hdl = sw_dma_request(THREAD1_DMA_NAME, DMA_WORK_MODE_CHAIN);
 	if(NULL == dma_hdl) {
 		uRet = __LINE__;
 		goto End;

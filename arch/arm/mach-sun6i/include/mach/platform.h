@@ -46,6 +46,7 @@
 #define AW_SPINLOCK_BASE            0x01c18000
 #define AW_CCM_BASE                 0x01c20000
 #define AW_PIO_BASE                 0x01c20800
+#define AW_RPIO_BASE                0x01f02c00 /* for r-pio */
 #define AW_GIC_DIST_BASE            0x01c81000
 #define AW_GIC_CPU_BASE             0x01c82000
 #define AW_TIMER_BASE               0x01c20c00

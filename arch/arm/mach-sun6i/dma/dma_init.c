@@ -16,13 +16,15 @@
 #include "dma_include.h"
 
 /**
- * __des_mgr_cache_ctor - init function for g_pdma_des_mgr
- * @p:	pointer to g_pdma_des_mgr
+ * __des_mgr_cache_ctor - init function for g_pdes_mgr
+ * @p:	pointer to g_pdes_mgr
  */
+#ifndef USE_UNCACHED_FOR_DESMGR
 static void __des_mgr_cache_ctor(void *p)
 {
 	memset(p, 0, sizeof(struct des_mgr_t));
 }
+#endif /* USE_UNCACHED_FOR_DESMGR */
 
 /**
  * dma_init - initial the dma manager, request irq
@@ -49,10 +51,12 @@ int dma_init(struct platform_device *device)
 
 		pchan->used 	= 0;
 		pchan->id 	= i;
-		pchan->reg_base = DMA_EN_REG(i);
+		pchan->reg_base = (u32)DMA_EN_REG(i);
 		pchan->irq_spt 	= CHAN_IRQ_NO;
 		pchan->bconti_mode = false;
-		pchan->state = DMA_CHAN_STA_IDLE;
+		//pchan->state.st_md_ch = DMA_CHAN_STA_IDLE;
+		STATE_CHAIN(pchan) = 0; /* to check */
+		pchan->work_mode = DMA_WORK_MODE_INVALID;
 		DMA_CHAN_LOCK_INIT(&pchan->lock);
 
 		/* these has cleared in memset-g_dma_mgr-0 */
@@ -68,16 +72,27 @@ int dma_init(struct platform_device *device)
 	DMA_DBG_FUN_LINE_TOCHECK;
 
 	/* alloc des mgr area */
-	g_pdma_des_mgr = kmem_cache_create("dma_des_mgr", sizeof(struct des_mgr_t), 0,
+#ifdef USE_UNCACHED_FOR_DESMGR
+	g_pdes_mgr = dmam_pool_create("dma_des_mgr", &device->dev, sizeof(struct des_mgr_t), 4, 0); /* DWORD align */
+#else
+	g_pdes_mgr = kmem_cache_create("dma_des_mgr", sizeof(struct des_mgr_t), 0,
 					SLAB_HWCACHE_ALIGN, __des_mgr_cache_ctor);
-	if(NULL == g_pdma_des_mgr) {
+#endif /* USE_UNCACHED_FOR_DESMGR */
+	if(NULL == g_pdes_mgr) {
 		ret = __LINE__;
 		goto End;
 	}
 
 	/* alloc dma pool for des area */
-	g_pdma_pool = dmam_pool_create("dma_des", &device->dev, DES_AREA_LEN, 4, 0); /* DWORD align */
-	if(NULL == g_pdma_pool) {
+	g_pool_ch = dmam_pool_create("dma_des", &device->dev, DES_AREA_LEN, 4, 0); /* DWORD align */
+	if(NULL == g_pool_ch) {
+		ret = __LINE__;
+		goto End;
+	}
+
+	/* alloc dma pool for des list, for single mode only */
+	g_pool_sg = dmam_pool_create("dma_deslist", &device->dev, sizeof(struct des_item_t), 4, 0); /* DWORD align */
+	if(NULL == g_pool_sg) {
 		ret = __LINE__;
 		goto End;
 	}
@@ -95,15 +110,27 @@ End:
 	if(0 != ret) {
 		DMA_ERR("%s err, line %d\n", __FUNCTION__, ret);
 
-		if (NULL != g_pdma_pool) {
-			dma_pool_destroy(g_pdma_pool);
-			g_pdma_pool = NULL;
+		if (NULL != g_pool_sg) {
+			dma_pool_destroy(g_pool_sg);
+			g_pool_sg = NULL;
 		}
 
-		if (NULL != g_pdma_des_mgr) {
-			kmem_cache_destroy(g_pdma_des_mgr);
-			g_pdma_des_mgr = NULL;
+		if (NULL != g_pool_ch) {
+			dma_pool_destroy(g_pool_ch);
+			g_pool_ch = NULL;
 		}
+
+#ifdef USE_UNCACHED_FOR_DESMGR
+		if (NULL != g_pdes_mgr) {
+			dma_pool_destroy(g_pdes_mgr);
+			g_pdes_mgr = NULL;
+		}
+#else
+		if (NULL != g_pdes_mgr) {
+			kmem_cache_destroy(g_pdes_mgr);
+			g_pdes_mgr = NULL;
+		}
+#endif /* USE_UNCACHED_FOR_DESMGR */
 
 		/* deinit lock for each channel */
 		for(i = 0; i < DMA_CHAN_TOTAL; i++) {
@@ -129,14 +156,26 @@ int dma_deinit(void)
 	/* free dma irq */
 	free_irq(AW_IRQ_DMA, (void *)&g_dma_mgr);
 
-	if (NULL != g_pdma_pool) {
-		dma_pool_destroy(g_pdma_pool);
-		g_pdma_pool = NULL;
+	if (NULL != g_pool_sg) {
+		dma_pool_destroy(g_pool_sg);
+		g_pool_sg = NULL;
 	}
-	if (NULL != g_pdma_des_mgr) {
-		kmem_cache_destroy(g_pdma_des_mgr);
-		g_pdma_des_mgr = NULL;
+
+	if (NULL != g_pool_ch) {
+		dma_pool_destroy(g_pool_ch);
+		g_pool_ch = NULL;
 	}
+#ifdef USE_UNCACHED_FOR_DESMGR
+	if (NULL != g_pdes_mgr) {
+		dma_pool_destroy(g_pdes_mgr);
+		g_pdes_mgr = NULL;
+	}
+#else
+	if (NULL != g_pdes_mgr) {
+		kmem_cache_destroy(g_pdes_mgr);
+		g_pdes_mgr = NULL;
+	}
+#endif /* USE_UNCACHED_FOR_DESMGR */
 
 	/* deinit lock for each channel */
 	for(i = 0; i < DMA_CHAN_TOTAL; i++) {
