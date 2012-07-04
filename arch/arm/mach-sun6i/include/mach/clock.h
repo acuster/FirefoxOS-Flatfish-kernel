@@ -70,8 +70,8 @@ typedef enum __AW_CCU_CLK_ID
     AW_SYS_CLK_MIPIPLL, /* "sys_mipi_pll" ,MIPI PLL clock       */
 
     /* CPU & BUS */
-    AW_SYS_CLK_AC327,   /* "sys_cpu0"   ,CPU clock              */
-    AW_SYS_CLK_AR100,   /* "sys_cpu1"   ,CPU clock              */
+    AW_SYS_CLK_AC327,   /* "sys_ac327"  ,CPU clock              */
+    AW_SYS_CLK_AR100,   /* "sys_ar100"  ,CPU clock              */
     AW_SYS_CLK_AXI,     /* "sys_axi"    ,AXI clock              */
     AW_SYS_CLK_AHB0,    /* "sys_ahb0"   ,AHB0 clock             */
     AW_SYS_CLK_AHB1,    /* "sys_ahb1"   ,AHB1 clock             */

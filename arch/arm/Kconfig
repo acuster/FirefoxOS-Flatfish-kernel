@@ -301,8 +301,9 @@ config ARCH_SUN6I
 	select ZONE_DMA
 	select HAVE_SCHED_CLOCK
 	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_HAS_CPUFREQ
 	help
-	  This enables support for ARM Ltd RealView boards.
+	  This enables support for AllWinner Ltd develop boards.
 
 config ARCH_VERSATILE
 	bool "ARM Ltd. Versatile family"
