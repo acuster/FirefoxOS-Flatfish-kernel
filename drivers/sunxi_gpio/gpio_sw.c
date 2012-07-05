@@ -1,6 +1,6 @@
 /*
  * 2011-2012
- * panlong <panlong@allwinnertech.com>
+ * panlong <panlong@reuuimllatech.com>
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -459,7 +459,7 @@ EXIT_END:
 module_init(gpio_sw_init);
 module_exit(gpio_sw_exit);
 
-MODULE_AUTHOR("panlong <panlong@allwinnertech.com>");
+MODULE_AUTHOR("panlong <panlong@reuuimllatech.com>");
 MODULE_DESCRIPTION("SW GPIO driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:gpio_sw");

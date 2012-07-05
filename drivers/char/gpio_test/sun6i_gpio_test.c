@@ -1,8 +1,8 @@
 /*
  * drivers/char/gpio_test/sun6i_gpio_test.c
  * (C) Copyright 2010-2015
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- * liugang <liugang@allwinnertech.com>
+ * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
+ * liugang <liugang@reuuimllatech.com>
  *
  * sun6i gpio test driver
  *

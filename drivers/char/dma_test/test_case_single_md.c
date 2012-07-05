@@ -1,8 +1,8 @@
 /*
  * drivers/char/dma_test/test_case_single_md.c
  * (C) Copyright 2010-2015
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- * liugang <liugang@allwinnertech.com>
+ * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
+ * liugang <liugang@reuuimllatech.com>
  *
  * sun6i dma test driver
  *

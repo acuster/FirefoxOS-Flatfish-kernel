@@ -1,8 +1,8 @@
 /*
  * arch/arm/mach-sun6i/include/mach/dma.h
  * (C) Copyright 2010-2015
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- * liugang <liugang@allwinnertech.com>
+ * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
+ * liugang <liugang@reuuimllatech.com>
  *
  * sun6i dma driver header file
  *
