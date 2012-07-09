@@ -1,10 +1,10 @@
 /*
  * arch/arm/mach-sun6i/include/mach/i2c.h
  *
- * Copyright (C) 2012 - 2016 Allwinner Limited
- * Pan Nan <pannan@allwinnertech.com>
+ * Copyright (C) 2012 - 2016 Reuuimlla Limited
+ * Pan Nan <pannan@reuuimllatech.com>
  *
- * SUN6I TWI register definition
+ * SUN6I TWI Register Definition
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -166,18 +166,18 @@ Foscl is clock SCL;standard mode:100KHz or fast mode:400KHz
 #define TWI_MASTER_MODE     (1)
 #define TWI_SLAVE_MODE      (0)	/* seldom use */
 
-#define AW_TWI_ADDR_SIZE		0x3FF
+#define SUN6I_TWI_ADDR_SIZE		0x3FF
 
 #define TWI0_BASE_ADDR_START  (0x01C2AC00)
-#define TWI0_BASE_ADDR_END    (TWI0_BASE_ADDR_START + AW_TWI_ADDR_SIZE)
+#define TWI0_BASE_ADDR_END    (TWI0_BASE_ADDR_START + SUN6I_TWI_ADDR_SIZE)
 #define TWI1_BASE_ADDR_START  (0x01C2B000)
-#define TWI1_BASE_ADDR_END    (TWI1_BASE_ADDR_START + AW_TWI_ADDR_SIZE)
+#define TWI1_BASE_ADDR_END    (TWI1_BASE_ADDR_START + SUN6I_TWI_ADDR_SIZE)
 #define TWI2_BASE_ADDR_START  (0x01C2B400)
-#define TWI2_BASE_ADDR_END    (TWI2_BASE_ADDR_START + AW_TWI_ADDR_SIZE)
+#define TWI2_BASE_ADDR_END    (TWI2_BASE_ADDR_START + SUN6I_TWI_ADDR_SIZE)
 #define TWI3_BASE_ADDR_START  (0x01C2B800)
-#define TWI3_BASE_ADDR_END    (TWI3_BASE_ADDR_START + AW_TWI_ADDR_SIZE)
+#define TWI3_BASE_ADDR_END    (TWI3_BASE_ADDR_START + SUN6I_TWI_ADDR_SIZE)
 #define RTWI_BASE_ADDR_START  (0x01F02400)
-#define RTWI_BASE_ADDR_END    (RTWI_BASE_ADDR_START + AW_TWI_ADDR_SIZE)
+#define RTWI_BASE_ADDR_END    (RTWI_BASE_ADDR_START + SUN6I_TWI_ADDR_SIZE)
 
 #define TWI0_TRANSFER_SPEED     (200000)
 #define TWI1_TRANSFER_SPEED     (100000)
@@ -186,8 +186,8 @@ Foscl is clock SCL;standard mode:100KHz or fast mode:400KHz
 #define RTWI_TRANSFER_SPEED     (100000)
 
 
-#define AW_IRQ_TWI1	34
-#define AW_IRQ_RTWI	51
+#define SUN6I_IRQ_TWI1	34
+#define SUN6I_IRQ_RTWI	51
 
 
 struct sun6i_i2c_platform_data {

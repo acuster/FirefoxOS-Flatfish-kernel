@@ -1,10 +1,10 @@
 /*
  * drivers/i2c/busses/i2c-sun6i.c
  *
- * Copyright (C) 2012 - 2016 Allwinner Limited
- * Pan Nan <pannan@allwinnertech.com>
+ * Copyright (C) 2012 - 2016 Reuuimlla Limited
+ * Pan Nan <pannan@reuuimllatech.com>
  *
- * SUN6I I2C Controller Driver
+ * SUN6I TWI Controller Driver
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -41,11 +41,11 @@
 #endif
 
 
-#define AWXX_I2C_OK      0
-#define AWXX_I2C_FAIL   -1
-#define AWXX_I2C_RETRY  -2
-#define AWXX_I2C_SFAIL  -3  /* start fail */
-#define AWXX_I2C_TFAIL  -4  /* stop  fail */
+#define SUN6I_I2C_OK      0
+#define SUN6I_I2C_FAIL   -1
+#define SUN6I_I2C_RETRY  -2
+#define SUN6I_I2C_SFAIL  -3  /* start fail */
+#define SUN6I_I2C_TFAIL  -4  /* stop  fail */
 
 #define SUN6I_I2C_FPGA
 
@@ -75,7 +75,7 @@ static void* __iomem r_gpio_addr = NULL;
 
 static inline unsigned int twi_query_irq_status(void *base_addr);
 
-/* aw_i2c_adapter: transfer status */
+/* I2C transfer status */
 enum
 {
 	I2C_XFER_IDLE    = 0x1,
@@ -605,10 +605,10 @@ static int twi_start(void *base_addr, int bus_num)
 	while((1 == twi_get_start(base_addr))&&(--timeout));
 	if(timeout == 0) {
 		I2C_DBG("[i2c%d] START can't sendout!\n", bus_num);
-		return AWXX_I2C_FAIL;
+		return SUN6I_I2C_FAIL;
 	}
 
-	return AWXX_I2C_OK;
+	return SUN6I_I2C_OK;
 }
 
 static int twi_restart(void  *base_addr, int bus_num)
@@ -619,9 +619,9 @@ static int twi_restart(void  *base_addr, int bus_num)
 	while((1 == twi_get_start(base_addr))&&(--timeout));
 	if(timeout == 0) {
 		I2C_DBG("[i2c%d] Restart can't sendout!\n", bus_num);
-		return AWXX_I2C_FAIL;
+		return SUN6I_I2C_FAIL;
 	}
-	return AWXX_I2C_OK;
+	return SUN6I_I2C_OK;
 }
 
 static int twi_stop(void *base_addr, int bus_num)
@@ -635,7 +635,7 @@ static int twi_stop(void *base_addr, int bus_num)
 	while(( 1 == twi_get_stop(base_addr))&& (--timeout));
 	if(timeout == 0) {
 		I2C_DBG("[i2c%d] STOP can't sendout!\n", bus_num);
-		return AWXX_I2C_TFAIL;
+		return SUN6I_I2C_TFAIL;
 	}
 
 	timeout = 0xff;
@@ -643,17 +643,17 @@ static int twi_stop(void *base_addr, int bus_num)
 	if(timeout == 0)
 	{
 		I2C_DBG("[i2c%d] i2c state isn't idle(0xf8)\n", bus_num);
-		return AWXX_I2C_TFAIL;
+		return SUN6I_I2C_TFAIL;
 	}
 
 	timeout = 0xff;
 	while((TWI_LCR_IDLE_STATUS != readl(base_addr + TWI_LCR_REG))&&(--timeout));
 	if(timeout == 0) {
 		I2C_DBG("[i2c%d] i2c lcr isn't idle(0x3a)\n", bus_num);
-		return AWXX_I2C_TFAIL;
+		return SUN6I_I2C_TFAIL;
 	}
 
-	return AWXX_I2C_OK;
+	return SUN6I_I2C_OK;
 }
 
 /* get SDA state */
@@ -739,13 +739,13 @@ static int twi_send_clk_9pulse(void *base_addr, int bus_num)
     if(twi_get_sda(base_addr))
     {
         twi_disable_lcr(base_addr, twi_scl);
-        return AWXX_I2C_OK;
+        return SUN6I_I2C_OK;
     }
     else
     {
         I2C_DBG("[i2c%d] SDA is still Stuck Low, failed. \n", bus_num);
         twi_disable_lcr(base_addr, twi_scl);
-        return AWXX_I2C_FAIL;
+        return SUN6I_I2C_FAIL;
     }
 }
 
@@ -805,7 +805,7 @@ static void sun6i_i2c_addr_byte(struct sun6i_i2c *i2c)
 static int sun6i_i2c_core_process(struct sun6i_i2c *i2c)
 {
 	void *base_addr = i2c->base_addr;
-	int  ret        = AWXX_I2C_OK;
+	int  ret        = SUN6I_I2C_OK;
 	int  err_code   = 0;
 	unsigned char  state = 0;
 	unsigned char  tmp   = 0;
@@ -856,18 +856,18 @@ static int sun6i_i2c_core_process(struct sun6i_i2c *i2c)
 		i2c->msg_idx++; /* the other msg */
 		i2c->msg_ptr = 0;
 		if (i2c->msg_idx == i2c->msg_num) {
-			err_code = AWXX_I2C_OK;/* Success,wakeup */
+			err_code = SUN6I_I2C_OK;/* Success,wakeup */
 			goto ok_out;
 		}
 		else if(i2c->msg_idx < i2c->msg_num) {/* for restart pattern */
 			ret = twi_restart(base_addr, i2c->bus_num);/* read spec, two msgs */
-			if(ret == AWXX_I2C_FAIL) {
-				err_code = AWXX_I2C_SFAIL;
+			if(ret == SUN6I_I2C_FAIL) {
+				err_code = SUN6I_I2C_SFAIL;
 				goto err_out;/* START can't sendout */
 			}
 		}
 		else {
-			err_code = AWXX_I2C_FAIL;
+			err_code = SUN6I_I2C_FAIL;
 			goto err_out;
 		}
 		break;
@@ -905,7 +905,7 @@ static int sun6i_i2c_core_process(struct sun6i_i2c *i2c)
 			break;
 		}
 		/* err process, the last byte should be @case 0x58 */
-		err_code = AWXX_I2C_FAIL;/* err, wakeup */
+		err_code = SUN6I_I2C_FAIL;/* err, wakeup */
 		goto err_out;
 	case 0x58: /* Data byte has been received; NOT ACK has been transmitted */
 		/* received the last byte  */
@@ -914,14 +914,14 @@ static int sun6i_i2c_core_process(struct sun6i_i2c *i2c)
 			i2c->msg_idx++;
 			i2c->msg_ptr = 0;
 			if (i2c->msg_idx == i2c->msg_num) {
-				err_code = AWXX_I2C_OK; // succeed,wakeup the thread
+				err_code = SUN6I_I2C_OK; // succeed,wakeup the thread
 				goto ok_out;
 			}
 			else if(i2c->msg_idx < i2c->msg_num) {
 				/* repeat start */
 				ret = twi_restart(base_addr, i2c->bus_num);
-				if(ret == AWXX_I2C_FAIL) {/* START fail */
-					err_code = AWXX_I2C_SFAIL;
+				if(ret == SUN6I_I2C_FAIL) {/* START fail */
+					err_code = SUN6I_I2C_SFAIL;
 					goto err_out;
 				}
 				break;
@@ -943,7 +943,7 @@ static int sun6i_i2c_core_process(struct sun6i_i2c *i2c)
 
 ok_out:
 err_out:
-	if(AWXX_I2C_TFAIL == twi_stop(base_addr, i2c->bus_num)) {
+	if(SUN6I_I2C_TFAIL == twi_stop(base_addr, i2c->bus_num)) {
 		I2C_DBG("[i2c%d] STOP failed!\n", i2c->bus_num);
 	}
 
@@ -956,7 +956,7 @@ msg_null:
 static irqreturn_t sun6i_i2c_handler(int this_irq, void * dev_id)
 {
 	struct sun6i_i2c *i2c = (struct sun6i_i2c *)dev_id;
-	int ret = AWXX_I2C_FAIL;
+	int ret = SUN6I_I2C_FAIL;
 
 	if(!twi_query_irq_flag(i2c->base_addr)) {
 		pr_warning("unknown interrupt!");
@@ -979,7 +979,7 @@ static irqreturn_t sun6i_i2c_handler(int this_irq, void * dev_id)
 
 static int sun6i_i2c_xfer_complete(struct sun6i_i2c *i2c, int code)
 {
-	int ret = AWXX_I2C_OK;
+	int ret = SUN6I_I2C_OK;
 
 	i2c->msg     = NULL;
 	i2c->msg_num = 0;
@@ -987,14 +987,14 @@ static int sun6i_i2c_xfer_complete(struct sun6i_i2c *i2c, int code)
 	i2c->status  = I2C_XFER_IDLE;
 
 	/* i2c->msg_idx  store the information */
-	if(code == AWXX_I2C_FAIL) {
+	if(code == SUN6I_I2C_FAIL) {
 		I2C_DBG("[i2c%d] Maybe Logic Error, debug it!\n", i2c->bus_num);
 		i2c->msg_idx = code;
-		ret = AWXX_I2C_FAIL;
+		ret = SUN6I_I2C_FAIL;
 	}
-	else if(code != AWXX_I2C_OK) {
+	else if(code != SUN6I_I2C_OK) {
 		i2c->msg_idx = code;
-		ret = AWXX_I2C_FAIL;
+		ret = SUN6I_I2C_FAIL;
 	}
 
 	wake_up(&i2c->wait);
@@ -1005,7 +1005,7 @@ static int sun6i_i2c_xfer_complete(struct sun6i_i2c *i2c, int code)
 static int sun6i_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	struct sun6i_i2c *i2c = (struct sun6i_i2c *)adap->algo_data;
-	int ret = AWXX_I2C_FAIL;
+	int ret = SUN6I_I2C_FAIL;
 	int i   = 0;
 
 	if(i2c->suspended) {
@@ -1016,7 +1016,7 @@ static int sun6i_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int nu
 	for(i = adap->retries; i >= 0; i--) {
 		ret = sun6i_i2c_do_xfer(i2c, msgs, num);
 
-		if(ret != AWXX_I2C_RETRY) {
+		if(ret != SUN6I_I2C_RETRY) {
 			goto out;
 		}
 
@@ -1032,7 +1032,7 @@ out:
 static int sun6i_i2c_do_xfer(struct sun6i_i2c *i2c, struct i2c_msg *msgs, int num)
 {
 	unsigned long timeout = 0;
-	int ret = AWXX_I2C_FAIL;
+	int ret = SUN6I_I2C_FAIL;
 	//int i = 0, j =0;
 
 	twi_soft_reset(i2c->base_addr);
@@ -1043,13 +1043,13 @@ static int sun6i_i2c_do_xfer(struct sun6i_i2c *i2c, struct i2c_msg *msgs, int nu
 	       TWI_STAT_BUS_ERR != twi_query_irq_status(i2c->base_addr) &&
 	       TWI_STAT_ARBLOST_SLAR_ACK != twi_query_irq_status(i2c->base_addr) ) {
 		I2C_DBG("[i2c%d] bus is busy, status = %x\n", i2c->bus_num, twi_query_irq_status(i2c->base_addr));
-        if( AWXX_I2C_OK == twi_send_clk_9pulse(i2c->base_addr, i2c->bus_num) )
+        if( SUN6I_I2C_OK == twi_send_clk_9pulse(i2c->base_addr, i2c->bus_num) )
         {
             break;
         }
         else
         {
-            ret = AWXX_I2C_RETRY;
+            ret = SUN6I_I2C_RETRY;
             goto out;
         }
 	}
@@ -1077,11 +1077,11 @@ static int sun6i_i2c_do_xfer(struct sun6i_i2c *i2c, struct i2c_msg *msgs, int nu
 
 	/* START signal, needn't clear int flag */
 	ret = twi_start(i2c->base_addr, i2c->bus_num);
-	if(ret == AWXX_I2C_FAIL) {
+	if(ret == SUN6I_I2C_FAIL) {
 		twi_soft_reset(i2c->base_addr);
 		twi_disable_irq(i2c->base_addr);  /* disable irq */
 		i2c->status  = I2C_XFER_IDLE;
-		ret = AWXX_I2C_RETRY;
+		ret = SUN6I_I2C_RETRY;
 		goto out;
 	}
 
@@ -1484,8 +1484,8 @@ static struct resource sun6i_twi1_resources[] = {
 		.end	= TWI1_BASE_ADDR_END,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.start	= AW_IRQ_TWI1,
-		.end	= AW_IRQ_TWI1,
+		.start	= SUN6I_IRQ_TWI1,
+		.end	= SUN6I_IRQ_TWI1,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -1576,8 +1576,8 @@ static struct resource sun6i_rtwi_resources[] = {
 		.end	= RTWI_BASE_ADDR_END,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.start	= AW_IRQ_RTWI,
-		.end	= AW_IRQ_RTWI,
+		.start	= SUN6I_IRQ_RTWI,
+		.end	= SUN6I_IRQ_RTWI,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
