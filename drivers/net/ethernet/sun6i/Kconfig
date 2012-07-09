@@ -1,0 +1,37 @@
+config NET_VENDOR_SUN6I
+	bool "Sun6i gmac devices"
+	default y
+	depends on HAS_IOMEM
+	---help---
+	The gmac device of sun6i platform soc.
+
+if NET_VENDOR_SUN6I
+
+config SUN6I_GMAC
+	tristate "Sun6i platform 1G Ethernet driver"
+	depends on HAS_IOMEM && NET_VENDOR_SUN6I
+	select NET_CORE
+	select MII
+	select PHYLIB
+	select CRC32
+	---help---
+	  This is the driver for the Sun6i Ethernet.
+
+choice
+	prompt "Select the DMA TX/RX descriptor operating modes"
+	depends on SUN6I_GMAC
+	---help---
+	  This driver supports DMA descriptor to operate both in dual buffer
+	  (RING) and linked-list(CHAINED) mode. In RING mode each descriptor
+	  points to two data buffer pointers whereas in CHAINED mode they
+	  points to only one data buffer pointer.
+
+config GMAC_RING
+	bool "Enable Descriptor Ring Mode"
+
+config GMAC_CHAINED
+	bool "Enable Descriptor Chained Mode"
+
+endchoice
+
+endif # NET_VENDOR_SUN6I
