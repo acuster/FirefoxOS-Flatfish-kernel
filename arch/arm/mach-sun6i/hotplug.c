@@ -34,14 +34,14 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
 
 int platform_cpu_kill(unsigned int cpu)
 {
-	printk("[%s] Not implemented!\n", __FUNCTION__);
-	return -1;
+	printk("[%s] kill cpu%d\n", __FUNCTION__, cpu);
+	return 1;
 }
 
 void platform_cpu_die(unsigned int cpu)
 {
-	printk("[%s] Not implemented!\n", __FUNCTION__);
-	return -1;
+	printk("[%s] cpu%d die\n", __FUNCTION__, cpu);
+	asm("wfi");
 }
 
 int platform_cpu_disable(unsigned int cpu)
