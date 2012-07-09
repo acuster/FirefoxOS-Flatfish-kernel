@@ -330,6 +330,12 @@ config SPI_STMP3XXX
 	help
 	  SPI driver for Freescale STMP37xx/378x SoC SSP interface
 
+config SPI_SUN6I
+	tristate "SUN6I SPI Controller"
+	depends on ARCH_SUN6I
+	help
+		Allwinner Soc SPI controller, present on SUN6I chips.
+
 config SPI_TEGRA
 	tristate "Nvidia Tegra SPI controller"
 	depends on ARCH_TEGRA && TEGRA_SYSTEM_DMA
