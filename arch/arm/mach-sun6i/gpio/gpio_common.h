@@ -108,7 +108,9 @@ enum driver_level_e {
  */
 #define PIO_READ_REG_BITS(reg, pos, width)		((PIO_READ_REG(reg) >> (pos)) & ((1 << (width)) - 1))
 #define PIO_WRITE_REG_BITS(reg, pos, width, val)	PIO_WRITE_REG(reg, (readl(reg) & (u32)(~(((1 << (width)) - 1) << (pos)))) \
-									| (u32)(((val) & ((1 << (width)) - 1)) << (pos)))
+								| (u32)(((val) & ((1 << (width)) - 1)) << (pos)))
+#define PIO_SET_BIT(reg, offset)	PIO_WRITE_REG_BITS(reg, offset, 1, 1)
+#define PIO_CLR_BIT(reg, offset)	PIO_WRITE_REG_BITS(reg, offset, 1, 0)
 
 /*
  * gpio struct define below
@@ -133,6 +135,26 @@ struct gpio_cfg_t {
 	pget_drvlevel 	get_drvlevel;
 };
 
+typedef u32 (*peint_set_trig)(struct aw_gpio_chip *pchip, u32 offset, enum gpio_eint_trigtype trig_val);
+typedef u32 (*peint_get_trig)(struct aw_gpio_chip *pchip, u32 offset, enum gpio_eint_trigtype *pval);
+typedef u32 (*peint_get_enable)(struct aw_gpio_chip *pchip, u32 offset, u32 *penable);
+typedef u32 (*peint_set_enable)(struct aw_gpio_chip *pchip, u32 offset, u32 enable);
+typedef u32 (*peint_get_irqpd_sta)(struct aw_gpio_chip *pchip, u32 offset);
+typedef u32 (*peint_clr_irqpd_sta)(struct aw_gpio_chip *pchip, u32 offset);
+typedef u32 (*peint_set_debounce)(struct aw_gpio_chip *pchip, struct gpio_eint_debounce val); /* for chip, not just port */
+typedef u32 (*peint_get_debounce)(struct aw_gpio_chip *pchip, struct gpio_eint_debounce *pval); /* for chip, not just port */
+
+struct gpio_eint_cfg_t {
+	peint_set_trig 		eint_set_trig;
+	peint_get_trig 		eint_get_trig;
+	peint_set_enable 	eint_set_enable;
+	peint_get_enable 	eint_get_enable;
+	peint_get_irqpd_sta 	eint_get_irqpd_sta;
+	peint_clr_irqpd_sta 	eint_clr_irqpd_sta;
+	peint_set_debounce 	eint_set_debounce;
+	peint_get_debounce 	eint_get_debounce;
+};
+
 typedef u32 (*psave)(struct aw_gpio_chip *pchip);
 typedef u32 (*presume)(struct aw_gpio_chip *pchip);
 
@@ -147,8 +169,11 @@ struct gpio_pm_t {
 struct aw_gpio_chip {
 	struct gpio_chip 	chip;
 	struct gpio_cfg_t	*cfg;
+	struct gpio_eint_cfg_t	*cfg_eint;
 	struct gpio_pm_t 	*pm;
 	void __iomem		*vbase;
+	void __iomem		*vbase_eint;	/* gpio eint config reg base */
+	u32 			irq_num;
 	spinlock_t 		lock;
 };
 

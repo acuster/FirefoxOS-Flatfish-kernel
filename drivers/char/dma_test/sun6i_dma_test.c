@@ -19,11 +19,12 @@
 #include "test_case_2t_mem_2_mem.h"
 #include "test_case_other.h"
 #include "test_case_single_md.h"
+#include "test_case_single_conti_md.h"
 
 /*
  * cur test case
  */
-static enum dma_test_case_e g_cur_test_case = DTC_1T_CMD_STOP;
+static enum dma_test_case_e g_cur_test_case = DTC_SINGLE_CONT_MODE;
 //static enum dma_test_case_e g_cur_test_case = DTC_MAX;
 
 /*
@@ -64,6 +65,9 @@ static int __dma_test_thread(void * arg)
 		break;
 	case DTC_SINGLE_MODE:
 		uResult = __dtc_single_mode();
+		break;
+	case DTC_SINGLE_CONT_MODE:
+		uResult = __dtc_sgct_mode();
 		break;
 	case DTC_1T_ENQ_AFT_DONE:
 		uResult = __dtc_case_enq_aftdone();

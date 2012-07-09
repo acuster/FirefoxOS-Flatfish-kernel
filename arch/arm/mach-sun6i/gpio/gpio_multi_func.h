@@ -16,6 +16,10 @@
 #ifndef __GPIO_MULTI_FUNC_H
 #define __GPIO_MULTI_FUNC_H
 
+#ifdef DBG_GPIO
+bool is_gpio_requested(u32 gpio);
+#endif /* DBG_GPIO */
+
 u32 gpio_set_cfg(struct aw_gpio_chip *pchip, u32 offset, u32 val);
 u32 gpio_get_cfg(struct aw_gpio_chip *pchip, u32 offset);
 u32 gpio_set_pull(struct aw_gpio_chip *pchip, u32 offset, u32 val);

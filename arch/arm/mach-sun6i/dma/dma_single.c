@@ -149,9 +149,7 @@ u32 __dma_stop(dm_hdl_t dma_hdl)
 		}
 	}
 
-	/*
-	 * free buffer list
-	 */
+	/* free buffer list */
 	__dma_free_allbuf(pchan);
 
 	/* change channel state to idle */
@@ -240,9 +238,6 @@ u32 __dma_enqueue(dm_hdl_t dma_hdl, struct cofig_des_t *pdes, enum dma_enque_pha
 {
 	u32 	uret = 0;
 	u32 	utemp = 0;
-#ifdef TEST_LOCK_IMPROVE_FOR_ALLOC
-	unsigned long	flags = 0;
-#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
 	struct dma_channel_t 	*pchan = (struct dma_channel_t *)dma_hdl;
 	struct des_item_t	*pdes_itm = NULL;
 
@@ -253,14 +248,6 @@ u32 __dma_enqueue(dm_hdl_t dma_hdl, struct cofig_des_t *pdes, enum dma_enque_pha
 	}
 	pdes_itm->des = *pdes;
 	pdes_itm->paddr = utemp;
-
-#ifdef TEST_LOCK_IMPROVE_FOR_ALLOC
-	if(ENQUE_PHASE_NORMAL == phase) {
-		DMA_CHAN_LOCK(&pchan->lock, flags);
-	} else {
-		DMA_CHAN_LOCK_IN_IRQHD(&pchan->lock);
-	}
-#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
 
 //	不管状态怎样, enqueue to list
 	list_add_tail(&pdes_itm->list, &pchan->buf_list_head);
@@ -275,14 +262,6 @@ u32 __dma_enqueue(dm_hdl_t dma_hdl, struct cofig_des_t *pdes, enum dma_enque_pha
 		}
 	}
 End:
-#ifdef TEST_LOCK_IMPROVE_FOR_ALLOC
-	if(ENQUE_PHASE_NORMAL == phase) {
-		DMA_CHAN_LOCK(&pchan->lock, flags);
-	} else {
-		DMA_CHAN_LOCK_IN_IRQHD(&pchan->lock);
-	}
-#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
-
 	if(0 != uret) {
 		DMA_ERR("%s err, line %d\n", __FUNCTION__, uret);
 	}
@@ -318,8 +297,6 @@ u32 __handle_qd_sgmd(struct dma_channel_t *pchan)
 	unsigned long	flags = 0;
 	enum st_md_single_e cur_state = 0;
 
-	DMA_ASSERT(false == pchan->bconti_mode);
-
 	/* cannot lock fd_cb function, in case sw_dma_enqueue called and locked agin */
 	if(NULL != pchan->qd_cb.func) {
 		if(0 != pchan->qd_cb.func((dm_hdl_t)pchan, pchan->qd_cb.parg, DMA_CB_OK)) {
@@ -335,10 +312,18 @@ u32 __handle_qd_sgmd(struct dma_channel_t *pchan)
 	/* stopped when hd_cb/fd_cb/qd_cb/somewhere calling? */
 	if(SINGLE_STA_IDLE == cur_state) {
 		DMA_ASSERT(NULL == pchan->pcur_des);
-		DMA_INF("%s: state idle, just return ok!\n", __FUNCTION__);
+		DMA_INF("%s: state idle, stopped in cb before? just return ok!\n", __FUNCTION__);
 		goto End;
 	} else if(SINGLE_STA_RUNING == cur_state) {
-		/* free cur buf */
+		/* for continue mode, just re start the cur buffer */
+		if(unlikely(true == pchan->bconti_mode)) {
+			DMA_ASSERT(true == list_empty(&pchan->buf_list_head));
+			list_add_tail(&pchan->pcur_des->list, &pchan->buf_list_head);
+			uret = __dma_start((dm_hdl_t)pchan);
+			goto End;
+		}
+
+		/* for no-continue mode, free cur buf and start the next buf in chain */
 		DMA_ASSERT(NULL != pchan->pcur_des);
 		utemp = pchan->pcur_des->paddr;
 		dma_pool_free(g_pool_sg, pchan->pcur_des, utemp);
@@ -558,13 +543,18 @@ u32 dma_config_single(dm_hdl_t dma_hdl, struct dma_config_t *pcfg, enum dma_enqu
 	/*
 	 * when called in irq, just use spin_lock, not spin_lock_irqsave
 	 */
-#ifndef TEST_LOCK_IMPROVE_FOR_ALLOC
 	if(ENQUE_PHASE_NORMAL == phase) {
 		DMA_CHAN_LOCK(&pchan->lock, flags);
 	} else {
 		DMA_CHAN_LOCK_IN_IRQHD(&pchan->lock);
 	}
-#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
+
+	/* cannot enqueue more than one buffer in single_continue mode */
+	if(true == pcfg->bconti_mode
+		&& !list_empty(&pchan->buf_list_head)) {
+		uret = __LINE__;
+		goto End;
+	}
 
 	/* irq enable */
 	csp_dma_chan_irq_enable(pchan, pcfg->irq_spt);
@@ -576,13 +566,11 @@ u32 dma_config_single(dm_hdl_t dma_hdl, struct dma_config_t *pcfg, enum dma_enqu
 	}
 
 End:
-#ifndef TEST_LOCK_IMPROVE_FOR_ALLOC
 	if(ENQUE_PHASE_NORMAL == phase) {
 		DMA_CHAN_UNLOCK(&pchan->lock, flags);
 	} else {
 		DMA_CHAN_UNLOCK_IN_IRQHD(&pchan->lock);
 	}
-#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
 
 	if(0 != uret) {
 		DMA_ERR("%s err, line %d\n", __FUNCTION__, uret);
@@ -619,13 +607,18 @@ u32 dma_enqueue_single(dm_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cn
 	/*
 	 * when called in irq, just use spin_lock, not spin_lock_irqsave
 	 */
-#ifndef TEST_LOCK_IMPROVE_FOR_ALLOC
 	if(ENQUE_PHASE_NORMAL == phase) {
 		DMA_CHAN_LOCK(&pchan->lock, flags);
 	} else {
 		DMA_CHAN_LOCK_IN_IRQHD(&pchan->lock);
 	}
-#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
+
+	/* cannot enqueue more than one buffer in single_continue mode */
+	if(true == pchan->bconti_mode
+		&& !list_empty(&pchan->buf_list_head)) {
+		uret = __LINE__;
+		goto End;
+	}
 
 	if(0 != __dma_enqueue(dma_hdl, &des, phase)) {
 		uret = __LINE__;
@@ -633,13 +626,11 @@ u32 dma_enqueue_single(dm_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cn
 	}
 
 End:
-#ifndef TEST_LOCK_IMPROVE_FOR_ALLOC
 	if(ENQUE_PHASE_NORMAL == phase) {
 		DMA_CHAN_UNLOCK(&pchan->lock, flags);
 	} else {
 		DMA_CHAN_UNLOCK_IN_IRQHD(&pchan->lock);
 	}
-#endif /* TEST_LOCK_IMPROVE_FOR_ALLOC */
 
 	if(0 != uret) {
 		DMA_ERR("%s err, line %d\n", __FUNCTION__, uret);

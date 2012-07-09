@@ -92,6 +92,7 @@ static inline struct aw_gpio_chip *gpio_to_aw_gpiochip(u32 gpio)
 	return to_aw_gpiochip(pchip);
 }
 
+int __pio_to_irq(struct gpio_chip *chip, unsigned offset);
 int aw_gpiochip_add(struct gpio_chip *chip);
 
 #endif /* __GPIO_BASE_H */

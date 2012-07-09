@@ -169,7 +169,7 @@ u32 gpio_get_drvlevel(struct aw_gpio_chip *pchip, u32 offset)
  *
  * Returns true if already requested, false otherwise.
  */
-static bool is_gpio_requested(u32 gpio)
+bool is_gpio_requested(u32 gpio)
 {
 	struct gpio_chip *pchip = NULL;
 
@@ -202,7 +202,7 @@ u32 sw_gpio_setcfg(u32 gpio, u32 val)
 
 #ifdef DBG_GPIO
 	if(false == is_gpio_requested(gpio)) {
-		PIO_ERR("%s to check: gpio %d not requested, line %d\n", __FUNCTION__, gpio, uret);
+		PIO_ERR("%s to check: gpio %d not requested, line %d\n", __FUNCTION__, gpio, __LINE__);
 	}
 #endif /* DBG_GPIO */
 
@@ -250,7 +250,7 @@ u32 sw_gpio_getcfg(u32 gpio)
 
 #ifdef DBG_GPIO
 	if(false == is_gpio_requested(gpio)) {
-		PIO_ERR("%s to check: gpio %d not requested, line %d\n", __FUNCTION__, gpio, uret);
+		PIO_ERR("%s to check: gpio %d not requested, line %d\n", __FUNCTION__, gpio, __LINE__);
 	}
 #endif /* DBG_GPIO */
 
@@ -296,7 +296,7 @@ u32 sw_gpio_setpull(u32 gpio, u32 val)
 
 #ifdef DBG_GPIO
 	if(false == is_gpio_requested(gpio)) {
-		PIO_ERR("%s to check: gpio %d not requested, line %d\n", __FUNCTION__, gpio, uret);
+		PIO_ERR("%s to check: gpio %d not requested, line %d\n", __FUNCTION__, gpio, __LINE__);
 	}
 #endif /* DBG_GPIO */
 
@@ -344,7 +344,7 @@ u32 sw_gpio_getpull(u32 gpio)
 
 #ifdef DBG_GPIO
 	if(false == is_gpio_requested(gpio)) {
-		PIO_ERR("%s to check: gpio %d not requested, line %d\n", __FUNCTION__, gpio, uret);
+		PIO_ERR("%s to check: gpio %d not requested, line %d\n", __FUNCTION__, gpio, __LINE__);
 	}
 #endif /* DBG_GPIO */
 
@@ -390,7 +390,7 @@ u32 sw_gpio_setdrvlevel(u32 gpio, u32 val)
 
 #ifdef DBG_GPIO
 	if(false == is_gpio_requested(gpio)) {
-		PIO_ERR("%s to check: gpio %d not requested, line %d\n", __FUNCTION__, gpio, uret);
+		PIO_ERR("%s to check: gpio %d not requested, line %d\n", __FUNCTION__, gpio, __LINE__);
 	}
 #endif /* DBG_GPIO */
 
@@ -423,7 +423,7 @@ End:
 EXPORT_SYMBOL(sw_gpio_setdrvlevel);
 
 /**
- * sw_gpio_getpull - get driver level for the gpio
+ * sw_gpio_getdrvlevel - get driver level for the gpio
  * @gpio:	the global gpio index
  *
  * Returns the driver level for the gpio if success, GPIO_DRVLVL_INVALID otherwise.
@@ -438,7 +438,7 @@ u32 sw_gpio_getdrvlevel(u32 gpio)
 
 #ifdef DBG_GPIO
 	if(false == is_gpio_requested(gpio)) {
-		PIO_ERR("%s to check: gpio %d not requested, line %d\n", __FUNCTION__, gpio, uret);
+		PIO_ERR("%s to check: gpio %d not requested, line %d\n", __FUNCTION__, gpio, __LINE__);
 	}
 #endif /* DBG_GPIO */
 
@@ -469,13 +469,13 @@ End:
 EXPORT_SYMBOL(sw_gpio_getdrvlevel);
 
 /**
- * sw_gpio_set_config - config a group of pin, include multi sel, pull, driverlevel
+ * sw_gpio_setall_range - config a group of pin, include multi sel, pull, driverlevel
  * @pcfg:	the config value group
  * @cfg_num:	gpio number to config, also pcfg's member number
  *
  * Returns 0 if sucess, the err line number if failed.
  */
-u32 sw_gpio_set_config(struct gpio_config *pcfg, u32 cfg_num)
+u32 sw_gpio_setall_range(struct gpio_config *pcfg, u32 cfg_num)
 {
 	u32 	i = 0;
 	u32 	offset = 0;
@@ -506,17 +506,17 @@ u32 sw_gpio_set_config(struct gpio_config *pcfg, u32 cfg_num)
 
 	return 0;
 }
-EXPORT_SYMBOL(sw_gpio_set_config);
+EXPORT_SYMBOL(sw_gpio_setall_range);
 
 /**
- * sw_gpio_get_config - get the config state for a group of pin,
+ * sw_gpio_getall_range - get the config state for a group of pin,
  *			include multi sel, pull, driverlevel
  * @pcfg:	store the config information for pins
  * @cfg_num:	number of the pins
  *
  * Returns 0 if sucess, the err line number if failed.
  */
-u32 sw_gpio_get_config(struct gpio_config *pcfg, u32 cfg_num)
+u32 sw_gpio_getall_range(struct gpio_config *pcfg, u32 cfg_num)
 {
 	u32 	i = 0;
 	u32 	offset = 0;
@@ -547,7 +547,7 @@ u32 sw_gpio_get_config(struct gpio_config *pcfg, u32 cfg_num)
 
 	return 0;
 }
-EXPORT_SYMBOL(sw_gpio_get_config);
+EXPORT_SYMBOL(sw_gpio_getall_range);
 
 /**
  * sw_gpio_dump_config - dump config info for a group of pins

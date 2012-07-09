@@ -15,9 +15,6 @@
 
 #include "gpio_include.h"
 
-u32 	g_pio_vbase = 0;
-u32 	g_rpio_vbase = 0;
-
 /**
  * gpio_save - save somethig for the chip before enter sleep
  * @chip:	aw_gpio_chip which will be saved
@@ -63,7 +60,21 @@ struct gpio_cfg_t g_cfg = {
 	gpio_set_pull,
 	gpio_get_pull,
 	gpio_set_drvlevel,
-	gpio_get_drvlevel
+	gpio_get_drvlevel,
+};
+
+/*
+ * gpio eint config api struct
+ */
+struct gpio_eint_cfg_t g_eint_cfg = {
+	gpio_eint_set_trig,
+	gpio_eint_get_trig,
+	gpio_eint_set_enable,
+	gpio_eint_get_enable,
+	gpio_eint_get_irqpd_sta,
+	gpio_eint_clr_irqpd_sta,
+	gpio_eint_set_debounce,
+	gpio_eint_get_debounce,
 };
 
 /*
@@ -77,7 +88,13 @@ struct aw_gpio_chip gpio_chips[] = {
 			.base	= PA_NR_BASE,
 			.ngpio	= PA_NR,
 			.label	= "GPA",
+			.to_irq = __pio_to_irq,
 		},
+		.vbase  = (void __iomem *)PIO_VBASE(0),
+		/* cfg for eint */
+		.irq_num = AW_IRQ_EINT_PA,
+		.vbase_eint = (void __iomem *)PIO_VBASE_EINT_PA,
+		.cfg_eint = &g_eint_cfg,
 	}, {
 		.cfg	= &g_cfg,
 		.pm	= &g_pm,
@@ -85,7 +102,13 @@ struct aw_gpio_chip gpio_chips[] = {
 			.base	= PB_NR_BASE,
 			.ngpio	= PB_NR,
 			.label	= "GPB",
+			.to_irq = __pio_to_irq,
 		},
+		.vbase  = (void __iomem *)PIO_VBASE(1),
+		/* cfg for eint */
+		.irq_num = AW_IRQ_EINT_PB,
+		.vbase_eint = (void __iomem *)PIO_VBASE_EINT_PB,
+		.cfg_eint = &g_eint_cfg,
 	}, {
 		.cfg	= &g_cfg,
 		.pm	= &g_pm,
@@ -94,6 +117,7 @@ struct aw_gpio_chip gpio_chips[] = {
 			.ngpio	= PC_NR,
 			.label	= "GPC",
 		},
+		.vbase  = (void __iomem *)PIO_VBASE(2),
 	}, {
 		.cfg	= &g_cfg,
 		.pm	= &g_pm,
@@ -102,6 +126,7 @@ struct aw_gpio_chip gpio_chips[] = {
 			.ngpio	= PD_NR,
 			.label	= "GPD",
 		},
+		.vbase  = (void __iomem *)PIO_VBASE(3),
 	}, {
 		.cfg	= &g_cfg,
 		.pm	= &g_pm,
@@ -109,7 +134,13 @@ struct aw_gpio_chip gpio_chips[] = {
 			.base	= PE_NR_BASE,
 			.ngpio	= PE_NR,
 			.label	= "GPE",
+			.to_irq = __pio_to_irq,
 		},
+		.vbase  = (void __iomem *)PIO_VBASE(4),
+		/* cfg for eint */
+		.irq_num = AW_IRQ_EINT_PE,
+		.vbase_eint = (void __iomem *)PIO_VBASE_EINT_PE,
+		.cfg_eint = &g_eint_cfg,
 	}, {
 		.cfg	= &g_cfg,
 		.pm	= &g_pm,
@@ -118,6 +149,7 @@ struct aw_gpio_chip gpio_chips[] = {
 			.ngpio	= PF_NR,
 			.label	= "GPF",
 		},
+		.vbase  = (void __iomem *)PIO_VBASE(5),
 	}, {
 		.cfg	= &g_cfg,
 		.pm	= &g_pm,
@@ -125,7 +157,13 @@ struct aw_gpio_chip gpio_chips[] = {
 			.base	= PG_NR_BASE,
 			.ngpio	= PG_NR,
 			.label	= "GPG",
+			.to_irq = __pio_to_irq,
 		},
+		.vbase  = (void __iomem *)PIO_VBASE(6),
+		/* cfg for eint */
+		.irq_num = AW_IRQ_EINT_PG,
+		.vbase_eint = (void __iomem *)PIO_VBASE_EINT_PG,
+		.cfg_eint = &g_eint_cfg,
 	}, {
 		.cfg	= &g_cfg,
 		.pm	= &g_pm,
@@ -134,6 +172,7 @@ struct aw_gpio_chip gpio_chips[] = {
 			.ngpio	= PH_NR,
 			.label	= "GPH",
 		},
+		.vbase  = (void __iomem *)PIO_VBASE(7),
 	}, {
 		.cfg	= &g_cfg,
 		.pm	= &g_pm,
@@ -141,7 +180,13 @@ struct aw_gpio_chip gpio_chips[] = {
 			.base	= PL_NR_BASE,
 			.ngpio	= PL_NR,
 			.label	= "GPL",
+			.to_irq = __pio_to_irq,
 		},
+		.vbase  = (void __iomem *)RPIO_VBASE(0),
+		/* cfg for eint */
+		.irq_num = AW_IRQ_EINT_R_PL,
+		.vbase_eint = (void __iomem *)PIO_VBASE_EINT_R_PL,
+		.cfg_eint = &g_eint_cfg,
 	}, {
 		.cfg	= &g_cfg,
 		.pm	= &g_pm,
@@ -149,7 +194,13 @@ struct aw_gpio_chip gpio_chips[] = {
 			.base	= PM_NR_BASE,
 			.ngpio	= PM_NR,
 			.label	= "GPM",
+			.to_irq = __pio_to_irq,
 		},
+		.vbase  = (void __iomem *)RPIO_VBASE(1),
+		/* cfg for eint */
+		.irq_num = AW_IRQ_EINT_R_PM,
+		.vbase_eint = (void __iomem *)PIO_VBASE_EINT_R_PM,
+		.cfg_eint = &g_eint_cfg,
 	}
 };
 
@@ -179,24 +230,9 @@ static __init int aw_gpio_init(void)
 	r_gpio_clk_init();
 #endif /* PIO_FROM_SD_TESTCODE */
 
-	g_pio_vbase = (u32)ioremap_nocache(AW_PIO_BASE, 0x400);
-	g_rpio_vbase = (u32)ioremap_nocache(AW_RPIO_BASE, 0x400);
-	PIO_ASSERT(0 != g_pio_vbase && 0 != g_rpio_vbase);
-
 	for(i = 0; i < ARRAY_SIZE(gpio_chips); i++) {
-		/* do some extra intils */
-		//PIO_DBG_FUN_LINE_TODO;
-
+		/* lock init */
 		PIO_CHIP_LOCK_INIT(&gpio_chips[i].lock);
-
-		if(i < 8) /* PA ~ PH */
-			gpio_chips[i].vbase = (void __iomem *)PIO_VBASE(i);
-		else if(i < 10)
-			gpio_chips[i].vbase = (void __iomem *)RPIO_VBASE(i - 8);
-		else {
-			uret = __LINE__;
-			goto End;
-		}
 
 		/* register gpio_chip */
 		if(0 != aw_gpiochip_add(&gpio_chips[i].chip)) {

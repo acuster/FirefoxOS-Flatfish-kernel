@@ -33,10 +33,11 @@
 #include <mach/gpio.h>
 
 #include "gpio_common.h"
+#include "gpio_eint.h"
 #include "gpio_script.h"
 #include "gpio_init.h"
-#include "gpio_base.h"
 #include "gpio_multi_func.h"
+#include "gpio_base.h"
 
 #define PIO_FROM_SD_TESTCODE /* init gpio clock from sd test code */
 

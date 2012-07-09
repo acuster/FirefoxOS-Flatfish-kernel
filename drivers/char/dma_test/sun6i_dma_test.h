@@ -51,6 +51,7 @@
 enum dma_test_case_e {
 	DTC_1T_MEM_2_MEM,      /* dma test case one-thread from memory to memory */
 	DTC_SINGLE_MODE,       /* dma test case for single mode */
+	DTC_SINGLE_CONT_MODE,  /* dma test case for single mode & continue mode */
 	DTC_2T_MEM_2_MEM,      /* dma test case two-thread from memory to memory,
 				* memory range should not be conflict, eg: thread one
 				* from memory-A to memory-B, thread two from C to D.

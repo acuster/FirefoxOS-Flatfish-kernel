@@ -19,13 +19,17 @@
 #include <linux/types.h>
 #include <mach/sys_config.h>
 
-extern u32 g_pio_vbase, g_rpio_vbase;
-
 /* pio/rpio base */
-//#define PIO_VBASE(n) 		(g_pio_vbase + ((n) << 5) + ((n) << 2)) /* pio(PA ~ PF), 0xf1c20800 + n * 0x24 */
-//#define RPIO_VBASE(n) 		(g_rpio_vbase + ((n) << 5) + ((n) << 2)) /* r-pio(PL ~ PM), 0xf1f02c00 + n * 0x24 */
-#define PIO_VBASE(n) 		(0xf1c20800 + ((n) << 5) + ((n) << 2))
-#define RPIO_VBASE(n) 		(0xf1f02c00 + ((n) << 5) + ((n) << 2))
+#define PIO_VBASE(n) 		(0xf1c20800 + ((n) << 5) + ((n) << 2)) /* pio(PA ~ PF), 0xf1c20800 + n * 0x24 */
+#define RPIO_VBASE(n) 		(0xf1f02c00 + ((n) << 5) + ((n) << 2)) /* r-pio(PL ~ PM), 0xf1f02c00 + n * 0x24 */
+
+/* einit config reg vbase */
+#define PIO_VBASE_EINT_PA	(PIO_VBASE(0) + 0x200                 )
+#define PIO_VBASE_EINT_PB	(PIO_VBASE(0) + 0x220                 )
+#define PIO_VBASE_EINT_PE	(PIO_VBASE(0) + 0x240                 )
+#define PIO_VBASE_EINT_PG	(PIO_VBASE(0) + 0x260                 )
+#define PIO_VBASE_EINT_R_PL	(RPIO_VBASE(0) + 0x200                )
+#define PIO_VBASE_EINT_R_PM	(RPIO_VBASE(0) + 0x220                )
 
 /* port number for each pio */
 #define PA_NR			28
@@ -71,12 +75,21 @@ enum sun6i_gpio_number {
 #define GPIOL(n)		(PL_NR_BASE + (n))
 #define GPIOM(n)		(PM_NR_BASE + (n))
 
+/* pio default macro */
+#define GPIO_PULL_DEFAULT	(1               )
+#define GPIO_DRVLVL_DEFAULT	(1               )
+
 /* pio end, invalid macro */
 #define GPIO_INDEX_END		(GPIOM(PM_NR) + 1)
 #define GPIO_INDEX_INVALID	(0xFFFFFFFF      )
 #define GPIO_CFG_INVALID	(0xFFFFFFFF      )
 #define GPIO_PULL_INVALID	(0xFFFFFFFF      )
 #define GPIO_DRVLVL_INVALID	(0xFFFFFFFF      )
+#define IRQ_NUM_INVALID		(0xFFFFFFFF      )
+
+/* config value for external int */
+#define GPIO_CFG_EINT   	(0b110	)	/* config value to eint for pa, pb, pe, pg */
+#define R_GPIO_CFG_EINT   	(0b010	)	/* config value to eint for r-pl, r-pm */
 
 /* port number for gpiolib */
 #ifdef ARCH_NR_GPIOS
@@ -92,22 +105,69 @@ struct gpio_config {
 	u32 	drv_level;	/* driver level val: 0 - level 0, 1 - level 1... */
 };
 
+/* gpio eint trig type */
+enum gpio_eint_trigtype {
+	TRIG_EDGE_POSITIVE = 0,
+	TRIG_EDGE_NEGATIVE,
+	TRIG_LEVL_HIGH,
+	TRIG_LEVL_LOW,
+	TRIG_EDGE_DOUBLE,	/* positive/negative */
+	TRIG_INALID
+};
+
+/* gpio eint debounce para */
+struct gpio_eint_debounce {
+	u32   clk_sel;		/* pio interrupt clock select, 0-LOSC, 1-HOSC */
+	u32   clk_pre_scl;	/* debounce clk pre-scale n, the select,
+				 * clock source is pre-scale by 2^n.
+				 */
+};
+
+/* gpio external config info */
+struct gpio_config_eint_all {
+	u32	gpio;		/* the global gpio index */
+	u32	pull;		/* gpio pull val */
+	u32 	drvlvl;		/* gpio driver level */
+	u32	enabled;	/* in set function: used to enable/disable the eint
+				 * in get function: return the eint enabled status, 1: enabled, 0: disabled
+				 */
+	u32	irq_pd;		/* in set function: 1 means to clr irq pend status, 0 no use
+				 * in get function: return the actual irq pend stauts, eg, 1 means irq occur.
+				 */
+	enum gpio_eint_trigtype trig_type; /* trig type of the gpio */
+};
+
 /*
  * exported api below
  */
 
 /* new api */
+
+/* api for multi function */
 u32 sw_gpio_setcfg(u32 gpio, u32 val);
 u32 sw_gpio_getcfg(u32 gpio);
 u32 sw_gpio_setpull(u32 gpio, u32 val);
 u32 sw_gpio_getpull(u32 gpio);
 u32 sw_gpio_setdrvlevel(u32 gpio, u32 val);
 u32 sw_gpio_getdrvlevel(u32 gpio);
-u32 sw_gpio_set_config(struct gpio_config *pcfg, u32 cfg_num);
-u32 sw_gpio_get_config(struct gpio_config *pcfg, u32 cfg_num);
+u32 sw_gpio_setall_range(struct gpio_config *pcfg, u32 cfg_num);
+u32 sw_gpio_getall_range(struct gpio_config *pcfg, u32 cfg_num);
 void sw_gpio_dump_config(struct gpio_config *pcfg, u32 cfg_num);
 u32 sw_gpio_suspend(void);
 u32 sw_gpio_resume(void);
+
+/* api for external int */
+u32 sw_gpio_eint_set_trigtype(u32 gpio, enum gpio_eint_trigtype trig_type);
+u32 sw_gpio_eint_get_trigtype(u32 gpio, enum gpio_eint_trigtype *pval);
+u32 sw_gpio_eint_get_enable(u32 gpio, u32 *penable);
+u32 sw_gpio_eint_set_enable(u32 gpio, u32 enable);
+u32 sw_gpio_eint_get_irqpd_sta(u32 gpio);
+u32 sw_gpio_eint_clr_irqpd_sta(u32 gpio);
+u32 sw_gpio_eint_get_debounce(u32 gpio, struct gpio_eint_debounce *pdbc);
+u32 sw_gpio_eint_set_debounce(u32 gpio, struct gpio_eint_debounce dbc);
+u32 sw_gpio_eint_setall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num);
+u32 sw_gpio_eint_getall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num);
+void sw_gpio_eint_dumpall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num);
 
 /* old api realize in new api, we recommend use these api instead of a10-old-api(eg: gpio_request_ex) */
 u32 sw_gpio_request(user_gpio_set_t *gpio_list, u32 group_count_max);

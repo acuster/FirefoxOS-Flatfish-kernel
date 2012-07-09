@@ -748,8 +748,7 @@ u32 sw_dma_config(dm_hdl_t dma_hdl, struct dma_config_t *pcfg, enum dma_enque_ph
 	/* handle single mode first */
 	if(DMA_WORK_MODE_SINGLE == pchan->work_mode) {
 		if(true == pcfg->bconti_mode) {
-			DMA_ERR_FUN_LINE;
-			return __LINE__;
+			DMA_DBG_FUN_LINE_TOCHECK; /* single mode, continue mode, to test */
 		}
 		return dma_config_single(dma_hdl, pcfg, phase);
 	}

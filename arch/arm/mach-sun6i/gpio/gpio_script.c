@@ -221,7 +221,7 @@ u32 sw_gpio_request(user_gpio_set_t *gpio_list, u32 group_count_max)
 		config_stru.mul_sel = tmp_user_gpio_data->mul_sel;
 		config_stru.pull = tmp_user_gpio_data->pull;
 		config_stru.drv_level = tmp_user_gpio_data->drv_level;
-		if(0 != sw_gpio_set_config(&config_stru, 1)) {
+		if(0 != sw_gpio_setall_range(&config_stru, 1)) {
 			usign = __LINE__;
 			goto End;
 		}
@@ -466,7 +466,7 @@ s32 sw_gpio_release(u32 p_handler, s32 if_release_to_default_status)
 		config_stru.mul_sel = 0; /* input */
 		config_stru.pull = tmp_sys_gpio_data->hardware_gpio_status.pull;
 		config_stru.drv_level = tmp_sys_gpio_data->hardware_gpio_status.drv_level;
-		if(0 != sw_gpio_set_config(&config_stru, 1)) {
+		if(0 != sw_gpio_setall_range(&config_stru, 1)) {
 			usign = __LINE__;
 			goto End;
 		}
@@ -620,7 +620,7 @@ s32  sw_gpio_get_all_pin_status(u32 p_handler, user_gpio_set_t *gpio_status, u32
 			pio_index = port_to_gpio_index(port, port_num);
 
 			config_stru.gpio = pio_index;
-			if(0 != sw_gpio_get_config(&config_stru, 1)) {
+			if(0 != sw_gpio_getall_range(&config_stru, 1)) {
 				usign = __LINE__;
 				goto End;
 			} else {
@@ -727,7 +727,7 @@ s32  sw_gpio_get_one_pin_status(u32 p_handler, user_gpio_set_t *gpio_status, con
 			pio_index = port_to_gpio_index(port, port_num);
 
 			config_stru.gpio = pio_index;
-			if(0 != sw_gpio_get_config(&config_stru, 1)) {
+			if(0 != sw_gpio_getall_range(&config_stru, 1)) {
 				usign = __LINE__;
 				goto End;
 			} else {

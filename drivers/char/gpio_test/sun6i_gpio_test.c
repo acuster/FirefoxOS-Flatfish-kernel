@@ -15,11 +15,12 @@
 
 #include "sun6i_gpio_test.h"
 
-//#define TEST_REQUEST_FREE
-//#define TEST_RE_REQUEST_FREE
-#define TEST_GPIOLIB_API
-#define TEST_CONFIG_API
-#define TEST_GPIO_SCRIPT_API
+#define TEST_REQUEST_FREE	/* test for gpio_request/gpio_free */
+#define TEST_RE_REQUEST_FREE	/* test for re-gpio_request/re-gpio_free, so get warning */
+#define TEST_GPIOLIB_API	/* test the standard linux gpio api */
+#define TEST_CONFIG_API		/* test gpio multi-function */
+#define TEST_GPIO_EINT_API	/* test gpio external interrupt */
+//#define TEST_GPIO_SCRIPT_API	/* test gpio script api */
 
 /*
  * cur test case
@@ -70,10 +71,11 @@ u32 __gtc_api(void)
 		{GPIOH(2)},
 	};
 	struct gpio_config gpio_cfg[] = {
-		{GPIOE(10), 3, 1, 1},
+		/* use default if you donot care the pull or driver level status */
+		{GPIOE(10), 3, GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT},
 		{GPIOA(13), 2, 1, 2},
-		{GPIOD(2), 1, 2, 1},
-		{GPIOG(8), 0, 1, 1},
+		{GPIOD(2),  1, 2, 1},
+		{GPIOG(8),  0, 1, 1},
 	};
 
 	/*
@@ -150,7 +152,7 @@ u32 __gtc_api(void)
 	PIO_CHECK_RST(0 == gpio_request_array(gpio_arry, ARRAY_SIZE(gpio_arry)), uret, End);
 	PIO_DBG_FUN_LINE;
 #if 1	/* check if request array success */
-	PIO_CHECK_RST(0 == sw_gpio_get_config(gpio_cfg_temp, ARRAY_SIZE(gpio_cfg_temp)), uret, End);
+	PIO_CHECK_RST(0 == sw_gpio_getall_range(gpio_cfg_temp, ARRAY_SIZE(gpio_cfg_temp)), uret, End);
 	PIO_DBG_FUN_LINE;
 	sw_gpio_dump_config(gpio_cfg_temp, ARRAY_SIZE(gpio_cfg_temp));
 	PIO_DBG_FUN_LINE;
@@ -224,7 +226,7 @@ u32 __gtc_api(void)
 	 */
 #ifdef TEST_CONFIG_API
 	upio_index = GPIOA(1);
-	PIO_CHECK_RST(0 == gpio_request(upio_index, "pa0"), uret, End);
+	PIO_CHECK_RST(0 == gpio_request(upio_index, "pa1"), uret, End);
 	PIO_DBG_FUN_LINE;
 
 	PIO_CHECK_RST(0 == gpio_direction_output(upio_index, 0), uret, End);
@@ -254,16 +256,59 @@ u32 __gtc_api(void)
 	gpio_free(upio_index);
 	PIO_DBG_FUN_LINE;
 
-	PIO_CHECK_RST(0 == sw_gpio_set_config(gpio_cfg, ARRAY_SIZE(gpio_cfg)), uret, End); /* sw_gpio_config */
+	PIO_CHECK_RST(0 == sw_gpio_setall_range(gpio_cfg, ARRAY_SIZE(gpio_cfg)), uret, End); /* sw_gpio_setall_range */
 	PIO_DBG_FUN_LINE;
 
-	PIO_CHECK_RST(0 == sw_gpio_get_config(gpio_cfg, ARRAY_SIZE(gpio_cfg)), uret, End); /* sw_gpio_get_config */
+	PIO_CHECK_RST(0 == sw_gpio_getall_range(gpio_cfg, ARRAY_SIZE(gpio_cfg)), uret, End); /* sw_gpio_getall_range */
 	PIO_DBG_FUN_LINE;
 
 	sw_gpio_dump_config(gpio_cfg, ARRAY_SIZE(gpio_cfg)); /* sw_gpio_dump_config */
 #endif /* TEST_CONFIG_API */
+
 	/*
-	 * test for a10 api
+	 * test for gpio external interrupt api
+	 */
+#ifdef TEST_GPIO_EINT_API
+	{
+		struct gpio_config_eint_all cfg_eint[] = {
+			{GPIOA(0) , GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT, true , 0, TRIG_EDGE_POSITIVE},
+			{GPIOA(26), 1                , 2                  , true , 0, TRIG_EDGE_DOUBLE  },
+			{GPIOB(3) , GPIO_PULL_DEFAULT, 1                  , false, 0, TRIG_EDGE_NEGATIVE},
+			{GPIOE(14), 3                , 0                  , true , 0, TRIG_LEVL_LOW     },
+
+			/* __para_check err in sw_gpio_eint_setall_range, because rpl3 cannot be eint */
+			//{GPIOL(3) , 1                , GPIO_DRVLVL_DEFAULT, false, 0, TRIG_LEVL_HIGH  },
+
+			{GPIOL(8) , 2                , GPIO_DRVLVL_DEFAULT, false, 0, TRIG_LEVL_HIGH    },
+			{GPIOM(4) , 1                , 2                  , true,  0, TRIG_LEVL_LOW     },
+		};
+		struct gpio_config_eint_all cfg_eint_temp[] = {
+			{GPIOA(0) },
+			{GPIOA(26)},
+			{GPIOB(3) },
+			{GPIOE(14)},
+			{GPIOL(8) },
+			{GPIOM(4) },
+		};
+		for(utemp = 0; utemp < ARRAY_SIZE(cfg_eint); utemp++)
+			PIO_CHECK_RST(0 == gpio_request(cfg_eint[utemp].gpio, NULL), uret, End);
+		PIO_DBG_FUN_LINE;
+		sw_gpio_eint_dumpall_range(cfg_eint, ARRAY_SIZE(cfg_eint)); /* dump the orginal struct */
+		PIO_DBG_FUN_LINE;
+		PIO_CHECK_RST(0 == sw_gpio_eint_setall_range(cfg_eint, ARRAY_SIZE(cfg_eint)), uret, End); /* sw_gpio_eint_setall_range */
+		PIO_DBG_FUN_LINE;
+		PIO_CHECK_RST(0 == sw_gpio_eint_getall_range(cfg_eint_temp, ARRAY_SIZE(cfg_eint_temp)), uret, End); /* sw_gpio_eint_getall_range */
+		PIO_DBG_FUN_LINE;
+		sw_gpio_eint_dumpall_range(cfg_eint_temp, ARRAY_SIZE(cfg_eint_temp)); /* dump the struct get from hw */
+		PIO_DBG_FUN_LINE;
+		for(utemp = 0; utemp < ARRAY_SIZE(cfg_eint); utemp++)
+			gpio_free(cfg_eint[utemp].gpio);
+		PIO_DBG_FUN_LINE;
+	}
+#endif /* TEST_GPIO_EINT_API */
+
+	/*
+	 * test for script gpio api
 	 */
 #ifdef TEST_GPIO_SCRIPT_API
 	{
@@ -312,7 +357,7 @@ u32 __gtc_api(void)
 		/* test for card_boot0_para */
 		PIO_CHECK_RST(0 != (pin_hdl = sw_gpio_request_ex("card_boot0_para", NULL)), uret, End);
 		PIO_DBG_FUN_LINE;
-		PIO_CHECK_RST(0 == sw_gpio_get_config(cfg_card_boot0, ARRAY_SIZE(cfg_card_boot0)), uret, End);
+		PIO_CHECK_RST(0 == sw_gpio_getall_range(cfg_card_boot0, ARRAY_SIZE(cfg_card_boot0)), uret, End);
 		PIO_DBG_FUN_LINE;
 		sw_gpio_dump_config(cfg_card_boot0, ARRAY_SIZE(cfg_card_boot0));
 		PIO_DBG_FUN_LINE;
@@ -322,7 +367,7 @@ u32 __gtc_api(void)
 		/* test for card_boot2_para */
 		PIO_CHECK_RST(0 != (pin_hdl = sw_gpio_request_ex("card_boot2_para", NULL)), uret, End);
 		PIO_DBG_FUN_LINE;
-		PIO_CHECK_RST(0 == sw_gpio_get_config(cfg_card_boot2, ARRAY_SIZE(cfg_card_boot2)), uret, End);
+		PIO_CHECK_RST(0 == sw_gpio_getall_range(cfg_card_boot2, ARRAY_SIZE(cfg_card_boot2)), uret, End);
 		PIO_DBG_FUN_LINE;
 		sw_gpio_dump_config(cfg_card_boot2, ARRAY_SIZE(cfg_card_boot2));
 		PIO_DBG_FUN_LINE;
