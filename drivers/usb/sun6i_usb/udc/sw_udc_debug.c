@@ -62,9 +62,11 @@ void print_list_node(struct sw_udc_ep *ep, char *str)
 #ifdef SW_UDC_DEBUG
 //#if 1
 	struct sw_udc_request	*req = NULL;
-	unsigned long		flags = 0;
+	spinlock_t lock;
+	unsigned long flags = 0;
 
-	local_irq_save(flags);
+	spin_lock_init(&lock);
+	spin_lock_irqsave(&lock, flags);
 
 	DMSG_INFO("---------------ep%d: %s-------------\n", ep->num, str);
 	list_for_each_entry (req, &ep->queue, queue) {
@@ -74,7 +76,7 @@ void print_list_node(struct sw_udc_ep *ep, char *str)
 	}
 	DMSG_INFO("-------------------------------------\n");
 
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&lock, flags);
 
 	return;
 #endif

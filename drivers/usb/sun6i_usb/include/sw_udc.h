@@ -157,6 +157,7 @@ typedef struct sw_udc_io{
 //---------------------------------------------------------------
 typedef struct sw_udc {
 	spinlock_t			        lock;
+    struct platform_device *pdev;
 
 	struct sw_udc_ep		    ep[SW_UDC_ENDPOINTS];
 	int				            address;

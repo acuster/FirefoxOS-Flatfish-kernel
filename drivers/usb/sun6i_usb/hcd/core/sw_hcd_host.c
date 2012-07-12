@@ -607,9 +607,13 @@ static bool sw_hcd_tx_dma_program(struct sw_hcd_hw_ep *hw_ep,
 
 	USBC_SelectActiveEp(usb_bsp_hdle, old_ep_index);
 
+	DMSG_DBG_DMA("line:%d %s transfer_buffer = 0x%x, transfer_dma = 0x%x len = %d\n", __LINE__, __func__, (u32)(urb->transfer_buffer + offset), (u32)(urb->transfer_dma + offset),length);
+
     /* config dma */
-    sw_hcd_dma_set_config(qh, (urb->transfer_dma + offset), length);
-	sw_hcd_dma_start(qh, (u32)hw_ep->fifo, (urb->transfer_dma + offset), length);
+    sw_hcd_dma_set_config(qh, (dma_addr_t)urb->transfer_buffer + offset, length);
+	sw_hcd_dma_start(qh, (u32)hw_ep->fifo, (dma_addr_t)urb->transfer_buffer + offset, length);
+    //sw_hcd_dma_set_config(qh, (urb->transfer_dma + offset), length);
+	//sw_hcd_dma_start(qh, (u32)hw_ep->fifo, (urb->transfer_dma + offset), length);
 
 	return true;
 }
@@ -860,6 +864,10 @@ static inline void sw_hcd_save_toggle(struct sw_hcd_hw_ep *ep, int is_in, struct
 	    DMSG_PANIC("ERR: invaild argment\n");
 	    return;
 	}
+	if(urb->dev == NULL){
+	    DMSG_PANIC("ERR: invalid argment, urb->dev=0x%p\n", urb->dev);
+	    return ;
+	}
 
 	/* initialize parameter */
 	udev = urb->dev;
@@ -1051,6 +1059,10 @@ static void sw_hcd_advance_schedule(struct sw_hcd *sw_hcd,
 		qh = sw_hcd_giveback(qh, urb, urb->status);
 	}
 
+	if (!is_host_active(sw_hcd) || !sw_hcd->is_active){
+	    DMSG_PANIC("ERR: sw_hcd_advance_schedule, host is not active\n");
+		return ;
+    }
     if (qh != NULL) {
 		if(qh->is_ready){
 			DMSG_DBG_HCD("... next ep%d %cX urb %p\n",
@@ -1518,20 +1530,24 @@ static void sw_hcd_ep_program(struct sw_hcd *sw_hcd,
 
 			USBC_Host_ConfigRqPktCount(sw_hcd->sw_hcd_io->usb_bsp_hdle, qh->hw_ep->epnum, (len / qh->maxpacket));
 
-		    /* config dma */
-		    sw_hcd_dma_set_config(qh, (urb->transfer_dma + offset), len);
+			DMSG_DBG_DMA("line:%d %s transfer_buffer = 0x%x,transfer_dma = 0x%x, len= %d\n", __LINE__, __func__, (u32)(urb->transfer_buffer + offset), (u32)(urb->transfer_dma + offset), len);
 
-			sw_hcd_dma_start(qh, (u32)hw_ep->fifo, (urb->transfer_dma + offset), len);
+		    /* config dma */
+		    sw_hcd_dma_set_config(qh, (dma_addr_t)(urb->transfer_buffer + offset), len);
+			sw_hcd_dma_start(qh, (u32)hw_ep->fifo, (dma_addr_t)(urb->transfer_buffer + offset), len);
+
+		    //sw_hcd_dma_set_config(qh, (urb->transfer_dma + offset), len)
+			//sw_hcd_dma_start(qh, (u32)hw_ep->fifo, (urb->transfer_dma + offset), len);
 
 			csr |= (1 << USBC_BP_RXCSR_H_DMA_REQ_EN);
 		}
 
         csr |= (1 << USBC_BP_RXCSR_H_REQ_PACKET);
 
-		DMSG_DBG_DMA("1RXCSR%d := %04x\n", epnum, csr);
-
 		USBC_Writew(csr, USBC_REG_RXCSR(usbc_base));
 		csr = USBC_Readw(USBC_REG_RXCSR(usbc_base));
+
+		DMSG_DBG_DMA("line:%d %s 1RXCSR%d := %04x\n",__LINE__, __func__, epnum, csr);
     }
 
     sw_hcd_ep_select(usbc_base, old_ep_index);
@@ -1862,6 +1878,10 @@ void sw_hcd_host_tx(struct sw_hcd *sw_hcd, u8 epnum)
     qh 			= hw_ep->is_shared_fifo ? hw_ep->in_qh : hw_ep->out_qh;
     usbc_base 	= sw_hcd->mregs;
 
+    if(hw_ep == NULL || qh == NULL){
+        DMSG_PANIC("ERR: invalid hw_ep or qh\n");
+	    return ;
+    }
 	urb = next_urb(qh);
 	if(urb == NULL){
 		DMSG_PANIC("ERR: sw_hcd_host_tx, urb is NULL\n");
@@ -1880,7 +1900,7 @@ void sw_hcd_host_tx(struct sw_hcd *sw_hcd, u8 epnum)
 
 	pipe = urb->pipe;
 
-	DMSG_DBG_HCD("rx: ep(0x%p, %d, 0x%x), qh(0x%p, 0x%x, 0x%x), urb(0x%p, 0x%p, %d, %d), dma(0x%x, 0x%x, 0x%x)\n",
+	DMSG_DBG_HCD("tx: ep(0x%p, %d, 0x%x), qh(0x%p, 0x%x, 0x%x), urb(0x%p, 0x%p, %d, %d)\n",//, dma(0x%x, 0x%x, 0x%x)
 		      hw_ep, hw_ep->epnum, USBC_Readw(USBC_REG_TXCSR(usbc_base)),
 		      qh, qh->epnum, qh->type,
 		      urb, urb->transfer_buffer, urb->transfer_buffer_length, urb->actual_length);
@@ -2177,7 +2197,8 @@ static void sw_hcd_bulk_rx_nak_timeout(struct sw_hcd *sw_hcd, struct sw_hcd_hw_e
 		}
 
 		if (sw_hcd_dma_is_busy(cur_qh)) {
-			urb->actual_length += sw_hcd_dma_transmit_length(cur_qh, is_direction_in(cur_qh), (urb->transfer_dma + urb->actual_length));
+			//urb->actual_length += sw_hcd_dma_transmit_length(cur_qh, is_direction_in(cur_qh), (urb->transfer_dma + urb->actual_length));
+			urb->actual_length += sw_hcd_dma_transmit_length(cur_qh, is_direction_in(cur_qh), (dma_addr_t)urb->transfer_buffer +cur_qh->offset);
 		}
 		sw_hcd_save_toggle(ep, 1, urb);
 
@@ -2269,7 +2290,7 @@ void sw_hcd_host_rx(struct sw_hcd *sw_hcd, u8 epnum)
 
 	pipe = urb->pipe;
 
-	DMSG_DBG_HCD("rx: ep(0x%p, %d, 0x%x, %d), qh(0x%p, 0x%x, 0x%x), urb(0x%p, 0x%p, %d, %d), dma(0x%x, 0x%x, 0x%x)\n",
+	DMSG_DBG_HCD("rx: ep(0x%p, %d, 0x%x, %d), qh(0x%p, 0x%x, 0x%x), urb(0x%p, 0x%p, %d, %d)\n",
 		      hw_ep, hw_ep->epnum, USBC_Readw(USBC_REG_RXCSR(usbc_base)), USBC_Readw(USBC_REG_RXCOUNT(usbc_base)),
 		      qh, qh->epnum, qh->type,
 		      urb, urb->transfer_buffer, urb->transfer_buffer_length, urb->actual_length);
@@ -2338,7 +2359,8 @@ void sw_hcd_host_rx(struct sw_hcd *sw_hcd, u8 epnum)
 			/* stop dma */
 			sw_hcd_dma_stop(qh);
 			sw_hcd_clean_ep_dma_status_and_flush_fifo(qh);
-			xfer_len = sw_hcd_dma_transmit_length(qh, is_direction_in(qh), (urb->transfer_dma + urb->actual_length));
+			//xfer_len = sw_hcd_dma_transmit_length(qh, is_direction_in(qh), (urb->transfer_dma + urb->actual_length));
+			xfer_len = sw_hcd_dma_transmit_length(qh, is_direction_in(qh), (dma_addr_t)urb->transfer_buffer + qh->offset);
 		}
 
 		sw_hcd_h_rx_flush_fifo(hw_ep, 1 << USBC_BP_RXCSR_H_CLEAR_DATA_TOGGLE);
@@ -2368,7 +2390,8 @@ void sw_hcd_host_rx(struct sw_hcd *sw_hcd, u8 epnum)
 			/* stop dma */
 			sw_hcd_dma_stop(qh);
 			sw_hcd_clean_ep_dma_status_and_flush_fifo(qh);
-			xfer_len = sw_hcd_dma_transmit_length(qh, is_direction_in(qh), (urb->transfer_dma + urb->actual_length));
+			//xfer_len = sw_hcd_dma_transmit_length(qh, is_direction_in(qh), (urb->transfer_dma + urb->actual_length));
+			xfer_len = sw_hcd_dma_transmit_length(qh, is_direction_in(qh), (dma_addr_t)urb->transfer_buffer + qh->offset);
 
 			done = true;
 		}
@@ -2386,7 +2409,10 @@ void sw_hcd_host_rx(struct sw_hcd *sw_hcd, u8 epnum)
 		/* during dma, if usb receive short packet, then rx irq come */
 
 		/* 查询当前DMA传输的字节数 */
-		xfer_len = sw_hcd_dma_transmit_length(qh, is_direction_in(qh), (urb->transfer_dma + urb->actual_length));
+		//xfer_len = sw_hcd_dma_transmit_length(qh, is_direction_in(qh), (urb->transfer_dma + urb->actual_length));
+		xfer_len = sw_hcd_dma_transmit_length(qh, is_direction_in(qh), (dma_addr_t)(urb->transfer_buffer + qh->offset));
+
+		DMSG_DBG_DMA("line:%d %s, xfer_len = %d, butffer = %d, len = %d\n", __LINE__, __func__, xfer_len,(urb->transfer_buffer + qh->offset), qh->dma_transfer_len);
 
 		/* 停止DMA传输 */
 		if(sw_hcd_dma_is_busy(qh)){
@@ -2416,12 +2442,15 @@ void sw_hcd_host_rx(struct sw_hcd *sw_hcd, u8 epnum)
 			}
 		}else {
 			if((urb->actual_length + xfer_len) >= urb->transfer_buffer_length){  /* urb buffer is full */
+				DMSG_DBG_DMA("line:%d %s\n", __LINE__,__func__);
+
 				done = 1;
 			}else if(USBC_Host_IsReadDataReady(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_EP_TYPE_RX)){  /* short packet */
 				if(dma_exceptional){ /* receive short packet */
 					urb->actual_length += xfer_len;
 					qh->offset += xfer_len;
 					done = sw_hcd_host_packet_rx(sw_hcd, urb, epnum, iso_err);
+					DMSG_DBG_DMA("line:%d %s\n", __LINE__,__func__);
 				}else{
 					DMSG_PANIC("ERR: have more packet\n");
 					done = 0;
@@ -2433,7 +2462,10 @@ void sw_hcd_host_rx(struct sw_hcd *sw_hcd, u8 epnum)
 		}
 
 		sw_hcd_clean_ep_dma_status(qh);
+
     }else if (urb->status == -EINPROGRESS){
+
+			DMSG_DBG_DMA("line:%d %s\n", __LINE__,__func__);
 		/* if no errors, be sure a packet is ready for unloading */
 		if (unlikely(!(rx_csr & (1 << USBC_BP_RXCSR_H_RX_PKT_READY)))) {
 			status = -EPROTO;
@@ -2454,6 +2486,7 @@ void sw_hcd_host_rx(struct sw_hcd *sw_hcd, u8 epnum)
 
 		/* we are expecting IN packets */
 		if (is_sw_hcd_dma_capable(sw_hcd->usbc_no, qh->segsize, qh->maxpacket, epnum)) {
+
 			u16 rx_count = 0;
 			int length = 0, desired_mode = 0;
 			dma_addr_t buf = 0;
@@ -2553,7 +2586,7 @@ void sw_hcd_host_rx(struct sw_hcd *sw_hcd, u8 epnum)
 		    sw_hcd_dma_set_config(qh, buf, length);
 			sw_hcd_dma_start(qh, (u32)hw_ep->fifo, buf, length);
 
-			DMSG_DBG_DMA("RXCSR%d := %04x\n", epnum, val);
+			DMSG_DBG_DMA("line:%d %s,RXCSR%d := %04x\n", __LINE__,__func__, epnum, val);
        }
 
         if (!is_sw_hcd_dma_capable(sw_hcd->usbc_no, qh->segsize, qh->maxpacket, epnum)) {
@@ -2566,12 +2599,15 @@ finish:
 	if(!dma_exceptional){
 		urb->actual_length += xfer_len;
 		qh->offset += xfer_len;
+		DMSG_DBG_DMA("line:%d %s\n", __LINE__,__func__);
 	}
 
 	if (done) {
 		if (urb->status == -EINPROGRESS){
 			urb->status = status;
 		}
+
+		DMSG_DBG_DMA("line:%d %s\n", __LINE__,__func__);
 
 		sw_hcd_advance_schedule(sw_hcd, urb, hw_ep, USB_DIR_IN);
 	}
@@ -2637,8 +2673,8 @@ static int sw_hcd_schedule(struct sw_hcd *sw_hcd,
 		 epnum++, hw_ep++) {
 		int	diff = 0;
 
-		DMSG_DBG_HCD("epnum = %d, nr_endpoints = %d, hw_ep->in_qh = 0x%p, hw_ep->out_qh = 0x%p\n",
-			      epnum, sw_hcd->nr_endpoints, hw_ep->in_qh, hw_ep->out_qh);
+		//DMSG_DBG_HCD("epnum = %d, nr_endpoints = %d, hw_ep->in_qh = 0x%p, hw_ep->out_qh = 0x%p\n",
+		//	      epnum, sw_hcd->nr_endpoints, hw_ep->in_qh, hw_ep->out_qh);
 
 		if(is_in || hw_ep->is_shared_fifo){
 			if (hw_ep->in_qh  != NULL){
@@ -3015,7 +3051,8 @@ static int sw_hcd_cleanup_urb(struct urb *urb, struct sw_hcd_qh *qh, int is_in)
 		/* stop dma */
 		sw_hcd_dma_stop(qh);
 		sw_hcd_clean_ep_dma_status_and_flush_fifo(qh);
-		urb->actual_length += sw_hcd_dma_transmit_length(qh, is_direction_in(qh), urb->transfer_dma);
+		//urb->actual_length += sw_hcd_dma_transmit_length(qh, is_direction_in(qh), urb->transfer_dma);
+		urb->actual_length += sw_hcd_dma_transmit_length(qh, is_direction_in(qh), (dma_addr_t)urb->transfer_buffer +qh->offset);
 	}
 
 	/* turn off DMA requests, discard state, stop polling ... */
@@ -3261,7 +3298,8 @@ void sw_hcd_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 		urb = next_urb(qh);
 		if(urb == NULL){
 			DMSG_PANIC("ERR: sw_hcd_h_disable, urb is NULL\n");
-			return ;
+			goto exit;
+			//return ;
 		}
 
 		/* make software (then hardware) stop ASAP */
@@ -3279,7 +3317,8 @@ void sw_hcd_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 			urb = next_urb(qh);
 			if(urb == NULL){
 				DMSG_PANIC("ERR: sw_hcd_h_disable, urb is NULL\n");
-				return ;
+				goto exit;
+				//return ;
 			}
 
 			urb->status = -ESHUTDOWN;

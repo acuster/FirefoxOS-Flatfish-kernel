@@ -158,8 +158,9 @@ static __u32 is_req_queue(struct sw_udc_request *req)
 *
 *******************************************************************************
 */
-static void sw_udc_done(struct sw_udc_ep *ep,
-		struct sw_udc_request *req, int status)
+static void sw_udc_done(struct sw_udc_ep *ep, struct sw_udc_request *req, int status)
+__releases(ep->dev->lock)
+__acquires(ep->dev->lock)
 {
 	unsigned halted = ep->halted;
 
@@ -167,10 +168,11 @@ static void sw_udc_done(struct sw_udc_ep *ep,
 		         ep, ep->num,
 		         req, &(req->req), req->req.length, req->req.actual);
 
-	//DMSG_INFO("d: (0x%p, %d, %d)\n\n", &(req->req), req->req.length, req->req.actual);
+	//DMSG_INFO("d: (0x%p, %d, %d)\n", &(req->req), req->req.length, req->req.actual);
 	//DMSG_INFO("d\n\n");
 
-	sw_udc_dequeue_req(ep, req);
+	//sw_udc_dequeue_req(ep, req);
+	list_del_init(&req->queue);
 
 	if (likely (req->req.status == -EINPROGRESS))
 		req->req.status = status;
@@ -178,8 +180,12 @@ static void sw_udc_done(struct sw_udc_ep *ep,
 		status = req->req.status;
 
 	ep->halted = 1;
+	spin_unlock(&ep->dev->lock);
 	req->req.complete(&ep->ep, &req->req);
+	spin_lock(&ep->dev->lock);
 	ep->halted = halted;
+
+	//DMSG_INFO("de\n\n");
 }
 
 /*
@@ -208,8 +214,8 @@ static void sw_udc_nuke(struct sw_udc *udc, struct sw_udc_ep *ep, int status)
 
 	while (!list_empty (&ep->queue)) {
 		struct sw_udc_request *req;
-		req = list_entry (ep->queue.next, struct sw_udc_request,
-				queue);
+		req = list_entry (ep->queue.next, struct sw_udc_request,queue);
+		DMSG_INFO("nuke: ep num is %d\n", ep->num);
 		sw_udc_done(ep, req, status);
 	}
 }
@@ -379,11 +385,11 @@ static int pio_write_fifo(struct sw_udc_ep *ep, struct sw_udc_request *req)
 	USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, old_ep_index);
 
 	if(is_last){
-		if(!idx){
+		if(!idx){  /* ep0 */
 			ep->dev->ep0state=EP0_IDLE;
+            sw_udc_done(ep,req, 0);
 		}
 
-		sw_udc_done(ep,req,0);
 		is_last = 1;
 	}
 
@@ -451,6 +457,8 @@ static int dma_write_fifo(struct sw_udc_ep *ep, struct sw_udc_request *req)
 
 	sw_udc_dma_set_config(ep, req, (__u32)req->req.buf, left_len);
 	sw_udc_dma_start(ep, fifo_reg, (__u32)req->req.buf, left_len);
+
+	//DMSG_INFO("w: ep:0x%p, dev:0x%p, lock:0x%p", ep, ep->dev, &ep->dev->lock);
 
 	return 0;
 }
@@ -836,8 +844,6 @@ static int sw_udc_get_status(struct sw_udc *dev, struct usb_ctrlrequest *crq)
 
 static int sw_udc_set_halt(struct usb_ep *_ep, int value);
 
-#if 1
-
 /*
 *******************************************************************************
 *                     sw_udc_handle_ep0_idle
@@ -1039,7 +1045,9 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
 		dev->ep0state = EP0_OUT_DATA_PHASE;
     }
 
+	spin_unlock(&dev->lock);
 	ret = dev->driver->setup(&dev->gadget, crq);
+	spin_lock(&dev->lock);
 	if (ret < 0) {
 		if (dev->req_config) {
 			DMSG_PANIC("ERR: config change %02x fail %d?\n", crq->bRequest, ret);
@@ -1071,242 +1079,6 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
 
 	return;
 }
-
-
-#else
-
-/*
-*******************************************************************************
-*                     sw_udc_handle_ep0_idle
-*
-* Description:
-*    void
-*
-* Parameters:
-*    void
-*
-* Return value:
-*    void
-*
-* note:
-*    void
-*
-*******************************************************************************
-*/
-static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
-					struct sw_udc_ep *ep,
-					struct usb_ctrlrequest *crq,
-					u32 ep0csr)
-{
-	int len = 0, ret = 0, tmp = 0;
-
-	/* start control request? */
-	if (!USBC_Dev_IsReadDataReady(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0)){
-	    DMSG_WRN("ERR: data is ready, can not read data.\n");
-		return;
-    }
-
-	sw_udc_nuke(dev, ep, -EPROTO);
-
-	len = sw_udc_read_fifo_crq(crq);
-	if (len != sizeof(*crq)) {
-		DMSG_PANIC("setup begin: fifo READ ERROR"
-			" wanted %d bytes got %d. Stalling out...\n",
-			sizeof(*crq), len);
-
-		USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 0);
-		USBC_Dev_EpSendStall(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0);
-
-		return;
-	}
-
-	DMSG_DBG_UDC("ep0: bRequest = %d bRequestType %d wLength = %d\n",
-		crq->bRequest, crq->bRequestType, crq->wLength);
-
-	/* cope with automagic for some standard requests. */
-	dev->req_std        = ((crq->bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD);
-	dev->req_config     = 0;
-	dev->req_pending    = 1;
-
-	switch (crq->bRequest) {
-	case USB_REQ_SET_CONFIGURATION:
-		DMSG_DBG_UDC("USB_REQ_SET_CONFIGURATION ... \n");
-
-		if (crq->bRequestType == USB_RECIP_DEVICE) {
-			dev->req_config = 1;
-		}
-		break;
-
-	case USB_REQ_SET_INTERFACE:
-		DMSG_DBG_UDC("USB_REQ_SET_INTERFACE ... \n");
-
-		if (crq->bRequestType == USB_RECIP_INTERFACE) {
-			dev->req_config = 1;
-		}
-		break;
-
-	case USB_REQ_SET_ADDRESS:
-		DMSG_DBG_UDC("USB_REQ_SET_ADDRESS ... \n");
-
-		if (crq->bRequestType == USB_RECIP_DEVICE) {
-			tmp = crq->wValue & 0x7F;
-			dev->address = tmp;
-
-			//rx接收完毕、dataend、tx_pakect准备就绪
-				USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
-
-				dev->ep0state = EP0_END_XFER;
-
-				crq_bRequest = USB_REQ_SET_ADDRESS;
-
-			return;
-		}
-		break;
-
-	case USB_REQ_GET_STATUS:
-		DMSG_DBG_UDC("USB_REQ_GET_STATUS ... \n");
-		if (dev->req_std) {
-			if (!sw_udc_get_status(dev, crq)) {
-				return;
-			}
-		}
-		break;
-
-		case USB_REQ_CLEAR_FEATURE:
-			//--<1>--数据方向必须为 host to device
-			if(x_test_bit(crq->bRequestType, 7) == 1){
-				DMSG_PANIC("USB_REQ_CLEAR_FEATURE: data is not host to device\n");
-				break;
-			}
-
-			USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
-
-			//--<3>--数据阶段
-			if(crq->bRequestType == USB_RECIP_DEVICE){
-				/* wValue 0-1 */
-				if(crq->wValue){
-					dev->devstatus &= ~(1 << USB_DEVICE_REMOTE_WAKEUP);
-				}else{
-					int k = 0;
-					for(k = 0;k < SW_UDC_ENDPOINTS;k++){
-						sw_udc_set_halt(&dev->ep[k].ep, 0);
-					}
-				}
-
-			}else if(crq->bRequestType == USB_RECIP_INTERFACE){
-				//--<2>--令牌阶段结束
-
-				//不处理
-
-			}else if(crq->bRequestType == USB_RECIP_ENDPOINT){
-				//--<3>--解除禁用ep
-				//sw_udc_set_halt(&dev->ep[crq->wIndex & 0x7f].ep, 0);
-				//dev->devstatus &= ~(1 << USB_DEVICE_REMOTE_WAKEUP);
-				/* wValue 0-1 */
-				if(crq->wValue){
-					dev->devstatus &= ~(1 << USB_DEVICE_REMOTE_WAKEUP);
-				}else{
-					sw_udc_set_halt(&dev->ep[crq->wIndex & 0x7f].ep, 0);
-				}
-
-			}else{
-				DMSG_PANIC("PANIC : nonsupport set feature request. (%d)\n", crq->bRequestType);
-				USBC_Dev_EpSendStall(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0);
-			}
-			//--<4>--
-			dev->ep0state = EP0_IDLE;
-
-			return;
-		//break;
-
-        case USB_REQ_SET_FEATURE:
-            //--<1>--数据方向必须为 host to device
-            if(x_test_bit(crq->bRequestType, 7) == 1){
-                DMSG_PANIC("USB_REQ_SET_FEATURE: data is not host to device\n");
-                break;
-            }
-            //--<3>--数据阶段
-            if(crq->bRequestType == USB_RECIP_DEVICE){
-                if((crq->wValue == USB_DEVICE_TEST_MODE) && (crq->wIndex == 0x0400)){
-                    //setup packet包接收完毕
-                    USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
-
-                    dev->ep0state = EP0_END_XFER;
-                    crq_bRequest = USB_REQ_SET_FEATURE;
-
-                    return;
-                }
-
-				USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
-				dev->devstatus |= (1 << USB_DEVICE_REMOTE_WAKEUP);
-
-            }else if(crq->bRequestType == USB_RECIP_INTERFACE){
-                //--<2>--令牌阶段结束
-                USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
-                //不处理
-
-            }else if(crq->bRequestType == USB_RECIP_ENDPOINT){
-                //--<3>--禁用ep
-                USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
-				sw_udc_set_halt(&dev->ep[crq->wIndex & 0x7f].ep, 1);
-            }else{
-                DMSG_PANIC("PANIC : nonsupport set feature request. (%d)\n", crq->bRequestType);
-
-                USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
-                USBC_Dev_EpSendStall(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0);
-            }
-            //--<4>--
-            dev->ep0state = EP0_IDLE;
-
-			return;
-        //break;
-
-	default:
-			/* 只收setup数据包，不能置DataEnd */
-			USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 0);
-		break;
-	}
-
-	if(crq->bRequestType & USB_DIR_IN){
-		dev->ep0state = EP0_IN_DATA_PHASE;
-	}else{
-		dev->ep0state = EP0_OUT_DATA_PHASE;
-    }
-
-	ret = dev->driver->setup(&dev->gadget, crq);
-	if (ret < 0) {
-		if (dev->req_config) {
-			DMSG_PANIC("ERR: config change %02x fail %d?\n", crq->bRequest, ret);
-			return;
-		}
-
-		if(ret == -EOPNOTSUPP){
-			DMSG_PANIC("ERR: Operation not supported\n");
-		}else{
-			DMSG_PANIC("ERR: dev->driver->setup failed. (%d)\n", ret);
-        }
-
-		udelay(5);
-
-		USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
-		USBC_Dev_EpSendStall(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0);
-
-		dev->ep0state = EP0_IDLE;
-		/* deferred i/o == no response yet */
-	} else if (dev->req_pending) {
-//		DMSG_PANIC("ERR: dev->req_pending... what now?\n");
-		dev->req_pending=0;
-	}
-
-	if(crq->bRequest == USB_REQ_SET_CONFIGURATION || crq->bRequest == USB_REQ_SET_INTERFACE){
-		//rx_packet包接收完毕
-		USBC_Dev_ReadDataStatus(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_EP0, 1);
-	}
-
-	return;
-}
-
-#endif
 
 /*
 *******************************************************************************
@@ -1463,16 +1235,9 @@ static void sw_udc_handle_ep(struct sw_udc_ep *ep)
 {
 	struct sw_udc_request	*req = NULL;
 	int is_in   = ep->bEndpointAddress & USB_DIR_IN;
-	u32 ep_csr1 = 0;
 	u32 idx     = 0;
 	u8 old_ep_index = 0;
-
-	/* see sw_udc_queue. */
-	if(likely (!list_empty(&ep->queue))){
-		req = list_entry(ep->queue.next, struct sw_udc_request, queue);
-	}else{
-		req = NULL;
-    }
+	u32 is_done = 0;
 
 	idx = ep->bEndpointAddress & 0x7F;
 
@@ -1480,39 +1245,72 @@ static void sw_udc_handle_ep(struct sw_udc_ep *ep)
     USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, idx);
 
 	if (is_in) {
-		ep_csr1 = USBC_Readw(USBC_REG_TXCSR(g_sw_udc_io.usb_bsp_hdle));
-
-		DMSG_DBG_UDC("ep%01d write csr:%02x %d\n", idx, ep_csr1, req ? 1 : 0);
-
 		if (USBC_Dev_IsEpStall(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_TX)) {
 			DMSG_PANIC("ERR: tx ep(%d) is stall\n", idx);
-
 			USBC_Dev_EpClearStall(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_TX);
-
-			return;
-		}
-
-		if (!USBC_Dev_IsWriteDataReady(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_TX) && req) {
-			sw_udc_write_fifo(ep,req);
+		    goto end;
 		}
 	} else {
-		ep_csr1 = USBC_Readw(USBC_REG_RXCSR(g_sw_udc_io.usb_bsp_hdle));
-
-		DMSG_DBG_UDC("ep%01d rd csr:%02x\n", idx, ep_csr1);
-
 		if (USBC_Dev_IsEpStall(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_RX)) {
 			DMSG_PANIC("ERR: rx ep(%d) is stall\n", idx);
-
             USBC_Dev_EpClearStall(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_RX);
-
-			return;
-		}
-
-		if (USBC_Dev_IsReadDataReady(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_RX) && req) {
-			sw_udc_read_fifo(ep,req);
+		    goto end;
 		}
 	}
 
+	/* get req */
+	if(likely (!list_empty(&ep->queue))){
+		req = list_entry(ep->queue.next, struct sw_udc_request, queue);
+	}else{
+		req = NULL;
+    }
+
+	if(req){
+
+        //DMSG_INFO("b: (0x%p, %d, %d)\n", &(req->req), req->req.length, req->req.actual);
+
+	    if(is_in){
+	        /* 如果传输完毕，就传下一个；如果没有传完，就接着传 */
+		if(req->req.length <= req->req.actual){
+		    sw_udc_done(ep, req, 0);
+		    is_done = 1;
+		    goto next;
+		}else{
+		    if(!USBC_Dev_IsWriteDataReady(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_TX)){
+			    sw_udc_write_fifo(ep, req);
+		    }
+		}
+	    }else{
+            if(USBC_Dev_IsReadDataReady(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_RX)){
+                is_done = sw_udc_read_fifo(ep,req);
+            }
+	    }
+	}
+
+next:
+	/* do next req */
+    if(is_done){
+        if(likely (!list_empty(&ep->queue))){
+            req = list_entry(ep->queue.next, struct sw_udc_request, queue);
+        }else{
+            req = NULL;
+        }
+
+        if(req){
+
+            //DMSG_INFO("n: (0x%p, %d, %d)\n", &(req->req), req->req.length, req->req.actual);
+
+            USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, idx);
+
+            if(is_in && !USBC_Dev_IsWriteDataReady(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_TX)){
+			sw_udc_write_fifo(ep, req);
+            }else if(!is_in && USBC_Dev_IsReadDataReady(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_RX)){
+                sw_udc_read_fifo(ep,req);
+            }
+        }
+    }
+
+end:
 	USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, old_ep_index);
 
 	return;
@@ -1727,6 +1525,8 @@ static irqreturn_t sw_udc_irq(int dummy, void *_dev)
 
 	spin_lock_irqsave(&dev->lock, flags);
 
+	//DMSG_INFO("is\n");
+
 	/* Driver connected ? */
 	if (!dev->driver || !is_peripheral_active()) {
 		DMSG_PANIC("ERR: functoin driver is not exist, or udc is not active.\n");
@@ -1747,8 +1547,7 @@ static irqreturn_t sw_udc_irq(int dummy, void *_dev)
 	tx_irq  = USBC_INT_EpPending(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_TX);
 	rx_irq  = USBC_INT_EpPending(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_RX);
 
-	DMSG_TEST("\n\nirq: usb_irq=%02x, tx_irq=%02x, rx_irq=%02x\n",
-		        usb_irq, tx_irq, rx_irq);
+	//DMSG_INFO("irq: usb_irq=%02x, tx_irq=%02x, rx_irq=%02x\n", usb_irq, tx_irq, rx_irq);
 
 	usb_irq = filtrate_irq_misc(usb_irq);
 
@@ -1792,10 +1591,13 @@ static irqreturn_t sw_udc_irq(int dummy, void *_dev)
 		/* clear interrupt */
 		USBC_INT_ClearMiscPending(g_sw_udc_io.usb_bsp_hdle, USBC_INTUSB_RESUME);
 
-		if (dev->gadget.speed != USB_SPEED_UNKNOWN
+		if(dev->gadget.speed != USB_SPEED_UNKNOWN
 				&& dev->driver
-				&& dev->driver->resume)
+				&& dev->driver->resume){
+            spin_unlock(&dev->lock);
 			dev->driver->resume(&dev->gadget);
+			spin_lock(&dev->lock);
+		}
 	}
 
 	/* SUSPEND */
@@ -1814,7 +1616,9 @@ static irqreturn_t sw_udc_irq(int dummy, void *_dev)
 		if (dev->gadget.speed != USB_SPEED_UNKNOWN
 				&& dev->driver
 				&& dev->driver->suspend) {
+            spin_unlock(&dev->lock);
 			dev->driver->suspend(&dev->gadget);
+			spin_lock(&dev->lock);
 		}
 
 		dev->ep0state = EP0_IDLE;
@@ -1862,19 +1666,7 @@ static irqreturn_t sw_udc_irq(int dummy, void *_dev)
 		sw_udc_handle_ep0(dev);
 	}
 
-	/* tx endpoint data transfers */
-	for (i = 1; i < SW_UDC_ENDPOINTS; i++) {
-		u32 tmp = 1 << i;
-
-		if (tx_irq & tmp) {
-			DMSG_DBG_UDC("USB tx ep%d irq\n", i);
-
-			/* Clear the interrupt bit by setting it to 1 */
-			USBC_INT_ClearEpPending(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_TX, i);
-
-			sw_udc_handle_ep(&dev->ep[i]);
-		}
-	}
+	/* 优先取数据 */
 
 	/* rx endpoint data transfers */
 	for (i = 1; i < SW_UDC_ENDPOINTS; i++) {
@@ -1890,10 +1682,27 @@ static irqreturn_t sw_udc_irq(int dummy, void *_dev)
 		}
 	}
 
-	DMSG_TEST("irq: %d irq end.\n", dev->irq_no);
+	/* tx endpoint data transfers */
+	for (i = 1; i < SW_UDC_ENDPOINTS; i++) {
+		u32 tmp = 1 << i;
+
+		if (tx_irq & tmp) {
+			DMSG_DBG_UDC("USB tx ep%d irq\n", i);
+
+			/* Clear the interrupt bit by setting it to 1 */
+			USBC_INT_ClearEpPending(g_sw_udc_io.usb_bsp_hdle, USBC_EP_TYPE_TX, i);
+
+			sw_udc_handle_ep(&dev->ep[i]);
+		}
+	}
+
+	//DMSG_TEST("irq: %d irq end.\n", dev->irq_no);
 
 	/* Restore old index */
 	USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, old_ep_idx);
+
+	//DMSG_INFO("ie\n");
+
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -1931,7 +1740,9 @@ void sw_udc_dma_completion(struct sw_udc *dev, struct sw_udc_ep *ep, struct sw_u
 		return;
 	}
 
-	local_irq_save(flags);
+
+	//DMSG_INFO("dma: ep:0x%p, dev:0x%p, lock:0x%p", ep, ep->dev, &ep->dev->lock);
+	spin_lock_irqsave(&dev->lock, flags);
 
 	old_ep_index = USBC_GetActiveEp(dev->sw_udc_io->usb_bsp_hdle);
 	USBC_SelectActiveEp(dev->sw_udc_io->usb_bsp_hdle, ep->num);
@@ -2017,9 +1828,8 @@ void sw_udc_dma_completion(struct sw_udc *dev, struct sw_udc_ep *ep, struct sw_u
 
 	USBC_SelectActiveEp(dev->sw_udc_io->usb_bsp_hdle, old_ep_index);
 
-	DMSG_TEST("de\n");
-
-	local_irq_restore(flags);
+	DMSG_TEST("dc\n");
+	spin_unlock_irqrestore(&dev->lock, flags);
 
 	return;
 }
@@ -2065,9 +1875,9 @@ static int sw_udc_ep_enable(struct usb_ep *_ep,
 	struct sw_udc	*dev			= NULL;
 	struct sw_udc_ep	*ep				= NULL;
 	u32			 	max     		= 0;
-	unsigned long	flags   		= 0;
     u32     		old_ep_index	= 0;
 	__u32 			fifo_addr 		= 0;
+	unsigned long flags = 0;
 
 	if(_ep == NULL || desc == NULL){
 		DMSG_PANIC("ERR: invalid argment\n");
@@ -2104,7 +1914,7 @@ static int sw_udc_ep_enable(struct usb_ep *_ep,
 
 	max = le16_to_cpu(desc->wMaxPacketSize) & 0x1fff;
 
-	local_irq_save(flags);
+	spin_lock_irqsave(&ep->dev->lock, flags);
 
 	_ep->maxpacket          = max & 0x7ff;
 	ep->desc                = desc;
@@ -2142,7 +1952,7 @@ static int sw_udc_ep_enable(struct usb_ep *_ep,
     USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, old_ep_index);
 
 end:
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&ep->dev->lock, flags);
 
 	sw_udc_set_halt(_ep, 0);
 
@@ -2170,8 +1980,8 @@ end:
 static int sw_udc_ep_disable(struct usb_ep *_ep)
 {
 	struct sw_udc_ep   	*ep     = NULL;
-	unsigned long       flags   = 0;
     u32 old_ep_index            = 0;
+	unsigned long flags = 0;
 
 	if (!_ep) {
 		DMSG_PANIC("ERR: invalid argment\n");
@@ -2193,7 +2003,7 @@ static int sw_udc_ep_disable(struct usb_ep *_ep)
 		          ep->num, _ep, _ep->name,
 		          (ep->bEndpointAddress & USB_DIR_IN), _ep->maxpacket);
 
-	local_irq_save(flags);
+	spin_lock_irqsave(&ep->dev->lock, flags);
 
 	DMSG_DBG_UDC("ep_disable: %s\n", _ep->name);
 
@@ -2221,7 +2031,7 @@ static int sw_udc_ep_disable(struct usb_ep *_ep)
 	USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, old_ep_index);
 
 end:
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&ep->dev->lock, flags);
 
 	DMSG_DBG_UDC("%s disabled\n", _ep->name);
 
@@ -2335,7 +2145,8 @@ static int sw_udc_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_
 	struct sw_udc_request	*req    	= NULL;
 	struct sw_udc_ep	    *ep     	= NULL;
 	struct sw_udc	    	*dev    	= NULL;
-	unsigned long			flags   	= 0;
+	unsigned long flags = 0;
+	u8 old_ep_index = 0;
 
 	if(_ep == NULL || _req == NULL ){
         DMSG_PANIC("ERR: invalid argment\n");
@@ -2365,20 +2176,17 @@ static int sw_udc_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_
         DMSG_PANIC("ERR: req is NULL\n");
         return -EINVAL;
 	}
-/*
-	if(!list_empty(&req->queue)){
-        DMSG_PANIC("ERR: req->queue is empty\n");
-        return -EINVAL;
-	}
-*/
-	local_irq_save(flags);
+
+	spin_lock_irqsave(&ep->dev->lock, flags);
 
 	_req->status = -EINPROGRESS;
 	_req->actual = 0;
 
+	list_add_tail(&req->queue, &ep->queue);
+
 	if(!is_peripheral_active()){
 		DMSG_PANIC("warn: peripheral is active\n");
-		sw_udc_queue_req(ep, req);
+		//sw_udc_queue_req(ep, req);
 		goto end;
 	}
 
@@ -2389,17 +2197,17 @@ static int sw_udc_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_
 	//DMSG_INFO("\n\nq: (0x%p, %d, %d)\n", _req,_req->length, _req->actual);
 	//DMSG_INFO("\nq\n");
 
-
+	old_ep_index = USBC_GetActiveEp(g_sw_udc_io.usb_bsp_hdle);
 	if (ep->bEndpointAddress) {
 		USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, ep->bEndpointAddress & 0x7F);
 	} else {
 		USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, 0);
 	}
 
-	/* kickstart this i/o queue? */
-	if (list_empty(&ep->queue) && !ep->halted) {
-		sw_udc_queue_req(ep, req);
+    //sw_udc_queue_req(ep, req);
 
+	/* 如果队列中只有一个,那么就被执行 */
+	if (!ep->halted && (&req->queue == ep->queue.next)) {
 		if (ep->bEndpointAddress == 0 /* ep0 */) {
 			switch (dev->ep0state) {
 			case EP0_IN_DATA_PHASE:
@@ -2420,7 +2228,7 @@ static int sw_udc_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_
 				break;
 
 			default:
-				local_irq_restore(flags);
+				spin_unlock_irqrestore(&ep->dev->lock, flags);
 				return -EL2HLT;
 			}
 		} else if ((ep->bEndpointAddress & USB_DIR_IN) != 0
@@ -2436,18 +2244,22 @@ static int sw_udc_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_
 		}
 	}
 
+	USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, old_ep_index);
+
 	/* 1. 请求没有被处理
 	 * 2.
 	 */
+/*
 	if(req && !is_req_queue(req)){
 		DMSG_TEST("queue: ep->queue have tow member\n");
 		sw_udc_queue_req(ep, req);
 	}
+*/
 
 end:
-	local_irq_restore(flags);
-
-	DMSG_TEST("qe\n");
+	//DMSG_INFO("qe\n");
+	spin_unlock_irqrestore(&ep->dev->lock, flags);
+	//DMSG_INFO("qe_1\n");
 
     return 0;
 }
@@ -2475,8 +2287,8 @@ static int sw_udc_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	struct sw_udc_ep	*ep  	= NULL;
 	struct sw_udc		*udc  	= NULL;
 	int			        retval  = -EINVAL;
-	unsigned long		flags   = 0;
 	struct sw_udc_request *req 	= NULL;
+	unsigned long flags = 0;
 
 	DMSG_DBG_UDC("(%p,%p)\n", _ep, _req);
 
@@ -2506,7 +2318,7 @@ static int sw_udc_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		      ep, ep->num,
 		      _req, _req->length, _req->actual);
 
-	local_irq_save (flags);
+	spin_lock_irqsave(&ep->dev->lock, flags);
 
 	list_for_each_entry (req, &ep->queue, queue) {
 		if (&req->req == _req) {
@@ -2524,7 +2336,7 @@ static int sw_udc_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		sw_udc_done(ep, req, -ECONNRESET);
 	}
 
-	local_irq_restore (flags);
+	spin_unlock_irqrestore(&ep->dev->lock, flags);
 
 	return retval;
 }
@@ -2550,7 +2362,7 @@ static int sw_udc_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 static int sw_udc_set_halt(struct usb_ep *_ep, int value)
 {
 	struct sw_udc_ep		*ep     = NULL;
-	unsigned long		flags   = 0;
+	unsigned long flags = 0;
 	u32			        idx     = 0;
 	__u8    old_ep_index        = 0;
 
@@ -2575,7 +2387,7 @@ static int sw_udc_set_halt(struct usb_ep *_ep, int value)
 		return 0;
 	}
 
-	local_irq_save (flags);
+	spin_lock_irqsave(&ep->dev->lock, flags);
 
 	idx = ep->bEndpointAddress & 0x7F;
 
@@ -2604,7 +2416,7 @@ static int sw_udc_set_halt(struct usb_ep *_ep, int value)
 
 	USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, old_ep_index);
 
-	local_irq_restore (flags);
+	spin_unlock_irqrestore(&ep->dev->lock, flags);
 
 	return 0;
 }
@@ -3271,6 +3083,7 @@ int sw_usb_device_enable(void)
 	udc->usbc_no = usbd_port_no;
 	strcpy((char *)udc->driver_name, gadget_name);
 	udc->irq_no	 = irq;
+	udc->pdev    = pdev;
 
 	if(is_udc_support_dma()){
 		retval = sw_udc_dma_probe(udc);
@@ -3312,9 +3125,12 @@ err:
 EXPORT_SYMBOL(sw_usb_device_enable);
 
 int sw_usb_device_disable(void)
+__releases(sw_udc.lock)
+__acquires(sw_udc.lock)
 {
 	struct platform_device *pdev = g_udc_pdev;
 	struct sw_udc *udc 	= NULL;
+	unsigned long	flags = 0;
 
 	DMSG_INFO_UDC("sw_usb_device_disable start\n");
 
@@ -3344,12 +3160,16 @@ int sw_usb_device_disable(void)
 
 	sw_udc_io_exit(usbd_port_no, pdev, &g_sw_udc_io);
 
+    spin_lock_irqsave(&udc->lock, flags);
+
     memset(&g_sw_udc_io, 0, sizeof(sw_udc_io_t));
 
 	usbd_port_no   = 0;
 	usb_connect    = 0;
 	crq_bRequest   = 0;
 	is_controller_alive = 0;
+
+    spin_unlock_irqrestore(&udc->lock, flags);
 
 	DMSG_INFO_UDC("sw_usb_device_disable end\n");
 
@@ -3478,6 +3298,7 @@ static int sw_udc_probe_device_only(struct platform_device *pdev)
 	udc->usbc_no = usbd_port_no;
 	strcpy((char *)udc->driver_name, gadget_name);
 	udc->irq_no	 = irq;
+	udc->pdev    = pdev;
 
 	if(is_udc_support_dma()){
 		retval = sw_udc_dma_probe(udc);

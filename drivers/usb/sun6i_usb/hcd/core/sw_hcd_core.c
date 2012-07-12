@@ -618,6 +618,9 @@ EXPORT_SYMBOL(sw_hcd_platform_exit);
 void sw_hcd_dma_completion(struct sw_hcd *sw_hcd, u8 epnum, u8 transmit)
 {
 	u8	devctl = USBC_Readb(USBC_REG_DEVCTL(sw_hcd->mregs));
+	unsigned long   flags       = 0;
+
+	spin_lock_irqsave(&sw_hcd->lock, flags);
 
 	/* called with controller lock already held */
 
@@ -640,6 +643,8 @@ void sw_hcd_dma_completion(struct sw_hcd *sw_hcd, u8 epnum, u8 transmit)
 			}
 		}
 	}
+
+	spin_unlock_irqrestore(&sw_hcd->lock, flags);
 
     return;
 }

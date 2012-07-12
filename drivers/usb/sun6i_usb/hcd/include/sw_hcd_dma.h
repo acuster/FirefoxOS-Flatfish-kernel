@@ -27,7 +27,7 @@
 //  宏 定义
 //---------------------------------------------------------------
 #if 1
-#define  is_hcd_support_dma(usbc_no)    0
+#define  is_hcd_support_dma(usbc_no)   1
 #else
 #define  is_hcd_support_dma(usbc_no)    (usbc_no == 0)
 #endif

@@ -49,15 +49,15 @@
 //---------------------------------------------------------------
 static struct sw_udc_mach_info sw_udc_cfg;
 
-//static u64 sw_udc_dmamask = 0xffffffffUL;
+static u64 sw_udc_dmamask = 0xffffffffUL;
 
 static struct platform_device sw_udc_device = {
 	.name				= "sw_usb_udc",
 	.id					= -1,
 
 	.dev = {
-//		.dma_mask			= &sw_udc_dmamask,
-//		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.dma_mask			= &sw_udc_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &sw_udc_cfg,
 	},
 };
