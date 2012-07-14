@@ -47,6 +47,17 @@ static inline int gpio_chip_match(struct gpio_chip * chip, void * data)
 }
 
 /**
+ * gpio_irq_handle_demo - gpio irq handle demo.
+ *
+ * Returns 0 if sucess, the err line number if failed.
+ */
+u32 gpio_irq_handle_demo(void *para)
+{
+	printk("%s: para 0x%08x\n", __FUNCTION__, (u32)para);
+	return 0;
+}
+
+/**
  * __gtc_api - gpio test case, for api
  *
  * Returns 0 if sucess, the err line number if failed.
@@ -290,6 +301,9 @@ u32 __gtc_api(void)
 			{GPIOL(8) },
 			{GPIOM(4) },
 		};
+		u32 	handle_temp[5] = {0};
+
+		/* test sw_gpio_eint_setall_range/sw_gpio_eint_getall_range api */
 		for(utemp = 0; utemp < ARRAY_SIZE(cfg_eint); utemp++)
 			PIO_CHECK_RST(0 == gpio_request(cfg_eint[utemp].gpio, NULL), uret, End);
 		PIO_DBG_FUN_LINE;
@@ -304,6 +318,43 @@ u32 __gtc_api(void)
 		for(utemp = 0; utemp < ARRAY_SIZE(cfg_eint); utemp++)
 			gpio_free(cfg_eint[utemp].gpio);
 		PIO_DBG_FUN_LINE;
+
+		/* test sw_gpio_irq_request/sw_gpio_irq_free api */
+		utemp = GPIOA(0);
+		handle_temp[0] = sw_gpio_irq_request(utemp, TRIG_EDGE_POSITIVE,
+			(peint_handle)gpio_irq_handle_demo, (void *)utemp);
+		printk("%s: handle_temp[0] 0x%08x\n", __FUNCTION__, handle_temp[0]);
+
+		utemp = GPIOA(1);
+		handle_temp[1] = sw_gpio_irq_request(utemp, TRIG_EDGE_NEGATIVE,
+			(peint_handle)gpio_irq_handle_demo, (void *)utemp);
+		printk("%s: handle_temp[1] 0x%08x\n", __FUNCTION__, handle_temp[1]);
+
+		utemp = GPIOC(0);
+		handle_temp[2] = sw_gpio_irq_request(utemp, TRIG_EDGE_DOUBLE,
+			(peint_handle)gpio_irq_handle_demo, (void *)utemp);
+		printk("%s: handle_temp[2] 0x%08x\n", __FUNCTION__, handle_temp[2]);
+
+		utemp = GPIOE(2);
+		handle_temp[3] = sw_gpio_irq_request(utemp, TRIG_LEVL_LOW,
+			(peint_handle)gpio_irq_handle_demo, (void *)utemp);
+		printk("%s: handle_temp[3] 0x%08x\n", __FUNCTION__, handle_temp[3]);
+
+		if(0 != handle_temp[0])
+			sw_gpio_irq_free(handle_temp[0]);
+		PIO_DBG_FUN_LINE;
+		if(0 != handle_temp[1])
+			sw_gpio_irq_free(handle_temp[1]);
+		PIO_DBG_FUN_LINE;
+		if(0 != handle_temp[2])
+			sw_gpio_irq_free(handle_temp[2]);
+		PIO_DBG_FUN_LINE;
+		if(0 != handle_temp[3])
+			sw_gpio_irq_free(handle_temp[3]);
+		PIO_DBG_FUN_LINE;
+		//gpio_request(GPIOA(0), NULL);
+		//sw_gpio_irq_free(handle_temp[0]); /* WARNING: Trying to free already-free IRQ 43 */
+		//gpio_free(GPIOA(0));
 	}
 #endif /* TEST_GPIO_EINT_API */
 

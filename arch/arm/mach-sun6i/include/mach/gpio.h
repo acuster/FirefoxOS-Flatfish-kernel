@@ -128,7 +128,7 @@ struct gpio_config_eint_all {
 	u32	gpio;		/* the global gpio index */
 	u32	pull;		/* gpio pull val */
 	u32 	drvlvl;		/* gpio driver level */
-	u32	enabled;	/* in set function: used to enable/disable the eint
+	u32	enabled;	/* in set function: used to enable/disable the eint, 1: enable, 0: disable
 				 * in get function: return the eint enabled status, 1: enabled, 0: disabled
 				 */
 	u32	irq_pd;		/* in set function: 1 means to clr irq pend status, 0 no use
@@ -136,6 +136,9 @@ struct gpio_config_eint_all {
 				 */
 	enum gpio_eint_trigtype trig_type; /* trig type of the gpio */
 };
+
+/* gpio eint call back function */
+typedef u32 (*peint_handle)(void *para);
 
 /*
  * exported api below
@@ -168,6 +171,9 @@ u32 sw_gpio_eint_set_debounce(u32 gpio, struct gpio_eint_debounce dbc);
 u32 sw_gpio_eint_setall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num);
 u32 sw_gpio_eint_getall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num);
 void sw_gpio_eint_dumpall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num);
+u32 sw_gpio_irq_request(u32 gpio, enum gpio_eint_trigtype trig_type,
+			peint_handle handle, void *para);
+u32 sw_gpio_irq_free(u32 handle);
 
 /* old api realize in new api, we recommend use these api instead of a10-old-api(eg: gpio_request_ex) */
 u32 sw_gpio_request(user_gpio_set_t *gpio_list, u32 group_count_max);

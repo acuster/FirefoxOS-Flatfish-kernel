@@ -23,6 +23,12 @@
 
 #define R_PL_EINT_START			5 	/* r_pl_5 as S_PL_EINT0 */
 
+struct gpio_irq_handle {
+	u32 	gpio;
+	peint_handle handler;
+	void	*parg;
+};
+
 u32 gpio_eint_set_trig(struct aw_gpio_chip *pchip, u32 offset, enum gpio_eint_trigtype trig_val);
 u32 gpio_eint_get_trig(struct aw_gpio_chip *pchip, u32 offset, enum gpio_eint_trigtype *pval);
 u32 gpio_eint_set_enable(struct aw_gpio_chip *pchip, u32 offset, u32 enable);
