@@ -378,6 +378,7 @@ s32 sw_mci_request_done(struct sunxi_mmc_host* smc_host)
 
 __out:
 	if (req->data) {
+		struct mmc_data* data = req->data;
 		if (!(req->data->flags & MMC_DATA_WRITE)
 			&& (mci_readl(smc_host, REG_STAS) & SDXC_DataFSMBusy)) {
 			if ((mci_readl(smc_host, REG_STAS) & SDXC_DataFSMBusy)
@@ -387,7 +388,7 @@ __out:
 				&& (mci_readl(smc_host, REG_STAS) & SDXC_DataFSMBusy))
 				SMC_DBG(smc_host, "mmc %d fsm busy 0x%x len %d\n",
 					smc_host->pdev->id, mci_readl(smc_host, REG_STAS),
-					req->data->blksz * req->data->blocks);
+					data->blksz * data->blocks);
 		}
 		smc_host->dma_done = 0;
 		mci_writel(smc_host, REG_IDST, 0x337);
@@ -399,6 +400,8 @@ __out:
 		mci_writel(smc_host, REG_GCTRL, temp);
 		temp |= SDXC_FIFOReset;
 		mci_writel(smc_host, REG_GCTRL, temp);
+		dma_unmap_sg(mmc_dev(smc_host->mmc), data->sg, data->sg_len,
+                                data->flags & MMC_DATA_WRITE ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	}
 
 	temp = mci_readl(smc_host, REG_STAS);
