@@ -265,42 +265,11 @@ int __pio_to_irq(struct gpio_chip *chip, unsigned offset)
 		(u32)chip, offset, (u32)pchip);
 #endif /* DBG_GPIO */
 
-	/* for r-pio-L, only PL5 ~ PL8 can be configured as einit */
-	if(AW_IRQ_EINT_R_PL == pchip->irq_num) {
-		if(!(offset >= 5 && offset <= 8)) {
-			PIO_ERR_FUN_LINE;
-			return IRQ_NUM_INVALID;
-		}
+	if(true == gpio_canbe_eint(chip->base + offset)) {
+		PIO_DBG_FUN_LINE;
+		return pchip->irq_num;
 	}
-	return pchip->irq_num;
+
+	PIO_ERR_FUN_LINE;
+	return IRQ_NUM_INVALID;
 }
-
-#if 0
-u32 __gpio_index_to_irq(u32 gpio)
-{
-	u32 	i = 0, uret = 0xFFFFFFFF;
-	u32 	gpio_irq[][3] = {
-		{GPIOA(0), GPIOA(27), AW_IRQ_EINT_PA},
-		{GPIOB(0), GPIOB(7),  AW_IRQ_EINT_PB},
-		{GPIOE(0), GPIOE(16), AW_IRQ_EINT_PE},
-		{GPIOG(0), GPIOG(18), AW_IRQ_EINT_PG},
-
-		{GPIOL(5), GPIOL(8),  AW_IRQ_EINT_R_PL},
-		{GPIOM(0), GPIOM(7),  AW_IRQ_EINT_R_PM},
-	}
-
-	for(i = 0; i < ARRAY_SIZE(gpio_irq); i++)
-		if(gpio >= gpio_irq[i][0] && gpio <= gpio_irq[i][1]) {
-			uret = gpio_irq[i][2];
-			break;
-		}
-
-#ifdef DBG_GPIO
-	if(0xFFFFFFFF == uret) {
-		PIO_INF("%s: gpio %d, cannot find irq, to check\n", __FUNCTION__, gpio);
-	}
-#endif /* DBG_GPIO */
-
-	return uret;
-}
-#endif

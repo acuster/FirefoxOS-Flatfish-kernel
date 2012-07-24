@@ -21,7 +21,7 @@
 /*
  * gpio print macro
  */
-#define PIO_DBG_LEVEL	3
+#define PIO_DBG_LEVEL	1
 
 #if (PIO_DBG_LEVEL == 1)
 	#define PIO_DBG(format,args...)   printk("[gpio-dbg] "format,##args)

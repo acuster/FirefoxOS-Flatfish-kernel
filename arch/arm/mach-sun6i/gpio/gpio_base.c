@@ -275,32 +275,3 @@ int __pio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return pchip->irq_num;
 }
 
-#if 0
-u32 __gpio_index_to_irq(u32 gpio)
-{
-	u32 	i = 0, uret = 0xFFFFFFFF;
-	u32 	gpio_irq[][3] = {
-		{GPIOA(0), GPIOA(27), AW_IRQ_EINT_PA},
-		{GPIOB(0), GPIOB(7),  AW_IRQ_EINT_PB},
-		{GPIOE(0), GPIOE(16), AW_IRQ_EINT_PE},
-		{GPIOG(0), GPIOG(18), AW_IRQ_EINT_PG},
-
-		{GPIOL(5), GPIOL(8),  AW_IRQ_EINT_R_PL},
-		{GPIOM(0), GPIOM(7),  AW_IRQ_EINT_R_PM},
-	}
-
-	for(i = 0; i < ARRAY_SIZE(gpio_irq); i++)
-		if(gpio >= gpio_irq[i][0] && gpio <= gpio_irq[i][1]) {
-			uret = gpio_irq[i][2];
-			break;
-		}
-
-#ifdef DBG_GPIO
-	if(0xFFFFFFFF == uret) {
-		PIO_INF("%s: gpio %d, cannot find irq, to check\n", __FUNCTION__, gpio);
-	}
-#endif /* DBG_GPIO */
-
-	return uret;
-}
-#endif

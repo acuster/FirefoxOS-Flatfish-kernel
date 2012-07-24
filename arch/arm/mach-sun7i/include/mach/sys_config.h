@@ -108,13 +108,13 @@ typedef enum
 
 typedef struct
 {
-    char  gpio_name[32];
-    int port;
-    int port_num;
-    int mul_sel;
-    int pull;
-    int drv_level;
-    int data;
+char  gpio_name[32];
+int port;
+int port_num;
+int mul_sel;
+int pull;
+int drv_level;
+int data;
 } user_gpio_set_t;
 
 /* functions for early boot */
@@ -126,26 +126,10 @@ extern int script_parser_init(char *script_buf);
 extern int script_parser_exit(void);
 extern int script_parser_fetch(char *main_name, char *sub_name, int value[], int count);
 extern int script_parser_fetch_ex(char *main_name, char *sub_name, int value[],
-               script_parser_value_type_t *type, int count);
+script_parser_value_type_t *type, int count);
 extern int script_parser_subkey_count(char *main_name);
 extern int script_parser_mainkey_count(void);
 extern int script_parser_mainkey_get_gpio_count(char *main_name);
 extern int script_parser_mainkey_get_gpio_cfg(char *main_name, void *gpio_cfg, int gpio_count);
-
-/* gpio operations */
-extern int gpio_init(void);
-extern int gpio_exit(void);
-//extern unsigned gpio_request(user_gpio_set_t *gpio_list, unsigned group_count_max); /* conflict with sys gpiolib */
-extern unsigned __gpio_request(user_gpio_set_t *gpio_list, unsigned group_count_max);
-extern unsigned gpio_request_ex(char *main_name, const char *sub_name);
-extern int gpio_release(unsigned p_handler, int if_release_to_default_status);
-extern int gpio_get_all_pin_status(unsigned p_handler, user_gpio_set_t *gpio_status, unsigned gpio_count_max, unsigned if_get_from_hardware);
-extern int gpio_get_one_pin_status(unsigned p_handler, user_gpio_set_t *gpio_status, const char *gpio_name, unsigned if_get_from_hardware);
-extern int gpio_set_one_pin_status(unsigned p_handler, user_gpio_set_t *gpio_status, const char *gpio_name, unsigned if_set_to_current_input_status);
-extern int gpio_set_one_pin_io_status(unsigned p_handler, unsigned if_set_to_output_status, const char *gpio_name);
-extern int gpio_set_one_pin_pull(unsigned p_handler, unsigned set_pull_status, const char *gpio_name);
-extern int gpio_set_one_pin_driver_level(unsigned p_handler, unsigned set_driver_level, const char *gpio_name);
-extern int gpio_read_one_pin_value(unsigned p_handler, const char *gpio_name);
-extern int gpio_write_one_pin_value(unsigned p_handler, unsigned value_to_gpio, const char *gpio_name);
 
 #endif

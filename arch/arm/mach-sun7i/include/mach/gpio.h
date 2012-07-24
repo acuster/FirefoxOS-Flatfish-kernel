@@ -19,30 +19,22 @@
 #include <linux/types.h>
 #include <mach/sys_config.h>
 
-/* pio/rpio base */
-#define PIO_VBASE(n) 		(0xf1c20800 + ((n) << 5) + ((n) << 2)) /* pio(PA ~ PF), 0xf1c20800 + n * 0x24 */
-#define RPIO_VBASE(n) 		(0xf1f02c00 + ((n) << 5) + ((n) << 2)) /* r-pio(PL ~ PM), 0xf1f02c00 + n * 0x24 */
+/* pio base */
+#define PIO_VBASE(n) 		(0xf1c20800 + ((n) << 5) + ((n) << 2)) /* pio(PA ~ PI), 0xf1c20800 + n * 0x24 */
 
 /* einit config reg vbase */
-#define PIO_VBASE_EINT_PA	(PIO_VBASE(0) + 0x200                 )
-#define PIO_VBASE_EINT_PB	(PIO_VBASE(0) + 0x220                 )
-#define PIO_VBASE_EINT_PE	(PIO_VBASE(0) + 0x240                 )
-#define PIO_VBASE_EINT_PG	(PIO_VBASE(0) + 0x260                 )
-#define PIO_VBASE_EINT_R_PL	(RPIO_VBASE(0) + 0x200                )
-#define PIO_VBASE_EINT_R_PM	(RPIO_VBASE(0) + 0x220                )
+#define PIO_VBASE_EINT		(PIO_VBASE(0) + 0x200                 )
 
 /* port number for each pio */
-#define PA_NR			28
-#define PB_NR			8
-#define PC_NR			27
+#define PA_NR			18
+#define PB_NR			24
+#define PC_NR			25
 #define PD_NR			28
-#define PE_NR			17
+#define PE_NR			12
 #define PF_NR			6
-#define PG_NR			19
-#define PH_NR			31
-/* for R-PORT PIO */
-#define PL_NR			9
-#define PM_NR			9 /* spec: "Pin MultiPlex" is 8 while "PM Configure Register 1" is 9 */
+#define PG_NR			12
+#define PH_NR			28
+#define PI_NR			22
 
 /*
  * base index for each pio
@@ -58,9 +50,7 @@ enum sun7i_gpio_number {
 	PF_NR_BASE = AW_GPIO_NEXT(PE),
 	PG_NR_BASE = AW_GPIO_NEXT(PF),
 	PH_NR_BASE = AW_GPIO_NEXT(PG),
-	/* for R-PORT PIO */
-	PL_NR_BASE = AW_GPIO_NEXT(PH), /* NOTE: last is PH */
-	PM_NR_BASE = AW_GPIO_NEXT(PL),
+	PI_NR_BASE = AW_GPIO_NEXT(PH)
 };
 
 /* pio index definition */
@@ -72,15 +62,14 @@ enum sun7i_gpio_number {
 #define GPIOF(n)		(PF_NR_BASE + (n))
 #define GPIOG(n)		(PG_NR_BASE + (n))
 #define GPIOH(n)		(PH_NR_BASE + (n))
-#define GPIOL(n)		(PL_NR_BASE + (n))
-#define GPIOM(n)		(PM_NR_BASE + (n))
+#define GPIOI(n)		(PI_NR_BASE + (n))
 
 /* pio default macro */
 #define GPIO_PULL_DEFAULT	(1               )
 #define GPIO_DRVLVL_DEFAULT	(1               )
 
 /* pio end, invalid macro */
-#define GPIO_INDEX_END		(GPIOM(PM_NR) + 1)
+#define GPIO_INDEX_END		(GPIOI(PI_NR) + 1)
 #define GPIO_INDEX_INVALID	(0xFFFFFFFF      )
 #define GPIO_CFG_INVALID	(0xFFFFFFFF      )
 #define GPIO_PULL_INVALID	(0xFFFFFFFF      )
@@ -88,8 +77,7 @@ enum sun7i_gpio_number {
 #define IRQ_NUM_INVALID		(0xFFFFFFFF      )
 
 /* config value for external int */
-#define GPIO_CFG_EINT   	(0b110	)	/* config value to eint for pa, pb, pe, pg */
-#define R_GPIO_CFG_EINT   	(0b010	)	/* config value to eint for r-pl, r-pm */
+#define GPIO_CFG_EINT   	(0b110	)	/* config value to eint for ph/pi */
 
 /* port number for gpiolib */
 #ifdef ARCH_NR_GPIOS

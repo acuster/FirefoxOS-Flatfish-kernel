@@ -39,13 +39,7 @@
 
 #define AW_IRQ_DMA	 38 			  /* dma irq phys num in fpga */
 
-#define AW_IRQ_EINT_PA	 (AW_IRQ_GIC_START + 11)   /* PA_EINIT in spec 43 */
-#define AW_IRQ_EINT_PB	 (AW_IRQ_GIC_START + 15)   /* PB_EINIT in spec 47 */
-#define AW_IRQ_EINT_PE	 (AW_IRQ_GIC_START + 16)   /* PE_EINIT in spec 48 */
-#define AW_IRQ_EINT_PG	 (AW_IRQ_GIC_START + 17)   /* PG_EINIT in spec 49 */
-
-#define AW_IRQ_EINT_R_PL (AW_IRQ_GIC_START + 45)   /* R_PL_EINIT in spec 77 */
-#define AW_IRQ_EINT_R_PM (AW_IRQ_GIC_START + 46)   /* R_PM_EINIT in spec 78 */
+#define AW_IRQ_GPIO	 (AW_IRQ_GIC_START + 28)   /* PIO INT in spec 60 */
 
 /*
  * GIC

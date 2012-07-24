@@ -16,21 +16,17 @@
 #include "gpio_include.h"
 
 /**
- * is_gpio_canbe_eint - check if gpio canbe configured as eint
+ * gpio_canbe_eint - check if gpio canbe configured as eint
  * @gpio:	the global gpio index
  *
  * return true if the gpio canbe configured as eint, false otherwise.
  */
-bool is_gpio_canbe_eint(u32 gpio)
+bool gpio_canbe_eint(u32 gpio)
 {
 	int 	i = 0;
 	u32 	gpio_eint_group[][2] = {
-		{GPIOA(0), 	GPIOA(27)},
-		{GPIOB(0), 	GPIOB(7) },
-		{GPIOE(0), 	GPIOE(16)},
-		{GPIOG(0), 	GPIOG(18)},
-		{GPIOL(5), 	GPIOL(8) },
-		{GPIOM(0), 	GPIOM(7) }
+		{GPIOH(0), 	GPIOH(21)},
+		{GPIOI(10), 	GPIOI(19)}
 	};
 
 	for(i = 0; i < ARRAY_SIZE(gpio_eint_group); i++)
@@ -53,31 +49,20 @@ u32 __para_check(u32 gpio)
 	if(false == is_gpio_requested(gpio))
 		return __LINE__;
 #endif /* DBG_GPIO */
-	if(false == is_gpio_canbe_eint(gpio))
+	if(false == gpio_canbe_eint(gpio))
 		return __LINE__;
 	return 0;
 }
 
 /**
- * __is_r_gpio_l - check if gpio is in r_gpio_l
+ * __is_gpio_i - check if gpio is in GPIO I.
  * @gpio:	the global gpio index
  *
- * return true if the gpio is in r_gpio_l, false otherwise.
+ * return true if the gpio is in GPIO I, false otherwise.
  */
-u32 inline __is_r_gpio_l(u32 gpio)
+u32 inline __is_gpio_i(u32 gpio)
 {
-	return (gpio >= GPIOL(0) && gpio <= GPIOL(8));
-}
-
-/**
- * __is_r_gpio - check if gpio is r_gpio, that is, r_gpio_l or r_gpio_m
- * @gpio:	the global gpio index
- *
- * return true if the gpio is in r_gpio, false otherwise.
- */
-u32 inline __is_r_gpio(u32 gpio)
-{
-	return (gpio >= GPIOL(0) && gpio <= GPIOM(8));
+	return (gpio >= GPIOI(0) && gpio <= GPIOI(21));
 }
 
 /**
@@ -282,8 +267,8 @@ u32 sw_gpio_eint_set_trigtype(u32 gpio, enum gpio_eint_trigtype trig_type)
 		return __LINE__;
 	}
 
-	if(unlikely(__is_r_gpio_l(gpio)))
-		offset = gpio - pchip->chip.base - R_PL_EINT_START;
+	if(__is_gpio_i(gpio))
+		offset = gpio - pchip->chip.base - PI_EINT_OFFSET + PI_EINT_START_INDEX; /* PI10 offset is 22 */
 	else
 		offset = gpio - pchip->chip.base;
 
@@ -318,8 +303,8 @@ u32 sw_gpio_eint_get_trigtype(u32 gpio, enum gpio_eint_trigtype *pval)
 		return __LINE__;
 	}
 
-	if(unlikely(__is_r_gpio_l(gpio)))
-		offset = gpio - pchip->chip.base - R_PL_EINT_START;
+	if(__is_gpio_i(gpio))
+		offset = gpio - pchip->chip.base - PI_EINT_OFFSET + PI_EINT_START_INDEX; /* PI10 offset is 22 */
 	else
 		offset = gpio - pchip->chip.base;
 
@@ -357,8 +342,8 @@ u32 sw_gpio_eint_set_enable(u32 gpio, u32 enable)
 		return __LINE__;
 	}
 
-	if(unlikely(__is_r_gpio_l(gpio)))
-		offset = gpio - pchip->chip.base - R_PL_EINT_START;
+	if(__is_gpio_i(gpio))
+		offset = gpio - pchip->chip.base - PI_EINT_OFFSET + PI_EINT_START_INDEX; /* PI10 offset is 22 */
 	else
 		offset = gpio - pchip->chip.base;
 
@@ -393,8 +378,8 @@ u32 sw_gpio_eint_get_enable(u32 gpio, u32 *penable)
 		return __LINE__;
 	}
 
-	if(unlikely(__is_r_gpio_l(gpio)))
-		offset = gpio - pchip->chip.base - R_PL_EINT_START;
+	if(__is_gpio_i(gpio))
+		offset = gpio - pchip->chip.base - PI_EINT_OFFSET + PI_EINT_START_INDEX; /* PI10 offset is 22 */
 	else
 		offset = gpio - pchip->chip.base;
 
@@ -430,8 +415,8 @@ u32 sw_gpio_eint_get_irqpd_sta(u32 gpio)
 		return 0; /* note here */
 	}
 
-	if(unlikely(__is_r_gpio_l(gpio)))
-		offset = gpio - pchip->chip.base - R_PL_EINT_START;
+	if(__is_gpio_i(gpio))
+		offset = gpio - pchip->chip.base - PI_EINT_OFFSET + PI_EINT_START_INDEX; /* PI10 offset is 22 */
 	else
 		offset = gpio - pchip->chip.base;
 
@@ -467,8 +452,8 @@ u32 sw_gpio_eint_clr_irqpd_sta(u32 gpio)
 		return __LINE__;
 	}
 
-	if(unlikely(__is_r_gpio_l(gpio)))
-		offset = gpio - pchip->chip.base - R_PL_EINT_START;
+	if(__is_gpio_i(gpio))
+		offset = gpio - pchip->chip.base - PI_EINT_OFFSET + PI_EINT_START_INDEX; /* PI10 offset is 22 */
 	else
 		offset = gpio - pchip->chip.base;
 
@@ -569,24 +554,22 @@ u32 sw_gpio_eint_setall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
 		}
 
 		offset = pcfg->gpio - pchip->chip.base;
-		if(unlikely(__is_r_gpio(pcfg->gpio))) {
-			mulsel_eint = R_GPIO_CFG_EINT;
-		} else {
-			mulsel_eint = GPIO_CFG_EINT;
-		}
 		PIO_DBG("%s: gpio %d, base %d, offset %d\n", __FUNCTION__, pcfg->gpio,
 			pchip->chip.base, offset);
 
 		PIO_CHIP_LOCK(&pchip->lock, flags);
 
 		/* set mul sel to eint, and set pull and drvlvl */
+		mulsel_eint = GPIO_CFG_EINT;
 		PIO_ASSERT(0 == pchip->cfg->set_cfg(pchip, offset, mulsel_eint));
 		PIO_ASSERT(0 == pchip->cfg->set_pull(pchip, offset, pcfg->pull));
 		PIO_ASSERT(0 == pchip->cfg->set_drvlevel(pchip, offset, pcfg->drvlvl));
 
-		/* redirect offset for eint op, for the case that r_pl_5 is PL_EINT0 */
-		if(unlikely(__is_r_gpio_l(pcfg->gpio)))
-			offset -= R_PL_EINT_START;
+		/* PI10 offset is 22 */
+		if(__is_gpio_i(pcfg->gpio)) {
+			PIO_DBG_FUN_LINE_TOCHECK;
+			offset = offset - PI_EINT_OFFSET + PI_EINT_START_INDEX;
+		}
 
 		/* set trig type */
 		pchip->cfg_eint->eint_set_trig(pchip, offset, pcfg->trig_type);
@@ -616,7 +599,6 @@ u32 sw_gpio_eint_getall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
 	u32 	i = 0;
 	u32	uret = 0;
 	u32	offset = 0;
-	u32	mulsel_eint = 0;
 	unsigned long flags = 0;
 	struct aw_gpio_chip *pchip = NULL;
 
@@ -633,22 +615,19 @@ u32 sw_gpio_eint_getall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
 		}
 
 		offset = pcfg->gpio - pchip->chip.base;
-		if(unlikely(__is_r_gpio(pcfg->gpio))) {
-			mulsel_eint = R_GPIO_CFG_EINT;
-		} else {
-			mulsel_eint = GPIO_CFG_EINT;
-		}
 
 		PIO_CHIP_LOCK(&pchip->lock, flags);
 
 		/* verify mul sel to eint, and get pull and drvlvl */
-		PIO_ASSERT(mulsel_eint == pchip->cfg->get_cfg(pchip, offset));
+		PIO_ASSERT(GPIO_CFG_EINT == pchip->cfg->get_cfg(pchip, offset));
 		pcfg->pull = pchip->cfg->get_pull(pchip, offset);
 		pcfg->drvlvl = pchip->cfg->get_drvlevel(pchip, offset);
 
 		/* redirect offset for eint op, for the case that r_pl_5 is PL_EINT0 */
-		if(unlikely(__is_r_gpio_l(pcfg->gpio)))
-			offset -= R_PL_EINT_START;
+		if(__is_gpio_i(pcfg->gpio)) {
+			PIO_DBG_FUN_LINE_TOCHECK;
+			offset = offset - PI_EINT_OFFSET + PI_EINT_START_INDEX;
+		}
 
 		/* set trig type */
 		pchip->cfg_eint->eint_get_trig(pchip, offset, &pcfg->trig_type);
@@ -698,6 +677,7 @@ void sw_gpio_eint_dumpall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
 irqreturn_t gpio_irq_hdl(int irq, void *dev)
 {
 	u32 	gpio = 0;
+	u32 	ret = 0;
 	struct gpio_irq_handle *pdev_id = (struct gpio_irq_handle *)dev;
 
 	gpio = pdev_id->gpio;
@@ -705,7 +685,10 @@ irqreturn_t gpio_irq_hdl(int irq, void *dev)
 		return IRQ_NONE;
 
 	sw_gpio_eint_clr_irqpd_sta(gpio);
-	PIO_ASSERT(0 == pdev_id->handler(pdev_id->parg));
+
+	ret = pdev_id->handler(pdev_id->parg);
+
+	PIO_ASSERT(0 == ret);
 	return IRQ_HANDLED;
 }
 
@@ -732,7 +715,7 @@ u32 sw_gpio_irq_request(u32 gpio, enum gpio_eint_trigtype trig_type,
 
 	gpio_request(gpio, NULL);
 
-	if(false == is_gpio_canbe_eint(gpio)) {
+	if(false == gpio_canbe_eint(gpio)) {
 		usign = __LINE__;
 		goto End;
 	}

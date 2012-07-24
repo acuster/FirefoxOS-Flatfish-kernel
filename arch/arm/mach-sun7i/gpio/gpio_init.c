@@ -88,13 +88,8 @@ struct aw_gpio_chip gpio_chips[] = {
 			.base	= PA_NR_BASE,
 			.ngpio	= PA_NR,
 			.label	= "GPA",
-			.to_irq = __pio_to_irq,
 		},
 		.vbase  = (void __iomem *)PIO_VBASE(0),
-		/* cfg for eint */
-		.irq_num = AW_IRQ_EINT_PA,
-		.vbase_eint = (void __iomem *)PIO_VBASE_EINT_PA,
-		.cfg_eint = &g_eint_cfg,
 	}, {
 		.cfg	= &g_cfg,
 		.pm	= &g_pm,
@@ -102,13 +97,8 @@ struct aw_gpio_chip gpio_chips[] = {
 			.base	= PB_NR_BASE,
 			.ngpio	= PB_NR,
 			.label	= "GPB",
-			.to_irq = __pio_to_irq,
 		},
 		.vbase  = (void __iomem *)PIO_VBASE(1),
-		/* cfg for eint */
-		.irq_num = AW_IRQ_EINT_PB,
-		.vbase_eint = (void __iomem *)PIO_VBASE_EINT_PB,
-		.cfg_eint = &g_eint_cfg,
 	}, {
 		.cfg	= &g_cfg,
 		.pm	= &g_pm,
@@ -134,13 +124,8 @@ struct aw_gpio_chip gpio_chips[] = {
 			.base	= PE_NR_BASE,
 			.ngpio	= PE_NR,
 			.label	= "GPE",
-			.to_irq = __pio_to_irq,
 		},
 		.vbase  = (void __iomem *)PIO_VBASE(4),
-		/* cfg for eint */
-		.irq_num = AW_IRQ_EINT_PE,
-		.vbase_eint = (void __iomem *)PIO_VBASE_EINT_PE,
-		.cfg_eint = &g_eint_cfg,
 	}, {
 		.cfg	= &g_cfg,
 		.pm	= &g_pm,
@@ -157,13 +142,8 @@ struct aw_gpio_chip gpio_chips[] = {
 			.base	= PG_NR_BASE,
 			.ngpio	= PG_NR,
 			.label	= "GPG",
-			.to_irq = __pio_to_irq,
 		},
 		.vbase  = (void __iomem *)PIO_VBASE(6),
-		/* cfg for eint */
-		.irq_num = AW_IRQ_EINT_PG,
-		.vbase_eint = (void __iomem *)PIO_VBASE_EINT_PG,
-		.cfg_eint = &g_eint_cfg,
 	}, {
 		.cfg	= &g_cfg,
 		.pm	= &g_pm,
@@ -171,35 +151,26 @@ struct aw_gpio_chip gpio_chips[] = {
 			.base	= PH_NR_BASE,
 			.ngpio	= PH_NR,
 			.label	= "GPH",
-		},
-		.vbase  = (void __iomem *)PIO_VBASE(7),
-	}, {
-		.cfg	= &g_cfg,
-		.pm	= &g_pm,
-		.chip	= {
-			.base	= PL_NR_BASE,
-			.ngpio	= PL_NR,
-			.label	= "GPL",
 			.to_irq = __pio_to_irq,
 		},
-		.vbase  = (void __iomem *)RPIO_VBASE(0),
+		.vbase  = (void __iomem *)PIO_VBASE(7),
 		/* cfg for eint */
-		.irq_num = AW_IRQ_EINT_R_PL,
-		.vbase_eint = (void __iomem *)PIO_VBASE_EINT_R_PL,
+		.irq_num = AW_IRQ_GPIO,
+		.vbase_eint = (void __iomem *)PIO_VBASE_EINT,
 		.cfg_eint = &g_eint_cfg,
 	}, {
 		.cfg	= &g_cfg,
 		.pm	= &g_pm,
 		.chip	= {
-			.base	= PM_NR_BASE,
-			.ngpio	= PM_NR,
-			.label	= "GPM",
+			.base	= PI_NR_BASE,
+			.ngpio	= PI_NR,
+			.label	= "GPI",
 			.to_irq = __pio_to_irq,
 		},
-		.vbase  = (void __iomem *)RPIO_VBASE(1),
+		.vbase  = (void __iomem *)PIO_VBASE(8),
 		/* cfg for eint */
-		.irq_num = AW_IRQ_EINT_R_PM,
-		.vbase_eint = (void __iomem *)PIO_VBASE_EINT_R_PM,
+		.irq_num = AW_IRQ_GPIO,
+		.vbase_eint = (void __iomem *)PIO_VBASE_EINT,
 		.cfg_eint = &g_eint_cfg,
 	}
 };

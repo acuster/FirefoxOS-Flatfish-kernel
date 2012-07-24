@@ -576,7 +576,7 @@ u32 sw_gpio_suspend(void)
 {
 	u32	uret = 0;
 
-	PIO_DBG_FUN_LINE_TOCHECK;
+	PIO_DBG_FUN_LINE_TODO;
 	//PIO_CHIP_LOCK(&pchip->lock, flags);
 #if 0
 	for(i = 0; i < ARRAY_SIZE(gpio_chips); i++) {
@@ -587,12 +587,6 @@ u32 sw_gpio_suspend(void)
 			}
 		}
 	}
-
-End:
-	if(0 != uret) {
-		PIO_ERR("%s err, line %d, i %d\n", __FUNCTION__, uret, i);
-	}
-
 #endif
 	return uret;
 }
@@ -607,7 +601,7 @@ u32 sw_gpio_resume(void)
 {
 	u32	uret = 0;
 
-	PIO_DBG_FUN_LINE_TOCHECK;
+	PIO_DBG_FUN_LINE_TODO;
 #if 0
 	//PIO_CHIP_LOCK(&pchip->lock, flags);
 
@@ -619,12 +613,6 @@ u32 sw_gpio_resume(void)
 			}
 		}
 	}
-
-End:
-	if(0 != uret) {
-		PIO_ERR("%s err, line %d, i %d\n", __FUNCTION__, uret, i);
-	}
-
 #endif
 	return uret;
 }

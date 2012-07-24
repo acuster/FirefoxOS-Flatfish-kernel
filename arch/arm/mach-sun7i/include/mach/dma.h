@@ -16,43 +16,209 @@
 #ifndef __SW_DMA_H
 #define __SW_DMA_H
 
-//#include <linux/sysdev.h>
 #include <mach/hardware.h>
 
-/*
- * burst length
- */
+
+#define MAX_DMA_TRANSFER_SIZE   0x100000 /* Data Unit is half word  */
+
+#define DMA_CH_VALID		(1<<31)
+#define DMA_CH_NEVER		(1<<30)
+
+/* We use `virtual` dma channels to hide the fact we have only a limited
+ * number of DMA channels, and not of all of them (dependant on the device)
+ * can be attached to any DMA source. We therefore let the DMA core handle
+ * the allocation of hardware channels to clients.
+*/
+enum sw_dma_ch {
+	/*NDMA*/
+	DMACH_NSPI0_RX,
+	DMACH_NSPI0_TX,
+	DMACH_NSPI1_RX,
+	DMACH_NSPI1_TX,
+	DMACH_NSPI2_RX,
+	DMACH_NSPI2_TX,
+	DMACH_NSPI3_RX,
+	DMACH_NSPI3_TX,
+	DMACH_NUART0,
+	DMACH_NUART1,
+	DMACH_NUART2,
+	DMACH_NUART3,
+	DMACH_NUART4,
+	DMACH_NUART5,
+	DMACH_NUART6,
+	DMACH_NUART7,
+	DMACH_NSRAM,
+	DMACH_NSDRAM,
+	DMACH_NTPAD,
+	DMACH_NADDA_PLAY,//audio play
+	DMACH_NADDA_CAPTURE,//audio capture
+	DMACH_NIIS_PLAY,
+	DMACH_NIIS_CAPTURE,
+	DMACH_NIR0,
+	DMACH_NIR1,
+	DMACH_NSPDIF,
+	DMACH_NAC97,
+	DMACH_NHDMI,//HDMI
+	/*DDMA*/
+	DMACH_DSRAM,
+	DMACH_DSDRAM,
+	DMACH_DPATA,
+	DMACH_DNAND,
+	DMACH_DUSB0,
+	DMACH_DEMACR,
+	DMACH_DEMACT,
+	DMACH_DSPI1_RX,
+	DMACH_DSPI1_TX,
+	DMACH_DSSR,
+	DMACH_DSST,
+	DMACH_TCON0,
+	DMACH_TCON1,
+	DMACH_HDMIAUDIO,//HDMIAUDIO
+	DMACH_DMS,
+	DMACH_DSPI0_RX,
+	DMACH_DSPI0_TX,
+	DMACH_DSPI2_RX,
+	DMACH_DSPI2_TX,
+	DMACH_DSPI3_RX,
+	DMACH_DSPI3_TX,
+	DMACH_MAX,/* 8 NDMAs, 8 DDMAs */
+};
+
+
+#define N_DRQSRC_SHIFT		0
+#define N_DRQDST_SHIFT		16
+#define D_DRQSRC_SHIFT		0
+#define D_DRQDST_SHIFT		16
+#define DRQ_INVALID			0xff
+
+/*normal DMA Source*/
+#define N_DRQSRC_IR0RX		0b00000
+#define N_DRQSRC_IR1RX 		0b00001
+#define N_DRQSRC_SPDIFRX	0b00010
+#define N_DRQSRC_IISRX		0b00011
+#define N_DRQSRC_AC97RX		0b00101
+#define N_DRQSRC_UART0RX	0b01000
+#define N_DRQSRC_UART1RX 	0b01001
+#define N_DRQSRC_UART2RX	0b01010
+#define N_DRQSRC_UART3RX	0b01011
+#define N_DRQSRC_UART4RX	0b01100
+#define N_DRQSRC_UART5RX	0b01101
+#define N_DRQSRC_UART6RX	0b01110
+#define N_DRQSRC_UART7RX	0b01111
+#define N_DRQSRC_HDMIDDCRX	0b10000
+#define N_DRQSRC_AUDIOCDAD	0b10011	//Audio Codec D/A
+#define N_DRQSRC_SRAM		0b10101
+#define N_DRQSRC_SDRAM		0b10110
+#define N_DRQSRC_TPAD		0b10111	//TP A/D
+#define N_DRQSRC_SPI0RX		0b11000
+#define N_DRQSRC_SPI1RX		0b11001
+#define N_DRQSRC_SPI2RX		0b11010
+#define N_DRQSRC_SPI3RX		0b11011
+
+/*normal DMA destination*/
+#define N_DRQDST_IR0TX		0b00000
+#define N_DRQDST_IR1TX 		0b00001
+#define N_DRQDST_SPDIFTX	0b00010
+#define N_DRQDST_IISTX		0b00011
+#define N_DRQDST_AC97TX		0b00101
+#define N_DRQDST_UART0TX	0b01000
+#define N_DRQDST_UART1TX 	0b01001
+#define N_DRQDST_UART2TX	0b01010
+#define N_DRQDST_UART3TX	0b01011
+#define N_DRQDST_UART4TX	0b01100
+#define N_DRQDST_UART5TX	0b01101
+#define N_DRQDST_UART6TX	0b01110
+#define N_DRQDST_UART7TX	0b01111
+#define N_DRQDST_HDMIDDCTX	0b10000	//HDMI DDC TX
+#define N_DRQDST_AUDIOCDAD	0b10011	//Audio Codec D/A
+#define N_DRQDST_SRAM		0b10101
+#define N_DRQDST_SDRAM		0b10110
+#define N_DRQDST_SPI0TX		0b11000
+#define N_DRQDST_SPI1TX		0b11001
+#define N_DRQDST_SPI2TX		0b11010
+#define N_DRQDST_SPI3TX		0b11011
+
+/*Dedicated DMA Source*/
+#define D_DRQSRC_SRAM		0b00000//0x0 SRAM memory
+#define D_DRQSRC_SDRAM		0b00001//0x1 SDRAM memory
+#define D_DRQSRC_PATA		0b00010//0x2 PATA
+#define D_DRQSRC_NAND 		0b00011//0x3 NAND Flash Controller(NFC)
+#define D_DRQSRC_USB0 		0b00100//0x4 USB0
+#define D_DRQSRC_EMACRX		0b00111//0x7 Ethernet MAC Rx
+#define D_DRQSRC_SPI1RX		0b01001//0x9 SPI1 RX
+#define D_DRQSRC_SECRX 		0b01011//0xB Security System Rx
+#define D_DRQSRC_MS 		0b10111//0x17 Memory Stick Controller(MSC)
+#define D_DRQSRC_SPI0RX		0b11011//0x1B SPI0 RX
+#define D_DRQSRC_SPI2RX		0b11101//0x1D SPI2 RX
+#define D_DRQSRC_SPI3RX		0b11111//0x1F SPI3 RX
+
+
+/*Dedicated DMA Destination*/
+#define D_DRQDST_SRAM		0b00000//0x0 SRAM memory
+#define D_DRQDST_SDRAM		0b00001//0x1 SDRAM memory
+#define D_DRQDST_PATA		0b00010//0x2 PATA
+#define D_DRQDST_NAND 		0b00011//0x3 NAND Flash Controller(NFC)
+#define D_DRQDST_USB0 		0b00100//0x4 USB0
+#define D_DRQDST_EMACTX		0b00110//0x6 Ethernet MAC Rx
+#define D_DRQDST_SPI1TX		0b01000//0x8 SPI1 RX
+#define D_DRQDST_SECTX 		0b01010//0xA Security System Rx
+#define D_DRQDST_TCON0 		0b01110//0xE TCON0
+#define D_DRQDST_TCON1 		0b01111//0xF TCON1
+#define D_DRQDST_MS			0b10111//0x17 Memory Stick Controller(MSC)
+#define D_DRQDST_HDMIAUDIO	0b11000//0x18 HDMI Audio
+#define D_DRQDST_SPI0TX		0b11010//0x1A SPI0 TX
+#define D_DRQDST_SPI2TX		0b11100//0x1C SPI2 TX
+#define D_DRQDST_SPI3TX		0b11110//0x1E SPI3 TX
+
+
+enum drq_type {
+		DRQ_TYPE_SRAM,
+		DRQ_TYPE_SDRAM,
+		DRQ_TYPE_PATA,
+		DRQ_TYPE_NAND,
+		DRQ_TYPE_USB0,
+		DRQ_TYPE_EMAC,
+		DRQ_TYPE_SPI1,
+		DRQ_TYPE_SS,//Security System
+		DRQ_TYPE_MS,//Memory Stick Control
+		DRQ_TYPE_SPI0,
+		DRQ_TYPE_SPI2,
+		DRQ_TYPE_SPI3,
+		DRQ_TYPE_TCON0,
+		DRQ_TYPE_TCON1,
+		DRQ_TYPE_HDMI,
+
+		DRQ_TYPE_HDMIAUDIO,
+		DRQ_TYPE_IR0,
+		DRQ_TYPE_IR1,
+		DRQ_TYPE_SPDIF,
+		DRQ_TYPE_IIS,
+		DRQ_TYPE_AC97,
+		DRQ_TYPE_UART0,
+		DRQ_TYPE_UART1,
+		DRQ_TYPE_UART2,
+		DRQ_TYPE_UART3,
+		DRQ_TYPE_UART4,
+		DRQ_TYPE_UART5,
+		DRQ_TYPE_UART6,
+		DRQ_TYPE_UART7,
+		DRQ_TYPE_AUDIO,
+		DRQ_TYPE_TPAD,
+		DRQ_TYPE_MAX,
+};
+
+
+/* DMAXFER_(dist)_(sigle/burst/tippl)_(byte/half/word)_(src)_(sigle/burst/tippl)_(byte/half/word) */
 #define X_SIGLE   0
 #define X_BURST   1
 #define X_TIPPL	  2
-
-/*
- * data width
- */
 #define X_BYTE    0
 #define X_HALF    1
 #define X_WORD    2
 
-/*
- * address mode
- */
-#define A_LN      0x0
-#define A_IO      0x1
-
-/*
- * dma channel status
- */
-enum dmachan_status_e {
-	CHAN_STA_IDLE,
-	CHAN_STA_BUSY
-};
-
-/*
- * data width and burst length combination
- * index for xfer_arr[]
- */
-enum xferunit_e {
-	/* des:X_SIGLE  src:X_SIGLE */
+/*data length and burst length combination in DDMA and NDMA */
+enum xferunit {
+	/*des:X_SIGLE  src:X_SIGLE*/
 	DMAXFER_D_SBYTE_S_SBYTE,
 	DMAXFER_D_SBYTE_S_SHALF,
 	DMAXFER_D_SBYTE_S_SWORD,
@@ -63,7 +229,7 @@ enum xferunit_e {
 	DMAXFER_D_SWORD_S_SHALF,
 	DMAXFER_D_SWORD_S_SWORD,
 
-	/* des:X_SIGLE  src:X_BURST */
+	/*des:X_SIGLE  src:X_BURST*/
 	DMAXFER_D_SBYTE_S_BBYTE,
 	DMAXFER_D_SBYTE_S_BHALF,
 	DMAXFER_D_SBYTE_S_BWORD,
@@ -74,7 +240,7 @@ enum xferunit_e {
 	DMAXFER_D_SWORD_S_BHALF,
 	DMAXFER_D_SWORD_S_BWORD,
 
-	/* des:X_SIGLE   src:X_TIPPL */
+	/*des:X_SIGLE   src:X_TIPPL*/
 	DMAXFER_D_SBYTE_S_TBYTE,
 	DMAXFER_D_SBYTE_S_THALF,
 	DMAXFER_D_SBYTE_S_TWORD,
@@ -85,7 +251,7 @@ enum xferunit_e {
 	DMAXFER_D_SWORD_S_THALF,
 	DMAXFER_D_SWORD_S_TWORD,
 
-	/* des:X_BURST  src:X_BURST */
+	/*des:X_BURST  src:X_BURST*/
 	DMAXFER_D_BBYTE_S_BBYTE,
 	DMAXFER_D_BBYTE_S_BHALF,
 	DMAXFER_D_BBYTE_S_BWORD,
@@ -96,7 +262,7 @@ enum xferunit_e {
 	DMAXFER_D_BWORD_S_BHALF,
 	DMAXFER_D_BWORD_S_BWORD,
 
-	/* des:X_BURST   src:X_SIGLE */
+	/*des:X_BURST   src:X_SIGLE*/
 	DMAXFER_D_BBYTE_S_SBYTE,
 	DMAXFER_D_BBYTE_S_SHALF,
 	DMAXFER_D_BBYTE_S_SWORD,
@@ -107,7 +273,7 @@ enum xferunit_e {
 	DMAXFER_D_BWORD_S_SHALF,
 	DMAXFER_D_BWORD_S_SWORD,
 
-	/* des:X_BURST   src:X_TIPPL */
+	/*des:X_BURST   src:X_TIPPL*/
 	DMAXFER_D_BBYTE_S_TBYTE,
 	DMAXFER_D_BBYTE_S_THALF,
 	DMAXFER_D_BBYTE_S_TWORD,
@@ -118,7 +284,7 @@ enum xferunit_e {
 	DMAXFER_D_BWORD_S_THALF,
 	DMAXFER_D_BWORD_S_TWORD,
 
-	/* des:X_TIPPL   src:X_TIPPL */
+	/*des:X_TIPPL   src:X_TIPPL*/
 	DMAXFER_D_TBYTE_S_TBYTE,
 	DMAXFER_D_TBYTE_S_THALF,
 	DMAXFER_D_TBYTE_S_TWORD,
@@ -129,7 +295,7 @@ enum xferunit_e {
 	DMAXFER_D_TWORD_S_THALF,
 	DMAXFER_D_TWORD_S_TWORD,
 
-	/* des:X_TIPPL   src:X_SIGLE */
+	/*des:X_TIPPL   src:X_SIGLE*/
 	DMAXFER_D_TBYTE_S_SBYTE,
 	DMAXFER_D_TBYTE_S_SHALF,
 	DMAXFER_D_TBYTE_S_SWORD,
@@ -140,7 +306,7 @@ enum xferunit_e {
 	DMAXFER_D_TWORD_S_SHALF,
 	DMAXFER_D_TWORD_S_SWORD,
 
-	/* des:X_TIPPL   src:X_BURST */
+	/*des:X_TIPPL   src:X_BURST*/
 	DMAXFER_D_TBYTE_S_BBYTE,
 	DMAXFER_D_TBYTE_S_BHALF,
 	DMAXFER_D_TBYTE_S_BWORD,
@@ -153,264 +319,372 @@ enum xferunit_e {
 	DMAXFER_MAX
 };
 
-/*
- * src/dst address type
- * index for addrtype_arr[]
- */
-enum addrt_e {
+/* DMAADDRT_(dist)_(increase/fix)_(src)_(increase/fix) */
+#define A_INC     0x0
+#define A_FIX     0x1
+#define A_LN      0x0
+#define A_IO      0x1
+#define A_PH      0x2
+#define A_PV      0x3
+
+enum addrt {
+	/*NDMA address type*/
+	DMAADDRT_D_INC_S_INC,
+	DMAADDRT_D_INC_S_FIX,
+	DMAADDRT_D_FIX_S_INC,
+	DMAADDRT_D_FIX_S_FIX,
+
+	/*DDMA address type*/
 	DMAADDRT_D_LN_S_LN,
 	DMAADDRT_D_LN_S_IO,
+	DMAADDRT_D_LN_S_PH,
+	DMAADDRT_D_LN_S_PV,
+
 	DMAADDRT_D_IO_S_LN,
 	DMAADDRT_D_IO_S_IO,
+	DMAADDRT_D_IO_S_PH,
+	DMAADDRT_D_IO_S_PV,
+
+	DMAADDRT_D_PH_S_LN,
+	DMAADDRT_D_PH_S_IO,
+	DMAADDRT_D_PH_S_PH,
+	DMAADDRT_D_PH_S_PV,
+
+	DMAADDRT_D_PV_S_LN,
+	DMAADDRT_D_PV_S_IO,
+	DMAADDRT_D_PV_S_PH,
+	DMAADDRT_D_PV_S_PV,
+
 	DMAADDRT_MAX
 };
 
-/*
- * dma channel irq type
- */
-enum dma_chan_irq_type {
-	CHAN_IRQ_NO 	= 0,			/* none */
-	CHAN_IRQ_HD	= (0b001	),	/* package half done irq */
-	CHAN_IRQ_FD	= (0b010	),	/* package full done irq */
-	CHAN_IRQ_QD	= (0b100	)	/* queue end irq */
+/* use this to specifiy hardware channel number */
+#define DMACH_LOW_LEVEL	(1<<28)
+
+/* we have 16 dma channels */
+#define SW_DMA_CHANNELS		(16)
+
+/* types */
+enum sw_dma_state {
+	SW_DMA_IDLE,
+	SW_DMA_RUNNING,
+	SW_DMA_PAUSED
 };
 
-/*
- * dma config information
- */
-struct dma_config_t {
-	/*
-	 * data length and burst length combination in DDMA and NDMA
-	 * eg: DMAXFER_D_SWORD_S_SWORD, DMAXFER_D_SBYTE_S_BBYTE
-	 */
-	enum xferunit_e	xfer_type;
 
-	/*
-	 * NDMA/DDMA src/dst address type
-	 * eg: DMAADDRT_D_INC_S_INC(NDMA addr type),
-	 *     DMAADDRT_D_LN_S_LN / DMAADDRT_D_LN_S_IO(DDMA addr type)
-	 */
-	enum addrt_e	address_type;
+/* enum sw_dma_loadst
+ *
+ * This represents the state of the DMA engine, wrt to the loaded / running
+ * transfers. Since we don't have any way of knowing exactly the state of
+ * the DMA transfers, we need to know the state to make decisions on wether
+ * we can
+ *
+ * SW_DMA_NONE
+ *
+ * There are no buffers loaded (the channel should be inactive)
+ *
+ * SW_DMA_1LOADED
+ *
+ * There is one buffer loaded, however it has not been confirmed to be
+ * loaded by the DMA engine. This may be because the channel is not
+ * yet running, or the DMA driver decided that it was too costly to
+ * sit and wait for it to happen.
+ *
+ * SW_DMA_1RUNNING
+ *
+ * The buffer has been confirmed running, and not finisged
+ *
+ * SW_DMA_1LOADED_1RUNNING
+ *
+ * There is a buffer waiting to be loaded by the DMA engine, and one
+ * currently running.
+*/
 
-	u32		para;		/* dma para reg */
-	u32 		irq_spt;	/* channel irq supported, eg: CHAN_IRQ_HD | CHAN_IRQ_FD */
-
-	u32		src_addr;	/* src phys addr */
-	u32		dst_addr;	/* dst phys addr */
-	u32		byte_cnt;	/* byte cnt for src_addr/dst_addr transfer */
-
-	bool		bconti_mode;	/* continue mode */
-
-	u8		src_drq_type;	/* src drq type */
-	u8		dst_drq_type;	/* dst drq type */
+enum sw_dma_loadst {
+	SW_DMALOAD_NONE,
+	SW_DMALOAD_1LOADED,
+	SW_DMALOAD_1RUNNING,
+	SW_DMALOAD_1LOADED_1RUNNING,
 };
 
-/*
- * src drq type
- */
-enum drqsrc_type_e {
-	DRQSRC_SRAM		= 0,
-	DRQSRC_SDRAM		= 1,
-	DRQSRC_SPDIFRX		= 2,
-	DRQSRC_DAUDIO_0_RX	= 3,
-	DRQSRC_DAUDIO_1_RX	= 4,
-	DRQSRC_NAND0		= 5,
-	DRQSRC_UART0RX		= 6,
-	DRQSRC_UART1RX 		= 7,
-	DRQSRC_UART2RX		= 8,
-	DRQSRC_UART3RX		= 9,
-	DRQSRC_UART4RX		= 10,
-	DRQSRC_HDMI_DDC		= 13,
-	DRQSRC_HDMI_AUDIO	= 14,
-	DRQSRC_AUDIO_CODEC	= 15,
-	DRQSRC_SS_RX		= 16,
-	DRQSRC_OTG_EP1		= 17,
-	DRQSRC_OTG_EP2		= 18,
-	DRQSRC_OTG_EP3		= 19,
-	DRQSRC_OTG_EP4		= 20,
-	DRQSRC_OTG_EP5		= 21,
-	DRQSRC_UART5RX		= 22,
-	DRQSRC_SPI0RX		= 23,
-	DRQSRC_SPI1RX		= 24,
-	DRQSRC_SPI2RX		= 25,
-	DRQSRC_SPI3RX		= 26,
-	DRQSRC_TP		= 27,
-	DRQSRC_NAND1		= 28,
-	DRQSRC_MTC_ACC		= 29,
-	DRQSRC_DIGITAL_MIC	= 30
+enum sw_dma_buffresult {
+	SW_RES_OK,
+	SW_RES_ERR,
+	SW_RES_ABORT
 };
 
-/*
- * dst drq type
- */
-enum drqdst_type_e {
-	DRQDST_SRAM		= 0,
-	DRQDST_SDRAM		= 1,
-	DRQDST_SPDIFTX		= 2,
-	DRQDST_DAUDIO_0_TX	= 3,
-	DRQDST_DAUDIO_1_TX	= 4,
-	DRQDST_NAND0		= 5,
-	DRQDST_UART0TX		= 6,
-	DRQDST_UART1TX 		= 7,
-	DRQDST_UART2TX		= 8,
-	DRQDST_UART3TX		= 9,
-	DRQDST_UART4TX		= 10,
-	DRQDST_TCON0		= 11,
-	DRQDST_TCON1		= 12,
-	DRQDST_HDMI_DDC		= 13,
-	DRQDST_HDMI_AUDIO	= 14,
-	DRQDST_AUDIO_CODEC	= 15,
-	DRQDST_SS_TX		= 16,
-	DRQDST_OTG_EP1		= 17,
-	DRQDST_OTG_EP2		= 18,
-	DRQDST_OTG_EP3		= 19,
-	DRQDST_OTG_EP4		= 20,
-	DRQDST_OTG_EP5		= 21,
-	DRQDST_UART5TX		= 22,
-	DRQDST_SPI0TX		= 23,
-	DRQDST_SPI1TX		= 24,
-	DRQDST_SPI2TX		= 25,
-	DRQDST_SPI3TX		= 26,
-	DRQDST_NAND1		= 28,
-	DRQDST_MTC_ACC		= 29,
-	DRQDST_DIGITAL_MIC	= 30
+enum sw_dmadir {
+	SW_DMA_RWNULL,
+	SW_DMA_RDEV,		/* read from dev */
+	SW_DMA_WDEV,		/* write to dev */
+	SW_DMA_M2M,
+//	SW_DMA_RWDEV		/* can r/w dev */
 };
 
-/*
- * dma operation type
- */
-enum dma_op_type_e {
-	DMA_OP_START,  			/* start dma */
-	DMA_OP_PAUSE,  			/* pause transferring */
-	DMA_OP_RESUME,  		/* resume transferring */
-	DMA_OP_STOP,  			/* stop dma */
+enum dma_hf_irq {
+	SW_DMA_IRQ_NO,
+	SW_DMA_IRQ_HALF,
+	SW_DMA_IRQ_FULL
+};
+/* enum sw_chan_op
+ *
+ * operation codes passed to the DMA code by the user, and also used
+ * to inform the current channel owner of any changes to the system state
+*/
 
-	DMA_OP_GET_STATUS,  		/* get channel status: idle/busy */
-	DMA_OP_GET_CUR_SRC_ADDR,  	/* get current src address */
-	DMA_OP_GET_CUR_DST_ADDR,  	/* get current dst address */
-	DMA_OP_GET_BYTECNT_LEFT,  	/* get byte cnt left */
-
-	DMA_OP_SET_OP_CB,		/* set operation callback */
-	DMA_OP_SET_HD_CB,		/* set half done callback */
-	DMA_OP_SET_FD_CB,		/* set full done callback */
-	DMA_OP_SET_QD_CB,		/* set queue done callback */
+enum sw_chan_op {
+	SW_DMAOP_START,
+	SW_DMAOP_STOP,
+	SW_DMAOP_PAUSE,
+	SW_DMAOP_RESUME,
+	SW_DMAOP_FLUSH,
+	SW_DMAOP_TIMEOUT,		/* internal signal to handler */
+	SW_DMAOP_STARTED,		/* indicate channel started */
 };
 
-/*
- * dma call back cause
- */
-enum dma_cb_cause_e {
-	DMA_CB_OK,		/* call back because success, eg: buf done */
-	DMA_CB_ABORT		/* call back because abort, eg: if stop the channel,
-				 * need to abort the rest buffer in buf chan
-				 */
+/* flags */
+
+#define SW_DMAF_SLOW         (1<<0)   /* slow, so don't worry about
+					    * waiting for reloads */
+#define SW_DMAF_AUTOSTART    (1<<1)   /* auto-start if buffer queued */
+
+/* dma buffer */
+
+struct sw_dma_client {
+	char                *name;
 };
 
-/*
- * phase for dma enqueue operation, i.e. when do we call enqueue operation
- */
-enum dma_enque_phase_e {
-	ENQUE_PHASE_NORMAL,	/* enqueued by app(dma's caller) directly, not by callback func */
-	ENQUE_PHASE_HD,		/* enqueued by half_done callback function */
-	ENQUE_PHASE_FD,		/* enqueued by full_done callback function */
-	ENQUE_PHASE_QD		/* enqueued by queue_done callback function */
+/* sw_dma_buf_s
+ *
+ * internally used buffer structure to describe a queued or running
+ * buffer.
+*/
+
+struct sw_dma_buf;
+struct sw_dma_buf {
+	struct sw_dma_buf	*next;
+	int			 magic;		/* magic */
+	int			 size;		/* buffer size in bytes */
+	dma_addr_t		 data;		/* start of DMA data */
+	dma_addr_t		 ptr;		/* where the DMA got to [1] */
+	void			*id;		/* client's id */
 };
 
-/*
- * dma handle type defination
- */
-typedef void * dm_hdl_t;
+/* [1] is this updated for both recv/send modes? */
 
-/*
- * dma callback func
- */
-typedef u32 (* dma_cb)(dm_hdl_t dma_hdl, void *parg, enum dma_cb_cause_e cause);
-typedef u32 (* dma_op_cb)(dm_hdl_t dma_hdl, void *parg, enum dma_op_type_e op);
+struct sw_dma_chan;
 
-/*
- * dma callback struct
- */
-struct dma_cb_t {
-	dma_cb 		func;	/* dma callback fuction */
-	void 		*parg;	/* args of func */
+/* sw_dma_cbfn_t
+ *
+ * buffer callback routine type
+*/
+
+typedef void (*sw_dma_cbfn_t)(struct sw_dma_chan *,
+				void *buf, int size,
+				enum sw_dma_buffresult result);
+
+typedef int  (*sw_dma_opfn_t)(struct sw_dma_chan *,
+				enum sw_chan_op );
+
+struct sw_dma_stats {
+	unsigned long		loads;
+	unsigned long		timeout_longest;
+	unsigned long		timeout_shortest;
+	unsigned long		timeout_avg;
+	unsigned long		timeout_failed;
 };
 
-/*
- * dma operation callback struct
- */
-struct dma_op_cb_t {
-	dma_op_cb 	func;	/* dma operation callback fuction */
-	void 		*parg;	/* args of func */
-};
+struct sw_dma_map;
 
-/*
- * dma channle work mode:
- */
-enum dma_work_mode_e {
-	DMA_WORK_MODE_INVALID,	/* invalid work mode */
-	DMA_WORK_MODE_CHAIN,	/* chain mode
-				 * buffer will link in chain, hw can transfer them at one time.
-				 * in this case, irq for the middle buffer maybe lost.
-				 */
-	DMA_WORK_MODE_SINGLE	/* single mode
-				 * buffer will NOT link in chain, hw can only transfer one buffer at once.
-				 * irq for every buffer will be treated.
-				 */
-};
+/* struct sw_dma_chan
+ *
+ * full state information for each DMA channel
+*/
 
-/*
- * size macros
- */
-#define SIZE_1			(1)
-#define SIZE_2			(2)
-#define SIZE_4			(4)
-#define SIZE_8			(8)
-#define SIZE_16			(16)
-#define SIZE_32			(32)
-#define SIZE_64			(64)
-#define SIZE_128		(128)
-#define SIZE_256		(256)
-#define SIZE_512		(512)
+struct sw_dma_chan {
+	/* channel state flags and information */
+	unsigned char		 number;      /* number of this dma channel */
+	unsigned char		 in_use;      /* channel allocated */
+	unsigned char		 irq_claimed; /* irq claimed for channel */
+	unsigned char		 irq_enabled; /* irq enabled for channel */
 
-#define SIZE_1K			(1024 * 1)
-#define SIZE_2K			(1024 * 2)
-#define SIZE_4K			(1024 * 4)
-#define SIZE_8K			(1024 * 8)
-#define SIZE_16K		(1024 * 16)
-#define SIZE_32K		(1024 * 32)
-#define SIZE_64K		(1024 * 64)
-#define SIZE_128K		(1024 * 128)
-#define SIZE_256K		(1024 * 256)
-#define SIZE_512K		(1024 * 512)
+	/* channel state */
 
-#define SIZE_1M			(1024 * 1024 * 1)
-#define SIZE_2M			(1024 * 1024 * 2)
-#define SIZE_4M			(1024 * 1024 * 4)
-#define SIZE_8M			(1024 * 1024 * 8)
-#define SIZE_10M		(1024 * 1024 * 10)
-#define SIZE_16M		(1024 * 1024 * 16)
-#define SIZE_32M		(1024 * 1024 * 32)
-#define SIZE_64M		(1024 * 1024 * 64)
-#define SIZE_128M		(1024 * 1024 * 128)
-#define SIZE_256M		(1024 * 1024 * 256)
-#define SIZE_512M		(1024 * 1024 * 512)
+	enum sw_dma_state	 state;
+	enum sw_dma_loadst	 load_state;
+	struct sw_dma_client *client;
 
-/*
- * dma export symbol
- */
-dm_hdl_t sw_dma_request(char * name, enum dma_work_mode_e work_mode);
-u32 sw_dma_release(dm_hdl_t dma_hdl);
-u32 sw_dma_enqueue(dm_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt,
-				enum dma_enque_phase_e phase);
-u32 sw_dma_config(dm_hdl_t dma_hdl, struct dma_config_t *pcfg, enum dma_enque_phase_e phase);
-u32 sw_dma_ctl(dm_hdl_t dma_hdl, enum dma_op_type_e op, void *parg);
-int sw_dma_getposition(dm_hdl_t dma_hdl, u32 *pSrc, u32 *pDst);
-void sw_dma_dump_chan(dm_hdl_t dma_hdl);
-u32 sw_dma_get_cur_bytes(dm_hdl_t dma_hdl);
+	/* channel configuration */
+	unsigned long		 dev_addr;
+	unsigned long		 load_timeout;
+	unsigned int		 flags;		/* channel flags */
+	unsigned int		 hw_cfg;	/* last hw config */
 
-#if 0
-u32 sw_dma_getsoftsta(dm_hdl_t dma_hdl);
-u32 sw_dma_sgmd_buflist_empty(dm_hdl_t dma_hdl);
+	struct sw_dma_map	*map;		/* channel hw maps */
+
+	/* channel's hardware position and configuration */
+	void __iomem		*regs;		/* channels registers */
+	void __iomem		*addr_reg;	/* data address register */
+	//unsigned int		 irq;		/* channel irq */
+	unsigned long		 dcon;		/* default value of DCON */
+
+	/* driver handles */
+	sw_dma_cbfn_t	 callback_fn;	/* buffer done callback */
+	sw_dma_cbfn_t	 callback_hd;	/* buffer half done callback */
+	sw_dma_opfn_t	 op_fn;		/* channel op callback */
+
+	/* stats gathering */
+	struct sw_dma_stats *stats;
+	struct sw_dma_stats  stats_store;
+
+	/* buffer list and information */
+	struct sw_dma_buf	*curr;		/* current dma buffer */
+	struct sw_dma_buf	*next;		/* next buffer to load */
+	struct sw_dma_buf	*end;		/* end of queue */
+
+	/* system device */
+#if 0	/* no sys_device in linux3.3 */
+	struct sys_device	dev;
 #endif
+	void * dev_id;
+};
+
+/*the channel number of above 8 is DDMA channel.*/
+#define IS_DADECATE_DMA(ch) (ch->number >= 8)
+
+struct dma_hw_conf{
+	unsigned char		drqsrc_type;
+	unsigned char		drqdst_type;
+
+	unsigned char		xfer_type;
+	unsigned char		address_type;
+	unsigned char           dir;
+	unsigned char		hf_irq;
+	unsigned char		reload;
+
+	unsigned long		from;
+	unsigned long		to;
+	unsigned long		cmbk;
+};
+
+extern inline void DMA_COPY_HW_CONF(struct dma_hw_conf *to, struct dma_hw_conf *from);
+
+/* struct sw_dma_map
+ *
+ * this holds the mapping information for the channel selected
+ * to be connected to the specified device
+*/
+struct sw_dma_map {
+	const char		*name;
+	struct dma_hw_conf  user_hw_conf;
+	const struct dma_hw_conf*  default_hw_conf;
+	struct dma_hw_conf* conf_ptr;
+	unsigned long channels[SW_DMA_CHANNELS];
+};
+
+struct sw_dma_selection {
+	struct sw_dma_map	*map;
+	unsigned long		 map_size;
+	unsigned long		 dcon_mask;
+};
+
+/* struct sw_dma_order_ch
+ *
+ * channel map for one of the `enum dma_ch` dma channels. the list
+ * entry contains a set of low-level channel numbers, orred with
+ * DMA_CH_VALID, which are checked in the order in the array.
+*/
+
+struct sw_dma_order_ch {
+	unsigned int	list[SW_DMA_CHANNELS];	/* list of channels */
+	unsigned int	flags;				/* flags */
+};
+
+/* struct s3c24xx_dma_order
+ *
+ * information provided by either the core or the board to give the
+ * dma system a hint on how to allocate channels
+*/
+
+struct sw_dma_order {
+	struct sw_dma_order_ch	channels[DMACH_MAX];
+};
+
+/* the currently allocated channel information */
+extern struct sw_dma_chan sw_chans[];
+
+/* note, we don't really use dma_device_t at the moment */
+typedef unsigned long dma_device_t;
+
+/* functions --------------------------------------------------------------- */
+
+/* sw_dma_request
+ *
+ * request a dma channel exclusivley
+*/
+
+extern int sw_dma_request(unsigned int channel,
+			struct sw_dma_client *, void *dev);
+
+
+/* sw_dma_ctrl
+ *
+ * change the state of the dma channel
+*/
+
+extern int sw_dma_ctrl(unsigned int channel, enum sw_chan_op op);
+
+/* sw_dma_setflags
+ *
+ * set the channel's flags to a given state
+*/
+
+extern int sw_dma_setflags(unsigned int channel,
+				unsigned int flags);
+
+/* sw_dma_free
+ *
+ * free the dma channel (will also abort any outstanding operations)
+*/
+
+extern int sw_dma_free(unsigned int channel, struct sw_dma_client *);
+
+/* sw_dma_enqueue
+ *
+ * place the given buffer onto the queue of operations for the channel.
+ * The buffer must be allocated from dma coherent memory, or the Dcache/WB
+ * drained before the buffer is given to the DMA system.
+*/
+
+extern int sw_dma_enqueue(unsigned int channel, void *id,
+			dma_addr_t data, int size);
+
+/* sw_dma_config
+ *
+ * configure the dma channel
+*/
+extern void poll_dma_pending(int chan_nr);
+
+extern int sw_dma_config(unsigned int channel, struct dma_hw_conf* user_conf);
+
+extern int sw15_dma_init(void);
+
+extern int sw_dma_order_set(struct sw_dma_order *ord);
+
+extern int sw_dma_init_map(struct sw_dma_selection *sel);
+
+/* sw_dma_getposition
+ *
+ * get the position that the dma transfer is currently at
+*/
+
+extern int sw_dma_getposition(unsigned int channel,
+				dma_addr_t *src, dma_addr_t *dest);
+
+extern int sw_dma_set_opfn(unsigned int, sw_dma_opfn_t rtn);
+extern int sw_dma_set_buffdone_fn(unsigned int, sw_dma_cbfn_t rtn);
+extern int sw_dma_set_halfdone_fn(unsigned int, sw_dma_cbfn_t rtn);
+extern int sw_dma_getcurposition(unsigned int channel,
+				dma_addr_t *src, dma_addr_t *dest);
 
 #endif /* __SW_DMA_H */

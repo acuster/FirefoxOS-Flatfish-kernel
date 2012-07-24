@@ -82,23 +82,16 @@ static inline u32 port_to_gpio_index(u32 port, u32 port_num)
 		{PF_NR_BASE,         PF_NR},
 		{PG_NR_BASE,         PG_NR},
 		{PH_NR_BASE,         PH_NR},
-		{GPIO_INDEX_INVALID, 0    },
-		{GPIO_INDEX_INVALID, 0    },
-		{GPIO_INDEX_INVALID, 0    },
-		{PL_NR_BASE,         PL_NR},
-		{PM_NR_BASE,         PM_NR}
+		{PI_NR_BASE,         PI_NR}
 	};
 
 	PIO_DBG("%s: port %d, port_num %d\n", __FUNCTION__, port, port_num);
 
-	/* para check */
-	if(port - 1 >= ARRAY_SIZE(pio_buf)
-		|| GPIO_INDEX_INVALID == pio_buf[port - 1].base) {
+	/* check if port valid */
+	if(port - 1 >= ARRAY_SIZE(pio_buf)) {
 		usign = __LINE__;
 		goto End;
 	}
-
-	/* check if port valid */
 	if(port_num >= pio_buf[port - 1].nr) {
 		usign = __LINE__;
 		goto End;
@@ -583,14 +576,14 @@ s32  sw_gpio_get_all_pin_status(u32 p_handler, user_gpio_set_t *gpio_status, u32
 			strcpy(script_gpio->gpio_name, tmp_sys_gpio_data->gpio_name);
 		}
 	} else {
+		/* find the first valid port index */
 		for(first_port = 0; first_port < group_count_max; first_port++) {
 			tmp_sys_gpio_data  = user_gpio_set + first_port;
-			port     = tmp_sys_gpio_data->port;               //读出端口数值
-			port_num = tmp_sys_gpio_data->port_num;           //读出端口中的某一个GPIO
+			port     = tmp_sys_gpio_data->port;
+			port_num = tmp_sys_gpio_data->port_num;
 
 			if(!port)
 				continue;
-
 #if 0
 			port_num_func = (port_num >> 3);
 			port_num_pull = (port_num >> 4);
@@ -604,6 +597,7 @@ s32  sw_gpio_get_all_pin_status(u32 p_handler, user_gpio_set_t *gpio_status, u32
 		if(first_port >= group_count_max)
 			return 0;
 
+		/* get all pin status from hardware */
 		for(i = first_port; i < group_count_max; i++) {
 			tmp_sys_gpio_data = user_gpio_set + i;             //tmp_sys_gpio_data指向申请的GPIO空间
 			script_gpio       = gpio_status + i;               //script_gpio指向用户传进的空间
@@ -813,7 +807,7 @@ s32  sw_gpio_set_one_pin_status(u32 p_handler, user_gpio_set_t *gpio_status, con
 		port          = tmp_sys_gpio_data->port;                           //读出port数据
 		port_num      = tmp_sys_gpio_data->port_num;                       //读出port_num数据
 
-		if(if_set_to_current_input_status) {                                //根据当前用户设定修正
+		if(if_set_to_current_input_status) {                               //根据当前用户设定修正
 			//修改FUCN寄存器
 			script_gpio.mul_sel   = gpio_status->mul_sel;
 			script_gpio.pull      = gpio_status->pull;
