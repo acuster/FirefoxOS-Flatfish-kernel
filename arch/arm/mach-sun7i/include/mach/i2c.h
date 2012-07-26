@@ -15,7 +15,7 @@
 #ifndef _SUN7I_I2C_H_
 #define _SUN7I_I2C_H_
 
-#define TWI_MODULE_NUM    (5)
+#define TWI_MODULE_NUM    (3)
 
 /* TWI Register Offset */
 #define TWI_ADDR_REG    	(0x00) 	/*  31:8bit reserved,7-1bit for slave addr,0 bit for GCE */
@@ -174,20 +174,13 @@ Foscl is clock SCL;standard mode:100KHz or fast mode:400KHz
 #define TWI1_BASE_ADDR_END    (TWI1_BASE_ADDR_START + SUN7I_TWI_ADDR_SIZE)
 #define TWI2_BASE_ADDR_START  (0x01C2B400)
 #define TWI2_BASE_ADDR_END    (TWI2_BASE_ADDR_START + SUN7I_TWI_ADDR_SIZE)
-#define TWI3_BASE_ADDR_START  (0x01C2B800)
-#define TWI3_BASE_ADDR_END    (TWI3_BASE_ADDR_START + SUN7I_TWI_ADDR_SIZE)
-#define RTWI_BASE_ADDR_START  (0x01F02400)
-#define RTWI_BASE_ADDR_END    (RTWI_BASE_ADDR_START + SUN7I_TWI_ADDR_SIZE)
 
-#define TWI0_TRANSFER_SPEED     (200000)
-#define TWI1_TRANSFER_SPEED     (100000)
+#define TWI0_TRANSFER_SPEED     (400000)
+#define TWI1_TRANSFER_SPEED     (200000)
 #define TWI2_TRANSFER_SPEED     (200000)
-#define TWI3_TRANSFER_SPEED     (200000)
-#define RTWI_TRANSFER_SPEED     (100000)
 
 
-#define SUN7I_IRQ_TWI1	34
-#define SUN7I_IRQ_RTWI	51
+#define SUN7I_IRQ_TWI0	34
 
 
 struct sun7i_i2c_platform_data {
