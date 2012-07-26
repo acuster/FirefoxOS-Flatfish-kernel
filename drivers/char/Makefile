@@ -66,6 +66,7 @@ obj-$(CONFIG_JS_RTC)		+= js-rtc.o
 
 obj-$(CONFIG_DMA_TEST_DRIVER)	+= dma_test/
 obj-$(CONFIG_GPIO_TEST_DRIVER)	+= gpio_test/
+obj-$(CONFIG_SUN7I_G2D) += sun7i_g2d/
 
 js-rtc-y = rtc.o
 
