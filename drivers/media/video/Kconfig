@@ -1177,3 +1177,13 @@ config VIDEO_SAMSUNG_S5P_MFC
 	    MFC 5.1 driver for V4L2.
 
 endif # V4L_MEM2MEM_DRIVERS
+
+config VIDEO_SUN7I_CEDAR
+       tristate "CEDAR driver for sun7i"
+       #depends on ARCH_SUN7I
+       help
+         CEDAR driver for sun7i
+
+if VIDEO_SUN7I_CEDAR
+source "drivers/media/video/sun7i/Kconfig"
+endif

@@ -1,0 +1,3 @@
+config SND_SUN7I_SOC_CODEC
+	tristate "sun7i APB On-Chip Codec"
+	default n

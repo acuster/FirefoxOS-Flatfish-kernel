@@ -198,7 +198,9 @@ obj-$(CONFIG_VIDEO_IR_I2C)  += ir-kbd-i2c.o
 obj-y	+= davinci/
 
 obj-$(CONFIG_ARCH_OMAP)	+= omap/
-
+ifdef CONFIG_VIDEO_SUN7I_CEDAR
+  obj-$(CONFIG_VIDEO_SUN7I_CEDAR) += sun7i/
+endif
 ccflags-y += -Idrivers/media/dvb/dvb-core
 ccflags-y += -Idrivers/media/dvb/frontends
 ccflags-y += -Idrivers/media/common/tuners

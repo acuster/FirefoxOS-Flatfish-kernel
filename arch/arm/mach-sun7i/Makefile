@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-obj-y=core.o printk.o devices.o
+obj-y=core.o printk.o devices.o timer.o
 obj-y += clock/
 obj-y += dma/
 obj-y += gpio/
