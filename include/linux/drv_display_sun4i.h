@@ -92,7 +92,7 @@ typedef enum
 typedef enum
 {
     DISP_3D_SRC_MODE_TB = 0x0,//top bottom
-    DISP_3D_SRC_MODE_FP = 0x1,//frame packing
+    DISP_3D_SRC_MODE_FP = 0x1,//frame packing,left and right picture in separate address
     DISP_3D_SRC_MODE_SSF = 0x2,//side by side full
     DISP_3D_SRC_MODE_SSH = 0x3,//side by side half
     DISP_3D_SRC_MODE_LI = 0x4,//line interleaved
@@ -266,19 +266,6 @@ typedef enum
     DISP_EXIT_MODE_CLEAN_PARTLY = 1,//only clean interrupt temply
 }__disp_exit_mode_t;
 
-typedef enum
-{
-    DISP_ENHANCE_MODE_RED,
-    DISP_ENHANCE_MODE_GREEN,
-    DISP_ENHANCE_MODE_BLUE,
-    DISP_ENHANCE_MODE_CYAN,
-    DISP_ENHANCE_MODE_MAGENTA,
-    DISP_ENHANCE_MODE_YELLOW,
-    DISP_ENHANCE_MODE_FLESH,
-    DISP_ENHANCE_MODE_STANDARD,
-    DISP_ENHANCE_MODE_VIVID,
-}__disp_enhance_mode_t;
-
 
 typedef enum//only for debug!!!
 {
@@ -390,6 +377,10 @@ typedef struct
     __s32 (*hdmi_mode_support)(__disp_tv_mode_t mode);
     __s32 (*hdmi_get_HPD_status)(void);
     __s32 (*hdmi_set_pll)(__u32 pll, __u32 clk);
+
+    __s32 (*hdmi_suspend)(void);
+    __s32 (*hdmi_resume)(void);
+
 }__disp_hdmi_func;
 
 typedef struct
@@ -501,6 +492,7 @@ typedef struct lcd_flow
 {
     __lcd_function_t func[5];
     __u32 func_num;
+    __u32 cur_step;
 }__lcd_flow_t;
 
 typedef struct
@@ -517,7 +509,6 @@ typedef struct
     __u32 active_state;
     __u32 duty_ns;
     __u32 period_ns;
-    __u32 mode;//0: single, 1: pair
 }__pwm_info_t;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -526,7 +517,7 @@ typedef enum
     FB_MODE_SCREEN0 = 0,
     FB_MODE_SCREEN1 = 1,
     FB_MODE_DUAL_SAME_SCREEN_TB = 2,//two screen, top buffer for screen0, bottom buffer for screen1
-    FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS = 3,//two screen, they have same contents;
+    FB_MODE_SCREEN0_PARTLY = 3,
 }__fb_mode_t;
 
 typedef struct
@@ -557,14 +548,14 @@ typedef enum
     DISP_INIT_MODE_SCREEN1 = 1,//fb0 for screen1
     DISP_INIT_MODE_TWO_DIFF_SCREEN = 2,//fb0 for screen0 and fb1 for screen1
     DISP_INIT_MODE_TWO_SAME_SCREEN = 3,//fb0(up buffer for screen0, down buffer for screen1)
-    DISP_INIT_MODE_TWO_DIFF_SCREEN_SAME_CONTENTS = 4,//fb0 for two different screen(screen0 layer is normal layer, screen1 layer is scaler layer);
+    DISP_INIT_MODE_SCREEN0_GPU = 4,//fb0(fb size fix to 1920*1080,but the source window is variable according to the output)
 }__disp_init_mode_t;
 
 
 typedef struct
 {
     __bool                  b_init;
-    __disp_init_mode_t      disp_mode;//0:single screen0(fb0); 1:single screen1(fb0);  2:dual diff screen(fb0, fb1); 3:dual same screen(fb0 up and down); 4:dual diff screen same contents(fb0)
+    __disp_init_mode_t      disp_mode;
 
     //for screen0 and screen1
     __disp_output_type_t    output_type[2];
@@ -623,10 +614,6 @@ typedef enum tag_DISP_CMD
     DISP_CMD_DRC_SET_WINDOW = 0x28,
     DISP_CMD_SET_HUE = 0x29,
     DISP_CMD_GET_HUE = 0x2a,
-    DISP_CMD_SET_ENHANCE_MODE = 0x2b,      //NEW
-    DISP_CMD_GET_ENHANCE_MODE = 0x2c,
-    DISP_CMD_SET_ENHANCE_WINDOW = 0X2d,
-    DISP_CMD_GET_ENHANCE_WINDOW = 0X2e,
 
 //----layer----
     DISP_CMD_LAYER_REQUEST = 0x40,
@@ -678,10 +665,6 @@ typedef enum tag_DISP_CMD
     DISP_CMD_LAYER_GET_WHITE_EXTEN_LEVEL = 0x6f,
     DISP_CMD_LAYER_SET_BLACK_EXTEN_LEVEL = 0x70,
     DISP_CMD_LAYER_GET_BLACK_EXTEN_LEVEL = 0x71,
-    DISP_CMD_LAYER_SET_ENHANCE_MODE = 0x72,      //NEW
-    DISP_CMD_LAYER_GET_ENHANCE_MODE = 0x73,      //NEW
-    DISP_CMD_LAYER_SET_ENHANCE_WINDOW = 0X74,
-    DISP_CMD_LAYER_GET_ENHANCE_WINDOW = 0X75,
 
 //----scaler----
     DISP_CMD_SCALER_REQUEST = 0x80,
