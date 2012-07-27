@@ -36,6 +36,12 @@ static inline void arch_idle(void)
 	cpu_do_idle();
 }
 
+static inline void arch_reset(char mode, const char *cmd)
+{
+	/* use watch-dog to reset system */
+	printk("%s: not impletement yet, to do######\n", __FUNCTION__); /* liugang add temp */
+}
+
 struct sw_chip_id
 {
     unsigned int sid_rkey0;
