@@ -541,9 +541,9 @@ config MMC_SH_MMCIF
 
 	  This driver supports MMCIF in sh7724/sh7757/sh7372.
 
-config MMC_SUN6I
-	tristate "Winner's(SUN6I) SD/Multimedia Card Interface support"
-	depends on MMC && ARCH_SUN6I
+config MMC_SUN7I
+	tristate "Winner's(SUN7I) SD/Multimedia Card Interface support"
+	depends on MMC && ARCH_SUN7I
 	default y
 	help
 	  This selects support for the SD/MMC controller on AllWinner SoCs.
@@ -551,8 +551,8 @@ config MMC_SUN6I
 	  say Y or M here.
 
 config MMC_DEBUG_SUNXI
-	bool "Winner's(SUN6I) MMC Host Debug support"
-	depends on MMC && MMC_SUN6I
+	bool "Winner's(SUN7I) MMC Host Debug support"
+	depends on MMC && MMC_SUN7I
 	default n
 
 config MMC_JZ4740
