@@ -47,9 +47,9 @@ typedef enum __AW_CCU_CLK_ID
 {
     AW_SYS_CLK_NONE,        /* invalid clock id                                 */
 
+    /* system clock defile */
     AW_SYS_CLK_LOSC,        /* "losc"           ,LOSC, 32768 hz clock           */
     AW_SYS_CLK_HOSC,        /* "hosc"           ,HOSC, 24Mhz clock              */
-
     AW_SYS_CLK_PLL1,        /* "core_pll"       ,PLL1 clock                     */
     AW_SYS_CLK_PLL2,        /* "audio_pll"      ,PLL2 clock                     */
     AW_SYS_CLK_PLL2X8,      /* "audio_pllx8"    ,PLL2 8x clock                  */
@@ -64,14 +64,17 @@ typedef enum __AW_CCU_CLK_ID
     AW_SYS_CLK_PLL62,       /* "sata_pll_2"     ,PLL6 2 clock, for module       */
     AW_SYS_CLK_PLL7,        /* "video_pll1"     ,PLL7 clock                     */
     AW_SYS_CLK_PLL7X2,      /* "video_pll1x2"   ,PLL7 2x clock                  */
+    AW_SYS_CLK_PLL8,        /* "gpu_pll"        ,PLL8 clock                     */
     AW_SYS_CLK_CPU,         /* "cpu"            ,CPU clock                      */
     AW_SYS_CLK_AXI,         /* "axi"            ,AXI clock                      */
+    AW_SYS_CLK_ATB,         /* "atb"            ,ATB clock                      */
     AW_SYS_CLK_AHB,         /* "ahb"            ,AHB clock                      */
     AW_SYS_CLK_APB0,        /* "apb"            ,APB0 clock                     */
     AW_SYS_CLK_APB1,        /* "apb1"           ,APB1 clock                     */
 
     AW_CCU_CLK_NULL,        /* invalid clock id                                 */
 
+    /* module clock define */
     AW_MOD_CLK_NFC,         /* "nfc"                                            */
     AW_MOD_CLK_MSC,         /* "msc"                                            */
     AW_MOD_CLK_SDC0,        /* "sdc0"                                           */
@@ -107,7 +110,8 @@ typedef enum __AW_CCU_CLK_ID
     AW_MOD_CLK_LCD0CH0,     /* "lcd0_ch0"                                       */
     AW_MOD_CLK_LCD1CH0,     /* "lcd1_ch0"                                       */
     AW_MOD_CLK_CSIISP,      /* "csi_isp"                                        */
-    AW_MOD_CLK_TVD,         /* "tvd"                                            */
+    AW_MOD_CLK_TVDMOD1,     /* "tvdmod1"                                        */
+    AW_MOD_CLK_TVDMOD2,     /* "tvdmod2"                                        */
     AW_MOD_CLK_LCD0CH1_S1,  /* "lcd0_ch1_s1"                                    */
     AW_MOD_CLK_LCD0CH1_S2,  /* "lcd0_ch1_s2"                                    */
     AW_MOD_CLK_LCD1CH1_S1,  /* "lcd1_ch1_s1"                                    */
@@ -137,9 +141,9 @@ typedef enum __AW_CCU_CLK_ID
     AW_MOD_CLK_UART6,       /* "uart6"                                          */
     AW_MOD_CLK_UART7,       /* "uart7"                                          */
     AW_MOD_CLK_SMPTWD,      /* "smp_twd"                                        */
-
-    /* clock gating for hang to AXI bus */
-    AW_MOD_CLK_AXI_DRAM,    /* "axi_dram"                                       */
+    AW_MOD_CLK_MBUS,        /* "mbus"                                           */
+    AW_MOD_CLK_OUTA,        /* "clkout_a"                                       */
+    AW_MOD_CLK_OUTB,        /* "clkout_b"                                       */
 
     /* clock gating for hang to AHB bus */
     AW_MOD_CLK_AHB_USB0,    /* "ahb_usb0"                                       */
@@ -182,6 +186,7 @@ typedef enum __AW_CCU_CLK_ID
     AW_MOD_CLK_AHB_MALI,    /* "ahb_mali"                                       */
     AW_MOD_CLK_AHB_EHCI1,   /* "ahb_ehci1"                                      */
     AW_MOD_CLK_AHB_OHCI1,   /* "ahb_ohci1"                                      */
+    AW_MOD_CLK_AHB_STMR,    /* "ahb_stmr"                                       */
 
     /* clock gating for hang APB bus */
     AW_MOD_CLK_APB_ADDA,    /* "apb_audio_codec"                                */

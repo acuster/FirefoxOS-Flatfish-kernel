@@ -66,7 +66,7 @@ static __aw_ccu_clk_id_e sys_clk_get_parent(__aw_ccu_clk_id_e id)
         }
         case AW_SYS_CLK_CPU:
         {
-            switch(aw_ccu_reg->SysClkDiv.AC328ClkSrc)
+            switch(aw_ccu_reg->SysClkDiv.AC327ClkSrc)
             {
                 case 0:
                     return AW_SYS_CLK_LOSC;
@@ -83,9 +83,24 @@ static __aw_ccu_clk_id_e sys_clk_get_parent(__aw_ccu_clk_id_e id)
         {
             return AW_SYS_CLK_CPU;
         }
+        case AW_SYS_CLK_ATB:
+        {
+            return AW_SYS_CLK_CPU;
+        }
         case AW_SYS_CLK_AHB:
         {
-            return AW_SYS_CLK_AXI;
+            switch(aw_ccu_reg->SysClkDiv.AHBClkSrc)
+            {
+                case 0:
+                    return AW_SYS_CLK_AXI;
+                case 1:
+                    return AW_SYS_CLK_PLL62;
+                case 2:
+                    return AW_SYS_CLK_PLL6;
+                default:
+                    aw_ccu_reg->SysClkDiv.AHBClkSrc = 0;
+                    return AW_SYS_CLK_AXI;
+            }
         }
         case AW_SYS_CLK_APB0:
         {
@@ -176,9 +191,13 @@ static __aw_ccu_clk_onff_e sys_clk_get_status(__aw_ccu_clk_id_e id)
         case AW_SYS_CLK_PLL7:
         case AW_SYS_CLK_PLL7X2:
             return aw_ccu_reg->Pll7Ctl.PLLEn? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
+        case AW_SYS_CLK_PLL8:
+            return aw_ccu_reg->Pll8Ctl.PLLEn? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_SYS_CLK_CPU:
         case AW_SYS_CLK_AXI:
+        case AW_SYS_CLK_ATB:
         case AW_SYS_CLK_AHB:
+            return sys_clk_get_status(sys_clk_get_parent(AW_SYS_CLK_AHB));
         case AW_SYS_CLK_APB0:
         case AW_SYS_CLK_APB1:
         default:
@@ -297,8 +316,7 @@ static __u64 sys_clk_get_rate(__aw_ccu_clk_id_e id)
 
         case AW_SYS_CLK_PLL4:
         {
-            return ccu_clk_uldiv(((__s64)24000000*aw_ccu_reg->Pll4Ctl.FactorN * (aw_ccu_reg->Pll4Ctl.FactorK + 1)   \
-                >> aw_ccu_reg->Pll4Ctl.FactorP), (aw_ccu_reg->Pll4Ctl.FactorM + 1));
+            return (__s64)24000000*aw_ccu_reg->Pll4Ctl.FactorN*(aw_ccu_reg->Pll4Ctl.FactorK + 1);
         }
         case AW_SYS_CLK_PLL5:
         {
@@ -347,10 +365,14 @@ static __u64 sys_clk_get_rate(__aw_ccu_clk_id_e id)
         {
             return sys_clk_get_rate(AW_SYS_CLK_PLL7) << 1;
         }
+        case AW_SYS_CLK_PLL8:
+        {
+            return (__s64)24000000*aw_ccu_reg->Pll8Ctl.FactorN*(aw_ccu_reg->Pll8Ctl.FactorK + 1);
+        }
         case AW_SYS_CLK_CPU:
         {
             __u32   tmpCpuRate;
-            switch(aw_ccu_reg->SysClkDiv.AC328ClkSrc)
+            switch(aw_ccu_reg->SysClkDiv.AC327ClkSrc)
             {
                 case 0:
                     tmpCpuRate = 32768;
@@ -372,9 +394,14 @@ static __u64 sys_clk_get_rate(__aw_ccu_clk_id_e id)
         {
             return ccu_clk_uldiv(sys_clk_get_rate(AW_SYS_CLK_CPU), (aw_ccu_reg->SysClkDiv.AXIClkDiv + 1));
         }
+        case AW_SYS_CLK_ATB:
+        {
+            __u32   div = (1<<aw_ccu_reg->SysClkDiv.ATBClkDiv) == 8? 4 : (1<<aw_ccu_reg->SysClkDiv.ATBClkDiv);
+            return ccu_clk_uldiv(sys_clk_get_rate(AW_SYS_CLK_CPU), div);
+        }
         case AW_SYS_CLK_AHB:
         {
-            return sys_clk_get_rate(AW_SYS_CLK_AXI) >> aw_ccu_reg->SysClkDiv.AHBClkDiv;
+            return sys_clk_get_rate(sys_clk_get_parent(AW_SYS_CLK_AHB)) >> aw_ccu_reg->SysClkDiv.AHBClkDiv;
         }
         case AW_SYS_CLK_APB0:
         {
@@ -453,13 +480,13 @@ static __s32 sys_clk_set_parent(__aw_ccu_clk_id_e id, __aw_ccu_clk_id_e parent)
             switch(parent)
             {
                 case AW_SYS_CLK_LOSC:
-                    aw_ccu_reg->SysClkDiv.AC328ClkSrc = 0;
+                    aw_ccu_reg->SysClkDiv.AC327ClkSrc = 0;
                     break;
                 case AW_SYS_CLK_HOSC:
-                    aw_ccu_reg->SysClkDiv.AC328ClkSrc = 1;
+                    aw_ccu_reg->SysClkDiv.AC327ClkSrc = 1;
                     break;
                 case AW_SYS_CLK_PLL1:
-                    aw_ccu_reg->SysClkDiv.AC328ClkSrc = 2;
+                    aw_ccu_reg->SysClkDiv.AC327ClkSrc = 2;
                     break;
                 default:
                     return -1;
@@ -468,8 +495,26 @@ static __s32 sys_clk_set_parent(__aw_ccu_clk_id_e id, __aw_ccu_clk_id_e parent)
         }
         case AW_SYS_CLK_AXI:
             return (parent == AW_SYS_CLK_CPU)? 0 : -1;
+        case AW_SYS_CLK_ATB:
+            return (parent == AW_SYS_CLK_CPU)? 0 : -1;
         case AW_SYS_CLK_AHB:
-            return (parent == AW_SYS_CLK_AXI)? 0 : -1;
+        {
+            switch(parent)
+            {
+                case AW_SYS_CLK_AXI:
+                    aw_ccu_reg->SysClkDiv.AHBClkSrc = 0;
+                    break;
+                case AW_SYS_CLK_PLL62:
+                    aw_ccu_reg->SysClkDiv.AHBClkSrc = 1;
+                    break;
+                case AW_SYS_CLK_PLL6:
+                    aw_ccu_reg->SysClkDiv.AHBClkSrc = 2;
+                    break;
+                default:
+                    return -1;
+            }
+            return 0;
+        }
         case AW_SYS_CLK_APB0:
             return (parent == AW_SYS_CLK_AHB)? 0 : -1;
         case AW_SYS_CLK_APB1:
@@ -500,6 +545,7 @@ static __s32 sys_clk_set_parent(__aw_ccu_clk_id_e id, __aw_ccu_clk_id_e parent)
         case AW_SYS_CLK_PLL5:
         case AW_SYS_CLK_PLL6:
         case AW_SYS_CLK_PLL7:
+        case AW_SYS_CLK_PLL8:
         {
             return (parent == AW_SYS_CLK_NONE)? 0 : -1;
         }
@@ -618,8 +664,12 @@ static __s32 sys_clk_set_status(__aw_ccu_clk_id_e id, __aw_ccu_clk_onff_e status
                 return 0;
             }
         }
+        case AW_SYS_CLK_PLL8:
+            aw_ccu_reg->Pll8Ctl.PLLEn = (status == AW_CCU_CLK_ON)? 1 : 0;
+            return 0;
         case AW_SYS_CLK_CPU:
         case AW_SYS_CLK_AXI:
+        case AW_SYS_CLK_ATB:
         case AW_SYS_CLK_AHB:
         case AW_SYS_CLK_APB0:
         case AW_SYS_CLK_APB1:
@@ -756,18 +806,27 @@ static int sys_clk_set_rate(__aw_ccu_clk_id_e id, __u64 rate)
         }
         case AW_SYS_CLK_PLL4:
         {
-            struct core_pll_factor_t    factor;
-            __u32   tmpDly = ccu_clk_uldiv(sys_clk_get_rate(AW_SYS_CLK_CPU), 1000000) * 200;
+            __s32   tmpFactorN, tmpFactorK;
 
-            ccm_clk_get_pll_para(&factor, rate);
+            if(rate <= 600000000)
+                tmpFactorK = 0;
+            else if(rate <= 1200000000)
+                tmpFactorK = 1;
+            else
+            {
+                CCU_ERR("Rate (%lld) is invaid for PLL4!\n", rate);
+                return -1;
+            }
 
-            /* set the correct parameter for PLL */
-            aw_ccu_reg->Pll4Ctl.FactorN = factor.FactorN;
-            aw_ccu_reg->Pll4Ctl.FactorK = factor.FactorK;
-            aw_ccu_reg->Pll4Ctl.FactorM = factor.FactorM;
-            aw_ccu_reg->Pll4Ctl.FactorP = factor.FactorP;
-            /* delay 200us for pll be stably */
-            __delay(tmpDly);
+            tmpFactorN = ccu_clk_uldiv(rate, ((tmpFactorK+1) * 24000000));
+            if(tmpFactorN > 31)
+            {
+                CCU_ERR("Rate (%lld) is invaid for PLL4!\n", rate);
+                return -1;
+            }
+
+            aw_ccu_reg->Pll4Ctl.FactorN = tmpFactorN;
+            aw_ccu_reg->Pll4Ctl.FactorK = tmpFactorK;
 
             return 0;
         }
@@ -917,6 +976,32 @@ static int sys_clk_set_rate(__aw_ccu_clk_id_e id, __u64 rate)
             }
             return -1;
         }
+        case AW_SYS_CLK_PLL8:
+        {
+            __s32   tmpFactorN, tmpFactorK;
+
+            if(rate <= 600000000)
+                tmpFactorK = 0;
+            else if(rate <= 1200000000)
+                tmpFactorK = 1;
+            else
+            {
+                CCU_ERR("Rate (%lld) is invaid for PLL8!\n", rate);
+                return -1;
+            }
+
+            tmpFactorN = ccu_clk_uldiv(rate, ((tmpFactorK+1) * 24000000));
+            if(tmpFactorN > 31)
+            {
+                CCU_ERR("Rate (%lld) is invaid for PLL8!\n", rate);
+                return -1;
+            }
+
+            aw_ccu_reg->Pll8Ctl.FactorN = tmpFactorN;
+            aw_ccu_reg->Pll8Ctl.FactorK = tmpFactorK;
+
+            return 0;
+        }
         case AW_SYS_CLK_CPU:
         {
             __s64   tmpRate = sys_clk_get_rate(sys_clk_get_parent(AW_SYS_CLK_CPU));
@@ -945,9 +1030,26 @@ static int sys_clk_set_rate(__aw_ccu_clk_id_e id, __u64 rate)
 
             return 0;
         }
+        case AW_SYS_CLK_ATB:
+        {
+            __s32   tmpDiv = ccu_clk_uldiv(sys_clk_get_rate(AW_SYS_CLK_CPU) + (rate - 1), rate);
+            if(tmpDiv > 4)
+            {
+                CCU_ERR("Rate(%lld) is invalid when set atb rate\n", rate);
+                return -1;
+            } else if((tmpDiv == 4) || (tmpDiv == 3)) {
+                aw_ccu_reg->SysClkDiv.ATBClkDiv = 2;
+            } else if(tmpDiv == 2) {
+                aw_ccu_reg->SysClkDiv.ATBClkDiv = 1;
+            } else {
+                aw_ccu_reg->SysClkDiv.ATBClkDiv = 0;
+            }
+
+            return 0;
+        }
         case AW_SYS_CLK_AHB:
         {
-            __s32   tmpVal = -1, tmpDiv = ccu_clk_uldiv(sys_clk_get_rate(AW_SYS_CLK_AXI) + (rate - 1), rate);
+            __s32   tmpVal = -1, tmpDiv = ccu_clk_uldiv(sys_clk_get_rate(sys_clk_get_parent(AW_SYS_CLK_AHB)) + (rate - 1), rate);
 
             if(tmpDiv > 8)
             {

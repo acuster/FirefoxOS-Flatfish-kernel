@@ -77,9 +77,9 @@ void clk_dbg_inf(void)
     printk("\nPLL4 infor:\n");
     print_clk_inf(Pll4Ctl, FactorM      );
     print_clk_inf(Pll4Ctl, FactorK      );
+    print_clk_inf(Pll4Ctl, DampFactor   );
     print_clk_inf(Pll4Ctl, FactorN      );
-    print_clk_inf(Pll4Ctl, FactorP      );
-    print_clk_inf(Pll4Ctl, VCOGain      );
+    print_clk_inf(Pll4Ctl, BandWidth    );
     print_clk_inf(Pll4Ctl, PLLBias      );
     print_clk_inf(Pll4Ctl, VCOBias      );
     print_clk_inf(Pll4Ctl, PLLBypass    );
@@ -122,6 +122,17 @@ void clk_dbg_inf(void)
     print_clk_inf(Pll7Ctl, DampFactor   );
     print_clk_inf(Pll7Ctl, PLLEn        );
 
+    printk("\nPLL8 infor:\n");
+    print_clk_inf(Pll8Ctl, FactorM      );
+    print_clk_inf(Pll8Ctl, FactorK      );
+    print_clk_inf(Pll8Ctl, DampFactor   );
+    print_clk_inf(Pll8Ctl, FactorN      );
+    print_clk_inf(Pll8Ctl, BandWidth    );
+    print_clk_inf(Pll8Ctl, PLLBias      );
+    print_clk_inf(Pll8Ctl, VCOBias      );
+    print_clk_inf(Pll8Ctl, PLLBypass    );
+    print_clk_inf(Pll8Ctl, PLLEn        );
+
     printk("\nHOSC infor:\n");
     print_clk_inf(HoscCtl, OSC24MEn     );
     print_clk_inf(HoscCtl, OSC24MGsm    );
@@ -134,16 +145,16 @@ void clk_dbg_inf(void)
     printk("\nCPU clk infor:\n");
     print_clk_inf(SysClkDiv, AXIClkDiv  );
     print_clk_inf(SysClkDiv, AHBClkDiv  );
+    print_clk_inf(SysClkDiv, AHBClkSrc  );
     print_clk_inf(SysClkDiv, APB0ClkDiv );
-    print_clk_inf(SysClkDiv, AC328ClkSrc);
+    print_clk_inf(SysClkDiv, ATBClkDiv  );
+    print_clk_inf(SysClkDiv, AC327ClkSrc);
+    print_clk_inf(SysClkDiv, DVFSStart  );
 
     printk("\nAPB1 clk infor:\n");
     print_clk_inf(Apb1ClkDiv, ClkDiv    );
     print_clk_inf(Apb1ClkDiv, PreDiv    );
     print_clk_inf(Apb1ClkDiv, ClkSrc    );
-
-    printk("\nAxiGate clk infor:\n");
-    print_clk_inf(AxiGate, SdramGate    );
 
     printk("\nAhbGate0 clk infor:\n");
     print_clk_inf(AhbGate0, Usb0Gate    );
@@ -171,6 +182,7 @@ void clk_dbg_inf(void)
     print_clk_inf(AhbGate0, PataGate    );
     print_clk_inf(AhbGate0, SataGate    );
     print_clk_inf(AhbGate0, GpsGate     );
+    print_clk_inf(AhbGate0, StmrGate    );
 
     printk("\nAhbGate1 clk infor:\n");
     print_clk_inf(AhbGate1, VeGate      );
@@ -333,8 +345,10 @@ void clk_dbg_inf(void)
     print_clk_inf(UsbClk, PhySpecClkGate    );
 
     printk("\nGpsClk clk infor:\n");
-    print_clk_inf(GpsClk, Reset         );
-    print_clk_inf(GpsClk, SpecClkGate   );
+    print_clk_inf(GpsClk, ClkDivRatio       );
+    print_clk_inf(GpsClk, ClkSrc            );
+    print_clk_inf(GpsClk, Reset             );
+    print_clk_inf(GpsClk, SpecClkGate       );
 
     printk("\nSpi3Clk clk infor:\n");
     print_clk_inf(Spi3Clk, ClkDiv       );
@@ -404,8 +418,12 @@ void clk_dbg_inf(void)
     print_clk_inf(CsiIspClk, SpecClkGate    );
 
     printk("\nTvdClk clk infor:\n");
-    print_clk_inf(TvdClk, ClkSrc        );
-    print_clk_inf(TvdClk, SpecClkGate   );
+    print_clk_inf(TvdClk, Clk1Div           );
+    print_clk_inf(TvdClk, Clk1Src           );
+    print_clk_inf(TvdClk, Clk1Gate          );
+    print_clk_inf(TvdClk, Clk2Div           );
+    print_clk_inf(TvdClk, Clk2Src           );
+    print_clk_inf(TvdClk, Clk2Gate          );
 
     printk("\nLcd0Ch1Clk clk infor:\n");
     print_clk_inf(Lcd0Ch1Clk, ClkDiv        );
@@ -463,6 +481,24 @@ void clk_dbg_inf(void)
     print_clk_inf(MaliClk, ClkSrc       );
     print_clk_inf(MaliClk, Reset        );
     print_clk_inf(MaliClk, SpecClkGate  );
+
+    printk("\nMBusClk clk infor:\n");
+    print_clk_inf(MBusClk, ClkDivM     );
+    print_clk_inf(MBusClk, ClkDivN     );
+    print_clk_inf(MBusClk, ClkSrc      );
+    print_clk_inf(MBusClk, ClkGate     );
+
+    printk("\nClkOutA clk infor:\n");
+    print_clk_inf(ClkOutA, ClkDivM     );
+    print_clk_inf(ClkOutA, ClkDivN     );
+    print_clk_inf(ClkOutA, ClkSrc      );
+    print_clk_inf(ClkOutA, ClkEn       );
+
+    printk("\nClkOutB clk infor:\n");
+    print_clk_inf(ClkOutB, ClkDivM     );
+    print_clk_inf(ClkOutB, ClkDivN     );
+    print_clk_inf(ClkOutB, ClkSrc      );
+    print_clk_inf(ClkOutB, ClkEn       );
 }
 EXPORT_SYMBOL(clk_dbg_inf);
 
@@ -508,9 +544,9 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     seq_printf(m, "\nPLL4 infor:\n");
     sprintf_clk_inf(m, Pll4Ctl, FactorM      );
     sprintf_clk_inf(m, Pll4Ctl, FactorK      );
+    sprintf_clk_inf(m, Pll4Ctl, DampFactor   );
     sprintf_clk_inf(m, Pll4Ctl, FactorN      );
-    sprintf_clk_inf(m, Pll4Ctl, FactorP      );
-    sprintf_clk_inf(m, Pll4Ctl, VCOGain      );
+    sprintf_clk_inf(m, Pll4Ctl, BandWidth    );
     sprintf_clk_inf(m, Pll4Ctl, PLLBias      );
     sprintf_clk_inf(m, Pll4Ctl, VCOBias      );
     sprintf_clk_inf(m, Pll4Ctl, PLLBypass    );
@@ -553,6 +589,17 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, Pll7Ctl, DampFactor   );
     sprintf_clk_inf(m, Pll7Ctl, PLLEn        );
 
+    seq_printf(m, "\nPLL8 infor:\n");
+    sprintf_clk_inf(m, Pll8Ctl, FactorM      );
+    sprintf_clk_inf(m, Pll8Ctl, FactorK      );
+    sprintf_clk_inf(m, Pll8Ctl, DampFactor   );
+    sprintf_clk_inf(m, Pll8Ctl, FactorN      );
+    sprintf_clk_inf(m, Pll8Ctl, BandWidth    );
+    sprintf_clk_inf(m, Pll8Ctl, PLLBias      );
+    sprintf_clk_inf(m, Pll8Ctl, VCOBias      );
+    sprintf_clk_inf(m, Pll8Ctl, PLLBypass    );
+    sprintf_clk_inf(m, Pll8Ctl, PLLEn        );
+
     seq_printf(m, "\nHOSC infor:\n");
     sprintf_clk_inf(m, HoscCtl, OSC24MEn     );
     sprintf_clk_inf(m, HoscCtl, OSC24MGsm    );
@@ -565,16 +612,16 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     seq_printf(m, "\nCPU clk infor:\n");
     sprintf_clk_inf(m, SysClkDiv, AXIClkDiv  );
     sprintf_clk_inf(m, SysClkDiv, AHBClkDiv  );
+    sprintf_clk_inf(m, SysClkDiv, AHBClkSrc  );
     sprintf_clk_inf(m, SysClkDiv, APB0ClkDiv );
-    sprintf_clk_inf(m, SysClkDiv, AC328ClkSrc);
+    sprintf_clk_inf(m, SysClkDiv, ATBClkDiv  );
+    sprintf_clk_inf(m, SysClkDiv, AC327ClkSrc);
+    sprintf_clk_inf(m, SysClkDiv, DVFSStart  );
 
     seq_printf(m, "\nAPB1 clk infor:\n");
     sprintf_clk_inf(m, Apb1ClkDiv, ClkDiv    );
     sprintf_clk_inf(m, Apb1ClkDiv, PreDiv    );
     sprintf_clk_inf(m, Apb1ClkDiv, ClkSrc    );
-
-    seq_printf(m, "\nAxiGate clk infor:\n");
-    sprintf_clk_inf(m, AxiGate, SdramGate    );
 
     seq_printf(m, "\nAhbGate0 clk infor:\n");
     sprintf_clk_inf(m, AhbGate0, Usb0Gate    );
@@ -602,6 +649,7 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, AhbGate0, PataGate    );
     sprintf_clk_inf(m, AhbGate0, SataGate    );
     sprintf_clk_inf(m, AhbGate0, GpsGate     );
+    sprintf_clk_inf(m, AhbGate0, StmrGate    );
 
     seq_printf(m, "\nAhbGate1 clk infor:\n");
     sprintf_clk_inf(m, AhbGate1, VeGate      );
@@ -764,6 +812,8 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, UsbClk, PhySpecClkGate    );
 
     seq_printf(m, "\nGpsClk clk infor:\n");
+    sprintf_clk_inf(m, GpsClk, ClkDivRatio   );
+    sprintf_clk_inf(m, GpsClk, ClkSrc        );
     sprintf_clk_inf(m, GpsClk, Reset         );
     sprintf_clk_inf(m, GpsClk, SpecClkGate   );
 
@@ -835,8 +885,12 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, CsiIspClk, SpecClkGate    );
 
     seq_printf(m, "\nTvdClk clk infor:\n");
-    sprintf_clk_inf(m, TvdClk, ClkSrc        );
-    sprintf_clk_inf(m, TvdClk, SpecClkGate   );
+    sprintf_clk_inf(m, TvdClk, Clk1Div           );
+    sprintf_clk_inf(m, TvdClk, Clk1Src           );
+    sprintf_clk_inf(m, TvdClk, Clk1Gate          );
+    sprintf_clk_inf(m, TvdClk, Clk2Div           );
+    sprintf_clk_inf(m, TvdClk, Clk2Src           );
+    sprintf_clk_inf(m, TvdClk, Clk2Gate          );
 
     seq_printf(m, "\nLcd0Ch1Clk clk infor:\n");
     sprintf_clk_inf(m, Lcd0Ch1Clk, ClkDiv        );
@@ -894,6 +948,24 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, MaliClk, ClkSrc       );
     sprintf_clk_inf(m, MaliClk, Reset        );
     sprintf_clk_inf(m, MaliClk, SpecClkGate  );
+
+    seq_printf(m, "\nMBusClk clk infor:\n");
+    sprintf_clk_inf(m, MBusClk, ClkDivM      );
+    sprintf_clk_inf(m, MBusClk, ClkDivN      );
+    sprintf_clk_inf(m, MBusClk, ClkSrc       );
+    sprintf_clk_inf(m, MBusClk, ClkGate      );
+
+    seq_printf(m, "\nClkOutA clk infor:\n");
+    sprintf_clk_inf(m, ClkOutA, ClkDivM      );
+    sprintf_clk_inf(m, ClkOutA, ClkDivN      );
+    sprintf_clk_inf(m, ClkOutA, ClkSrc       );
+    sprintf_clk_inf(m, ClkOutA, ClkEn        );
+
+    seq_printf(m, "\nClkOutB clk infor:\n");
+    sprintf_clk_inf(m, ClkOutB, ClkDivM      );
+    sprintf_clk_inf(m, ClkOutB, ClkDivN      );
+    sprintf_clk_inf(m, ClkOutB, ClkSrc       );
+    sprintf_clk_inf(m, ClkOutB, ClkEn        );
 
 	return 0;
 }
