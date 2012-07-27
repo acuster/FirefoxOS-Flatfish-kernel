@@ -22,18 +22,35 @@
 #define DRIVER_VERSION " SD/MMC/SDIO Host Controller Driver(" DRIVER_RIVISION ")\n" \
 			" Compatible with SD3.0/eMMC4.5/SDIO2.0\n" \
 			" Compiled in " __DATE__ " at " __TIME__ ""
+/*========== platform define ==========*/
+/*---------- for sun6i ----------*/
+#ifdef CONFIG_ARCH_SUN6I
+#define REG_FIFO_OS	(0x200)
+#define IRQNO_SMC0	(92)
+#define SMC_IRQNO(x)	(IRQNO_SMC0 + (x))
+
+#ifdef MMC_FPGA
+#undef SMC_IRQNO
+#define SMC_IRQNO(x)	(45)
+#endif
+#endif
+
+/*---------- for sun7i ----------*/
+#ifdef CONFIG_ARCH_SUN7I
+#define REG_FIFO_OS	(0x100)
+#define IRQNO_SMC0	(64)
+#define SMC_IRQNO(x)	(IRQNO_SMC0 + (x))
+
+#ifdef MMC_FPGA
+#undef SMC_IRQNO
+#define SMC_IRQNO(x)	(x ? 42 : 41)
+#endif
+#endif
 
 /* SDXC register operation */
 #define SMC0_BASE	(0x01C0f000)
 #define SMC_BASE_OS	(0x1000)
 #define SMC_BASE(x)	(SMC0_BASE + 0x1000 * (x))
-#ifdef MMC_FPGA
-#define INTC_IRQNO_SMC0	(45)	//92 for chip, 45 for fpga
-#define SMC_IRQNO(x)	(INTC_IRQNO_SMC0)
-#else
-#define INTC_IRQNO_SMC0	(92)	//92 for chip, 45 for fpga
-#define SMC_IRQNO(x)	(INTC_IRQNO_SMC0 + (x))
-#endif
 
 /* register offset define */
 #define SDXC_REG_GCTRL	( 0x00 ) // SMC Global Control Register
@@ -64,7 +81,7 @@
 #define SDXC_REG_IDIE	( 0x8C ) // SMC IDMAC Interrupt Enable Register
 #define SDXC_REG_CHDA	( 0x90 )
 #define SDXC_REG_CBDA	( 0x94 )
-#define SDXC_REG_FIFO	( 0x200) // SMC FIFO Access Address
+#define SDXC_REG_FIFO	( REG_FIFO_OS ) // SMC FIFO Access Address
 
 #define mci_readl(host, reg) \
 	__raw_readl((host)->reg_base + SDXC_##reg)
@@ -220,6 +237,7 @@ struct sunxi_mmc_ctrl_regs {
 struct sunxi_mmc_platform_data {
 	u32 ocr_avail;
 	u32 caps;
+	u32 caps2;
 	u32 f_min;
 	u32 f_max;
 };

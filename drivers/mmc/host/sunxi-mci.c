@@ -844,7 +844,7 @@ static void sw_mci_cd_timer(unsigned long data)
 		present = 1;
 	else
 		goto modtimer;
-	SMC_DBG(smc_host, "cd %d, host present %d, cur present %d\n",
+	SMC_MSG(smc_host, "cd %d, host present %d, cur present %d\n",
 			gpio_val, smc_host->present, present);
 
 	if (smc_host->present ^ present) {
@@ -946,8 +946,10 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct sunxi_mmc_host *smc_host = mmc_priv(mmc);
 	u32 temp;
 
-	SMC_MSG(smc_host, "smc %d set ios, bus %x timing %x clk %d power %d\n", smc_host->pdev->id,
-		1 << ios->bus_width, ios->timing, ios->clock, ios->power_mode);
+	SMC_MSG(smc_host, "smc%d set ios: "
+		"clock %dHz busmode %d powermode %d Vdd %d width %d timing %d\n",
+		smc_host->pdev->id, ios->clock, ios->bus_mode, ios->power_mode,
+		ios->vdd, 1 << ios->bus_width, ios->timing);
 	/* set bus width */
 	switch (ios->bus_width) {
 		case MMC_BUS_WIDTH_1:
@@ -1566,6 +1568,7 @@ static int __devinit sw_mci_probe(struct platform_device *pdev)
 	mmc->ops        = &sw_mci_ops;
 	mmc->ocr_avail	= smc_host->pdata->ocr_avail;
 	mmc->caps	= smc_host->pdata->caps;
+	mmc->caps2	= smc_host->pdata->caps2;
 	mmc->f_min	= smc_host->pdata->f_min;
 	mmc->f_max      = smc_host->pdata->f_max;
 
@@ -1748,13 +1751,14 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.caps = MMC_CAP_4_BIT_DATA | MMC_CAP_NONREMOVABLE
 			| MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED
 			| MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50
-			| MMC_CAP_UHS_DDR50 | MMC_CAP2_HS200_1_8V_SDR
+			| MMC_CAP_UHS_DDR50
 			| MMC_CAP_1_8V_DDR
 			#ifndef MMC_FPGA
 			| MMC_CAP_8_BIT_DATA
 			#endif
 			| MMC_CAP_SDIO_IRQ
 			| MMC_CAP_SET_XPC_330 | MMC_CAP_DRIVER_TYPE_A,
+		.caps2 = MMC_CAP2_HS200_1_8V_SDR,
 		.f_min = 400000,
 		.f_max = 120000000,
 	},
@@ -1763,10 +1767,11 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.caps = MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE
 			| MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED
 			| MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50
-			| MMC_CAP_UHS_DDR50 | MMC_CAP2_HS200_1_8V_SDR
+			| MMC_CAP_UHS_DDR50
 			| MMC_CAP_1_8V_DDR
 			| MMC_CAP_SDIO_IRQ
 			| MMC_CAP_SET_XPC_330 | MMC_CAP_DRIVER_TYPE_A,
+		.caps2 = MMC_CAP2_HS200_1_8V_SDR,
 		.f_min = 400000,
 		.f_max = 120000000,
 	},
