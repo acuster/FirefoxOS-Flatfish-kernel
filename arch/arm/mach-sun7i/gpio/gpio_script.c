@@ -1260,3 +1260,62 @@ s32  sw_gpio_write_one_pin_value(u32 p_handler, u32 value_to_gpio, const char *g
 	return EGPIO_FAIL;
 }
 EXPORT_SYMBOL(sw_gpio_write_one_pin_value);
+
+/**
+ * sw_gpio_get_index - get the global gpio index
+ * @p_handler: gpio handler
+ * @gpio_name: gpio name whose index will be got. when NULL,
+ ? 		the first port of p_handler willbe treated.
+ *
+ * return the gpio index for the port, GPIO_INDEX_INVALID indicate err
+ */
+u32 sw_gpio_get_index(u32 p_handler, const char *gpio_name)
+{
+	char		*tmp_buf;                                        //转换成char类型
+	u32		group_count_max;                                //最大GPIO个数
+	system_gpio_set_t *user_gpio_set = NULL;
+	u32		port, port_num;
+	u32		i;
+	u32		usign = 0;
+	u32 		pio_index = 0;
+
+	if(!p_handler) {
+		usign = __LINE__;
+		goto End;
+	}
+	tmp_buf = (char *)p_handler;
+	group_count_max = *(int *)tmp_buf;
+	if(0 == group_count_max) {
+		usign = __LINE__;
+		goto End;
+	}
+
+	user_gpio_set = (system_gpio_set_t *)(tmp_buf + 16);
+	if(NULL == gpio_name) { /* when name is NULL, treat the first one */
+		port     = user_gpio_set->port;
+		port_num = user_gpio_set->port_num;
+	} else {
+		for(i = 0; i < group_count_max; i++, user_gpio_set++) {
+			if(!strcmp(gpio_name, user_gpio_set->gpio_name)) {
+				port     = user_gpio_set->port;
+				port_num = user_gpio_set->port_num;
+				break;
+			}
+		}
+		if(i == group_count_max) { /* cannot find the gpio_name item */
+			usign = __LINE__;
+			goto End;
+		}
+	}
+
+	/* get the gpio index */
+	pio_index = port_to_gpio_index(port, port_num);
+End:
+	if(0 != usign) {
+		PIO_ERR("%s err, line %d", __FUNCTION__, usign);
+		return GPIO_INDEX_INVALID;
+	} else {
+		return pio_index;
+	}
+}
+EXPORT_SYMBOL(sw_gpio_get_index);
