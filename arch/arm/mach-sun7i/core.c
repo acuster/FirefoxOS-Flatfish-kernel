@@ -46,6 +46,7 @@
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/platform.h>
+#include <mach/system.h>
 #include <mach/io.h>
 
 #include "core.h"
@@ -191,6 +192,17 @@ void __init sun7i_init_early(void)
 {
 	printk("[%s] enter\n", __FUNCTION__);
 }
+
+int sw_get_chip_id(struct sw_chip_id *chip_id)
+{
+    chip_id->sid_rkey0 = readl(SW_VA_SID_IO_BASE);
+    chip_id->sid_rkey1 = readl(SW_VA_SID_IO_BASE+0x04);
+    chip_id->sid_rkey2 = readl(SW_VA_SID_IO_BASE+0x08);
+    chip_id->sid_rkey3 = readl(SW_VA_SID_IO_BASE+0x0C);
+
+    return 0;
+}
+EXPORT_SYMBOL(sw_get_chip_id);
 
 MACHINE_START(SUN7I, "Allwinner AW163x")
 	.atag_offset	= 0x100,
