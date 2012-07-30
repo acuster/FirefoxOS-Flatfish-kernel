@@ -21,25 +21,223 @@
 #ifndef __MACH_IRQS_AW_H
 #define __MACH_IRQS_AW_H
 
+#define SUN7I_ON_FPGA
+
 #define AW_IRQ_GIC_START        32
+
+/*
+ * sgi and ppi irq sources
+ */
+#define IRQ_SGI0       		0
+#define IRQ_SGI1       		1
+#define IRQ_SGI2       		2
+#define IRQ_SGI3       		3
+#define IRQ_SGI4       		4
+#define IRQ_SGI5       		5
+#define IRQ_SGI6       		6
+#define IRQ_SGI7       		7
+#define IRQ_SGI8       		8
+#define IRQ_SGI9       		9
+#define IRQ_SGI10      		10
+#define IRQ_SGI11      		11
+#define IRQ_SGI12      		12
+#define IRQ_SGI13      		13
+#define IRQ_SGI14      		14
+#define IRQ_SGI15      		15
+#define IRQ_PPI0       		0
+#define IRQ_PPI1       		1
+#define IRQ_PPI2       		2
+#define IRQ_PPI3       		3
+#define IRQ_PPI4       		4
+#define IRQ_PPI5       		5
+#define IRQ_PPI6       		6
+#define IRQ_PPI7       		7
+#define IRQ_PPI8       		8
+#define IRQ_PPI9       		9
+#define IRQ_PPI10      		10
+#define IRQ_PPI11      		11
+#define IRQ_PPI12      		12
+#define IRQ_PPI13      		13
+#define IRQ_PPI14      		14
+#define IRQ_PPI15      		15
 
 /*
  * AW on-board gic irq sources
  */
-#define AW_IRQ_UART0     (AW_IRQ_GIC_START + 0)    /* UART0  */
-#define AW_IRQ_UART1     (AW_IRQ_GIC_START + 1)    /* UART1  */
-#define AW_IRQ_UART2     (AW_IRQ_GIC_START + 2)    /* UART2  */
-#define AW_IRQ_UART3     (AW_IRQ_GIC_START + 3)    /* UART3  */
+#ifdef SUN7I_ON_FPGA
+/* NOTE: maybe err, need redifine irqs number on sun7i fpga */
+#define AW_IRQ_NMI       	(AW_IRQ_GIC_START + 0 )    /* NMI    */
+#define AW_IRQ_UART0     	(AW_IRQ_GIC_START + 1 )    /* UART0  */
+#define AW_IRQ_UART1     	(AW_IRQ_GIC_START + 2 )    /* UART1  */
+#define AW_IRQ_UART2     	(AW_IRQ_GIC_START + 3 )    /* UART2  */
+#define AW_IRQ_UART3     	(AW_IRQ_GIC_START + 4 )    /* UART3  */
+#define AW_IRQ_IR0       	(AW_IRQ_GIC_START + 5 )    /* IR0    */
+#define AW_IRQ_IR1       	(AW_IRQ_GIC_START + 6 )    /* IR1    */
+#define AW_IRQ_TWI0       	(AW_IRQ_GIC_START + 7 )    /* TWI0   */
+#define AW_IRQ_TWI1       	(AW_IRQ_GIC_START + 8 )    /* TWI1   */
+#define AW_IRQ_TWI2       	(AW_IRQ_GIC_START + 9 )    /* TWI2   */
+#define AW_IRQ_SPI0       	(AW_IRQ_GIC_START + 10)    /* SPI0   */
+#define AW_IRQ_SPI1       	(AW_IRQ_GIC_START + 11)    /* SPI1   */
+#define AW_IRQ_SPI2       	(AW_IRQ_GIC_START + 12)    /* SPI2   */
+#define AW_IRQ_SPDIF    	(AW_IRQ_GIC_START + 13)    /* SPDIF  */
+#define AW_IRQ_AC97       	(AW_IRQ_GIC_START + 14)    /* AC97   */
+#define AW_IRQ_TS       	(AW_IRQ_GIC_START + 15)    /* TS     */
+#define AW_IRQ_IIS       	(AW_IRQ_GIC_START + 16)    /* IIS    */
+#define AW_IRQ_UART4       	(AW_IRQ_GIC_START + 17)    /* UART4  */
+#define AW_IRQ_UART5       	(AW_IRQ_GIC_START + 18)    /* UART5  */
+#define AW_IRQ_UART6       	(AW_IRQ_GIC_START + 19)    /* UART6  */
+#define AW_IRQ_UART7       	(AW_IRQ_GIC_START + 20)    /* UART7  */
+#define AW_IRQ_KEYPAD     	(AW_IRQ_GIC_START + 21)    /* KEYPAD */
+#define AW_IRQ_TIMER0    	(AW_IRQ_GIC_START + 22)    /* Timer0 */
+#define AW_IRQ_TIMER1    	(AW_IRQ_GIC_START + 23)    /* Timer1 */
+#define AW_IRQ_TIMER2    	(AW_IRQ_GIC_START + 24)    /* Timer2 / alarm / watchdog  */
+#define AW_IRQ_TIMER3    	(AW_IRQ_GIC_START + 25)    /* Timer3 */
+#define AW_IRQ_CAN       	(AW_IRQ_GIC_START + 26)    /* CAN    */
+#define AW_IRQ_DMA       	(AW_IRQ_GIC_START + 27)    /* DMA    */
+#define AW_IRQ_GPIO       	(AW_IRQ_GIC_START + 28)    /* GPIO    */
+#define AW_IRQ_TOUCH_PANEL 	(AW_IRQ_GIC_START + 29)    /* touch pannel  */
+#define AW_IRQ_AUDIO_COEC 	(AW_IRQ_GIC_START + 30)    /* AUDIO COEC  */
+#define AW_IRQ_LRADC    	(AW_IRQ_GIC_START + 31)    /* LRADC  */
+#define AW_IRQ_SD0       	(AW_IRQ_GIC_START + 32)    /* SD0   */
+#define AW_IRQ_SD1       	(AW_IRQ_GIC_START + 33)    /* SD1   */
+#define AW_IRQ_SD2       	(AW_IRQ_GIC_START + 34)    /* SD2   */
+#define AW_IRQ_SD3       	(AW_IRQ_GIC_START + 35)    /* SD3   */
+#define AW_IRQ_MS        	(AW_IRQ_GIC_START + 36)    /* External NMI  */
+#define AW_IRQ_NAND        	(AW_IRQ_GIC_START + 37)    /* NAND  */
+#define AW_IRQ_USB0        	(AW_IRQ_GIC_START + 38)    /* USB0  */
+#define AW_IRQ_USB1        	(AW_IRQ_GIC_START + 39)    /* USB1  */
+#define AW_IRQ_USB2        	(AW_IRQ_GIC_START + 40)    /* USB2  */
+#define AW_IRQ_SCR       	(AW_IRQ_GIC_START + 41)    /* SCR   */
+#define AW_IRQ_CSI0       	(AW_IRQ_GIC_START + 42)    /* CSI0  */
+#define AW_IRQ_CSI1       	(AW_IRQ_GIC_START + 43)    /* CSI1  */
+#define AW_IRQ_LCDC0       	(AW_IRQ_GIC_START + 44)    /* LCDC0 */
+#define AW_IRQ_LCDC1       	(AW_IRQ_GIC_START + 45)    /* LCDC1 */
+#define AW_IRQ_MP       	(AW_IRQ_GIC_START + 46)    /* MP    */
+#define AW_IRQ_DE0       	(AW_IRQ_GIC_START + 47)    /* DE-FE0 / DE-BE0 */
+#define AW_IRQ_DE1       	(AW_IRQ_GIC_START + 48)    /* DE-FE1 / DE-BE1 */
+#define AW_IRQ_PMU       	(AW_IRQ_GIC_START + 49)    /* PMU   */
+#define AW_IRQ_SPI3       	(AW_IRQ_GIC_START + 50)    /* SPI3  */
 
-#define AW_IRQ_TIMER0    (AW_IRQ_GIC_START + 18)  /* Timer0  */
-#define AW_IRQ_TIMER1    (AW_IRQ_GIC_START + 19)  /* Timer1  */
-#define AW_IRQ_TIMER2    (AW_IRQ_GIC_START + 20)  /* Timer2  */
+#define AW_IRQ_PATA       	(AW_IRQ_GIC_START + 52)    /* PATA  */
+#define AW_IRQ_VE       	(AW_IRQ_GIC_START + 53)    /* VE    */
+#define AW_IRQ_SS       	(AW_IRQ_GIC_START + 54)    /* SS    */
+#define AW_IRQ_EMAC       	(AW_IRQ_GIC_START + 55)    /* EMAC  */
+#define AW_IRQ_SATA       	(AW_IRQ_GIC_START + 56)    /* sata  */
+#define AW_IRQ_GPS       	(AW_IRQ_GIC_START + 57)    /* GPS   */
+#define AW_IRQ_HDMI       	(AW_IRQ_GIC_START + 58)    /* HDMI  */
+#define AW_IRQ_TVE_0_1    	(AW_IRQ_GIC_START + 59)    /* TV encoder 0/1 interrupt  */
+#define AW_IRQ_ACE       	(AW_IRQ_GIC_START + 60)    /* ACE   */
+#define AW_IRQ_TVD       	(AW_IRQ_GIC_START + 61)    /* TVD   */
+#define AW_IRQ_PS2_0       	(AW_IRQ_GIC_START + 62)    /* PS2_0 */
+#define AW_IRQ_PS2_1       	(AW_IRQ_GIC_START + 63)    /* PS2_1 */
+#define AW_IRQ_USB3       	(AW_IRQ_GIC_START + 64)    /* USB3  */
+#define AW_IRQ_USB4       	(AW_IRQ_GIC_START + 65)    /* USB4  */
+#define AW_IRQ_PLE_PERFMU 	(AW_IRQ_GIC_START + 66)    /* PLE_PERFMU */
+#define AW_IRQ_TIMER4    	(AW_IRQ_GIC_START + 67)    /* TIMER4  */
+#define AW_IRQ_TIMER5    	(AW_IRQ_GIC_START + 68)    /* TIMER5  */
+#define AW_IRQ_GPU_GP    	(AW_IRQ_GIC_START + 69)    /* GPU_GP  */
+#define AW_IRQ_GPU_GPMMU 	(AW_IRQ_GIC_START + 70)    /* GPU_GPMMU */
+#define AW_IRQ_GPU_PP0  	(AW_IRQ_GIC_START + 71)    /* GPU_PP0  */
+#define AW_IRQ_GPU_PPMMU0 	(AW_IRQ_GIC_START + 72)    /* GPU_PPMMU0 */
+#define AW_IRQ_GPU_PMU  	(AW_IRQ_GIC_START + 73)    /* GPU_PMU  */
+#define AW_IRQ_GPU_PP1   	(AW_IRQ_GIC_START + 74)    /* GPU_PP1  */
+#define AW_IRQ_GPU_PPMMU1  	(AW_IRQ_GIC_START + 75)    /* GPU_PPMMU1 */
+#define AW_IRQ_GPU_RSV0  	(AW_IRQ_GIC_START + 76)    /* GPU_RSV0  */
+#define AW_IRQ_GPU_RSV1  	(AW_IRQ_GIC_START + 77)    /* GPU_RSV1  */
+#define AW_IRQ_GPU_RSV2  	(AW_IRQ_GIC_START + 78)    /* GPU_RSV2  */
+#define AW_IRQ_GPU_RSV3  	(AW_IRQ_GIC_START + 79)    /* GPU_RSV3  */
+#define AW_IRQ_GPU_RSV4  	(AW_IRQ_GIC_START + 81)    /* GPU_RSV4  */
+#define AW_IRQ_HSTIMER0  	(AW_IRQ_GIC_START + 82)    /* hr-timer0 */
+#define AW_IRQ_HSTIMER1  	(AW_IRQ_GIC_START + 83)    /* hr-timer1 */
+#define AW_IRQ_HSTIMER2  	(AW_IRQ_GIC_START + 84)    /* hr-timer2 */
+#define AW_IRQ_HSTIMER3  	(AW_IRQ_GIC_START + 85)    /* hr-timer3 */
+#else
+#define AW_IRQ_NMI       	(AW_IRQ_GIC_START + 0 )    /* NMI    */
+#define AW_IRQ_UART0     	(AW_IRQ_GIC_START + 1 )    /* UART0  */
+#define AW_IRQ_UART1     	(AW_IRQ_GIC_START + 2 )    /* UART1  */
+#define AW_IRQ_UART2     	(AW_IRQ_GIC_START + 3 )    /* UART2  */
+#define AW_IRQ_UART3     	(AW_IRQ_GIC_START + 4 )    /* UART3  */
+#define AW_IRQ_IR0       	(AW_IRQ_GIC_START + 5 )    /* IR0    */
+#define AW_IRQ_IR1       	(AW_IRQ_GIC_START + 6 )    /* IR1    */
+#define AW_IRQ_TWI0       	(AW_IRQ_GIC_START + 7 )    /* TWI0   */
+#define AW_IRQ_TWI1       	(AW_IRQ_GIC_START + 8 )    /* TWI1   */
+#define AW_IRQ_TWI2       	(AW_IRQ_GIC_START + 9 )    /* TWI2   */
+#define AW_IRQ_SPI0       	(AW_IRQ_GIC_START + 10)    /* SPI0   */
+#define AW_IRQ_SPI1       	(AW_IRQ_GIC_START + 11)    /* SPI1   */
+#define AW_IRQ_SPI2       	(AW_IRQ_GIC_START + 12)    /* SPI2   */
+#define AW_IRQ_SPDIF    	(AW_IRQ_GIC_START + 13)    /* SPDIF  */
+#define AW_IRQ_AC97       	(AW_IRQ_GIC_START + 14)    /* AC97   */
+#define AW_IRQ_TS       	(AW_IRQ_GIC_START + 15)    /* TS     */
+#define AW_IRQ_IIS       	(AW_IRQ_GIC_START + 16)    /* IIS    */
+#define AW_IRQ_UART4       	(AW_IRQ_GIC_START + 17)    /* UART4  */
+#define AW_IRQ_UART5       	(AW_IRQ_GIC_START + 18)    /* UART5  */
+#define AW_IRQ_UART6       	(AW_IRQ_GIC_START + 19)    /* UART6  */
+#define AW_IRQ_UART7       	(AW_IRQ_GIC_START + 20)    /* UART7  */
+#define AW_IRQ_KEYPAD     	(AW_IRQ_GIC_START + 21)    /* KEYPAD */
+#define AW_IRQ_TIMER0    	(AW_IRQ_GIC_START + 22)    /* Timer0 */
+#define AW_IRQ_TIMER1    	(AW_IRQ_GIC_START + 23)    /* Timer1 */
+#define AW_IRQ_TIMER2    	(AW_IRQ_GIC_START + 24)    /* Timer2 / alarm / watchdog  */
+#define AW_IRQ_TIMER3    	(AW_IRQ_GIC_START + 25)    /* Timer3 */
+#define AW_IRQ_CAN       	(AW_IRQ_GIC_START + 26)    /* CAN    */
+#define AW_IRQ_DMA       	(AW_IRQ_GIC_START + 27)    /* DMA    */
+#define AW_IRQ_GPIO       	(AW_IRQ_GIC_START + 28)    /* GPIO    */
+#define AW_IRQ_TOUCH_PANEL 	(AW_IRQ_GIC_START + 29)    /* touch pannel  */
+#define AW_IRQ_AUDIO_COEC 	(AW_IRQ_GIC_START + 30)    /* AUDIO COEC  */
+#define AW_IRQ_LRADC    	(AW_IRQ_GIC_START + 31)    /* LRADC  */
+#define AW_IRQ_SD0       	(AW_IRQ_GIC_START + 32)    /* SD0   */
+#define AW_IRQ_SD1       	(AW_IRQ_GIC_START + 33)    /* SD1   */
+#define AW_IRQ_SD2       	(AW_IRQ_GIC_START + 34)    /* SD2   */
+#define AW_IRQ_SD3       	(AW_IRQ_GIC_START + 35)    /* SD3   */
+#define AW_IRQ_MS        	(AW_IRQ_GIC_START + 36)    /* External NMI  */
+#define AW_IRQ_NAND        	(AW_IRQ_GIC_START + 37)    /* NAND  */
+#define AW_IRQ_USB0        	(AW_IRQ_GIC_START + 38)    /* USB0  */
+#define AW_IRQ_USB1        	(AW_IRQ_GIC_START + 39)    /* USB1  */
+#define AW_IRQ_USB2        	(AW_IRQ_GIC_START + 40)    /* USB2  */
+#define AW_IRQ_SCR       	(AW_IRQ_GIC_START + 41)    /* SCR   */
+#define AW_IRQ_CSI0       	(AW_IRQ_GIC_START + 42)    /* CSI0  */
+#define AW_IRQ_CSI1       	(AW_IRQ_GIC_START + 43)    /* CSI1  */
+#define AW_IRQ_LCDC0       	(AW_IRQ_GIC_START + 44)    /* LCDC0 */
+#define AW_IRQ_LCDC1       	(AW_IRQ_GIC_START + 45)    /* LCDC1 */
+#define AW_IRQ_MP       	(AW_IRQ_GIC_START + 46)    /* MP    */
+#define AW_IRQ_DE0       	(AW_IRQ_GIC_START + 47)    /* DE-FE0 / DE-BE0 */
+#define AW_IRQ_DE1       	(AW_IRQ_GIC_START + 48)    /* DE-FE1 / DE-BE1 */
+#define AW_IRQ_PMU       	(AW_IRQ_GIC_START + 49)    /* PMU   */
+#define AW_IRQ_SPI3       	(AW_IRQ_GIC_START + 50)    /* SPI3  */
 
-#define AW_IRQ_ENMI      (AW_IRQ_GIC_START + 32)  /* External NMI  */
-
-#define AW_IRQ_DMA	 38 			  /* dma irq phys num in fpga */
-
-#define AW_IRQ_GPIO	 (AW_IRQ_GIC_START + 28)   /* PIO INT in spec 60 */
+#define AW_IRQ_PATA       	(AW_IRQ_GIC_START + 52)    /* PATA  */
+#define AW_IRQ_VE       	(AW_IRQ_GIC_START + 53)    /* VE    */
+#define AW_IRQ_SS       	(AW_IRQ_GIC_START + 54)    /* SS    */
+#define AW_IRQ_EMAC       	(AW_IRQ_GIC_START + 55)    /* EMAC  */
+#define AW_IRQ_SATA       	(AW_IRQ_GIC_START + 56)    /* sata  */
+#define AW_IRQ_GPS       	(AW_IRQ_GIC_START + 57)    /* GPS   */
+#define AW_IRQ_HDMI       	(AW_IRQ_GIC_START + 58)    /* HDMI  */
+#define AW_IRQ_TVE_0_1    	(AW_IRQ_GIC_START + 59)    /* TV encoder 0/1 interrupt  */
+#define AW_IRQ_ACE       	(AW_IRQ_GIC_START + 60)    /* ACE   */
+#define AW_IRQ_TVD       	(AW_IRQ_GIC_START + 61)    /* TVD   */
+#define AW_IRQ_PS2_0       	(AW_IRQ_GIC_START + 62)    /* PS2_0 */
+#define AW_IRQ_PS2_1       	(AW_IRQ_GIC_START + 63)    /* PS2_1 */
+#define AW_IRQ_USB3       	(AW_IRQ_GIC_START + 64)    /* USB3  */
+#define AW_IRQ_USB4       	(AW_IRQ_GIC_START + 65)    /* USB4  */
+#define AW_IRQ_PLE_PERFMU 	(AW_IRQ_GIC_START + 66)    /* PLE_PERFMU */
+#define AW_IRQ_TIMER4    	(AW_IRQ_GIC_START + 67)    /* TIMER4  */
+#define AW_IRQ_TIMER5    	(AW_IRQ_GIC_START + 68)    /* TIMER5  */
+#define AW_IRQ_GPU_GP    	(AW_IRQ_GIC_START + 69)    /* GPU_GP  */
+#define AW_IRQ_GPU_GPMMU 	(AW_IRQ_GIC_START + 70)    /* GPU_GPMMU */
+#define AW_IRQ_GPU_PP0  	(AW_IRQ_GIC_START + 71)    /* GPU_PP0  */
+#define AW_IRQ_GPU_PPMMU0 	(AW_IRQ_GIC_START + 72)    /* GPU_PPMMU0 */
+#define AW_IRQ_GPU_PMU  	(AW_IRQ_GIC_START + 73)    /* GPU_PMU  */
+#define AW_IRQ_GPU_PP1   	(AW_IRQ_GIC_START + 74)    /* GPU_PP1  */
+#define AW_IRQ_GPU_PPMMU1  	(AW_IRQ_GIC_START + 75)    /* GPU_PPMMU1 */
+#define AW_IRQ_GPU_RSV0  	(AW_IRQ_GIC_START + 76)    /* GPU_RSV0  */
+#define AW_IRQ_GPU_RSV1  	(AW_IRQ_GIC_START + 77)    /* GPU_RSV1  */
+#define AW_IRQ_GPU_RSV2  	(AW_IRQ_GIC_START + 78)    /* GPU_RSV2  */
+#define AW_IRQ_GPU_RSV3  	(AW_IRQ_GIC_START + 79)    /* GPU_RSV3  */
+#define AW_IRQ_GPU_RSV4  	(AW_IRQ_GIC_START + 81)    /* GPU_RSV4  */
+#define AW_IRQ_HSTIMER0  	(AW_IRQ_GIC_START + 82)    /* hr-timer0 */
+#define AW_IRQ_HSTIMER1  	(AW_IRQ_GIC_START + 83)    /* hr-timer1 */
+#define AW_IRQ_HSTIMER2  	(AW_IRQ_GIC_START + 84)    /* hr-timer2 */
+#define AW_IRQ_HSTIMER3  	(AW_IRQ_GIC_START + 85)    /* hr-timer3 */
+#endif /* SUN7I_ON_FPGA */
 
 /*
  * GIC

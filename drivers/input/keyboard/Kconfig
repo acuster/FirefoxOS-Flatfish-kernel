@@ -580,15 +580,11 @@ config KEYBOARD_W90P910
 	  To compile this driver as a module, choose M here: the
 	  module will be called w90p910_keypad.
 
-config KEYBOARD_SW_KEYPAD
-        tristate "SW MATRIX Keypad support"
+config SUN7I_KEYPAD
+        tristate "sun7i Keypad support"
         help
           Say Y here to enable the matrix keypad on evaluation board
-
-
-          To compile this driver as a module, choose M here: the
-          module will be called sun4i.
-
+          To compile this driver as a module, choose M here.
 
 config KEYBOARD_SW_KEYBOARD
         tristate "softwinnner KEY BOARD support"
@@ -598,5 +594,8 @@ config KEYBOARD_SW_KEYBOARD
 
 config IR_SUN6I
        tristate "sun6i IR  support"
+
+config IR_SUN7I
+       tristate "sun7i IR  support"
 
 endif

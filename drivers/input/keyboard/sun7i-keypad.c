@@ -1,8 +1,8 @@
 /*
- * Sun4i keypad driver
+ * Sun7i keypad driver
  *
- * Copyright (C) 2011 Allwinner Co.Ltd
- * Author: Aaron.maoye <leafy.myeh@allwinnertech.com>
+ * Copyright (C) 2011 newbie Co.Ltd
+ * Author: liugang <liugang@newbietech.com>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -24,25 +24,15 @@
 #include <linux/input/matrix_keypad.h>
 
 #include <mach/clock.h>
-
-#define AW1623_FPGA
-
-#ifdef AW1623_FPGA
-//#include <mach/sys_config.h>
-//#include <mach/system.h>
-#define SW_VA_PORTC_IO_BASE (0xf1c20800)
-#define SW_INT_IRQNO_KEYPAD (33 + 32)
-#else
-#define SYS_GPIO_CFG_EN
 #include <mach/sys_config.h>
-#include <mach/system.h>
-#endif
+#include <mach/gpio.h>
 
+//#define SUN7I_FPGA
 #define swkp_msg(...)       printk("[kpad]: "__VA_ARGS__);
 
 /* register define */
-#define SW_KP_PBASE         (0x01c23000)
-#define SW_KP_CTL           (0x00)
+#define SW_KP_PBASE         	(0x01c23000)
+#define SW_KP_CTL           	(0x00)
 #define SW_KP_TIMING       	(0x04)
 #define SW_KP_INT_CFG      	(0x08)
 #define SW_KP_INT_STA      	(0x0c)
@@ -51,21 +41,21 @@
 #define SW_KP_DEB          	(0x18)
 
 /* SW_KP_CTL */
-#define SW_KPCTL_IFENB      (1)
-#define SW_KPCTL_COLMASK    (0xff << 8)
-#define SW_KPCTL_ROWMASK    (0xff << 16)
+#define SW_KPCTL_IFENB      	(1)
+#define SW_KPCTL_COLMASK    	(0xff << 8)
+#define SW_KPCTL_ROWMASK    	(0xff << 16)
 
 /* SW_KP_INT_CFG */
 #define SW_KPINT_F_EN		(1 << 0)
 #define SW_KPINT_R_EN		(1 << 1)
 
 /* SW_KP_INT_STA */
-#define SW_KP_PRESS         1
-#define SW_KP_RELEASE       2
-#define SW_KP_PRESS_RELEASE 3
+#define SW_KP_PRESS         	1
+#define SW_KP_RELEASE       	2
+#define SW_KP_PRESS_RELEASE 	3
 
-#define SW_MAX_ROWS        8
-#define SW_MAX_COLS        8
+#define SW_MAX_ROWS        	8
+#define SW_MAX_COLS        	8
 
 struct sw_keypad {
 	struct input_dev        *input_dev;
@@ -73,21 +63,21 @@ struct sw_keypad {
 	struct clk              *pclk;
 	struct clk              *mclk;
 	void __iomem            *base;
-	u32                 mod_clk;
-	u32                 pio_hdle;
-	int                 irq;
-	unsigned int        row_shift;
-	unsigned int        rows;
-	unsigned int        cols;
-	unsigned int        row_state[SW_MAX_COLS];
-	unsigned short      keycodes[];
+	u32                 	mod_clk;
+	u32                 	pio_hdle;
+	int                 	irq;
+	unsigned int        	row_shift;
+	unsigned int        	rows;
+	unsigned int        	cols;
+	unsigned int        	row_state[SW_MAX_COLS];
+	unsigned short      	keycodes[];
 };
 
 struct sw_keypad_platdata {
         const struct matrix_keymap_data *keymap_data;
-        unsigned int rows;
-        unsigned int cols;
-        bool no_autorepeat;
+        unsigned int 	rows;
+        unsigned int 	cols;
+        bool 		no_autorepeat;
 };
 
 static const uint32_t sw_keymap[] = {
@@ -116,14 +106,14 @@ static int kp_used = 0;
 
 static int sw_keypad_gpio_request(struct sw_keypad *keypad)
 {
-    #ifndef AW1623_FPGA
-	keypad->pio_hdle = gpio_request_ex("keypad_para", NULL);
+#ifndef SUN7I_FPGA
+	keypad->pio_hdle = sw_gpio_request_ex("keypad_para", NULL);
     if (!keypad->pio_hdle)
     {
         swkp_msg("request pio parameter failed\n");
         return -1;
     }
-    #else
+#else
     {
         #include <mach/platform.h>
         void __iomem* pi_cfg0 = (void __iomem*)(SW_VA_PORTC_IO_BASE+0x120);
@@ -132,16 +122,13 @@ static int sw_keypad_gpio_request(struct sw_keypad *keypad)
         writel(0x22222222, pi_cfg0);
         writel(0x22222222, pi_cfg1);
     }
-    #endif
+#endif
     return 0;
 }
 
 static void sw_keypad_gpio_release(struct sw_keypad *keypad)
 {
-#ifdef SYS_GPIO_CFG_EN
-    gpio_release(keypad->pio_hdle, 1);
-#endif
-
+    sw_gpio_release(keypad->pio_hdle, 1);
     keypad->pio_hdle = 0;
 }
 
@@ -254,11 +241,11 @@ static int sw_keypad_set_mclk(struct sw_keypad *keypad, u32 mod_clk)
     clk_set_rate(keypad->mclk, mod_clk);
     clk_enable(keypad->mclk);
 
-    #ifdef AW1623_FPGA
+#ifdef SUN7I_FPGA
     keypad->mod_clk = 24000000;//fpga
-    #else
+#else
     keypad->mod_clk = clk_get_rate(keypad->mclk);
-    #endif
+#endif
 
     clk_put(sclk);
 
@@ -433,11 +420,8 @@ err_put_pclk:
 err_unmap_base:
 	iounmap(keypad->base);
 err_free_gpio:
-#ifdef SYS_GPIO_CFG_EN
-    gpio_release(keypad->pio_hdle, 1);
+    sw_gpio_release(keypad->pio_hdle, 1);
     keypad->pio_hdle = 0;
-#endif
-
 err_free_mem:
 	input_free_device(input_dev);
 	kfree(keypad);
@@ -513,8 +497,8 @@ static struct resource sw_keypad_resources[] = {
                 .flags  = IORESOURCE_MEM,
         },
         [1] = {
-                .start  = SW_INT_IRQNO_KEYPAD,
-                .end    = SW_INT_IRQNO_KEYPAD,
+                .start  = AW_IRQ_KEYPAD,
+                .end    = AW_IRQ_KEYPAD,
                 .flags  = IORESOURCE_IRQ,
         },
 };
@@ -545,13 +529,7 @@ static int __init sw_keypad_init(void)
 
     swkp_msg("sw keypad init\n");
     kp_used  = 0;
-#ifdef SYS_GPIO_CFG_EN
     ret = script_parser_fetch("keypad_para", "ke_used", &kp_used, sizeof(int));
-#else
-	//config keypad
-	ret = 0;
-	kp_used = 1;
-#endif
     if (ret)
     {
         printk("sw keypad fetch keypad uning configuration failed\n");
@@ -581,6 +559,6 @@ static void __exit sw_keypad_exit(void)
 module_exit(sw_keypad_exit);
 
 MODULE_DESCRIPTION("SW keypad driver");
-MODULE_AUTHOR("Aaron.maoye<leafy.myeh@allwinnertech.com>");
+MODULE_AUTHOR("liugang<liugang@newbietech.com>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:sw-keypad");
