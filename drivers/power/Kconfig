@@ -3,10 +3,10 @@ menuconfig POWER_SUPPLY
 	help
 	  Say Y here to enable power supply class support. This allows
 	  power supply (batteries, AC, USB) monitoring by userspace
-	  via sysfs and uevent (if available) and/or APM kernel interface
-	  (if selected below).
 
 if POWER_SUPPLY
+
+source "drivers/power/axp_power/Kconfig"
 
 config POWER_SUPPLY_DEBUG
 	bool "Power supply debug"
