@@ -23,4 +23,16 @@
 
 #define PLAT_PHYS_OFFSET		UL(0x40000000)
 
+/*
+ * add by liugang for mali driver, need modify.
+ */
+#define SW_VE_MEM_BASE     		(PLAT_PHYS_OFFSET + SZ_64M)
+#define SW_VE_MEM_SIZE     		(SZ_64M)
+
+#define SW_FB_MEM_BASE     		(SW_VE_MEM_BASE + SW_VE_MEM_SIZE)
+#define SW_FB_MEM_SIZE     		(SZ_16M)
+
+#define SW_GPU_MEM_BASE    		(SW_FB_MEM_BASE + SW_FB_MEM_SIZE)
+#define SW_GPU_MEM_SIZE    		(SZ_64M)
+
 #endif
