@@ -204,7 +204,7 @@ int sw_get_chip_id(struct sw_chip_id *chip_id)
 }
 EXPORT_SYMBOL(sw_get_chip_id);
 
-MACHINE_START(SUN7I, "Allwinner AW163x")
+MACHINE_START(SUN7I, "Allwinner AW165x")
 	.atag_offset	= 0x100,
 	.fixup		= sun7i_fixup,
 	.map_io		= sun7i_map_io,

@@ -177,7 +177,6 @@ struct aw_gpio_chip gpio_chips[] = {
 
 #ifdef PIO_FROM_SD_TESTCODE
 static void __iomem *g_ccm_reg_vbase = 0;
-static void __iomem *g_r_prcm_reg_vbase = 0;
 #include "pio_clkinit_from_sdtest.c"
 #endif /* PIO_FROM_SD_TESTCODE */
 
@@ -193,12 +192,10 @@ static __init int aw_gpio_init(void)
 
 #ifdef PIO_FROM_SD_TESTCODE
 	g_ccm_reg_vbase = ioremap_nocache(AW_CCM_BASE, 0x1000);
-	g_r_prcm_reg_vbase = ioremap_nocache(AW_R_PRCM_BASE, 0x1000);
-	PIO_DBG("%s: g_ccm_reg_vbase 0x%08x, g_r_prcm_reg_vbase 0x%08x\n", __FUNCTION__,
-		(u32)g_ccm_reg_vbase, (u32)g_r_prcm_reg_vbase);
+	PIO_DBG("%s: g_ccm_reg_vbase 0x%08x\n", __FUNCTION__,
+		(u32)g_ccm_reg_vbase);
 	PIO_DBG("%s: NOTE - r_gpio currently NOT pass tested############################\n", __FUNCTION__);
 	gpio_clk_init();
-	r_gpio_clk_init();
 #endif /* PIO_FROM_SD_TESTCODE */
 
 	for(i = 0; i < ARRAY_SIZE(gpio_chips); i++) {

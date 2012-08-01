@@ -107,7 +107,7 @@ static s32 gpio_clk_init(void)
 }
 
 /* for r gpio below */
-
+/*
 #define R_PIO_CKID			(0)
 
 #define R_PRCM_BASE			(g_r_prcm_reg_vbase)
@@ -165,3 +165,4 @@ static s32 r_gpio_clk_init(void)
 	init_r_gpio();
 	return 0;
 }
+*/

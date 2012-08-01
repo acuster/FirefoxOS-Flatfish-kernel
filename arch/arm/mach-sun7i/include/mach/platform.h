@@ -297,17 +297,15 @@
 #define AW_SCU_BASE                 0x01c80000
 #define AW_TIMER_G_BASE             0x01c80200 /* CPU global timer, not used */
 #define AW_TIMER_P_BASE             0x01c80600 /* CPU private timer, not used */
-#define AW_R_CPUCFG_BASE            0x01f01c00
+#define AW_CPUCFG_BASE              0x01c25C00
 #define AW_DMA_BASE                 0x01c02000
 
 /*
  * Peripheral addresses
  */
-#define AW_R_UART_BASE              0x01f02800 /* R_UART */
 #define AW_UART0_BASE               0x01c28000 /* UART 0 */
 #define AW_UART1_BASE               0x01c28400 /* UART 1 */
 #define AW_UART2_BASE               0x01c28800 /* UART 2 */
-#define AW_R_PRCM_BASE              0x01f01400 /* for r-prcm */
 
 
 /*

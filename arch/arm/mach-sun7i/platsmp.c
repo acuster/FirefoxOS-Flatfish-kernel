@@ -44,7 +44,6 @@ static void __iomem *scu_base_addr(void)
 	return __io_address(AW_SCU_BASE);
 }
 
-#define AW_R_CPUCFG_BASE 0x01f01c00
 
 void enable_aw_cpu(int cpu)
 {
@@ -52,22 +51,11 @@ void enable_aw_cpu(int cpu)
 	volatile long reg1 = 0x0;
 
 	paddr = virt_to_phys(sun7i_secondary_startup);
-        writel(paddr, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_P_REG0);
+        writel(paddr, IO_ADDRESS(AW_CPUCFG_BASE) + AW_CPUCFG_P_REG0);
 
 	/* let cpus go */
-	writel(1, IO_ADDRESS(AW_R_CPUCFG_BASE) + 0x80);
-
-	reg1 = readl(IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_P_REG1);
-
-	if (cpu == 1) {
-		reg1 |= 0x2;
-	} else if (cpu == 2) {
-		reg1 |= 0x4;
-	} else if (cpu == 3) {
-		reg1 |= 0x8;
-	}
-
-	writel(reg1, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_P_REG1);
+	if (cpu)
+		writel(1, IO_ADDRESS(AW_CPUCFG_BASE) + 0x80);
 }
 
 
