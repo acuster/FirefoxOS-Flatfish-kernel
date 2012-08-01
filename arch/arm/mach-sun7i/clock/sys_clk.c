@@ -145,22 +145,6 @@ static __aw_ccu_clk_id_e sys_clk_get_parent(__aw_ccu_clk_id_e id)
 *
 *********************************************************************************************************
 */
-/*
-*********************************************************************************************************
-*                           sys_clk_get_status
-*
-*Description: get system clock on/off status.
-*
-*Arguments  : id    system clock id;
-*
-*Return     : system clock status;
-*               0, clock is off;
-*              !0, clock is on;
-*
-*Notes      :
-*
-*********************************************************************************************************
-*/
 static __aw_ccu_clk_onff_e sys_clk_get_status(__aw_ccu_clk_id_e id)
 {
     switch(id)
@@ -197,7 +181,7 @@ static __aw_ccu_clk_onff_e sys_clk_get_status(__aw_ccu_clk_id_e id)
         case AW_SYS_CLK_AXI:
         case AW_SYS_CLK_ATB:
         case AW_SYS_CLK_AHB:
-            return sys_clk_get_status(sys_clk_get_parent(AW_SYS_CLK_AHB));
+            return sys_clk_get_status(sys_clk_get_parent(id));
         case AW_SYS_CLK_APB0:
         case AW_SYS_CLK_APB1:
         default:
