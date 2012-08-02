@@ -95,7 +95,6 @@ ${OBJCOPY} -R .note.gnu.build-id -S -O binary vmlinux bImage
 #	cp drivers/net/wireless/bcm4330/firmware/bcm4330.bin ${LICHEE_MOD_DIR}
 #	cp drivers/net/wireless/bcm4330/firmware/bcm4330.hcd ${LICHEE_MOD_DIR}
 #	cp drivers/net/wireless/bcm4330/firmware/nvram.txt ${LICHEE_MOD_DIR}/bcm4330_nvram.txt
-	echo "sun7i compile successful"
 }
 
 build_modules()
@@ -179,3 +178,4 @@ all)
 	#show_help
 	;;
 esac
+echo "sun7i compile successful"
