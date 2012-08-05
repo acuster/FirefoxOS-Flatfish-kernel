@@ -39,6 +39,4 @@
 #include "gpio_multi_func.h"
 #include "gpio_base.h"
 
-#define PIO_FROM_SD_TESTCODE /* init gpio clock from sd test code */
-
 #endif  /* __GPIO_INCLUDES_H */

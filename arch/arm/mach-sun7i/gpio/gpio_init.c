@@ -175,11 +175,6 @@ struct aw_gpio_chip gpio_chips[] = {
 	}
 };
 
-#ifdef PIO_FROM_SD_TESTCODE
-static void __iomem *g_ccm_reg_vbase = 0;
-#include "pio_clkinit_from_sdtest.c"
-#endif /* PIO_FROM_SD_TESTCODE */
-
 /**
  * aw_gpio_init - gpio driver init function
  *
@@ -190,13 +185,8 @@ static __init int aw_gpio_init(void)
 	u32	uret = 0;
 	u32 	i = 0;
 
-#ifdef PIO_FROM_SD_TESTCODE
-	g_ccm_reg_vbase = ioremap_nocache(AW_CCM_BASE, 0x1000);
-	PIO_DBG("%s: g_ccm_reg_vbase 0x%08x\n", __FUNCTION__,
-		(u32)g_ccm_reg_vbase);
-	PIO_DBG("%s: NOTE - r_gpio currently NOT pass tested############################\n", __FUNCTION__);
-	gpio_clk_init();
-#endif /* PIO_FROM_SD_TESTCODE */
+	/* todo: add gpio clock init code here if needed */
+	PIO_DBG_FUN_LINE_TODO;
 
 	for(i = 0; i < ARRAY_SIZE(gpio_chips); i++) {
 		/* lock init */

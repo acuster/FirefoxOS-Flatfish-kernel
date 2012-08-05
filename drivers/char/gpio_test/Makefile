@@ -1,13 +1,13 @@
 #
-# Makefile for sun6i gpio test driver
+# Makefile for sun7i gpio test driver
 #
 
 PWD=$(shell pwd)
 
-obj-$(CONFIG_GPIO_TEST_DRIVER)+=sun6i_gpio_test.o 		\
+obj-$(CONFIG_SUN7I_GPIO_TEST) += sun7i_gpio_test.o 		\
 
 install: build
-	cp sun6i_gpio_test.ko $(LICHEE_MOD_DIR)/
+	cp sun7i_gpio_test.ko $(LICHEE_MOD_DIR)/
 
 build:
 	@echo $(LICHEE_KDIR)

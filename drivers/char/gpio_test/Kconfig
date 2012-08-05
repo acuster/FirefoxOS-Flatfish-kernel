@@ -1,19 +1,9 @@
 #
-# sun6i gpio test configuration.
+# sun7i gpio test configuration.
 #
 
-menuconfig SUN6I_GPIO_TEST
-	bool "sun6i gpio test drivers"
-	---help---
-	This module is to test gpio module, which builted in lichee kernel,
-	source is in "arch\arm\mach-sun6i\gpio" directory.
-
-if SUN6I_GPIO_TEST
-
-config GPIO_TEST_DRIVER
-	bool "sun6i gpio test driver"
-	default y
+config SUN7I_GPIO_TEST
+	bool "sun7i gpio test driver"
+	default n
 	help
 	Nothing help.
-
-endif # SUN6I_GPIO_TEST

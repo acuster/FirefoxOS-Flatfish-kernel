@@ -185,8 +185,31 @@ u32 gpio_eint_get_irqpd_sta(struct aw_gpio_chip *pchip, u32 offset)
  */
 u32 gpio_eint_clr_irqpd_sta(struct aw_gpio_chip *pchip, u32 offset)
 {
-	if(1 == PIO_READ_REG_BITS(pchip->vbase_eint + PIO_EINT_OFF_REG_STATUS, offset, 1))
-		PIO_WRITE_REG_BITS(pchip->vbase_eint + PIO_EINT_OFF_REG_STATUS, offset, 1, 1);
+	u32 	utemp = 0;
+	u32 	ureg_addr = (u32)pchip->vbase_eint + PIO_EINT_OFF_REG_STATUS;
+
+	utemp = PIO_READ_REG_BITS(ureg_addr, offset, 1);
+
+#ifdef DBG_GPIO
+	PIO_DBG("%s: irq_pend %d, chip 0x%08x, offset %d, read reg 0x%08x - 0x%08x\n", __FUNCTION__,
+		utemp, (u32)pchip, offset, ureg_addr, PIO_READ_REG(ureg_addr));
+#endif /* DBG_GPIO */
+
+	if(1 == utemp) {
+		/* bug: clear all pending bits, but only need clear the offset bit here */
+		//PIO_WRITE_REG_BITS(ureg_addr, offset, 1, 1);
+
+		PIO_WRITE_REG(ureg_addr, 1 << offset);
+	}
+
+#ifdef DBG_GPIO
+	if(1 == utemp) { /* to see if corrently cleared */
+		utemp = PIO_READ_REG_BITS(ureg_addr, offset, 1);
+		PIO_DBG("%s: after cleared, irq_pend %d, read reg 0x%08x - 0x%08x\n", __FUNCTION__,
+			utemp, ureg_addr, PIO_READ_REG(ureg_addr));
+	}
+#endif /* DBG_GPIO */
+
 	return 0;
 }
 
