@@ -93,7 +93,7 @@
 #define AW_IRQ_TIMER2    	(AW_IRQ_GIC_START + 24)    /* Timer2 / alarm / watchdog  */
 #define AW_IRQ_TIMER3    	(AW_IRQ_GIC_START + 25)    /* Timer3 */
 #define AW_IRQ_CAN       	(AW_IRQ_GIC_START + 26)    /* CAN    */
-#define AW_IRQ_DMA       	(AW_IRQ_GIC_START + 27)    /* DMA    */
+#define AW_IRQ_DMA       	(AW_IRQ_GIC_START + 7)     /* DMA irq on fpga   */
 #define AW_IRQ_GPIO       	(AW_IRQ_GIC_START + 28)    /* GPIO    */
 #define AW_IRQ_TOUCH_PANEL 	(AW_IRQ_GIC_START + 29)    /* touch pannel  */
 #define AW_IRQ_AUDIO_COEC 	(AW_IRQ_GIC_START + 30)    /* AUDIO COEC  */

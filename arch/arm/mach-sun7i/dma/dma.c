@@ -32,6 +32,17 @@
 #include <mach/dma.h>
 #include "dma_regs.h"
 
+#define pr_debug 	printk
+#define DBG_FUN_LINE 	printk("%s, line %d\n", __FUNCTION__, __LINE__)
+
+#ifdef USE_SPINLOCK_20120802
+#define DMA_CHAN_LOCK_INIT(lock)	spin_lock_init((lock))
+#define DMA_CHAN_LOCK_DEINIT(lock)	do{}while(0)
+#define DMA_CHAN_LOCK(lock, flag)	spin_lock_irqsave((lock), (flag))
+#define DMA_CHAN_UNLOCK(lock, flag)	spin_unlock_irqrestore((lock), (flag))
+
+static DEFINE_SPINLOCK(g_dma_req_lock);
+#endif /* USE_SPINLOCK_20120802 */
 
 /* io map for dma */
 static void __iomem *dma_base;
@@ -175,7 +186,7 @@ unsigned long addrtype_arr[DMAADDRT_MAX]={
 unsigned long n_drqsrc_arr[DRQ_TYPE_MAX]={
 	N_DRQSRC_SRAM,       		//DRQ_TYPE_SRAM
 	N_DRQSRC_SDRAM,      		//DRQ_TYPE_SDRAM
-	DRQ_INVALID, 	  			//DRQ_TYPE_PATA,
+	DRQ_INVALID, 	  		//DRQ_TYPE_PATA,
 	DRQ_INVALID,         		//DRQ_TYPE_NAND,
 	DRQ_INVALID,         		//DRQ_TYPE_USB0,
 	DRQ_INVALID,         		//DRQ_TYPE_EMAC,
@@ -185,18 +196,18 @@ unsigned long n_drqsrc_arr[DRQ_TYPE_MAX]={
 	N_DRQSRC_SPI0RX,       		//DRQ_TYPE_SPI0,
 	N_DRQSRC_SPI2RX,       		//DRQ_TYPE_SPI2,
 	N_DRQSRC_SPI3RX,       		//DRQ_TYPE_SPI3,
-	DRQ_INVALID,				//DRQ_TYPE_TCON0
-	DRQ_INVALID,				//DRQ_TYPE_TCON1
-	N_DRQSRC_HDMIDDCRX,			//DRQ_TYPE_HDMI
-	DRQ_INVALID,				//DRQ_TYPE_HDMIAUDIO
+	DRQ_INVALID,			//DRQ_TYPE_TCON0
+	DRQ_INVALID,			//DRQ_TYPE_TCON1
+	N_DRQSRC_HDMIDDCRX,		//DRQ_TYPE_HDMI
+	DRQ_INVALID,			//DRQ_TYPE_HDMIAUDIO
 
 	N_DRQSRC_IR0RX,       		//DRQ_TYPE_IR0,
-	N_DRQSRC_IR1RX,    			//DRQ_TYPE_IR1,
+	N_DRQSRC_IR1RX,    		//DRQ_TYPE_IR1,
 	N_DRQSRC_SPDIFRX,      		//DRQ_TYPE_SPDIF,
 	N_DRQSRC_IISRX,     		//DRQ_TYPE_IIS,
 	N_DRQSRC_AC97RX,     		//DRQ_TYPE_AC97,
 	N_DRQSRC_UART0RX,     		//DRQ_TYPE_UART0,
-	N_DRQSRC_UART1RX,			//DRQ_TYPE_UART1
+	N_DRQSRC_UART1RX,		//DRQ_TYPE_UART1
 	N_DRQSRC_UART2RX,    		//DRQ_TYPE_UART2,
 	N_DRQSRC_UART3RX,    		//DRQ_TYPE_UART3,
 	N_DRQSRC_UART4RX,    		//DRQ_TYPE_UART4,
@@ -208,53 +219,53 @@ unsigned long n_drqsrc_arr[DRQ_TYPE_MAX]={
 };
 
 unsigned long n_drqdst_arr[DRQ_TYPE_MAX]={
-	N_DRQDST_SRAM,       	//DRQ_TYPE_SRAM
-	N_DRQDST_SDRAM,      	//DRQ_TYPE_SDRAM
+	N_DRQDST_SRAM,       		//DRQ_TYPE_SRAM
+	N_DRQDST_SDRAM,      		//DRQ_TYPE_SDRAM
 	DRQ_INVALID, 	  		//DRQ_TYPE_PATA,
-	DRQ_INVALID,         	//DRQ_TYPE_NAND,
-	DRQ_INVALID,         	//DRQ_TYPE_USB0,
-	DRQ_INVALID,         	//DRQ_TYPE_EMAC,
-	N_DRQDST_SPI1TX,       	//DRQ_TYPE_SPI1,
-	DRQ_INVALID,         	//DRQ_TYPE_SS,
-	DRQ_INVALID,         	//DRQ_TYPE_MS,
-	N_DRQDST_SPI0TX,       	//DRQ_TYPE_SPI0,
-	N_DRQDST_SPI2TX,       	//DRQ_TYPE_SPI2,
-	N_DRQDST_SPI3TX,       	//DRQ_TYPE_SPI3,
+	DRQ_INVALID,         		//DRQ_TYPE_NAND,
+	DRQ_INVALID,         		//DRQ_TYPE_USB0,
+	DRQ_INVALID,         		//DRQ_TYPE_EMAC,
+	N_DRQDST_SPI1TX,       		//DRQ_TYPE_SPI1,
+	DRQ_INVALID,         		//DRQ_TYPE_SS,
+	DRQ_INVALID,         		//DRQ_TYPE_MS,
+	N_DRQDST_SPI0TX,       		//DRQ_TYPE_SPI0,
+	N_DRQDST_SPI2TX,       		//DRQ_TYPE_SPI2,
+	N_DRQDST_SPI3TX,       		//DRQ_TYPE_SPI3,
 	DRQ_INVALID,			//DRQ_TYPE_TCON0
 	DRQ_INVALID,			//DRQ_TYPE_TCON1
 	N_DRQDST_HDMIDDCTX,		//DRQ_TYPE_HDMI
 	DRQ_INVALID,			//DRQ_TYPE_HDMIAUDIO
 
-	N_DRQDST_IR0TX,       	//DRQ_TYPE_IR0,
+	N_DRQDST_IR0TX,       		//DRQ_TYPE_IR0,
 	N_DRQDST_IR1TX,    		//DRQ_TYPE_IR1,
-	N_DRQDST_SPDIFTX,      	//DRQ_TYPE_SPDIF,
-	N_DRQDST_IISTX,     	//DRQ_TYPE_IIS,
-	N_DRQDST_AC97TX,     	//DRQ_TYPE_AC97,
-	N_DRQDST_UART0TX,     	//DRQ_TYPE_UART0,
+	N_DRQDST_SPDIFTX,      		//DRQ_TYPE_SPDIF,
+	N_DRQDST_IISTX,     		//DRQ_TYPE_IIS,
+	N_DRQDST_AC97TX,     		//DRQ_TYPE_AC97,
+	N_DRQDST_UART0TX,     		//DRQ_TYPE_UART0,
 	N_DRQDST_UART1TX,		//DRQ_TYPE_UART1,
-	N_DRQDST_UART2TX,    	//DRQ_TYPE_UART2,
-	N_DRQDST_UART3TX,    	//DRQ_TYPE_UART3,
-	N_DRQDST_UART4TX,    	//DRQ_TYPE_UART4,
-	N_DRQDST_UART5TX,    	//DRQ_TYPE_UART5,
-	N_DRQDST_UART6TX,    	//DRQ_TYPE_UART6,
-	N_DRQDST_UART7TX,       //DRQ_TYPE_UART7,
-	N_DRQDST_AUDIOCDAD,    	//DRQ_TYPE_AUDIO,
-	DRQ_INVALID,	    	//DRQ_TYPE_TPAD
+	N_DRQDST_UART2TX,    		//DRQ_TYPE_UART2,
+	N_DRQDST_UART3TX,    		//DRQ_TYPE_UART3,
+	N_DRQDST_UART4TX,    		//DRQ_TYPE_UART4,
+	N_DRQDST_UART5TX,    		//DRQ_TYPE_UART5,
+	N_DRQDST_UART6TX,    		//DRQ_TYPE_UART6,
+	N_DRQDST_UART7TX,       	//DRQ_TYPE_UART7,
+	N_DRQDST_AUDIOCDAD,    		//DRQ_TYPE_AUDIO,
+	DRQ_INVALID,	    		//DRQ_TYPE_TPAD
 };
 
 unsigned long d_drqsrc_arr[DRQ_TYPE_MAX]={
-	D_DRQSRC_SRAM,       	//DRQ_TYPE_SRAM
-	D_DRQSRC_SDRAM,      	//DRQ_TYPE_SDRAM
+	D_DRQSRC_SRAM,       		//DRQ_TYPE_SRAM
+	D_DRQSRC_SDRAM,      		//DRQ_TYPE_SDRAM
 	D_DRQSRC_PATA, 	  		//DRQ_TYPE_PATA,
-	D_DRQSRC_NAND,         	//DRQ_TYPE_NAND,
-	D_DRQSRC_USB0,         	//DRQ_TYPE_USB0,
-	D_DRQSRC_EMACRX,       	//DRQ_TYPE_EMAC,
-	D_DRQSRC_SPI1RX,       	//DRQ_TYPE_SPI1,
-	D_DRQSRC_SECRX,       	//DRQ_TYPE_SS,
-	D_DRQSRC_MS,         	//DRQ_TYPE_MS,
-	D_DRQSRC_SPI0RX,       	//DRQ_TYPE_SPI0,
-	D_DRQSRC_SPI2RX,       	//DRQ_TYPE_SPI2,
-	D_DRQSRC_SPI3RX,       	//DRQ_TYPE_SPI3,
+	D_DRQSRC_NAND,         		//DRQ_TYPE_NAND,
+	D_DRQSRC_USB0,         		//DRQ_TYPE_USB0,
+	D_DRQSRC_EMACRX,       		//DRQ_TYPE_EMAC,
+	D_DRQSRC_SPI1RX,       		//DRQ_TYPE_SPI1,
+	D_DRQSRC_SECRX,       		//DRQ_TYPE_SS,
+	D_DRQSRC_MS,         		//DRQ_TYPE_MS,
+	D_DRQSRC_SPI0RX,       		//DRQ_TYPE_SPI0,
+	D_DRQSRC_SPI2RX,       		//DRQ_TYPE_SPI2,
+	D_DRQSRC_SPI3RX,       		//DRQ_TYPE_SPI3,
 	DRQ_INVALID,			//DRQ_TYPE_TCON0,
 	DRQ_INVALID,			//DRQ_TYPE_TCON1,
 	DRQ_INVALID,			//DRQ_TYPE_HDMI,
@@ -274,21 +285,21 @@ unsigned long d_drqsrc_arr[DRQ_TYPE_MAX]={
 	DRQ_INVALID,    		//DRQ_TYPE_UART6,
 	DRQ_INVALID,       		//DRQ_TYPE_UART7,
 	DRQ_INVALID,    		//DRQ_TYPE_AUDIO,
-	DRQ_INVALID,	    	//DRQ_TYPE_TPAD
+	DRQ_INVALID,	    		//DRQ_TYPE_TPAD
 };
 unsigned long d_drqdst_arr[DRQ_TYPE_MAX]={
-	D_DRQDST_SRAM,       	//DRQ_TYPE_SRAM
-	D_DRQDST_SDRAM,      	//DRQ_TYPE_SDRAM
+	D_DRQDST_SRAM,       		//DRQ_TYPE_SRAM
+	D_DRQDST_SDRAM,      		//DRQ_TYPE_SDRAM
 	D_DRQDST_PATA, 	  		//DRQ_TYPE_PATA,
-	D_DRQDST_NAND,         	//DRQ_TYPE_NAND,
-	D_DRQDST_USB0,         	//DRQ_TYPE_USB0,
-	D_DRQDST_EMACTX,       	//DRQ_TYPE_EMAC,
-	D_DRQDST_SPI1TX,       	//DRQ_TYPE_SPI1,
-	D_DRQDST_SECTX,       	//DRQ_TYPE_SS,
-	D_DRQDST_MS,         	//DRQ_TYPE_MS,
-	D_DRQDST_SPI0TX,       	//DRQ_TYPE_SPI0,
-	D_DRQDST_SPI2TX,       	//DRQ_TYPE_SPI2,
-	D_DRQDST_SPI3TX,       	//DRQ_TYPE_SPI3,
+	D_DRQDST_NAND,         		//DRQ_TYPE_NAND,
+	D_DRQDST_USB0,         		//DRQ_TYPE_USB0,
+	D_DRQDST_EMACTX,       		//DRQ_TYPE_EMAC,
+	D_DRQDST_SPI1TX,       		//DRQ_TYPE_SPI1,
+	D_DRQDST_SECTX,       		//DRQ_TYPE_SS,
+	D_DRQDST_MS,         		//DRQ_TYPE_MS,
+	D_DRQDST_SPI0TX,       		//DRQ_TYPE_SPI0,
+	D_DRQDST_SPI2TX,       		//DRQ_TYPE_SPI2,
+	D_DRQDST_SPI3TX,       		//DRQ_TYPE_SPI3,
 	DRQ_INVALID,			//DRQ_TYPE_TCON0,
 	DRQ_INVALID,			//DRQ_TYPE_TCON1,
 	DRQ_INVALID,			//DRQ_TYPE_HDMI,
@@ -308,8 +319,7 @@ unsigned long d_drqdst_arr[DRQ_TYPE_MAX]={
 	DRQ_INVALID,    		//DRQ_TYPE_UART6,
 	DRQ_INVALID,       		//DRQ_TYPE_UART7,
 	DRQ_INVALID,    		//DRQ_TYPE_AUDIO,
-	DRQ_INVALID,	    	//DRQ_TYPE_TPAD
-
+	DRQ_INVALID,	    		//DRQ_TYPE_TPAD
 };
 
 /* debugging functions */
@@ -327,12 +337,12 @@ unsigned long d_drqdst_arr[DRQ_TYPE_MAX]={
 /* captured register state for debug */
 
 struct sw_dma_regstate {
-	unsigned long         dirqen;		/* irq enable bits */
-	unsigned long         dirqpd;		/* irq pending bits */
-	unsigned long         dconf;		/* dma config bits */
-	unsigned long         dsrc;			/* dma src (not shadow) */
-	unsigned long         ddst;			/* dma dst (not shadow) */
-	unsigned long         dcnt;			/* dma count (not shadow) */
+	unsigned long         dirqen;	/* irq enable bits */
+	unsigned long         dirqpd;	/* irq pending bits */
+	unsigned long         dconf;	/* dma config bits */
+	unsigned long         dsrc;	/* dma src (not shadow) */
+	unsigned long         ddst;	/* dma dst (not shadow) */
+	unsigned long         dcnt;	/* dma count (not shadow) */
 };
 
 #ifdef CONFIG_SW_DMA_DEBUG
@@ -396,8 +406,7 @@ static struct sw_dma_chan *dma_chan_map[DMACH_MAX];
 /* lookup_dma_channel
  *
  * change the dma channel number given into a real dma channel id
-*/
-
+ */
 static struct sw_dma_chan *lookup_dma_channel(unsigned int channel)
 {
 	if (channel & DMACH_LOW_LEVEL)
@@ -423,8 +432,7 @@ inline void DMA_COPY_HW_CONF(struct dma_hw_conf *to, struct dma_hw_conf *from)
 /* sw_dma_stats_timeout
  *
  * Update DMA stats from timeout info
-*/
-
+ */
 static void
 sw_dma_stats_timeout(struct sw_dma_stats *stats, int val)
 {
@@ -442,8 +450,7 @@ sw_dma_stats_timeout(struct sw_dma_stats *stats, int val)
 /* sw_dma_waitforload
  *
  * wait for the DMA engine to load a buffer, and update the state accordingly
-*/
-
+ */
 static int sw_dma_waitforload(struct sw_dma_chan *chan, int line)
 {
 	int timeout = chan->load_timeout;
@@ -490,8 +497,7 @@ static int sw_dma_waitforload(struct sw_dma_chan *chan, int line)
 /* sw_dma_loadbuffer
  *
  * load a buffer, and update the channel state
-*/
-
+ */
 static inline int sw_dma_loadbuffer(struct sw_dma_chan *chan, struct sw_dma_buf *buf)
 {
 	pr_debug("sw_chan_loadbuffer: loading buff %p (0x%08lx,0x%06x)\n",
@@ -545,8 +551,7 @@ static inline int sw_dma_loadbuffer(struct sw_dma_chan *chan, struct sw_dma_buf 
  *
  * small routine to call the op routine with the given op if it has been
  * registered
-*/
-
+ */
 static void sw_dma_call_op(struct sw_dma_chan *chan, enum sw_chan_op op)
 {
 	if (chan->op_fn != NULL) {
@@ -558,8 +563,7 @@ static void sw_dma_call_op(struct sw_dma_chan *chan, enum sw_chan_op op)
  *
  * small wrapper to check if callback routine needs to be called, and
  * if so, call it
-*/
-
+ */
 static inline void sw_dma_buffdone(struct sw_dma_chan *chan, struct sw_dma_buf *buf,
 		enum sw_dma_buffresult result)
 {
@@ -579,19 +583,26 @@ static inline void sw_dma_halfdone(struct sw_dma_chan *chan, struct sw_dma_buf *
 /* sw_dma_start
  *
  * start a dma channel going
-*/
-
+ */
 static int sw_dma_start(struct sw_dma_chan *chan)
 {
 	unsigned long flags;
 
 	//pr_debug("sw_start_dma: channel=%d\n", chan->number);
 
+#ifdef USE_SPINLOCK_20120802
+	DMA_CHAN_LOCK(&chan->lock, flags);
+#else
 	local_irq_save(flags);
+#endif /* USE_SPINLOCK_20120802 */
 
 	if (chan->state == SW_DMA_RUNNING) {
 		pr_debug("sw_start_dma: already running (%d)\n", chan->state);
+#ifdef USE_SPINLOCK_20120802
+		DMA_CHAN_UNLOCK(&chan->lock, flags);
+#else
 		local_irq_restore(flags);
+#endif /* USE_SPINLOCK_20120802 */
 		return 0;
 	}
 
@@ -606,7 +617,11 @@ static int sw_dma_start(struct sw_dma_chan *chan)
 			printk(KERN_ERR "dma%d: channel has nothing loaded\n",
 			chan->number);
 			chan->state = SW_DMA_IDLE;
+#ifdef USE_SPINLOCK_20120802
+			DMA_CHAN_UNLOCK(&chan->lock, flags);
+#else
 			local_irq_restore(flags);
+#endif /* USE_SPINLOCK_20120802 */
 			return -EINVAL;
 		}
 
@@ -646,7 +661,11 @@ static int sw_dma_start(struct sw_dma_chan *chan)
 	}
 
 
+#ifdef USE_SPINLOCK_20120802
+	DMA_CHAN_UNLOCK(&chan->lock, flags);
+#else
 	local_irq_restore(flags);
+#endif /* USE_SPINLOCK_20120802 */
 
 	return 0;
 }
@@ -654,8 +673,7 @@ static int sw_dma_start(struct sw_dma_chan *chan)
 /* sw_dma_canload
  *
  * work out if we can queue another buffer into the DMA engine
-*/
-
+ */
 static int
 sw_dma_canload(struct sw_dma_chan *chan)
 {
@@ -681,8 +699,7 @@ sw_dma_canload(struct sw_dma_chan *chan)
  * It is possible to queue more than one DMA buffer onto a channel at
  * once, and the code will deal with the re-loading of the next buffer
  * when necessary.
-*/
-
+ */
 int sw_dma_enqueue(unsigned int channel, void *id,
 			dma_addr_t data, int size)
 {
@@ -709,7 +726,11 @@ int sw_dma_enqueue(unsigned int channel, void *id,
 	buf->data  = buf->ptr = data;
 	buf->size  = size;
 
+#ifdef USE_SPINLOCK_20120802
+	DMA_CHAN_LOCK(&chan->lock, flags);
+#else
 	local_irq_save(flags);
+#endif /* USE_SPINLOCK_20120802 */
 
 	if (chan->curr == NULL) {
 		/* we've got nothing loaded... */
@@ -743,7 +764,11 @@ int sw_dma_enqueue(unsigned int channel, void *id,
 				"timeout loading buffer\n",
 				chan->number);
 				dbg_showchan(chan);
+#ifdef USE_SPINLOCK_20120802
+				DMA_CHAN_UNLOCK(&chan->lock, flags);
+#else
 				local_irq_restore(flags);
+#endif /* USE_SPINLOCK_20120802 */
 				return -EINVAL;
 			}
 		}
@@ -753,12 +778,24 @@ int sw_dma_enqueue(unsigned int channel, void *id,
 		}
 	} else if (chan->state == SW_DMA_IDLE) {
 		if (chan->flags & SW_DMAF_AUTOSTART) {
+#ifdef USE_SPINLOCK_20120802 /* in case spinlock dead lock in sw_dma_ctrl-start */
+			DMA_CHAN_UNLOCK(&chan->lock, flags);
+#endif /* USE_SPINLOCK_20120802 */
+
 			sw_dma_ctrl(chan->number | DMACH_LOW_LEVEL,
 					SW_DMAOP_START);
+
+#ifdef USE_SPINLOCK_20120802
+			DMA_CHAN_LOCK(&chan->lock, flags);
+#endif /* USE_SPINLOCK_20120802 */
 		}
 	}
 
+#ifdef USE_SPINLOCK_20120802
+	DMA_CHAN_UNLOCK(&chan->lock, flags);
+#else
 	local_irq_restore(flags);
+#endif /* USE_SPINLOCK_20120802 */
 	return 0;
 }
 
@@ -782,8 +819,7 @@ sw_dma_freebuf(struct sw_dma_buf *buf)
  *
  * called when the system is out of buffers, to ensure that the channel
  * is prepared for shutdown.
-*/
-
+ */
 static inline void
 sw_dma_lastxfer(struct sw_dma_chan *chan)
 {
@@ -895,7 +931,7 @@ void exec_pending_chan(int chan_nr, unsigned long pend_bits)
 		break;
 
 	case SW_DMALOAD_NONE:
-printk(KERN_ERR "dma%d: IRQ with no loaded buffer?chan->state:%d\n",
+	printk(KERN_ERR "dma%d: IRQ with no loaded buffer?chan->state:%d\n",
 		chan->number , chan->state);
 		break;
 
@@ -975,9 +1011,19 @@ printk(KERN_ERR "dma%d: IRQ with no loaded buffer?chan->state:%d\n",
 			return;
 		}
 
+#ifdef USE_SPINLOCK_20120802
+		DMA_CHAN_LOCK(&chan->lock, flags);
+#else
 		local_irq_save(flags);
+#endif /* USE_SPINLOCK_20120802 */
+
 		sw_dma_loadbuffer(chan, chan->next);
+
+#ifdef USE_SPINLOCK_20120802
+		DMA_CHAN_UNLOCK(&chan->lock, flags);
+#else
 		local_irq_restore(flags);
+#endif /* USE_SPINLOCK_20120802 */
 	} else {
 		sw_dma_lastxfer(chan);
 
@@ -1038,8 +1084,7 @@ static struct sw_dma_chan *sw_dma_map_channel(int channel);
 /* sw_request_dma
  *
  * get control of an dma channel
-*/
-
+ */
 int sw_dma_request(unsigned int channel,
 			struct sw_dma_client *client,
 			void *dev)
@@ -1047,16 +1092,34 @@ int sw_dma_request(unsigned int channel,
 	struct sw_dma_chan *chan;
 	unsigned long flags, temp;
 
-	pr_debug("dma%d: sw_request_dma: client=%s, dev=%p\n",
-		channel, client->name, dev);
+	pr_debug("dma%d: sw_request_dma: client=%s, dev=0x%08x\n",
+		channel, client->name, (u32)dev);
 
+#ifdef USE_SPINLOCK_20120802
+	spin_lock_irqsave(&g_dma_req_lock, flags);
+	//DMA_CHAN_LOCK(&chan->lock, flags); /* cannot use chan->lock, chan uninitized */
+#else
 	local_irq_save(flags);
+#endif /* USE_SPINLOCK_20120802 */
 
 	chan = sw_dma_map_channel(channel);
 	if (chan == NULL) {
+#ifdef USE_SPINLOCK_20120802
+		spin_unlock_irqrestore(&g_dma_req_lock, flags);
+		//DMA_CHAN_UNLOCK(&chan->lock, flags);
+#else
 		local_irq_restore(flags);
+#endif /* USE_SPINLOCK_20120802 */
 		return -EBUSY;
 	}
+
+#ifdef USE_SPINLOCK_20120802
+	/* request unlock */
+	spin_unlock_irqrestore(&g_dma_req_lock, flags);
+
+	/* channel lock */
+	DMA_CHAN_LOCK(&chan->lock, flags);
+#endif /* USE_SPINLOCK_20120802 */
 
 	dbg_showchan(chan);
 
@@ -1067,13 +1130,17 @@ int sw_dma_request(unsigned int channel,
 	temp &= (3 << (chan->number<<1));
 	writel(temp, dma_base + SW_DMA_DIRQPD);
 
+#ifdef USE_SPINLOCK_20120802
+	DMA_CHAN_UNLOCK(&chan->lock, flags);
+#else
 	local_irq_restore(flags);
+#endif /* USE_SPINLOCK_20120802 */
 
 	chan->dev_id = dev;
 
 	/* need to setup */
 
-	pr_debug("%s: channel initialised, %p\n", __func__, chan);
+	pr_debug("%s: channel initialised, 0x%08x\n", __func__, (u32)chan);
 
 	return chan->number | DMACH_LOW_LEVEL;
 }
@@ -1089,8 +1156,7 @@ EXPORT_SYMBOL(sw_dma_request);
  * Note, although a warning is currently printed if the freeing client
  * info is not the same as the registrant's client info, the free is still
  * allowed to go through.
-*/
-
+ */
 int sw_dma_free(unsigned int channel, struct sw_dma_client *client)
 {
 	struct sw_dma_chan *chan = lookup_dma_channel(channel);
@@ -1099,7 +1165,11 @@ int sw_dma_free(unsigned int channel, struct sw_dma_client *client)
 	if (chan == NULL)
 		return -EINVAL;
 
+#ifdef USE_SPINLOCK_20120802
+	DMA_CHAN_LOCK(&chan->lock, flags);
+#else
 	local_irq_save(flags);
+#endif /* USE_SPINLOCK_20120802 */
 
 	if (chan->client != client) {
 		printk(KERN_WARNING "dma%d: possible free from different client (channel %p, passed %p)\n",
@@ -1119,10 +1189,22 @@ int sw_dma_free(unsigned int channel, struct sw_dma_client *client)
 	chan->client = NULL;
 	chan->in_use = 0;
 
+#ifdef USE_SPINLOCK_20120802
+	/* release channel lock */
+	DMA_CHAN_UNLOCK(&chan->lock, flags);
+
+	/* channel request lock */
+	spin_lock_irqsave(&g_dma_req_lock, flags);
+#endif /* USE_SPINLOCK_20120802 */
+
 	if (!(channel & DMACH_LOW_LEVEL))
 		dma_chan_map[channel] = NULL;
 
+#ifdef USE_SPINLOCK_20120802
+	spin_unlock_irqrestore(&g_dma_req_lock, flags);
+#else
 	local_irq_restore(flags);
+#endif /* USE_SPINLOCK_20120802 */
 
 	return 0;
 }
@@ -1138,7 +1220,11 @@ static int sw_dma_dostop(struct sw_dma_chan *chan)
 
 	dbg_showchan(chan);
 
+#ifdef USE_SPINLOCK_20120802
+	DMA_CHAN_LOCK(&chan->lock, flags);
+#else
 	local_irq_save(flags);
+#endif /* USE_SPINLOCK_20120802 */
 
 	sw_dma_call_op(chan,  SW_DMAOP_STOP);
 
@@ -1155,7 +1241,11 @@ static int sw_dma_dostop(struct sw_dma_chan *chan)
 	pr_debug("L%d, loadstate %d -> SW_DMALOAD_NONE\n", __LINE__, chan->load_state);
 	chan->load_state = SW_DMALOAD_NONE;
 
+#ifdef USE_SPINLOCK_20120802
+	DMA_CHAN_UNLOCK(&chan->lock, flags);
+#else
 	local_irq_restore(flags);
+#endif /* USE_SPINLOCK_20120802 */
 
 	return 0;
 }
@@ -1179,8 +1269,7 @@ static void sw_dma_waitforstop(struct sw_dma_chan *chan)
 /* sw_dma_flush
  *
  * stop the channel, and remove all current and pending transfers
-*/
-
+ */
 static int sw_dma_flush(struct sw_dma_chan *chan)
 {
 	struct sw_dma_buf *buf, *next;
@@ -1190,7 +1279,11 @@ static int sw_dma_flush(struct sw_dma_chan *chan)
 
 	dbg_showchan(chan);
 
+#ifdef USE_SPINLOCK_20120802
+	DMA_CHAN_LOCK(&chan->lock, flags);
+#else
 	local_irq_save(flags);
+#endif /* USE_SPINLOCK_20120802 */
 
 	if (chan->state != SW_DMA_IDLE) {
 		pr_debug("%s: stopping channel...\n", __func__ );
@@ -1221,7 +1314,11 @@ static int sw_dma_flush(struct sw_dma_chan *chan)
 
 	dbg_showregs(chan);
 
+#ifdef USE_SPINLOCK_20120802
+	DMA_CHAN_UNLOCK(&chan->lock, flags);
+#else
 	local_irq_restore(flags);
+#endif /* USE_SPINLOCK_20120802 */
 
 	return 0;
 }
@@ -1230,15 +1327,19 @@ static int sw_dma_started(struct sw_dma_chan *chan)
 {
 	unsigned long flags;
 
+#ifdef USE_SPINLOCK_20120802
+	DMA_CHAN_LOCK(&chan->lock, flags);
+#else
 	local_irq_save(flags);
+#endif /* USE_SPINLOCK_20120802 */
 
 	dbg_showchan(chan);
 
 	/* if we've only loaded one buffer onto the channel, then chec
 	 * to see if we have another, and if so, try and load it so when
 	 * the first buffer is finished, the new one will be loaded onto
-	 * the channel */
-
+	 * the channel
+	 */
 	if (chan->next != NULL) {
 		if (chan->load_state == SW_DMALOAD_1LOADED) {
 
@@ -1256,11 +1357,13 @@ static int sw_dma_started(struct sw_dma_chan *chan)
 		}
 	}
 
-
+#ifdef USE_SPINLOCK_20120802
+	DMA_CHAN_UNLOCK(&chan->lock, flags);
+#else
 	local_irq_restore(flags);
+#endif /* USE_SPINLOCK_20120802 */
 
 	return 0;
-
 }
 
 int
@@ -1304,15 +1407,14 @@ EXPORT_SYMBOL(sw_dma_ctrl);
  * DISRC  -> source address of the DMA
  * DIDSTC -> destination of the DMA (AHB,APD)
  * DIDST  -> destination address of the DMA
-*/
+ */
 
 /* sw_dma_config
  *
  * x:            transfer unit type
  * dir:          1 - to dev / 0 - from dev
  * dcon:         base value of the DCONx register
-*/
-
+ */
 int sw_dma_config(unsigned int channel, struct dma_hw_conf* user_conf)
 {
 	struct sw_dma_chan *chan = lookup_dma_channel(channel);
@@ -1400,8 +1502,10 @@ int sw_dma_config(unsigned int channel, struct dma_hw_conf* user_conf)
 	else{
 		dcon |= hw_conf->reload ? SW_NDMA_CONF_CONTI : 0;
 	}
+
 	dcon |= (1 << 15);   //backdoor: byte counter register shows the remain bytes for transfer
 	chan->dcon = dcon;
+	printk("%s: hw_conf->reload %d, dcon 0x%08x\n", __func__, hw_conf->reload, dcon);
 
 	if( hw_conf->hf_irq < 2 ){
 		printk(KERN_ERR "irq type is not suppoted yet.\n");
@@ -1443,8 +1547,7 @@ EXPORT_SYMBOL(sw_dma_setflags);
 
 /* do we need to protect the settings of the fields from
  * irq?
-*/
-
+ */
 int sw_dma_set_opfn(unsigned int channel, sw_dma_opfn_t rtn)
 {
 	struct sw_dma_chan *chan = lookup_dma_channel(channel);
@@ -1494,8 +1597,7 @@ EXPORT_SYMBOL(sw_dma_set_halfdone_fn);
 /* sw_dma_getposition
  *
  * returns the current transfer points for the dma source and destination
-*/
-
+ */
 int sw_dma_getposition(unsigned int channel, dma_addr_t *src, dma_addr_t *dst)
 {
 	struct sw_dma_chan *chan = lookup_dma_channel(channel);
@@ -1522,8 +1624,8 @@ EXPORT_SYMBOL(sw_dma_getposition);
 
 int sw_dma_getcurposition(unsigned int channel, dma_addr_t *src, dma_addr_t *dst)
 {
-	struct sw_dma_chan *chan = lookup_dma_channel(channel);
 	//dma_addr_t s,d,count,countleft;
+	struct sw_dma_chan *chan = lookup_dma_channel(channel);
 	dma_addr_t s,d,count;
 
 	if (chan == NULL)
@@ -1548,11 +1650,10 @@ int sw_dma_getcurposition(unsigned int channel, dma_addr_t *src, dma_addr_t *dst
 	dma_wrreg(chan, SW_DMA_DCONF, temp);
 #endif
 
-//printk("src = %x, count = %x , countleft = %x\n",s,count,countleft);
+	//printk("src = %x, count = %x , countleft = %x\n",s,count,countleft);
 	//*src = s + (count - countleft);
 	*src = s - count;
 	*dst = d - count;
-
 
 	return 0;
 }
@@ -1575,16 +1676,14 @@ int __init sw_dma_init(unsigned int channels, unsigned int irq,
 	int channel;
 	int ret;
 
-	printk("SOFTWINNER DMA Driver, (c) 2003-2004,2006 Simtec Electronics\n");
-
 	dma_channels = channels;
-	//dma_base = ioremap(SOFTWINNER_DMA_BASE, 4096);
 	dma_base = (void __iomem *)SW_VA_DMAC_IO_BASE;
 	dma_kmem = kmem_cache_create("dma_desc", sizeof(struct sw_dma_buf), 0,
 				SLAB_HWCACHE_ALIGN, sw_dma_cache_ctor);
+	printk("%s: line %d, dma_base 0x%08x\n", __func__, __LINE__, (u32)dma_base);
 
 	if (dma_kmem == NULL) {
-		printk(KERN_ERR "dma failed to make kmem cache\n");
+		printk("%s err: dma failed to make kmem cache\n", __func__);
 		ret = -ENOMEM;
 		goto err2;
 	}
@@ -1624,12 +1723,16 @@ int __init sw_dma_init(unsigned int channels, unsigned int irq,
 		/* basic channel configuration */
 
 		cp->load_timeout = 1<<18;
+#ifdef USE_SPINLOCK_20120802
+		//printk("%s: init channel spinlock\n", __FUNCTION__);
+		DMA_CHAN_LOCK_INIT(&cp->lock);
+#endif /* USE_SPINLOCK_20120802 */
 	}
 
 	ret = request_irq(irq, sw_dma_irq, IRQF_DISABLED,
 			"dma_irq", dma_base + SW_DMA_DIRQPD);
 	if(ret) {
-		pr_err("Failed to require irq for DMA at %d\n", irq);
+		pr_err("%s err: failed to require irq for DMA at %d\n", __func__, irq);
 		goto err;
 	}
 
@@ -1638,6 +1741,7 @@ int __init sw_dma_init(unsigned int channels, unsigned int irq,
 err:
 	kmem_cache_destroy(dma_kmem);
 err2:
+
 	dma_base = NULL;
 	return ret;
 }
@@ -1665,8 +1769,7 @@ static inline int is_channel_valid(unsigned int channel)
  * first, try the dma ordering given to us by either the relevant
  * dma code, or the board. Then just find the first usable free
  * channel
-*/
-
+ */
 static struct sw_dma_chan *sw_dma_map_channel(int channel)
 {
 	struct sw_dma_map *ch_map;

@@ -4,7 +4,7 @@
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
  * liugang <liugang@reuuimllatech.com>
  *
- * sun6i dma test head file
+ * sun7i dma test head file
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as

@@ -28,14 +28,11 @@
 #include <mach/hardware.h>
 #include <mach/dma.h>
 
-//#include <mach/platform.h>
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
-
 
 #include <mach/dma.h>
 #include <mach/system.h>
@@ -309,35 +306,35 @@ static int __devinit sw_dmac_probe(struct platform_device *dev)
 }
 static int __devexit sw_dmac_remove(struct platform_device *dev)
 {
-printk("[%s] enter\n", __FUNCTION__);
-return 0;
+	printk("[%s] enter\n", __FUNCTION__);
+	return 0;
 }
 static int sw_dmac_suspend(struct platform_device *dev, pm_message_t state)
 {
-printk("[%s] enter\n", __FUNCTION__);
-return 0;
+	printk("[%s] enter\n", __FUNCTION__);
+	return 0;
 }
 
 static int sw_dmac_resume(struct platform_device *dev)
 {
-printk("[%s] enter\n", __FUNCTION__);
-return 0;
+	printk("[%s] enter\n", __FUNCTION__);
+	return 0;
 }
 
 static struct platform_driver sw_dmac_driver = {
-.probe          = sw_dmac_probe,
-.remove         = __devexit_p(sw_dmac_remove),
-.suspend        = sw_dmac_suspend,
-.resume         = sw_dmac_resume,
-.driver         = {
-.name   = "sw_dmac",
-.owner  = THIS_MODULE,
-},
+	.probe          = sw_dmac_probe,
+	.remove         = __devexit_p(sw_dmac_remove),
+	.suspend        = sw_dmac_suspend,
+	.resume         = sw_dmac_resume,
+	.driver         = {
+		.name   = "sw_dmac",
+		.owner  = THIS_MODULE,
+	},
 };
 
 static int __init sw_dma_drvinit(void)
 {
-platform_driver_register(&sw_dmac_driver);
+	platform_driver_register(&sw_dmac_driver);
 	return 0;
 }
 

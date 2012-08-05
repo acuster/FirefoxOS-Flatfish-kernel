@@ -1,10 +1,10 @@
 /*
- * drivers/char/dma_test/sun6i_dma_test.h
+ * drivers/char/dma_test/sun7i_dma_test.h
  * (C) Copyright 2010-2015
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
  * liugang <liugang@reuuimllatech.com>
  *
- * sun6i dma test head file
+ * sun7i dma test head file
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -13,8 +13,8 @@
  *
  */
 
-#ifndef __SUN6I_DMA_TEST_H
-#define __SUN6I_DMA_TEST_H
+#ifndef __SUN7I_DMA_TEST_H
+#define __SUN7I_DMA_TEST_H
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -43,15 +43,13 @@
 #include <linux/delay.h>
 #include <asm/dma-mapping.h>
 
-#include <mach/dma.h> /* how to search arch/arm/mach-sun6i/include/mach/dma.h? */
+#include <mach/dma.h> /* how to search arch/arm/mach-sun7i/include/mach/dma.h? */
 
 /*
  * dma test case id
  */
 enum dma_test_case_e {
 	DTC_1T_MEM_2_MEM,      /* dma test case one-thread from memory to memory */
-	DTC_SINGLE_MODE,       /* dma test case for single mode */
-	DTC_SINGLE_CONT_MODE,  /* dma test case for single mode & continue mode */
 	DTC_2T_MEM_2_MEM,      /* dma test case two-thread from memory to memory,
 				* memory range should not be conflict, eg: thread one
 				* from memory-A to memory-B, thread two from C to D.
@@ -81,11 +79,15 @@ enum dma_test_case_e {
 	DTC_MAX
 };
 
-extern wait_queue_head_t g_dtc_queue[];
-extern atomic_t g_adma_done;
+extern wait_queue_head_t 	g_dtc_queue[];
+extern atomic_t 		g_adma_done;
+
+extern struct sw_dma_client 	g_client;
+extern struct dma_hw_conf  	g_confs[];
+extern int 			g_dma_hle;
 
 #define DBG_FUN_LINE_TODO	printk("%s, line %d, todo############\n", __FUNCTION__, __LINE__)
 #define DBG_FUN_LINE 		printk("%s, line %d\n", __FUNCTION__, __LINE__)
 #define ERR_FUN_LINE 		printk("%s err, line %d\n", __FUNCTION__, __LINE__)
 
-#endif /* __SUN6I_DMA_TEST_H */
+#endif /* __SUN7I_DMA_TEST_H */

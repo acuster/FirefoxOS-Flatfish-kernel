@@ -32,66 +32,66 @@
 #define SW_DCONF_LOADING	   	(1<<31)		// 	DMA Loading 				have used
 
 /*NDMA Configuration Register*/
-#define SW_NDMA_CONF_CONTI   	(1<<30)		// 	DMA Continuous Mode			have used
+#define SW_NDMA_CONF_CONTI   		(1<<30)		// 	DMA Continuous Mode			have used
 #define SW_NDMA_CONF_WAIT  		(7<<27)		// 	DMA Wait Status				not used yet
 #define SW_NDMA_CONF_DSTDW 		(3<<25)		// 	destination data width		not used yet
-#define SW_NDMA_CONF_DWBYTE    	(0<<25)		//	8-Bit						not used yet
-#define SW_NDMA_CONF_DWHWORD   	(1<<25)		//	16-Bit						not used yet
-#define SW_NDMA_CONF_DWWORD    	(2<<25)		//	32-Bit						not used yet
+#define SW_NDMA_CONF_DWBYTE    		(0<<25)		//	8-Bit						not used yet
+#define SW_NDMA_CONF_DWHWORD   		(1<<25)		//	16-Bit						not used yet
+#define SW_NDMA_CONF_DWWORD    		(2<<25)		//	32-Bit						not used yet
 #define SW_NDMA_CONF_DSTBL 		(3<<23) 	//	destination burst lenght	not used yet
-#define SW_NDMA_CONF_DSTBL0 	(0<<23)		//	1							not used yet
-#define SW_NDMA_CONF_DSTBL1 	(1<<23)		//	4							not used yet
-#define SW_NDMA_CONF_DSTBL2 	(2<<23)		//	8							not used yet
-#define SW_NDMA_CONF_DSTSEC 	(1<<22)		//	DMA Destination Secutity	not used yet
+#define SW_NDMA_CONF_DSTBL0 		(0<<23)		//	1							not used yet
+#define SW_NDMA_CONF_DSTBL1 		(1<<23)		//	4							not used yet
+#define SW_NDMA_CONF_DSTBL2 		(2<<23)		//	8							not used yet
+#define SW_NDMA_CONF_DSTSEC 		(1<<22)		//	DMA Destination Secutity	not used yet
 #define SW_NDMA_CONF_DSTAT 		(1<<21)    	// 	destination address type	not used yet
 #define SW_NDMA_CONF_DSTTP 		(31<<16)    //	destination DRQ type		not used yet
 
 #define SW_NDMA_CONF_SRCDW 		(3<<9)		//	source data width			not used yet
-#define SW_NDMA_CONF_SWBYTE    	(0<<9)		//	8-Bit						not used yet
-#define SW_NDMA_CONF_SWHWORD   	(1<<9)		//	16-Bit						not used yet
-#define SW_NDMA_CONF_SWWORD    	(2<<9)		//	32-Bit						not used yet
+#define SW_NDMA_CONF_SWBYTE    		(0<<9)		//	8-Bit						not used yet
+#define SW_NDMA_CONF_SWHWORD   		(1<<9)		//	16-Bit						not used yet
+#define SW_NDMA_CONF_SWWORD    		(2<<9)		//	32-Bit						not used yet
 #define SW_NDMA_CONF_SRCBL 		(3<<7)		//	source burst lenght			not used yet
-#define SW_NDMA_CONF_SRCBL0 	(0<<7)		//	1							not used yet
-#define SW_NDMA_CONF_SRCBL1 	(1<<7)		//	4							not used yet
-#define SW_NDMA_CONF_SRCBL2 	(2<<7)		//	8							not used yet
-#define SW_NDMA_CONF_SRCSEC 	(1<<6)		//	DMA Source Secutity			not used yet
+#define SW_NDMA_CONF_SRCBL0 		(0<<7)		//	1							not used yet
+#define SW_NDMA_CONF_SRCBL1 		(1<<7)		//	4							not used yet
+#define SW_NDMA_CONF_SRCBL2 		(2<<7)		//	8							not used yet
+#define SW_NDMA_CONF_SRCSEC 		(1<<6)		//	DMA Source Secutity			not used yet
 #define SW_NDMA_CONF_SRCAT 		(1<<5)		//	source address type			not used yet
 #define SW_NDMA_CONF_SRCTP 		(31<<0)		//	normal source DRQ type		not used yet
 
 /*DDMA Configuration Register*/
-#define SW_DDMA_CONF_BUSY   	(1<<30)		// 	DMA BUSY Mode				not used yet
-#define SW_DDMA_CONF_CONTI   	(1<<29)		// 	DMA Continuous Mode			have used
+#define SW_DDMA_CONF_BUSY   		(1<<30)		// 	DMA BUSY Mode				not used yet
+#define SW_DDMA_CONF_CONTI   		(1<<29)		// 	DMA Continuous Mode			have used
 #define SW_DDMA_CONF_DSEC  		(1<<28)		// 	DMA Destination Security	not used yet
 #define SW_DDMA_CONF_DSTDW 		(3<<25)		// 	destination data width		not used yet
-#define SW_DDMA_CONF_DWBYTE    	(0<<25)		//	8-Bit						not used yet
-#define SW_DDMA_CONF_DWHWORD   	(1<<25)		//	16-Bit						not used yet
-#define SW_DDMA_CONF_DWWORD    	(2<<25)		//	32-Bit						not used yet
+#define SW_DDMA_CONF_DWBYTE    		(0<<25)		//	8-Bit						not used yet
+#define SW_DDMA_CONF_DWHWORD   		(1<<25)		//	16-Bit						not used yet
+#define SW_DDMA_CONF_DWWORD    		(2<<25)		//	32-Bit						not used yet
 #define SW_DDMA_CONF_DSTBL 		(3<<23) 	//	destination burst lenght	not used yet
-#define SW_DDMA_CONF_DSTBL0 	(0<<23)		//	1							not used yet
-#define SW_DDMA_CONF_DSTBL1 	(1<<23)		//	4							not used yet
-#define SW_DDMA_CONF_DSTBL2 	(2<<23)		//	8							not used yet
-#define SW_DDMA_CONF_DSTADDR	(3<<21)    	// 	destination address type	not used yet
-#define SW_DDMA_CONF_DSTADDR0	(0<<21)		//	Linear Mode					not used yet
-#define SW_DDMA_CONF_DSTADDR1	(1<<21)		//	IO Mode						not used yet
-#define SW_DDMA_CONF_DSTADDR2	(2<<21)		//	Horizontal Page Mode		not used yet
-#define SW_DDMA_CONF_DSTADDR3	(3<<21)		//	Vertical Page Mode			not used yet
+#define SW_DDMA_CONF_DSTBL0 		(0<<23)		//	1							not used yet
+#define SW_DDMA_CONF_DSTBL1 		(1<<23)		//	4							not used yet
+#define SW_DDMA_CONF_DSTBL2 		(2<<23)		//	8							not used yet
+#define SW_DDMA_CONF_DSTADDR		(3<<21)    	// 	destination address type	not used yet
+#define SW_DDMA_CONF_DSTADDR0		(0<<21)		//	Linear Mode					not used yet
+#define SW_DDMA_CONF_DSTADDR1		(1<<21)		//	IO Mode						not used yet
+#define SW_DDMA_CONF_DSTADDR2		(2<<21)		//	Horizontal Page Mode		not used yet
+#define SW_DDMA_CONF_DSTADDR3		(3<<21)		//	Vertical Page Mode			not used yet
 #define SW_DDMA_CONF_DSTTP 		(31<<16)    //	destination DRQ type		not used yet
 
 #define SW_DDMA_CONF_BC			(1<<15)		//	BC mode select				not used yet
 #define SW_DDMA_CONF_SSEC		(1<<12)		//	DMA Source Security			not used yet
 #define SW_NDMA_CONF_SRCDW 		(3<<9)		//	source data width			not used yet
-#define SW_NDMA_CONF_SWBYTE    	(0<<9)		//	8-Bit						not used yet
-#define SW_NDMA_CONF_SWHWORD   	(1<<9)		//	16-Bit						not used yet
-#define SW_NDMA_CONF_SWWORD    	(2<<9)		//	32-Bit						not used yet
+#define SW_NDMA_CONF_SWBYTE    		(0<<9)		//	8-Bit						not used yet
+#define SW_NDMA_CONF_SWHWORD   		(1<<9)		//	16-Bit						not used yet
+#define SW_NDMA_CONF_SWWORD    		(2<<9)		//	32-Bit						not used yet
 #define SW_NDMA_CONF_SRCBL 		(3<<7)		//	source burst lenght			not used yet
-#define SW_NDMA_CONF_SRCBL0 	(0<<7)		//	1							not used yet
-#define SW_NDMA_CONF_SRCBL1 	(1<<7)		//	4							not used yet
-#define SW_NDMA_CONF_SRCBL2 	(2<<7)		//	8							not used yet
-#define SW_NDMA_CONF_SRCADDR 	(3<<5)		//	DMA Source Address Mode		not used yet
-#define SW_NDMA_CONF_SRCADDR0 	(0<<5)		//	Linear Mode					not used yet
-#define SW_NDMA_CONF_SRCADDR1 	(1<<5)		//	IO Mode						not used yet
-#define SW_NDMA_CONF_SRCADDR2 	(2<<5)		//	Horizontal Page Mode		not used yet
-#define SW_NDMA_CONF_SRCADDR3 	(3<<5)		//	Vertical Page Mode			not used yet
+#define SW_NDMA_CONF_SRCBL0 		(0<<7)		//	1							not used yet
+#define SW_NDMA_CONF_SRCBL1 		(1<<7)		//	4							not used yet
+#define SW_NDMA_CONF_SRCBL2 		(2<<7)		//	8							not used yet
+#define SW_NDMA_CONF_SRCADDR 		(3<<5)		//	DMA Source Address Mode		not used yet
+#define SW_NDMA_CONF_SRCADDR0 		(0<<5)		//	Linear Mode					not used yet
+#define SW_NDMA_CONF_SRCADDR1 		(1<<5)		//	IO Mode						not used yet
+#define SW_NDMA_CONF_SRCADDR2 		(2<<5)		//	Horizontal Page Mode		not used yet
+#define SW_NDMA_CONF_SRCADDR3 		(3<<5)		//	Vertical Page Mode			not used yet
 #define SW_NDMA_CONF_SRCTP 		(31<<0)		//	normal source DRQ type		not used yet
 
 #endif    // #ifndef _DMA_REGS_

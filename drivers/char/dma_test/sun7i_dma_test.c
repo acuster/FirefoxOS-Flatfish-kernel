@@ -1,10 +1,10 @@
 /*
- * drivers/char/dma_test/sun6i_dma_test.c
+ * drivers/char/dma_test/sun7i_dma_test.c
  * (C) Copyright 2010-2015
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
  * liugang <liugang@reuuimllatech.com>
  *
- * sun6i dma test driver
+ * sun7i dma test driver
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -13,18 +13,16 @@
  *
  */
 
-#include "sun6i_dma_test.h"
+#include "sun7i_dma_test.h"
 
 #include "test_case_1t_mem_2_mem.h"
 #include "test_case_2t_mem_2_mem.h"
 #include "test_case_other.h"
-#include "test_case_single_md.h"
-#include "test_case_single_conti_md.h"
 
 /*
  * cur test case
  */
-static enum dma_test_case_e g_cur_test_case = DTC_SINGLE_CONT_MODE;
+static enum dma_test_case_e g_cur_test_case = DTC_2T_MEM_2_MEM;
 //static enum dma_test_case_e g_cur_test_case = DTC_MAX;
 
 /*
@@ -32,6 +30,14 @@ static enum dma_test_case_e g_cur_test_case = DTC_SINGLE_CONT_MODE;
  */
 wait_queue_head_t	g_dtc_queue[DTC_MAX];
 atomic_t 		g_adma_done = ATOMIC_INIT(0);	/* dma done flag */
+
+/* dma handle, returned by sw_dma_request */
+int 			g_dma_hle = -1;
+
+struct sw_dma_client 	g_client = {
+	.name = "sun7i_dma_test",
+};
+struct dma_hw_conf 	g_confs[1];
 
 /**
  * __dma_test_init_waitqueue - init dma wait queue
@@ -63,12 +69,6 @@ static int __dma_test_thread(void * arg)
 	case DTC_1T_MEM_2_MEM:
 		uResult = __dtc_1t_mem_2_mem();
 		break;
-	case DTC_SINGLE_MODE:
-		uResult = __dtc_single_mode();
-		break;
-	case DTC_SINGLE_CONT_MODE:
-		uResult = __dtc_sgct_mode();
-		break;
 	case DTC_1T_ENQ_AFT_DONE:
 		uResult = __dtc_case_enq_aftdone();
 		break;
@@ -76,10 +76,10 @@ static int __dma_test_thread(void * arg)
 		uResult = __dtc_many_enq();
 		break;
 	case DTC_1TM2M_CONTI_MOD:
-		uResult = __dtc_conti_mode();
+		uResult = __dtc_conti_mod();
 		break;
 	case DTC_1T_CMD_STOP:
-		uResult = __dtc_stopcmd();
+		uResult = __dtc_stop_cmd();
 		break;
 	case DTC_1T_NAND_DMA_RW:
 		pr_err("%s err, cannot test, because open(/dev/nande... linked failed, \
@@ -154,7 +154,7 @@ module_init(sw_dma_test_init);
 module_exit(sw_dma_test_exit);
 MODULE_LICENSE ("GPL");
 MODULE_AUTHOR ("liugang");
-MODULE_DESCRIPTION ("sun6i Dma Test driver code");
+MODULE_DESCRIPTION ("sun7i Dma Test driver code");
 #else
 __initcall(sw_dma_test_init);
 #endif /* MODULE */

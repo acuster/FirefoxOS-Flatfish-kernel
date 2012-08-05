@@ -18,6 +18,7 @@
 
 #include <mach/hardware.h>
 
+#define USE_SPINLOCK_20120802	/* use spin_lock_irqsave instead of local_irq_save */
 
 #define MAX_DMA_TRANSFER_SIZE   0x100000 /* Data Unit is half word  */
 
@@ -547,6 +548,14 @@ struct sw_dma_chan {
 	struct sys_device	dev;
 #endif
 	void * dev_id;
+
+#ifdef USE_SPINLOCK_20120802
+	/*
+	 * dma channel lock, in smp enviroment, use spin_lock_irqsave
+	 * instead of local_irq_save.
+	 */
+	spinlock_t 		lock;
+#endif /* USE_SPINLOCK_20120802 */
 };
 
 /*the channel number of above 8 is DDMA channel.*/
