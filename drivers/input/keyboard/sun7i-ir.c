@@ -36,21 +36,24 @@
 
 #include "ir-keymap.h"
 
-//#define DEBUG_IR
-#define SYS_GPIO_CFG_EN
-#define SYS_CLK_CFG_EN
-#define PRINT_SUSPEND_INFO
+#define SUN7I_IR_FPGA
+#define CLK_CFG_NEW_20120806
+#define DEBUG_IR
+
+//#define SUN7I_SYS_GPIO_CFG_EN
+//#define SUN7I_SYS_CLK_CFG_EN
+#define SUN7I_PRINT_SUSPEND_INFO
 
 #ifdef DEBUG_IR
-#define DEBUG_IR_LEVEL0
-#define DEBUG_IR_LEVEL2
-#define DEBUG_IR_LEVEL1
-#define dprintk(level, fmt, arg...)	if (debug >= level) \
+#define DEBUG_LEVEL0
+#define DEBUG_LEVEL2
+#define DEBUG_LEVEL1
+#define dprintk(level, fmt, arg...)	if(debug >= level) \
 						printk(KERN_DEBUG fmt , ## arg)
 #else
-#undef DEBUG_IR_LEVEL0
-#undef DEBUG_IR_LEVEL2
-#undef DEBUG_IR_LEVEL1
+#undef DEBUG_LEVEL0
+#undef DEBUG_LEVEL2
+#undef DEBUG_LEVEL1
 #define dprintk(level, fmt, arg...)
 #endif
 
@@ -73,17 +76,29 @@
 #define IR_RXINTS_RXPE		(0x1<<1)	//Rx Packet End
 #define IR_RXINTS_RXDA		(0x1<<4)	//Rx FIFO Data Available
 
+#ifdef SUN7I_IR_FPGA
+#define IR_RXFILT_VAL		(16)   		//Filter Threshold = 8*42.7 = ~341us < 500us
+#define IR_RXIDLE_VAL  		(5)    		//Idle Threshold = (2+1)*128*42.7 = ~16.4ms > 9ms
+
+#define IR_L1_MIN   		(160)  		//80*42.7 = ~3.4ms, Lead1(4.5ms) > IR_L1_MIN
+#define IR_L0_MIN  		(80)  		//40*42.7 = ~1.7ms, Lead0(4.5ms) Lead0R(2.25ms)> IR_L0_MIN
+#define IR_PMAX    		(52)  		//26*42.7 = ~1109us ~= 561*2, Pluse < IR_PMAX
+#define IR_DMID    		(52)  		//26*42.7 = ~1109us ~= 561*2, D1 > IR_DMID, D0 =< IR_DMID
+#define IR_DMAX    		(106)  		//53*42.7 = ~2263us ~= 561*4, D < IR_DMAX
+#else
 //Frequency of Sample Clock = 23437.5Hz, Cycle is 42.7us
 //Pulse of NEC Remote >560us
 #define IR_RXFILT_VAL		(8)		//Filter Threshold = 8*42.7 = ~341us	< 500us
 #define IR_RXIDLE_VAL		(2)   		//Idle Threshold = (2+1)*128*42.7 = ~16.4ms > 9ms
-#define IR_FIFO_SIZE		(16)    	//16Bytes
 
 #define IR_L1_MIN		(80)		//80*42.7 = ~3.4ms, Lead1(4.5ms) > IR_L1_MIN
 #define IR_L0_MIN		(40)		//40*42.7 = ~1.7ms, Lead0(4.5ms) Lead0R(2.25ms)> IR_L0_MIN
 #define IR_PMAX			(26)		//26*42.7 = ~1109us ~= 561*2, Pluse < IR_PMAX
 #define IR_DMID			(26)		//26*42.7 = ~1109us ~= 561*2, D1 > IR_DMID, D0 =< IR_DMID
 #define IR_DMAX			(53)		//53*42.7 = ~2263us ~= 561*4, D < IR_DMAX
+#endif /* SUN7I_IR_FPGA */
+
+#define IR_FIFO_SIZE		(16)    	//16Bytes
 
 #define IR_ERROR_CODE		(0xffffffff)
 #define IR_REPEAT_CODE		(0x00000000)
@@ -94,7 +109,7 @@ static struct clk *ir_clk;
 static u32 ir_gpio_hdle;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-struct sun4i_ir_data {
+struct sun7i_ir_data {
 	struct early_suspend early_suspend;
 };
 #endif
@@ -118,7 +133,7 @@ static int timer_used=0;
 static struct ir_raw_buffer	ir_rawbuf;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-static struct sun4i_ir_data *ir_data;
+static struct sun7i_ir_data *ir_data;
 #endif
 
 
@@ -163,7 +178,7 @@ static inline int ir_rawbuffer_full(void)
 
 static void ir_clk_cfg(void)
 {
-#ifdef SYS_CLK_CFG_EN
+#ifdef SUN7I_SYS_CLK_CFG_EN
 	unsigned long rate = 3000000; //3Mhz
 
 	apb_ir_clk = clk_get(NULL, "apb_ir0");
@@ -190,6 +205,23 @@ static void ir_clk_cfg(void)
 	}
 
 #else
+
+#ifdef CLK_CFG_NEW_20120806
+	unsigned long tmp = 0;
+
+	//Enable APB Clock for IR
+	tmp = readl(CCM_BASE + 0x68);
+	tmp |= 0x1 << 6;  //IR
+	writel(tmp, CCM_BASE + 0x68);
+
+	//config Special Clock for IR	(24/8=3MHz)
+	tmp = readl(CCM_BASE + 0xB0);
+	tmp &= ~(0x3 << 24);	//Select 24MHz
+	tmp |=  (0x1 << 31);   	//Open Clock
+	tmp &= ~(0x3 << 16);
+	tmp |=  (0x3 << 16);	//Divisor = 8
+	writel(tmp, CCM_BASE + 0xB0);
+#else
 	unsigned long tmp = 0;
 
 	//Enable APB Clock for IR
@@ -205,12 +237,14 @@ static void ir_clk_cfg(void)
 	tmp &= ~(0x3f<<0);
 	tmp |= (7<<0);	 	//Divisor = 8
 	writel(tmp, CCM_BASE + 0x34);
-#endif
+#endif /* CLK_CFG_NEW_20120806 */
+
+#endif /* SUN7I_SYS_CLK_CFG_EN */
 }
 
 static void ir_clk_uncfg(void)
 {
-#ifdef SYS_CLK_CFG_EN
+#ifdef SUN7I_SYS_CLK_CFG_EN
 	clk_put(apb_ir_clk);
 	clk_put(ir_clk);
 #else
@@ -220,7 +254,7 @@ static void ir_clk_uncfg(void)
 }
 static void ir_sys_cfg(void)
 {
-#ifdef SYS_GPIO_CFG_EN
+#ifdef SUN7I_SYS_GPIO_CFG_EN
 	if(0 == (ir_gpio_hdle = sw_gpio_request_ex("ir_para", "ir0_rx")))
 		printk("try to request ir_para gpio failed. \n");
 #else
@@ -239,7 +273,7 @@ static void ir_sys_cfg(void)
 static void ir_sys_uncfg(void)
 {
 	//unsigned long tmp;
-#ifdef SYS_GPIO_CFG_EN
+#ifdef SUN7I_SYS_GPIO_CFG_EN
 	sw_gpio_release(ir_gpio_hdle, 2);
 #else
 	printk("%s: line %d, todo#####\n", __FUNCTION__, __LINE__);
@@ -256,7 +290,8 @@ static void ir_reg_cfg(void)
 	writel(tmp, IR_BASE+IR_CTRL_REG);
 
 	/*Config IR Smaple Register*/
-	tmp = 0x1<<0; 	//Fsample = 3MHz/128 = 23437.5Hz (42.7us)
+	//tmp = 0x1<<0; 	//Fsample = 3MHz/128 = 23437.5Hz (42.7us)
+	tmp = 0x3<<0; 	//Fsample = 3MHz/128 = 23437.5Hz (42.7us)
 	tmp |= (IR_RXFILT_VAL&0x3f)<<2;	//Set Filter Threshold
 	tmp |= (IR_RXIDLE_VAL&0xff)<<8; //Set Idle Threshold
 	writel(tmp, IR_BASE+IR_SPLCFG_REG);
@@ -325,7 +360,7 @@ static unsigned long ir_packet_handler(unsigned char *buf, unsigned long dcnt)
 
 	//print_hex_dump_bytes("--- ", DUMP_PREFIX_NONE, buf, dcnt);
 
-	dprintk(2, "dcnt = %d \n", (int)dcnt);
+	dprintk(2, "%s: dcnt = %d\n", __FUNCTION__, (int)dcnt);
 
 	/*Find Lead '1'*/
 	len = 0;
@@ -452,8 +487,8 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 {
 	unsigned long intsta = ir_get_intsta();
 
-#ifdef DEBUG_IR_LEVEL2
-	printk("IR IRQ Serve\n");
+#ifdef DEBUG_LEVEL2
+	//printk("%s: intsta 0x%08x\n", __FUNCTION__, (u32)intsta);
 #endif
 	ir_clr_intsta(intsta);
 
@@ -468,9 +503,9 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 		{
 			if(ir_rawbuffer_full())
 			{
-				#ifdef DEBUG_IR_LEVEL0
-				printk("ir_irq_service: Raw Buffer Full!!\n");
-				#endif
+			#ifdef DEBUG_LEVEL0
+				printk("%s: Raw Buffer Full!!\n", __FUNCTION__);
+			#endif
 				break;
 			}
 			else
@@ -489,15 +524,19 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 		ir_rawbuf.dcnt = 0;
 		code_valid = ir_code_valid(code);
 
+#ifdef DEBUG_LEVEL2
+		printk("%s: code 0x%08x, code_valid %d\n", __FUNCTION__, (u32)code, code_valid);
+#endif
+
 		if(timer_used)
 		{
 			if(code_valid)  //the pre-key is released
 			{
 				input_report_key(ir_dev, ir_keycodes[(ir_code>>16)&0xff], 0);
 				input_sync(ir_dev);
-				#ifdef DEBUG_IR_LEVEL1
-				printk("IR KEY UP\n");
-				#endif
+			#ifdef DEBUG_LEVEL1
+				printk("%s: IR KEY UP\n", __FUNCTION__);
+			#endif
 				ir_cnt = 0;
 			}
 			if((code==IR_REPEAT_CODE)||(code_valid))  //Error, may interfere from other sources
@@ -522,30 +561,30 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 			{
 				if(code_valid)
 					ir_code = code;  /*update saved code with a new valid code*/
-			#ifdef DEBUG_IR_LEVEL0
-				printk("IR RAW CODE : %lu\n",(ir_code>>16)&0xff);
+			#ifdef DEBUG_LEVEL0
+				printk("%s: IR RAW CODE : %lu\n", __FUNCTION__, (ir_code>>16)&0xff);
 			#endif
 				input_report_key(ir_dev, ir_keycodes[(ir_code>>16)&0xff], 1);
-			#ifdef DEBUG_IR_LEVEL0
-				printk("IR CODE : %d\n",ir_keycodes[(ir_code>>16)&0xff]);
+			#ifdef DEBUG_LEVEL0
+				printk("%s: IR CODE : %d\n", __FUNCTION__, ir_keycodes[(ir_code>>16)&0xff]);
 			#endif
 				input_sync(ir_dev);
-			#ifdef DEBUG_IR_LEVEL1
-				printk("IR KEY VALE %d\n",ir_keycodes[(ir_code>>16)&0xff]);
+			#ifdef DEBUG_LEVEL1
+				//printk("%s: IR KEY VALE %d\n", __FUNCTION__, ir_keycodes[(ir_code>>16)&0xff]);
 			#endif
 			}
 		}
 
-		dprintk(1, "ir_irq_service: Rx Packet End, code=0x%x, ir_code=0x%x, timer_used=%d \n",
-			(int)code, (int)ir_code, timer_used);
+		dprintk(1, "%s: Rx Packet End, code=0x%x, ir_code=0x%x, timer_used=%d \n",
+			__FUNCTION__, (int)code, (int)ir_code, timer_used);
 	}
 
 	if(intsta & IR_RXINTS_RXOF)  /*FIFO Overflow*/
 	{
 		/*flush raw buffer*/
 		ir_reset_rawbuffer();
-#ifdef DEBUG_IR_LEVEL0
-		printk("ir_irq_service: Rx FIFO Overflow!!\n");
+#ifdef DEBUG_LEVEL0
+		printk("%s: Rx FIFO Overflow!!\n", __FUNCTION__);
 #endif
 	}
 
@@ -560,7 +599,7 @@ static void ir_timer_handle(unsigned long arg)
 	/*Time Out, means that the key is up*/
 	input_report_key(ir_dev, ir_keycodes[(ir_code>>16)&0xff], 0);
 	input_sync(ir_dev);
-#ifdef DEBUG_IR_LEVEL1
+#ifdef DEBUG_LEVEL1
 	printk("IR KEY TIMER OUT UP\n");
 #endif
 	ir_cnt = 0;
@@ -570,29 +609,29 @@ static void ir_timer_handle(unsigned long arg)
 
 //停用设备
 #ifdef CONFIG_HAS_EARLYSUSPEND
-static void sun4i_ir_suspend(struct early_suspend *h)
+static void sun7i_ir_suspend(struct early_suspend *h)
 {
 /*	unsigned long tmp = 0;
 	int ret;
-	struct sun4i_ir_data *ts = container_of(h, struct sun4i_ir_data, early_suspend);
+	struct sun7i_ir_data *ts = container_of(h, struct sun7i_ir_data, early_suspend);
 
 	tmp = readl(IR_BASE+IR_CTRL_REG);
 	tmp &= 0xfffffffc;
 	writel(tmp, IR_BASE+IR_CTRL_REG);
 */
 
-#ifdef PRINT_SUSPEND_INFO
-	printk("enter earlysuspend: sun4i_ir_suspend. \n");
+#ifdef SUN7I_PRINT_SUSPEND_INFO
+	printk("enter earlysuspend: sun7i_ir_suspend. \n");
 #endif
 	clk_disable(ir_clk);
 	clk_disable(apb_ir_clk);
 }
 
 //重新唤醒
-static void sun4i_ir_resume(struct early_suspend *h)
+static void sun7i_ir_resume(struct early_suspend *h)
 {
-#ifdef PRINT_SUSPEND_INFO
-	printk("enter laterresume: sun4i_ir_resume. \n");
+#ifdef SUN7I_PRINT_SUSPEND_INFO
+	printk("enter laterresume: sun7i_ir_resume. \n");
 #endif
 
 	ir_code = 0;
@@ -616,7 +655,7 @@ static int __init ir_init(void)
 		goto fail1;
 	}
 
-	ir_dev->name = "sun4i-ir";
+	ir_dev->name = "sun7i-ir";
 	ir_dev->phys = "RemoteIR/input1";
 	ir_dev->id.bustype = BUS_HOST;
 	ir_dev->id.vendor = 0x0001;
@@ -662,8 +701,8 @@ static int __init ir_init(void)
 	}
 
 	ir_data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	ir_data->early_suspend.suspend = sun4i_ir_suspend;
-	ir_data->early_suspend.resume	= sun4i_ir_resume;
+	ir_data->early_suspend.suspend = sun7i_ir_suspend;
+	ir_data->early_suspend.resume	= sun7i_ir_resume;
 	register_early_suspend(&ir_data->early_suspend);
 #endif
 

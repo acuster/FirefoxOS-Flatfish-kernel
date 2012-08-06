@@ -4,11 +4,11 @@
 #define __IR_KEYMAP_H__
 
 
-/*IR IO Mapping Config*/
+/* IR IO Mapping Config */
 //0--PIOB10, 1--PIOB17
 #define IR_IO_MAPPING			1
 
-/*IR Key Match Config*/
+/* IR Key Match Config */
 //#define IR_CHECK_ADDR_CODE
 #define IR_ADDR_CODE		(0x7f80) //(addr|((~addr)<<8))
 //#define INPUT_VALUE_MAPPING
@@ -23,8 +23,8 @@
 0x1F -- KEY_VOLUMEDOWN
 0x1E -- KEY_VOLUMEUP
 0x00 -- KEY_POWER
-
 */
+
 #ifdef INPUT_VALUE_MAPPING
 static const unsigned int ir_keycodes[]=
 {
