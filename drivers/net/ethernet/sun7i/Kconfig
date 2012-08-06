@@ -1,0 +1,20 @@
+config NET_VENDOR_SUN7I
+	bool "Sun7i emac devices"
+	default y
+	depends on HAS_IOMEM
+	---help---
+	The emac device of sun7i platform soc.
+
+if NET_VENDOR_SUN7I
+
+config SUN7I_EMAC
+	tristate "Sun7i platform 1G Ethernet driver"
+	depends on HAS_IOMEM && NET_VENDOR_SUN7I
+	select NET_CORE
+	select MII
+	select PHYLIB
+	select CRC32
+	---help---
+	  This is the driver for the Sun7i Ethernet.
+
+endif # NET_VENDOR_SUN6I
