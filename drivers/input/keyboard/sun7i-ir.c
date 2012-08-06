@@ -290,8 +290,11 @@ static void ir_reg_cfg(void)
 	writel(tmp, IR_BASE+IR_CTRL_REG);
 
 	/*Config IR Smaple Register*/
-	//tmp = 0x1<<0; 	//Fsample = 3MHz/128 = 23437.5Hz (42.7us)
-	tmp = 0x3<<0; 	//Fsample = 3MHz/128 = 23437.5Hz (42.7us)
+#ifdef SUN7I_IR_FPGA
+	tmp = 0x3<<0; 	//Fsample = 24MHz/512, and IR_RXFILT_VAL ~ IR_DMAX doubled
+#else
+	tmp = 0x1<<0; 	//Fsample = 3MHz/128 = 23437.5Hz (42.7us)
+#endif /* SUN7I_IR_FPGA */
 	tmp |= (IR_RXFILT_VAL&0x3f)<<2;	//Set Filter Threshold
 	tmp |= (IR_RXIDLE_VAL&0xff)<<8; //Set Idle Threshold
 	writel(tmp, IR_BASE+IR_SPLCFG_REG);
