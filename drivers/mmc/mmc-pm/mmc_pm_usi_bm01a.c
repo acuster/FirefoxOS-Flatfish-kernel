@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <mach/sys_config.h>
+#include <mach/gpio.h>
 #include <linux/delay.h>
 
 #include "mmc_pm.h"
@@ -68,137 +69,137 @@ static int usi_bm01a_power_onoff(int onoff)
 
 static int usi_bm01a_gpio_ctrl(char* name, int level)
 {
-    struct mmc_pm_ops *ops = &mmc_card_pm_ops;
-    char* gpio_cmd[6] = {"usi_bm01a_wl_regon", "usi_bm01a_bt_regon", "usi_bm01a_wl_rst",
-                               "usi_bm01a_wl_wake", "usi_bm01a_bt_rst", "usi_bm01a_bt_wake"};
-    int i = 0;
-    int ret = 0;
+	struct mmc_pm_ops *ops = &mmc_card_pm_ops;
+	char* gpio_cmd[6] = {"usi_bm01a_wl_regon", "usi_bm01a_bt_regon", "usi_bm01a_wl_rst",
+						       "usi_bm01a_wl_wake", "usi_bm01a_bt_rst", "usi_bm01a_bt_wake"};
+	int i = 0;
+	int ret = 0;
 
-    for (i=0; i<6; i++) {
-        if (strcmp(name, gpio_cmd[i])==0)
-            break;
-    }
-    if (i==6) {
-        usi_msg("No gpio %s for USI-BM01A module\n", name);
-        return -1;
-    }
+	for (i=0; i<6; i++) {
+		if (strcmp(name, gpio_cmd[i])==0)
+			break;
+	}
+	if (i==6) {
+		usi_msg("No gpio %s for USI-BM01A module\n", name);
+		return -1;
+	}
 
 //    usi_msg("Set GPIO %s to %d !\n", name, level);
-    if (strcmp(name, "usi_bm01a_wl_regon") == 0) {
-        if (level) {
-            if (usi_bm01a_bt_on) {
-                usi_msg("USI-BM01A is already powered up by bluetooth\n");
-                goto change_state;
-            } else {
-                usi_msg("USI-BM01A is powered up by wifi\n");
-                goto power_change;
-            }
-        } else {
-            if (usi_bm01a_bt_on) {
-                usi_msg("USI-BM01A should stay on because of bluetooth\n");
-                goto change_state;
-            } else {
-                usi_msg("USI-BM01A is powered off by wifi\n");
-                goto power_change;
-            }
-        }
-    }
+	if (strcmp(name, "usi_bm01a_wl_regon") == 0) {
+		if (level) {
+			if (usi_bm01a_bt_on) {
+				usi_msg("USI-BM01A is already powered up by bluetooth\n");
+				goto change_state;
+			} else {
+				usi_msg("USI-BM01A is powered up by wifi\n");
+				goto power_change;
+			}
+		} else {
+			if (usi_bm01a_bt_on) {
+				usi_msg("USI-BM01A should stay on because of bluetooth\n");
+				goto change_state;
+			} else {
+				usi_msg("USI-BM01A is powered off by wifi\n");
+				goto power_change;
+			}
+		}
+	}
 
-    if (strcmp(name, "usi_bm01a_bt_regon") == 0) {
-        if (level) {
-            if (usi_bm01a_wl_on) {
-                usi_msg("USI-BM01A is already powered up by wifi\n");
-                goto change_state;
-            } else {
-                usi_msg("USI-BM01A is powered up by bt\n");
-                goto power_change;
-            }
-        } else {
-            if (usi_bm01a_wl_on) {
-                usi_msg("USI-BM01A should stay on because of wifi\n");
-                goto change_state;
-            } else {
-                usi_msg("USI-BM01A is powered off by bt\n");
-                goto power_change;
-            }
-        }
-    }
+	if (strcmp(name, "usi_bm01a_bt_regon") == 0) {
+		if (level) {
+			if (usi_bm01a_wl_on) {
+				usi_msg("USI-BM01A is already powered up by wifi\n");
+				goto change_state;
+			} else {
+				usi_msg("USI-BM01A is powered up by bt\n");
+				goto power_change;
+			}
+		} else {
+			if (usi_bm01a_wl_on) {
+				usi_msg("USI-BM01A should stay on because of wifi\n");
+				goto change_state;
+			} else {
+				usi_msg("USI-BM01A is powered off by bt\n");
+				goto power_change;
+			}
+		}
+	}
 
 
-    ret = gpio_write_one_pin_value(ops->pio_hdle, level, name);
-    if (ret) {
-        usi_msg("Failed to set gpio %s to %d !\n", name, level);
-        return -1;
-    }
+	ret = sw_gpio_write_one_pin_value(ops->pio_hdle, level, name);
+	if (ret) {
+		usi_msg("Failed to set gpio %s to %d !\n", name, level);
+		return -1;
+	}
 
-    return 0;
+	return 0;
 
 power_change:
-    #if CONFIG_CHIP_ID==1123
-    ret = gpio_write_one_pin_value(ops->pio_hdle, level, "usi_bm01a_wl_pwr");
-    #elif CONFIG_CHIP_ID==1125
-    ret = usi_bm01a_power_onoff(level);
-    #else
-    #error "Found wrong chip id in wifi onoff\n"
-    #endif
-    if (ret) {
-        usi_msg("Failed to power off USI-BM01A module!\n");
-        return -1;
-    }
-    mdelay(5);
-    ret = gpio_write_one_pin_value(ops->pio_hdle, level, "usi_bm01a_wlbt_regon");
-    if (ret) {
-        usi_msg("Failed to regon off for  USI-BM01A module!\n");
-        return -1;
-    }
+	#if CONFIG_CHIP_ID==1123
+	ret = sw_gpio_write_one_pin_value(ops->pio_hdle, level, "usi_bm01a_wl_pwr");
+	#elif CONFIG_CHIP_ID==1125
+	ret = usi_bm01a_power_onoff(level);
+	#else
+	#warning "Found wrong chip id in wifi onoff"
+	#endif
+	if (ret) {
+		usi_msg("Failed to power off USI-BM01A module!\n");
+		return -1;
+	}
+	mdelay(5);
+	ret = sw_gpio_write_one_pin_value(ops->pio_hdle, level, "usi_bm01a_wlbt_regon");
+	if (ret) {
+		usi_msg("Failed to regon off for  USI-BM01A module!\n");
+		return -1;
+	}
 
 change_state:
-    if (strcmp(name, "usi_bm01a_wl_regon")==0)
-        usi_bm01a_wl_on = level;
-    if (strcmp(name, "usi_bm01a_bt_regon")==0)
-        usi_bm01a_bt_on = level;
-    usi_msg("USI-BM01A power state change: wifi %d, bt %d !!\n", usi_bm01a_wl_on, usi_bm01a_bt_on);
-    return 0;
+	if (strcmp(name, "usi_bm01a_wl_regon")==0)
+		usi_bm01a_wl_on = level;
+	if (strcmp(name, "usi_bm01a_bt_regon")==0)
+		usi_bm01a_bt_on = level;
+	usi_msg("USI-BM01A power state change: wifi %d, bt %d !!\n", usi_bm01a_wl_on, usi_bm01a_bt_on);
+	return 0;
 }
 
 static int usi_bm01a_get_gpio_value(char* name)
 {
-    struct mmc_pm_ops *ops = &mmc_card_pm_ops;
-    char* bt_hostwake =  "usi_bm01a_bt_hostwake";
+	struct mmc_pm_ops *ops = &mmc_card_pm_ops;
+	char* bt_hostwake =  "usi_bm01a_bt_hostwake";
 
-    if (strcmp(name, bt_hostwake)) {
-        usi_msg("No gpio %s for USI-BM01A\n", name);
-        return -1;
-    }
+	if (strcmp(name, bt_hostwake)) {
+		usi_msg("No gpio %s for USI-BM01A\n", name);
+		return -1;
+	}
 
-    return gpio_read_one_pin_value(ops->pio_hdle, name);
+	return sw_gpio_read_one_pin_value(ops->pio_hdle, name);
 }
 
 static void usi_bm01a_power(int mode, int* updown)
 {
 	if (mode) {
 		if (*updown) {
-            usi_bm01a_gpio_ctrl("usi_bm01a_wl_regon", 1);
-            usi_bm01a_gpio_ctrl("usi_bm01a_wl_rst", 1);
+			usi_bm01a_gpio_ctrl("usi_bm01a_wl_regon", 1);
+			usi_bm01a_gpio_ctrl("usi_bm01a_wl_rst", 1);
 		} else {
-            usi_bm01a_gpio_ctrl("usi_bm01a_wl_rst", 0);
-            usi_bm01a_gpio_ctrl("usi_bm01a_wl_regon", 0);
+			usi_bm01a_gpio_ctrl("usi_bm01a_wl_rst", 0);
+			usi_bm01a_gpio_ctrl("usi_bm01a_wl_regon", 0);
 		}
 	} else {
-        if (usi_bm01a_wl_on)
-            *updown = 1;
-        else
-            *updown = 0;
+		if (usi_bm01a_wl_on)
+			*updown = 1;
+		else
+			*updown = 0;
 		usi_msg("sdio wifi power state: %s\n", usi_bm01a_wl_on ? "on" : "off");
 	}
 }
 
 void usi_bm01a_gpio_init(void)
 {
-    struct mmc_pm_ops *ops = &mmc_card_pm_ops;
-    usi_bm01a_wl_on = 0;
-    usi_bm01a_bt_on = 0;
-    ops->gpio_ctrl = usi_bm01a_gpio_ctrl;
-    ops->get_io_val = usi_bm01a_get_gpio_value;
-    ops->power = usi_bm01a_power;
+	struct mmc_pm_ops *ops = &mmc_card_pm_ops;
+	usi_bm01a_wl_on = 0;
+	usi_bm01a_bt_on = 0;
+	ops->gpio_ctrl = usi_bm01a_gpio_ctrl;
+	ops->get_io_val = usi_bm01a_get_gpio_value;
+	ops->power = usi_bm01a_power;
 }

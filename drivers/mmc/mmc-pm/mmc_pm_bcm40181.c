@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <mach/sys_config.h>
+#include <mach/gpio.h>
 
 #include "mmc_pm.h"
 
@@ -23,28 +24,28 @@ static int bcm40181_gpio_ctrl(char* name, int level)
 						"bcm40181_vdd_en"
 						};
 
-    for (i=0; i<4; i++) {
-        if (strcmp(name, gpio_name[i])==0)
-            break;
-    }
-    if (i==4) {
-        bcm40181_msg("No gpio %s for bcm40181-wifi module\n", name);
-        return -1;
-    }
+	for (i=0; i<4; i++) {
+		if (strcmp(name, gpio_name[i])==0)
+			break;
+	}
+	if (i==4) {
+		bcm40181_msg("No gpio %s for bcm40181-wifi module\n", name);
+		return -1;
+	}
 
-    ret = gpio_write_one_pin_value(ops->pio_hdle, level, name);
-    if (ret) {
-        bcm40181_msg("Failed to set gpio %s to %d !\n", name, level);
-        return -1;
-    } else
+	ret = sw_gpio_write_one_pin_value(ops->pio_hdle, level, name);
+	if (ret) {
+		bcm40181_msg("Failed to set gpio %s to %d !\n", name, level);
+		return -1;
+	} else
 		bcm40181_msg("Succeed to set gpio %s to %d !\n", name, level);
 
-    if (strcmp(name, "bcm40181_vdd_en") == 0) {
-        bcm40181_powerup = level;
-        bcm40181_msg("BCM40181 SDIO Wifi Power %s !!\n", level ? "UP" : "Off");
-    }
+	if (strcmp(name, "bcm40181_vdd_en") == 0) {
+		bcm40181_powerup = level;
+		bcm40181_msg("BCM40181 SDIO Wifi Power %s !!\n", level ? "UP" : "Off");
+	}
 
-    return 0;
+	return 0;
 }
 
 static int bcm40181_get_io_value(char* name)
@@ -52,11 +53,11 @@ static int bcm40181_get_io_value(char* name)
 	int ret = -1;
 	struct mmc_pm_ops *ops = &mmc_card_pm_ops;
 
-    if (strcmp(name, "bcm40181_wakeup")) {
-        bcm40181_msg("No gpio %s for BCM40181\n", name);
-        return -1;
-    }
-	ret = gpio_read_one_pin_value(ops->pio_hdle, name);
+	if (strcmp(name, "bcm40181_wakeup")) {
+		bcm40181_msg("No gpio %s for BCM40181\n", name);
+		return -1;
+	}
+	ret = sw_gpio_read_one_pin_value(ops->pio_hdle, name);
 	bcm40181_msg("Succeed to get gpio %s value: %d !\n", name, ret);
 
 	return ret;
@@ -64,26 +65,26 @@ static int bcm40181_get_io_value(char* name)
 
 void bcm40181_power(int mode, int* updown)
 {
-    if (mode) {
-        if (*updown) {
+	if (mode) {
+		if (*updown) {
 			bcm40181_gpio_ctrl("bcm40181_vcc_en", 1);
 			udelay(100);
 			bcm40181_gpio_ctrl("bcm40181_shdn", 1);
 			udelay(50);
 			bcm40181_gpio_ctrl("bcm40181_vdd_en", 1);
-        } else {
+		} else {
 			bcm40181_gpio_ctrl("bcm40181_vcc_en", 0);
 			bcm40181_gpio_ctrl("bcm40181_shdn", 0);
 			bcm40181_gpio_ctrl("bcm40181_vdd_en", 0);
-        }
-    } else {
-        if (bcm40181_powerup)
-            *updown = 1;
-        else
-            *updown = 0;
+		}
+	} else {
+		if (bcm40181_powerup)
+			*updown = 1;
+		else
+			*updown = 0;
 		bcm40181_msg("sdio wifi power state: %s\n", bcm40181_powerup ? "on" : "off");
-    }
-    return;
+	}
+	return;
 }
 void bcm40181_wifi_gpio_init(void)
 {
