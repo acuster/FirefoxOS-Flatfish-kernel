@@ -309,6 +309,7 @@ struct sunxi_mmc_host {
 #define CARD_DETECT_BY_FS       (4)	/* mmc insert/remove by fs, /proc/sunxi-mmc.x/insert node */
 
 	u32 read_only;
+	u32 io_flag;
 
 	u32 debuglevel;
 #ifdef CONFIG_PROC_FS

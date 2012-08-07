@@ -47,6 +47,7 @@
 #include "sunxi-mci.h"
 
 struct sunxi_mmc_host* sw_host[4] = {NULL, NULL, NULL, NULL};
+static int sunxi_io_dev = -1;
 
 #if 0
 static void dumphex32(char* name, char* base, int len)
@@ -106,6 +107,8 @@ static s32 sw_mci_init_host(struct sunxi_mmc_host* smc_host)
 	smc_host->power_on = 1;
 	smc_host->debuglevel = 0;
 	smc_host->voltage = SDC_WOLTAGE_3V3;
+	if (smc_host->pdev->id == sunxi_io_dev)
+		smc_host->io_flag = 1;
 	return 0;
 }
 
@@ -1569,11 +1572,9 @@ static int __devinit sw_mci_probe(struct platform_device *pdev)
 	mmc->ocr_avail	= smc_host->pdata->ocr_avail;
 	mmc->caps	= smc_host->pdata->caps;
 	mmc->caps2	= smc_host->pdata->caps2;
+	mmc->pm_caps	= MMC_PM_KEEP_POWER;
 	mmc->f_min	= smc_host->pdata->f_min;
 	mmc->f_max      = smc_host->pdata->f_max;
-
-//	mmc->pm_flags	= MMC_PM_KEEP_POWER;	//fpga
-
 	mmc->max_blk_count	= 512;
 	mmc->max_blk_size	= 65536;
 	mmc->max_req_size	= mmc->max_blk_size * mmc->max_blk_count;
@@ -1671,7 +1672,7 @@ static int sw_mci_suspend(struct device *dev)
 	if (mmc) {
 		struct sunxi_mmc_host *smc_host = mmc_priv(mmc);
 
-		if (mmc->card && mmc->card->type!=MMC_TYPE_SDIO)
+		if (!(mmc->pm_flags & MMC_PM_KEEP_POWER))
 			ret = mmc_suspend_host(mmc);
 
 		if (smc_host->power_on) {
@@ -1710,7 +1711,7 @@ static int sw_mci_resume(struct device *dev)
 			enable_irq(smc_host->irq);
 		}
 
-		if (mmc->card && mmc->card->type!=MMC_TYPE_SDIO)
+		if (!(mmc->pm_flags & MMC_PM_KEEP_POWER))
 			ret = mmc_resume_host(mmc);
 	}
 
@@ -1800,6 +1801,7 @@ static int __init sw_mci_init(void)
 	int cd_mode = 0;
 	int boot_card = 0;
 	int sdc_used = 0;
+	int io_used = 0;
 
 	SMC_MSG(NULL, "sw_mci_init\n");
 	/*
@@ -1834,7 +1836,14 @@ static int __init sw_mci_init(void)
 			}
 		}
 	}
-	SMC_MSG(NULL, "MMC host used card: 0x%x, boot card: 0x%x\n", sdc_used, boot_card);
+	/* get the io device number */
+	ret = script_parser_fetch("sdio_wifi_para", "sdio_wifi_used", &io_used, sizeof(int));
+	if (!ret && io_used) {
+		ret = script_parser_fetch("sdio_wifi_para", "sdio_wifi_sdc_id",
+						&sunxi_io_dev, sizeof(int));
+	}
+	SMC_MSG(NULL, "MMC host used card: 0x%x, boot card: 0x%x, io_card %d\n",
+					sdc_used, boot_card, sunxi_io_dev);
 	/* register boot card firstly */
 	for (i=0; i<4; i++) {
 		if (boot_card & (1 << i))
