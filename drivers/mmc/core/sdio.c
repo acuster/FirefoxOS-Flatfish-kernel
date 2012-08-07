@@ -12,6 +12,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/export.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
@@ -1290,7 +1291,7 @@ int sdio_reset_comm(struct mmc_card *card)
 	mmc_release_host(host);
 	return 0;
 err:
-	printk("%s: Error resetting SDIO communications (%d)\n",
+	pr_err("%s: Error resetting SDIO communications (%d)\n",
 	       mmc_hostname(host), err);
 	mmc_release_host(host);
 	return err;
