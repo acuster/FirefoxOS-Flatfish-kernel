@@ -37,7 +37,7 @@
 
 #define	__FPGA_DEBUG_G2D__
 #define MAX_G2D_MEM_INDEX	1000
-#define	INTC_IRQNO_DE_MIX	46
+#define	INTC_IRQNO_DE_MIX	AW_IRQ_MP
 
 struct info_mem
 {
