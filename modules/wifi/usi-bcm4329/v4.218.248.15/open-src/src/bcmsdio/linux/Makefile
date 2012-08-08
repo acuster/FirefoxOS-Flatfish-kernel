@@ -72,9 +72,9 @@ DFLAGS += -DBCM4325
 IFLAGS := -I$(LINUXDIR)/include -I$(LINUXDIR)/include/asm/mach-default -I. -I$(SRCBASE)/include -I$(SRCBASE)/shared -I$(SRCBASE)/dongle -I$(SRCBASE)/wl/sys
 
 WFLAGS := -Wall -Wstrict-prototypes
-ifeq (,$(findstring 2.4.18,$(LINUXVER)))
-WFLAGS += -Werror
-endif
+#ifeq (,$(findstring 2.4.18,$(LINUXVER)))
+#WFLAGS += -Werror
+#endif
 
 CFILES:= bcmsdh_linux.c linux_osl.c bcmsdh.c
 CFILES += siutils.c sbutils.c aiutils.c bcmutils.c hndpmu.c
