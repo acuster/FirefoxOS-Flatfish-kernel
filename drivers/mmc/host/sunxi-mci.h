@@ -29,6 +29,11 @@
 #define IRQNO_SMC0	(92)
 #define SMC_IRQNO(x)	(IRQNO_SMC0 + (x))
 
+#define MMC_SRCCLK_HOSC	"sys_hosc"
+#define MMC_SRCCLK_PLL6	"sys_pll6"
+#define MMC_AHBCLK_PREFIX	"ahb_sdmmc"
+#define MMC_MODCLK_PREFIX	"mod_sdc"
+
 #ifdef MMC_FPGA
 #undef SMC_IRQNO
 #define SMC_IRQNO(x)	(45)
@@ -40,6 +45,12 @@
 #define REG_FIFO_OS	(0x100)
 #define IRQNO_SMC0	(64)
 #define SMC_IRQNO(x)	(IRQNO_SMC0 + (x))
+
+#define MMC_SRCCLK_HOSC	"hosc"
+#define MMC_SRCCLK_PLL5	"sdram_pll_p"
+#define MMC_SRCCLK_PLL6	"sata_pll_2"
+#define MMC_AHBCLK_PREFIX	"ahb_sdc"
+#define MMC_MODCLK_PREFIX	"sdc"
 
 #ifdef MMC_FPGA
 #undef SMC_IRQNO

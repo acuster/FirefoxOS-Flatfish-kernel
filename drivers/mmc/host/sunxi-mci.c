@@ -568,10 +568,10 @@ static int sw_mci_set_clk(struct sunxi_mmc_host* smc_host, u32 clk)
 
 	if (clk <= 400000) {
 		mod_clk = 24000000;
-		sclk = clk_get(&smc_host->pdev->dev, "sys_hosc");
+		sclk = clk_get(&smc_host->pdev->dev, MMC_SRCCLK_HOSC);
 	} else {
 		mod_clk = smc_host->mod_clk;
-		sclk = clk_get(&smc_host->pdev->dev, "sys_pll6");
+		sclk = clk_get(&smc_host->pdev->dev, MMC_SRCCLK_PLL6);
 	}
 	if (IS_ERR(sclk)) {
 		SMC_ERR(smc_host, "Error to get source clock for clk %dHz\n", clk);
@@ -668,7 +668,7 @@ static int sw_mci_resource_request(struct sunxi_mmc_host *smc_host)
 		goto free_mem_region;
 	}
 
-	sprintf(hclk_name, "ahb_sdmmc%d", smc_no);
+	sprintf(hclk_name, MMC_MODCLK_PREFIX"%d", smc_no);
 	smc_host->hclk = clk_get(&pdev->dev, hclk_name);
 	if (IS_ERR(smc_host->hclk)) {
 		ret = PTR_ERR(smc_host->hclk);
@@ -676,7 +676,7 @@ static int sw_mci_resource_request(struct sunxi_mmc_host *smc_host)
 		goto iounmap;
 	}
 
-	sprintf(mclk_name, "mod_sdc%d", smc_no);
+	sprintf(mclk_name, MMC_MODCLK_PREFIX"%d", smc_no);
 	smc_host->mclk = clk_get(&pdev->dev, mclk_name);
 	if (IS_ERR(smc_host->mclk)) {
 		ret = PTR_ERR(smc_host->mclk);
