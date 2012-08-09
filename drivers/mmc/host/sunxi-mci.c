@@ -668,7 +668,7 @@ static int sw_mci_resource_request(struct sunxi_mmc_host *smc_host)
 		goto free_mem_region;
 	}
 
-	sprintf(hclk_name, MMC_MODCLK_PREFIX"%d", smc_no);
+	sprintf(hclk_name, MMC_AHBCLK_PREFIX"%d", smc_no);
 	smc_host->hclk = clk_get(&pdev->dev, hclk_name);
 	if (IS_ERR(smc_host->hclk)) {
 		ret = PTR_ERR(smc_host->hclk);
