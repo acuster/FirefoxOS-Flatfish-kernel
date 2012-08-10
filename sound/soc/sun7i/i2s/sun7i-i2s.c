@@ -38,7 +38,7 @@
 #include "sun7i-i2s.h"
 
 static int regsave[8];
-static int i2s_used = 0;
+static int i2s_used = 1;
 static struct sw_dma_client sun7i_dma_client_out = {
 	.name = "I2S PCM Stereo out"
 };
@@ -655,11 +655,11 @@ static int __init sun7i_i2s_init(void)
 	int err = 0;
 	int ret;
 
-	ret = script_parser_fetch("i2s_para","i2s_used", &i2s_used, sizeof(int));
-	if (ret) {
-        printk("[I2S]sun7i_i2s_init fetch i2s using configuration failed\n");
-    }
-
+//	ret = script_parser_fetch("i2s_para","i2s_used", &i2s_used, sizeof(int));
+//	if (ret) {
+//        printk("[I2S]sun7i_i2s_init fetch i2s using configuration failed\n");
+//    }
+//
 	if (i2s_used) {
 //		i2s_handle = gpio_request_ex("i2s_para", NULL);
 

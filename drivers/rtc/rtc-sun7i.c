@@ -32,7 +32,18 @@
 #include <asm/irq.h>
 #include <asm/delay.h>
 
-#define SW_INT_IRQNO_ALARM (56)
+#undef RTC_DBG
+#undef RTC_ERR
+#if (0)
+    #define RTC_DBG(format,args...)  printk("[rtc] "format,##args)
+    #define RTC_ERR(format,args...)  printk("[rtc] "format,##args)
+#else
+    #define RTC_DBG(...)
+    #define RTC_ERR(...)
+#endif
+
+/* (56) the fpga alarm irq number is 6+32 = 38, while the actually alarm irq number is 56*/
+#define SW_INT_IRQNO_ALARM 38
 #define SUNXI_LOSC_CTRL_REG               	(0x100)
 
 #define SUNXI_RTC_DATE_REG                	(0x104)
@@ -69,8 +80,8 @@
 
 #define DATE_SET_DAY_VALUE(x)       		DATE_GET_DAY_VALUE(x)
 #define DATE_SET_MON_VALUE(x)       		(((x)&0x0000000f) << 8 )
-#define DATE_SET_YEAR_VALUE(x)      		(((x)&0x0000003f) << 16)
-#define LEAP_SET_VALUE(x)           		(((x)&0x00000001) << 22)
+#define DATE_SET_YEAR_VALUE(x)      		(((x)&0x000000ff) << 16)
+#define LEAP_SET_VALUE(x)           		(((x)&0x00000001) << 24)
 
 /*Time Value*/
 #define TIME_GET_SEC_VALUE(x)       		((x) &0x0000003f)
@@ -91,10 +102,7 @@
 #define ALARM_SET_HOUR_VALUE(x)     		(((x)&0x0000001f) << 16)
 #define ALARM_SET_DAY_VALUE(x)      		(((x)&0x000000ff) << 24)
 
-#define PWM_CTRL_REG_BASE         			(0xf1c20c00+0x200)
-
 #define F23_ALARM
-//#define RTC_ALARM_DEBUG
 /*
  * notice: IN 23 A version, operation(eg. write date, time reg)
  * that will affect losc reg, will also affect pwm reg at the same time
@@ -121,10 +129,7 @@ static irqreturn_t sunxi_rtc_alarmirq(int irq, void *id)
 	struct rtc_device *rdev = id;
 	u32 val;
 
-#ifdef RTC_ALARM_DEBUG
-	_dev_info(&(rdev->dev), "sunxi_rtc_alarmirq\n");
-#endif
-
+	RTC_DBG("%s,line:%d\n", __func__, __LINE__);
     /*judge the int is whether ours*/
     val = readl(sunxi_rtc_base + SUNXI_ALARM_INT_STATUS_REG)&(RTC_ENABLE_WK_IRQ | RTC_ENABLE_CNT_IRQ);
     if (val) {
@@ -132,7 +137,6 @@ static irqreturn_t sunxi_rtc_alarmirq(int irq, void *id)
 		val = readl(sunxi_rtc_base + SUNXI_ALARM_INT_STATUS_REG);//0x11c
 		val |= (RTC_ENABLE_CNT_IRQ);	//0x00000001
 		writel(val, sunxi_rtc_base + SUNXI_ALARM_INT_STATUS_REG);
-
 		rtc_update_irq(rdev, 1, RTC_AF | RTC_IRQF);
 		return IRQ_HANDLED;
     } else {
@@ -145,10 +149,7 @@ static void sunxi_rtc_setaie(int to)
 {
 	u32 alarm_irq_val;
 
-#ifdef RTC_ALARM_DEBUG
-	printk("%s: aie=%d\n", __func__, to);
-#endif
-
+	RTC_DBG("%s,line:%d, to:%d\n", __func__, __LINE__, to);
 	alarm_irq_val = readl(sunxi_rtc_base + SUNXI_ALARM_EN_REG);
 	switch(to){
 		case 1:
@@ -210,10 +211,10 @@ retry_get_time:
 		have_retried = 1;
 		goto retry_get_time;
 	}
-
+	RTC_DBG("%s,line:%d, rtc_tm->tm_year:%d\n", __func__, __LINE__, rtc_tm->tm_year);
 	if (rtc_tm->tm_year < 70)
 		rtc_tm->tm_year += 100;	/* assume we are in 1970...2069 */
-	//rtc_tm->tm_year += 110;
+
 	rtc_tm->tm_mon  -= 1;
 	_dev_info(dev,"read time %d-%d-%d %d:%d:%d\n",
 	       rtc_tm->tm_year + 1900, rtc_tm->tm_mon + 1, rtc_tm->tm_mday,
@@ -256,7 +257,6 @@ static int sunxi_rtc_settime(struct device *dev, struct rtc_time *tm)
 	    }
 	}
 
-//	tm->tm_year -= 110;
 	tm->tm_mon  += 1;
 
 	/*prevent the application seting the error time*/
@@ -336,7 +336,7 @@ static int sunxi_rtc_settime(struct device *dev, struct rtc_time *tm)
 	}
 
 	_dev_info(dev, "set time %d-%d-%d %d:%d:%d\n",
-	       tm->tm_year + 1970, tm->tm_mon, tm->tm_mday,
+	       tm->tm_year + 1900, tm->tm_mon, tm->tm_mday,
 	       tm->tm_hour, tm->tm_min, tm->tm_sec);
 
 	date_tmp = (DATE_SET_DAY_VALUE(tm->tm_mday)|DATE_SET_MON_VALUE(tm->tm_mon)
@@ -350,8 +350,6 @@ static int sunxi_rtc_settime(struct device *dev, struct rtc_time *tm)
 	while((readl(base + SUNXI_LOSC_CTRL_REG)&(RTC_HHMMSS_ACCESS))&&(--timeout))
 	if (timeout == 0) {
         dev_err(dev, "fail to set rtc time.\n");
-
-
         return -1;
     }
 
@@ -370,7 +368,6 @@ static int sunxi_rtc_settime(struct device *dev, struct rtc_time *tm)
     }
     /*wait about 70us to make sure the the time is really written into target.*/
     udelay(70);
-
 	return 0;
 }
 
@@ -422,22 +419,18 @@ static int sunxi_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
     unsigned long time_gap_minute = 0;
     unsigned long time_gap_second = 0;
 
-#ifdef RTC_ALARM_DEBUG
-    printk("*****************************\n\n");
-    printk("line:%d,%s the alarm time: year:%d, month:%d, day:%d. hour:%d.minute:%d.second:%d\n",\
+    RTC_DBG("*****************************\n\n");
+    RTC_DBG("line:%d,%s the alarm time: year:%d, month:%d, day:%d. hour:%d.minute:%d.second:%d\n",\
     __LINE__, __func__, tm->tm_year, tm->tm_mon,\
 	 tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
-	printk("*****************************\n\n");
-#endif
+	RTC_DBG("*****************************\n\n");
 
     ret = sunxi_rtc_gettime(dev, &tm_now);
 
-#ifdef RTC_ALARM_DEBUG
-    printk("line:%d,%s the current time: year:%d, month:%d, day:%d. hour:%d.minute:%d.second:%d\n",\
+    RTC_DBG("line:%d,%s the current time: year:%d, month:%d, day:%d. hour:%d.minute:%d.second:%d\n",\
     __LINE__, __func__, tm_now.tm_year, tm_now.tm_mon,\
 	 tm_now.tm_mday, tm_now.tm_hour, tm_now.tm_min, tm_now.tm_sec);
-	printk("*****************************\n\n");
-#endif
+	RTC_DBG("*****************************\n\n");
 
     ret = rtc_tm_to_time(tm, &time_set);
     ret = rtc_tm_to_time(&tm_now, &time_now);
@@ -455,12 +448,10 @@ static int sunxi_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	return -EINVAL;
     }
 
-#ifdef RTC_ALARM_DEBUG
-	printk("line:%d,%s year:%d, month:%d, day:%ld. hour:%ld.minute:%ld.second:%ld\n",\
+	RTC_DBG("line:%d,%s year:%d, month:%d, day:%ld. hour:%ld.minute:%ld.second:%ld\n",\
     __LINE__, __func__, tm->tm_year, tm->tm_mon,\
 	 time_gap_day, time_gap_hour, time_gap_minute, time_gap_second);
-    printk("*****************************\n\n");
-#endif
+    RTC_DBG("*****************************\n\n");
 
 	/*clear the alarm counter enable bit*/
     sunxi_rtc_setaie(0);
@@ -490,14 +481,12 @@ static int sunxi_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	/*decided whether we should start the counter to down count*/
 	sunxi_rtc_setaie(alrm->enabled);
 
-#ifdef RTC_ALARM_DEBUG
-	printk("------------------------------------------\n\n");
-	printk("%d,10c reg val:%x\n", __LINE__, *(volatile int *)(0xf1c20c00+0x10c));
-	printk("%d,114 reg val:%x\n", __LINE__, *(volatile int *)(0xf1c20c00+0x114));
-	printk("%d,118 reg val:%x\n", __LINE__, *(volatile int *)(0xf1c20c00+0x118));
-	printk("%d,11c reg val:%x\n", __LINE__, *(volatile int *)(0xf1c20c00+0x11c));
-	printk("------------------------------------------\n\n");
-#endif
+	RTC_DBG("------------------------------------------\n\n");
+	RTC_DBG("%d,10c reg val:%x\n", __LINE__, *(volatile int *)(0xf1c20c00+0x10c));
+	RTC_DBG("%d,114 reg val:%x\n", __LINE__, *(volatile int *)(0xf1c20c00+0x114));
+	RTC_DBG("%d,118 reg val:%x\n", __LINE__, *(volatile int *)(0xf1c20c00+0x118));
+	RTC_DBG("%d,11c reg val:%x\n", __LINE__, *(volatile int *)(0xf1c20c00+0x11c));
+	RTC_DBG("------------------------------------------\n\n");
 
 	return 0;
 }
@@ -515,7 +504,7 @@ static int sunxi_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 static int sunxi_rtc_open(struct device *dev)
 {
-	pr_debug ("sunxi_rtc_open \n");
+	RTC_DBG ("sunxi_rtc_open \n");
 	return 0;
 }
 
@@ -655,7 +644,7 @@ static struct platform_driver sunxi_rtc_driver = {
 static int __init sunxi_rtc_init(void)
 {
 	platform_device_register(&sunxi_device_rtc);
-	printk("sunxi RTC version 0.1 \n");
+	RTC_DBG("sunxi RTC version 0.1 \n");
 	return platform_driver_register(&sunxi_rtc_driver);
 }
 

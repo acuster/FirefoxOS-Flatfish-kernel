@@ -29,7 +29,7 @@
 
 #include "sndi2s.h"
 
-static int i2s_used = 0;
+static int i2s_used = 1;
 static struct clk *xtal;
 static int clk_users;
 static DEFINE_MUTEX(clk_lock);
@@ -266,11 +266,11 @@ static int __init sun7i_sndi2s_init(void)
 	int ret;
 	int ret2;
 
-	ret2 = script_parser_fetch("i2s_para","i2s_used", &i2s_used, sizeof(int));
-	if (ret2) {
-        printk("[I2S]sun7i_sndi2s_init fetch i2s using configuration failed\n");
-    }
-
+//	ret2 = script_parser_fetch("i2s_para","i2s_used", &i2s_used, sizeof(int));
+//	if (ret2) {
+//        printk("[I2S]sun7i_sndi2s_init fetch i2s using configuration failed\n");
+//    }
+//
     if (i2s_used) {
 		sun7i_sndi2s_device = platform_device_alloc("soc-audio", 2);
 		if(!sun7i_sndi2s_device)

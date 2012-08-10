@@ -1,8 +1,8 @@
 /*
  * sound\soc\sun7i\spdif\sun7i_spdma.c
  * (C) Copyright 2007-2011
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- * chenpailin <chenpailin@allwinnertech.com>
+ * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
+ * chenpailin <chenpailin@Reuuimllatech.com>
  *
  * some simple description for this code
  *
@@ -360,9 +360,6 @@ static void sun7i_pcm_free_dma_buffers(struct snd_pcm *pcm)
 
 static u64 sun7i_pcm_mask = DMA_BIT_MASK(32);
 
-//static int sun7i_pcm_new(struct snd_card *card,
-//			   struct snd_soc_dai *dai, struct snd_pcm *pcm)
-//{
 static int sun7i_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
@@ -374,7 +371,6 @@ static int sun7i_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = 0xffffffff;
 
-	//if (dai->driver->playback.channels_min) {
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = sun7i_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_PLAYBACK);
@@ -382,7 +378,6 @@ static int sun7i_pcm_new(struct snd_soc_pcm_runtime *rtd)
 			goto out;
 	}
 
-	//if (dai->driver->capture.channels_min) {
 	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
 		ret = sun7i_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_CAPTURE);

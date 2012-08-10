@@ -1,8 +1,8 @@
 /*
  * sound\soc\sun7i\spdif\sndspdif.c
  * (C) Copyright 2007-2011
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- * chenpailin <chenpailin@allwinnertech.com>
+ * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
+ * chenpailin <chenpailin@Reuuimllatech.com>
  *
  * some simple description for this code
  *
@@ -25,7 +25,7 @@
 
 #include "sndspdif.h"
 
-static int spdif_used = 0;
+static int spdif_used = 1;
 #define SNDSPDIF_RATES  (SNDRV_PCM_RATE_8000_192000|SNDRV_PCM_RATE_KNOT)
 #define SNDSPDIF_FORMATS (SNDRV_PCM_FMTBIT_S16_LE)
 
@@ -161,11 +161,11 @@ static int __init sndspdif_codec_init(void)
 	int err = 0;
 	int ret = 0;
 
-	ret = script_parser_fetch("spdif_para","spdif_used", &spdif_used, sizeof(int));
-	if (ret) {
-		return -1;
-        printk("[SPDIF]sndspdif_init fetch spdif using configuration failed\n");
-    }
+//	ret = script_parser_fetch("spdif_para","spdif_used", &spdif_used, sizeof(int));
+//	if (ret) {
+//		return -1;
+//        printk("[SPDIF]sndspdif_init fetch spdif using configuration failed\n");
+//    }
 
 	if (spdif_used) {
 		if((err = platform_device_register(&sndspdif_codec_device)) < 0)

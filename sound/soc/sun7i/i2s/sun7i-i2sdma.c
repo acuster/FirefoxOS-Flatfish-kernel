@@ -155,10 +155,10 @@ static void sun7i_audio_capture_buffdone(struct sw_dma_chan *channel,
 {
 	struct sun7i_capture_runtime_data *capture_prtd;
 	struct snd_pcm_substream *substream = dev_id;
-
+	printk("%s,line:%d\n", __func__, __LINE__);
 	if (result == SW_RES_ABORT || result == SW_RES_ERR)
 		return;
-
+	printk("%s,line:%d\n", __func__, __LINE__);
 	capture_prtd = substream->runtime->private_data;
 		if (substream) {
 			snd_pcm_period_elapsed(substream);
@@ -178,9 +178,10 @@ static void sun7i_audio_play_buffdone(struct sw_dma_chan *channel,
 {
 	struct sun7i_playback_runtime_data *play_prtd;
 	struct snd_pcm_substream *substream = dev_id;
+	printk("%s,line:%d\n", __func__, __LINE__);
 	if (result == SW_RES_ABORT || result == SW_RES_ERR)
 		return;
-
+	printk("%s,line:%d\n", __func__, __LINE__);
 	play_prtd = substream->runtime->private_data;
 	if (substream) {
 		snd_pcm_period_elapsed(substream);

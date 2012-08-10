@@ -1,3 +1,0 @@
-config SND_SUN6I_SOC_CODEC
-	tristate "APB On-Chip Codec"
-	default n

@@ -1,8 +1,8 @@
 /*
  * sound\soc\sun7i\spdif\sun7i_sndspdif.c
  * (C) Copyright 2007-2011
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- * chenpailin <chenpailin@allwinnertech.com>
+ * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
+ * chenpailin <chenpailin@Reuuimllatech.com>
  *
  * some simple description for this code
  *
@@ -29,7 +29,7 @@
 
 #include "sndspdif.h"
 
-static int spdif_used = 0;
+static int spdif_used = 1;
 static struct clk *xtal;
 static int clk_users;
 static DEFINE_MUTEX(clk_lock);
@@ -124,7 +124,7 @@ static __mclk_set_inf  MCLK_INF[] =
     { 32000, 768,  6, 0},
 
      // 48K bitrate   3.072  Mbit/s   16/4 = 4
-    { 48000, 128,  4, 0}, { 48000, 256,  4, 0}, { 48000, 512, 4, 0},
+    { 48000, 128,  4, 0}, { 48000, 256,  16, 0}, { 48000, 512, 4, 0},
 
     // 96k bitrate  6.144MHZ   8/4 = 2
     { 96000, 128 , 2, 0}, { 96000, 256,  2, 0},
@@ -254,10 +254,10 @@ static int __init sun7i_sndspdif_init(void)
 	int ret;
 	int ret2;
 
-	ret2 = script_parser_fetch("spdif_para","spdif_used", &spdif_used, sizeof(int));
-	if (ret2) {
-        printk("[SPDIF]sun7i_sndspdif_init fetch spdif using configuration failed\n");
-    }
+//	ret2 = script_parser_fetch("spdif_para","spdif_used", &spdif_used, sizeof(int));
+//	if (ret2) {
+//        printk("[SPDIF]sun7i_sndspdif_init fetch spdif using configuration failed\n");
+//    }
 
     if (spdif_used) {
 		sun7i_sndspdif_device = platform_device_alloc("soc-audio", 1);

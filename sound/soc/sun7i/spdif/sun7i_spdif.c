@@ -1,8 +1,8 @@
 /*
  * sound\soc\sun7i\spdif\sun7i_spdif.c
  * (C) Copyright 2007-2011
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- * chenpailin <chenpailin@allwinnertech.com>
+ * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
+ * chenpailin <chenpailin@Reuuimllatech.com>
  *
  * some simple description for this code
  *
@@ -38,7 +38,7 @@
 #include "sun7i_spdif.h"
 
 static int regsave[6];
-static int spdif_used = 0;
+static int spdif_used = 1;
 
 static struct sw_dma_client sun7i_dma_client_out = {
 	.name = "SPDIF out"
@@ -608,10 +608,10 @@ static int __init sun7i_spdif_init(void)
 	int err = 0;
 	int ret;
 
-	ret = script_parser_fetch("spdif_para","spdif_used", &spdif_used, sizeof(int));
-	if (ret) {
-        printk("[SPDIF]sun7i_spdif_init fetch spdif using configuration failed\n");
-    }
+//	ret = script_parser_fetch("spdif_para","spdif_used", &spdif_used, sizeof(int));
+//	if (ret) {
+//        printk("[SPDIF]sun7i_spdif_init fetch spdif using configuration failed\n");
+//    }
 
 	if (spdif_used) {
 //		spdif_handle = gpio_request_ex("spdif_para", NULL);
@@ -638,7 +638,7 @@ static void __exit sun7i_spdif_exit(void)
 module_exit(sun7i_spdif_exit);
 
 /* Module information */
-MODULE_AUTHOR("ALLWINNER");
+MODULE_AUTHOR("REUUIMLLA");
 MODULE_DESCRIPTION("sun7i SPDIF SoC Interface");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:sun7i-spdif");
