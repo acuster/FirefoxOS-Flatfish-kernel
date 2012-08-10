@@ -2,7 +2,7 @@
 #include "lcd_panel_cfg.h"
 
 //delete this line if you want to use the lcd para define in sys_config1.fex
-//#define LCD_PARA_USE_CONFIG
+#define LCD_PARA_USE_CONFIG
 
 #ifdef LCD_PARA_USE_CONFIG
 static __u8 g_gamma_tbl[][2] =

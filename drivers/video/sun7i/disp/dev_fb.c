@@ -287,6 +287,83 @@ static int __init Fb_map_video_memory(struct fb_info *info)
 		info->fix.smem_start = virt_to_phys(info->screen_base);
 		memset(info->screen_base,0,info->fix.smem_len);
 		__inf("Fb_map_video_memory, pa=0x%08lx size:0x%x\n",info->fix.smem_start, info->fix.smem_len);
+
+{
+    dma_addr_t map_dma,map_dma2;
+    char __iomem *base_tmp, *base_tmp2;
+    __u32 len,len2;
+    __u32 i;
+
+        len = 1920*1080;
+        base_tmp = dma_alloc_writecombine(NULL, PAGE_ALIGN(len),
+					   &map_dma, GFP_KERNEL);
+        if(base_tmp)
+        {
+            printk("[dev_fb] len=0x%08x ==ok",len);
+            dma_free_writecombine(NULL, PAGE_ALIGN(len),
+	        base_tmp, map_dma);
+        }else
+        {
+            printk("[dev_fb] len=0x%08x ==fail",len);
+        }
+
+
+        len = 1920*1080*2;
+        base_tmp = dma_alloc_writecombine(NULL, PAGE_ALIGN(len),
+					   &map_dma, GFP_KERNEL);
+        if(base_tmp)
+        {
+            printk("[dev_fb] len=0x%08x  ok==\n",len);
+            dma_free_writecombine(NULL, PAGE_ALIGN(len),
+	        base_tmp, map_dma);
+        }else
+        {
+            printk("[dev_fb] len=0x%08x, fail==\n",len);
+        }
+
+        len = 800*480*2;
+        base_tmp = dma_alloc_writecombine(NULL, PAGE_ALIGN(len),
+					   &map_dma, GFP_KERNEL);
+        if(base_tmp)
+        {
+            printk("[dev_fb] len=0x%08x ==ok",len);
+        }
+
+        len2 = 800*480*2;
+        base_tmp2 = dma_alloc_writecombine(NULL, PAGE_ALIGN(len2),
+					   &map_dma2, GFP_KERNEL);
+        if(base_tmp2)
+        {
+            printk("[dev_fb] len=0x%08x ==(2-1)ok",len2);
+        }else
+        {
+            printk("[dev_fb] len=0x%08x ==(2-1)fail",len2);
+        }
+
+        len = 1280*720*2;
+        base_tmp = dma_alloc_writecombine(NULL, PAGE_ALIGN(len),
+					   &map_dma, GFP_KERNEL);
+        if(base_tmp)
+        {
+            printk("[dev_fb] len=0x%08x ==(2-2)ok",len);
+        }else
+        {
+            printk("[dev_fb] len=0x%08x ==(2-2)fail",len);
+        }
+
+
+        if(base_tmp)
+        {
+            dma_free_writecombine(NULL, PAGE_ALIGN(len),
+	        base_tmp, map_dma);
+        }
+        if(base_tmp2)
+        {
+            dma_free_writecombine(NULL, PAGE_ALIGN(len2),
+	        base_tmp2, map_dma2);
+        }
+
+}
 		return 0;
 	}
 	else
@@ -1079,6 +1156,11 @@ __s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t *fb_para)
 
 	__inf("Display_Fb_Request,fb_id:%d\n", fb_id);
 
+    if(g_fbi.fb_enable[fb_id])
+    {
+        __wrn("Display_Fb_Request, fb%d is already requested!\n", fb_id);
+        return DIS_NO_RES;
+    }
     info = g_fbi.fbinfo[fb_id];
 
     if(fb_para->fb_mode == FB_MODE_SCREEN0_PARTLY)
@@ -1149,6 +1231,13 @@ __s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t *fb_para)
 
             hdl = BSP_disp_layer_request(sel, layer_para.mode);
 
+            if(hdl == 0)
+            {
+                __wrn("Display_Fb_Request, ch%d no layer resource\n", sel);
+                Fb_unmap_video_memory(info);
+
+                return DIS_NO_RES;
+            }
             layer_para.pipe = 0;
             layer_para.alpha_en = 1;
             layer_para.alpha_val = 0xff;
@@ -1327,6 +1416,16 @@ __s32 Fb_Init(__u32 from)
 		register_framebuffer(g_fbi.fbinfo[i]);
         }
         parser_disp_init_para(&(g_fbi.disp_init));
+#ifdef __FPGA_DEBUG__
+                g_fbi.disp_init.b_init = 1;
+                g_fbi.disp_init.disp_mode = 0;
+                g_fbi.disp_init.output_type[0] = 1;
+                g_fbi.disp_init.scaler_mode[0] = 1;
+                g_fbi.disp_init.buffer_num[0] =1;
+                g_fbi.disp_init.format[0] = 0xa;
+                g_fbi.disp_init.seq[0] = 0;
+#endif
+
     }
 
 
@@ -1438,8 +1537,9 @@ __s32 Fb_Init(__u32 from)
                 fb_para.fb_mode = FB_MODE_SCREEN0_PARTLY;
             }
             Display_Fb_Request(i, &fb_para);
-
-            //fb_draw_colorbar((__u32)g_fbi.fbinfo[i]->screen_base, fb_para.width, fb_para.height*fb_para.buffer_num, &(g_fbi.fbinfo[i]->var));
+#ifdef __FPGA_DEBUG__
+            fb_draw_colorbar((__u32)g_fbi.fbinfo[i]->screen_base, fb_para.width, fb_para.height*fb_para.buffer_num, &(g_fbi.fbinfo[i]->var));
+#endif
         }
 
         if(g_fbi.disp_init.scaler_mode[0])

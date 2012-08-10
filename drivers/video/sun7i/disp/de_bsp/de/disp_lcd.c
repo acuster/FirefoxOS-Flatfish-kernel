@@ -866,7 +866,6 @@ static __s32 pwm_write_reg(__u32 offset, __u32 value)
 {
     sys_put_wvalue(gdisp.init_para.base_pwm+offset, value);
 
-    LCD_delay_ms(20);
 
     return 0;
 }
@@ -933,64 +932,61 @@ __s32 pwm_enable(__u32 channel, __bool b_en)
 //pwm_info->active_state: 0:low level; 1:high level
 __s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info)
 {
-    __u32 pre_scal[10] = {120, 180, 240, 360, 480, 12000, 24000, 36000, 48000, 72000};
-    __u32 pre_scal_id = 0, entire_cycle = 256, active_cycle = 192;
-    __u32 i=0, tmp=0;
+    __u32 pre_scal[11][2] = {{1,0xf}, {120,0}, {180,1}, {240,2}, {360,3}, {480,4}, {12000,8}, {24000,9}, {36000,0xa}, {48000,0xb}, {72000,0xc}};
+    __u32 pre_scal_id = 0, entire_cycle = 16, active_cycle = 12;
+    __u32 i=0, j=0, tmp=0;
     __u32 freq;
 
     freq = 1000000 / pwm_info->period_ns;
 
-    if(freq > 200000)
-    {
-        DE_WRN("pwm preq is large then 200khz, fix to 200khz\n");
-        freq = 200000;
-    }
-
-    if(freq > 781)
+    if(freq > 366)
     {
         pre_scal_id = 0;
-        entire_cycle = (24000000 / pre_scal[pre_scal_id] + (freq/2)) / freq;
-        DE_INF("pre_scal:%d, entire_cycle:%d, pwm_freq:%d\n", pre_scal[i], entire_cycle, 24000000 / pre_scal[pre_scal_id] / entire_cycle );
+        entire_cycle = 24000000 / freq;
     }
     else
     {
-	for(i=0; i<10; i++)
+	for(i=1; i<11; i++)
 	{
+	    for(j=16;; j+=16)
+	    {
 	        __u32 pwm_freq = 0;
 
-	        pwm_freq = 24000000 / (pre_scal[i] * 256);
+	        pwm_freq = 24000000 / (pre_scal[i][0] * j);
 	        if(abs(pwm_freq - freq) < abs(tmp - freq))
 	        {
 	            tmp = pwm_freq;
 	            pre_scal_id = i;
-	            entire_cycle = 256;
-	            DE_INF("pre_scal:%d, entire_cycle:%d, pwm_freq:%d\n", pre_scal[i], 256, pwm_freq);
+	            entire_cycle = j;
+	            DE_INF("pre_scal:%d, entire_cycle:%d, pwm_freq:%d\n", pre_scal[i][0], j, pwm_freq);
 	            DE_INF("----%d\n", tmp);
 	        }
+	        else if((tmp < freq) && (pwm_freq < tmp))
+	        {
+	            break;
+	        }
+	    }
 	}
 	}
+
     active_cycle = (pwm_info->duty_ns * entire_cycle + (pwm_info->period_ns/2)) / pwm_info->period_ns;
 
     gdisp.pwm[channel].enable = pwm_info->enable;
     gdisp.pwm[channel].freq = freq;
-	gdisp.pwm[channel].pre_scal = pre_scal[pre_scal_id];
+	gdisp.pwm[channel].pre_scal = pre_scal[pre_scal_id][0];
     gdisp.pwm[channel].active_state = pwm_info->active_state;
     gdisp.pwm[channel].duty_ns = pwm_info->duty_ns;
     gdisp.pwm[channel].period_ns = pwm_info->period_ns;
     gdisp.pwm[channel].entire_cycle = entire_cycle;
     gdisp.pwm[channel].active_cycle = active_cycle;
 
-    if(pre_scal_id >= 5)
-    {
-        pre_scal_id += 3;
-    }
 
     if(channel == 0)
     {
         pwm_write_reg(0x204, ((entire_cycle - 1)<< 16) | active_cycle);
 
         tmp = pwm_read_reg(0x200) & 0xffffff00;
-        tmp |= ((1<<6) | (pwm_info->active_state<<5) | pre_scal_id);//bit6:gatting the special clock for pwm0; bit5:pwm0  active state is high level
+        tmp |= ((1<<6) | (pwm_info->active_state<<5) | pre_scal[pre_scal_id][1]);//bit6:gatting the special clock for pwm0; bit5:pwm0  active state is high level
         pwm_write_reg(0x200,tmp);
     }
     else
@@ -998,7 +994,7 @@ __s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info)
         pwm_write_reg(0x208, ((entire_cycle - 1)<< 16) | active_cycle);
 
         tmp = pwm_read_reg(0x200) & 0xff807fff;
-        tmp |= ((1<<21) | (pwm_info->active_state<<20) | (pre_scal_id<<15));//bit21:gatting the special clock for pwm1; bit20:pwm1  active state is high level
+        tmp |= ((1<<21) | (pwm_info->active_state<<20) | (pre_scal[pre_scal_id][1]<<15));//bit21:gatting the special clock for pwm1; bit20:pwm1  active state is high level
         pwm_write_reg(0x200,tmp);
     }
 
@@ -1043,6 +1039,22 @@ __s32 pwm_set_duty_ns(__u32 channel, __u32 duty_ns)
 
 __s32 LCD_PWM_EN(__u32 sel, __bool b_en)
 {
+#ifdef __FPGA_DEBUG__
+        if(b_en)
+            {
+                __u32 tmp = sys_get_wvalue(0xf1c20e00) | 0x10;
+
+                sys_put_wvalue(0xf1c20e00, tmp);
+                __inf("LCD_PWM_EN, val=0x%08x, reg=0x%08x\n",tmp,sys_get_wvalue(0xf1c20e00));
+            }
+            else
+            {
+                __u32 tmp = sys_get_wvalue(0xf1c20e00) &  (~0x10);
+                sys_put_wvalue(0xf1c20e00, tmp);
+                __inf("LCD_PWM_EN, val=0x%08x, reg=0x%08x\n",tmp,sys_get_wvalue(0xf1c20e00));
+            }
+#endif
+
     if(gdisp.screen[sel].lcd_cfg.lcd_pwm_used)
     {
         user_gpio_set_t  gpio_info[1];
@@ -1123,7 +1135,13 @@ __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
         hdl = OSAL_GPIO_Request(gpio_info, 1);
         OSAL_GPIO_Release(hdl, 2);
     }
-
+#ifdef __FPGA_DEBUG__
+    //pwr pd29
+    if(b_en==0)
+		*(volatile __u32*)(0xf1c20800 + 0x7c) = (*(volatile __u32*)(0xf1c20800 + 0x7c)) & (~(1<<29));
+	else
+		*(volatile __u32*)(0xf1c20800 + 0x7c) = (*(volatile __u32*)(0xf1c20800 + 0x7c)) | ( (1<<29));
+#endif
     return 0;
 }
 
@@ -1208,6 +1226,23 @@ __s32 Disp_lcdc_pin_cfg(__u32 sel, __disp_output_type_t out_type, __u32 bon)
     {
         __hdle lcd_pin_hdl;
         int  i;
+#ifdef __FPGA_DEBUG__
+        if(!bon)
+        {                //pd28, pwm0 pin_cfg
+                //*(volatile __u32*)(0xf1c20800 + 0x78) = (*(volatile __u32*)( 0xf1c20800 +  0x78)) & (~0x00020000);
+                sys_put_wvalue(gdisp.init_para.base_pioc+0x6c, 0x00000000);
+                sys_put_wvalue(gdisp.init_para.base_pioc+0x70, 0x00000000);
+                sys_put_wvalue(gdisp.init_para.base_pioc+0x74, 0x00000000);
+                sys_put_wvalue(gdisp.init_para.base_pioc+0x78, 0x00000000);
+       }else
+        {
+                sys_put_wvalue(gdisp.init_para.base_pioc+0x6c, 0x22222222);
+                sys_put_wvalue(gdisp.init_para.base_pioc+0x70, 0x22222222);
+                sys_put_wvalue(gdisp.init_para.base_pioc+0x74, 0x22222222);
+                sys_put_wvalue(gdisp.init_para.base_pioc+0x78, 0x00122222);
+                sys_put_wvalue(gdisp.init_para.base_pioc+0x7c, sys_get_wvalue(gdisp.init_para.base_pioc+0x7c) | 0xf0000000);
+        }
+#endif
 
         for(i=0; i<28; i++)
         {
@@ -1219,6 +1254,8 @@ __s32 Disp_lcdc_pin_cfg(__u32 sel, __disp_output_type_t out_type, __u32 bon)
                 if(!bon)
                 {
                     gpio_info->mul_sel = 0;
+
+
                 }
                 else
                 {
@@ -1226,6 +1263,7 @@ __s32 Disp_lcdc_pin_cfg(__u32 sel, __disp_output_type_t out_type, __u32 bon)
                     {
                         gpio_info->mul_sel = 3;
                     }
+
                 }
                 lcd_pin_hdl = OSAL_GPIO_Request(gpio_info, 1);
                 OSAL_GPIO_Release(lcd_pin_hdl, 2);
@@ -1312,6 +1350,10 @@ __s32 Disp_lcdc_init(__u32 sel)
         LCD_get_panel_funs_1(&lcd_panel_fun[sel]);
 #endif
     }
+#ifdef __FPGA_DEBUG__
+        gdisp.screen[sel].lcd_cfg.lcd_used = 1;
+        gdisp.screen[sel].lcd_cfg.init_bright = 197;
+#endif
 
     if(gdisp.screen[sel].lcd_cfg.lcd_used)
     {

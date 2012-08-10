@@ -261,6 +261,8 @@ __s32 scaler_clk_init(__u32 sel)
 		h_defe0ahbclk = OSAL_CCMU_OpenMclk(AW_MOD_CLK_AHB_DEFE0);
 		h_defe0dramclk = OSAL_CCMU_OpenMclk(AW_MOD_CLK_SDRAM_DEFE0);
 		h_defe0mclk = OSAL_CCMU_OpenMclk(AW_MOD_CLK_DEFE0);
+        __inf("id: ahb_fe=%d,dram_fe=%d,fe=%d\n", AW_MOD_CLK_AHB_DEFE0, AW_MOD_CLK_SDRAM_DEFE0,AW_MOD_CLK_DEFE0);
+        __inf("hdl: ahb=0x%08x, dram_fe=0x%08x,fe=0x%08x\n", h_defe0ahbclk, h_defe0dramclk, h_defe0mclk);
 #ifdef RESET_OSAL
 
 		OSAL_CCMU_MclkReset(h_defe0mclk, RST_INVAILD);

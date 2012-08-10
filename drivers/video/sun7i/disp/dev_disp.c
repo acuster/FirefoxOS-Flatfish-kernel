@@ -1338,10 +1338,16 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
     //----lcd----
 	case DISP_CMD_LCD_ON:
-		ret = DRV_lcd_open(ubuffer[0]);
-            if(suspend_status != 0)
+		if(BSP_disp_get_output_type(ubuffer[0]) != DISP_OUTPUT_TYPE_LCD)
+		{
+			ret = DRV_lcd_open(ubuffer[0]);
+                if(suspend_status != 0)
+                {
+                    suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_LCD;
+                }
+            }else
             {
-                suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_LCD;
+                __wrn("ch%d lcd already opened\n", (unsigned int)ubuffer[0]);
             }
 		break;
 

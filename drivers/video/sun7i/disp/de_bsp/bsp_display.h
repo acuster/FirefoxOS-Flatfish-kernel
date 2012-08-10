@@ -2,6 +2,9 @@
 #ifndef __EBSP_DISPLAY_H__
 #define __EBSP_DISPLAY_H__
 
+#define __FPGA_DEBUG__
+
+
 #define __LINUX_OSAL__
 //#define __MELIS_OSAL__
 //#define __WINCE_OSAL__
