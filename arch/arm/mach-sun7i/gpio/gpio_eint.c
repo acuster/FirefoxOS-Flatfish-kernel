@@ -748,7 +748,7 @@ u32 sw_gpio_irq_request(u32 gpio, enum gpio_eint_trigtype trig_type,
 	PIO_DBG_FUN_LINE_TOCHECK;
 	cfg.pull 	= GPIO_PULL_DEFAULT;
 	cfg.drvlvl 	= GPIO_DRVLVL_DEFAULT;
-	cfg.enabled	= 1;
+	cfg.enabled	= 1; /* to modify: disable -> config -> enable */
 	cfg.trig_type	= trig_type;
 	if(0 != sw_gpio_eint_setall_range(&cfg, 1)) {
 		usign = __LINE__;

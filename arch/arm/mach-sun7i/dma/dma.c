@@ -32,8 +32,11 @@
 #include <mach/dma.h>
 #include "dma_regs.h"
 
-#define pr_debug 	printk
-#define DBG_FUN_LINE 	printk("%s, line %d\n", __FUNCTION__, __LINE__)
+/*
+ * liugang add, 2012-8-10 10:42
+ */
+//#define pr_debug 	printk
+//#define DBG_FUN_LINE 	printk("%s, line %d\n", __FUNCTION__, __LINE__)
 
 #ifdef USE_SPINLOCK_20120802
 #define DMA_CHAN_LOCK_INIT(lock)	spin_lock_init((lock))
