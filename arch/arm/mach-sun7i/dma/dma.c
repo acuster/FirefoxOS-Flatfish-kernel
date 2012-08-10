@@ -1508,7 +1508,7 @@ int sw_dma_config(unsigned int channel, struct dma_hw_conf* user_conf)
 
 	dcon |= (1 << 15);   //backdoor: byte counter register shows the remain bytes for transfer
 	chan->dcon = dcon;
-	printk("%s: hw_conf->reload %d, dcon 0x%08x\n", __func__, hw_conf->reload, dcon);
+	pr_debug("%s: hw_conf->reload %d, dcon 0x%08x\n", __func__, hw_conf->reload, (u32)dcon);
 
 	if( hw_conf->hf_irq < 2 ){
 		printk(KERN_ERR "irq type is not suppoted yet.\n");
