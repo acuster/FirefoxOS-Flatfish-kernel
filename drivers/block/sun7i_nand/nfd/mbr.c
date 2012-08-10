@@ -99,6 +99,7 @@ int mbr2disks(struct nand_disk* disk_array)
 	int part_cnt = 0;
 	int part_index;
 
+#if 0
 	if(_get_mbr()){
 		printk("get mbr error\n" );
 		return part_cnt;
@@ -127,6 +128,16 @@ int mbr2disks(struct nand_disk* disk_array)
 	_free_mbr();
 	PRINT("The %d disk size = %lu\n", part_index - 1, disk_array[part_index - 1].size);
 	PRINT("part total count = %d\n", part_index);
+#else
+  disk_array[0].offset = 0;
+  disk_array[0].size = DiskSize/2;
+  disk_array[1].offset = DiskSize/2;
+  disk_array[1].size = DiskSize/2;
+  part_index = 2;
 
+  part_secur[0] = 0;
+  part_secur[1] = 0;
+
+#endif
 	return part_index;
 }
