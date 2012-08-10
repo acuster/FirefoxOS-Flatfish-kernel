@@ -40,6 +40,7 @@
 #include "../include/sunxi_dev_csi.h"
 #include "sunxi_csi_reg.h"
 
+#define FPGA
 #define CSI_MAJOR_VERSION 1
 #define CSI_MINOR_VERSION 0
 #define CSI_RELEASE 0
@@ -1826,6 +1827,7 @@ static struct video_device csi_template = {
 
 static int fetch_config(struct csi_dev *dev)
 {
+#ifndef FPGA
 	int input_num,ret;
 
 	/* fetch device quatity issue */
@@ -2053,7 +2055,18 @@ static int fetch_config(struct csi_dev *dev)
 		csi_dbg(0,"dev->ccm_cfg[%d]->dvdd_str = %s\n",input_num,dev->ccm_cfg[input_num]->dvdd_str);
 		csi_dbg(0,"dev->ccm_cfg[%d]->flash_pol = %x\n",input_num,dev->ccm_cfg[input_num]->flash_pol);
 	}
-
+#else
+	dev->dev_qty = 1;
+  dev->stby_mode = 0;
+	dev->ccm_cfg[0] = &ccm_cfg[0];
+	dev->ccm_cfg[0]->twi_id = 0;
+	dev->ccm_cfg[0]->i2c_addr = 0x78;
+  strcpy(dev->ccm_cfg[0]->ccm,"ov5640");
+	dev->ccm_cfg[0]->interface = 0x0;
+	dev->ccm_cfg[0]->stby_mode = 0;
+	dev->ccm_cfg[0]->vflip = 0;
+	dev->ccm_cfg[0]->hflip = 1;
+#endif
 	return 0;
 }
 
@@ -2065,6 +2078,9 @@ static int csi_probe(struct platform_device *pdev)
 	struct i2c_adapter *i2c_adap;
 	int ret = 0;
 	int input_num;
+
+	writel(0x33333333, 0xf1c20800+0x90);
+	writel(0x33333333, 0xf1c20800+0x94);
 
 	csi_dbg(0,"csi_probe\n");
 	/*request mem for dev*/
@@ -2573,12 +2589,15 @@ static int __init csi_init(void)
 	csi_print("Welcome to CSI driver\n");
 	csi_print("csi_init\n");
 
+#ifndef FPGA
 	ret = script_parser_fetch("csi0_para","csi_used", &csi_used , sizeof(int));
 	if (ret) {
 		csi_err("fetch csi_used from sys_config failed\n");
 		return -1;
 	}
-
+#else
+	csi_used = 1;
+#endif
 	if(!csi_used)
 	{
 		csi_err("csi_used=0,csi driver is not enabled!\n");
@@ -2603,7 +2622,7 @@ static int __init csi_init(void)
 static void __exit csi_exit(void)
 {
 	int csi_used,ret;
-
+#ifndef FPGA
 	csi_print("csi_exit\n");
 
 	ret = script_parser_fetch("csi0_para","csi_used", &csi_used , sizeof(int));
@@ -2611,7 +2630,9 @@ static void __exit csi_exit(void)
 		csi_err("fetch csi_used from sys_config failed\n");
 		return;
 	}
-
+#else
+	csi_used = 1;
+#endif
 	if(csi_used)
 	{
 		csi_release();
