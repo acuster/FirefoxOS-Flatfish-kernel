@@ -90,3 +90,4 @@ modules/mali/DX910-BU-00000-r2p4-02rel1/devicedrv/mali/arch
 modules/mali/DX910-BU-00000-r2p4-02rel1/devicedrv/ump/arch
 modules/mali/DX910-BU-00000-r2p4-02rel1/devicedrv/mali/Module.symvers
 modules/mali/DX910-BU-00000-r2p4-02rel1/devicedrv/ump/Module.symvers
+modules/wifi/ar6302/AR6K_SDK_ISC.build_3.1_RC.329/host/os/linux/Module.symvers

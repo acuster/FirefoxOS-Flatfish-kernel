@@ -118,11 +118,19 @@ build_modules()
 		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
 	)
 
-	#build usi-bmc4329 sdio wifi module
-	make -C modules/wifi/usi-bcm4329/v4.218.248.15/open-src/src/dhd/linux \
-			CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
-			LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} \
-			INSTALL_DIR=${LICHEE_MOD_DIR} dhd-cdc-sdmmc-gpl
+#	#build ar6302 sdio wifi module
+#	make -C modules/wifi/ar6302/AR6K_SDK_ISC.build_3.1_RC.329/host CROSS_COMPILE=${CROSS_COMPILE} \
+#	        ARCH=arm KERNEL_DIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} INSTALL_DIR=${LICHEE_MOD_DIR} \
+#	        all install
+#	#build ar6003 sdio wifi module
+#	make -C modules/wifi/ar6003/AR6kSDK.build_3.1_RC.514/host CROSS_COMPILE=${CROSS_COMPILE} \
+#	        ARCH=arm KERNEL_DIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} INSTALL_DIR=${LICHEE_MOD_DIR} \
+#	        all
+#	#build usi-bmc4329 sdio wifi module
+#	make -C modules/wifi/usi-bcm4329/v4.218.248.15/open-src/src/dhd/linux \
+#			CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
+#			LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} \
+#			INSTALL_DIR=${LICHEE_MOD_DIR} dhd-cdc-sdmmc-gpl
 }
 
 clean_kernel()
@@ -136,22 +144,26 @@ clean_kernel()
 #	make -C modules/mali LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
 #	)
 
-	#build usi-bmc4329 sdio wifi module
-	make -C modules/wifi/usi-bcm4329/v4.218.248.15/open-src/src/dhd/linux \
-			CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
-			LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} \
-			INSTALL_DIR=${LICHEE_MOD_DIR} clean
+
 }
 
 clean_modules()
 {
 	echo "Cleaning modules"
 	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
-	#build usi-bmc4329 sdio wifi module
-	make -C modules/wifi/usi-bcm4329/v4.218.248.15/open-src/src/dhd/linux \
-			CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
-			LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} \
-			INSTALL_DIR=${LICHEE_MOD_DIR} clean
+	#build ar6302 sdio wifi module
+#	make -C modules/wifi/ar6302/AR6K_SDK_ISC.build_3.1_RC.329/host CROSS_COMPILE=${CROSS_COMPILE} \
+#	        ARCH=arm KERNEL_DIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} INSTALL_DIR=${LICHEE_MOD_DIR} \
+#	        clean
+#	#build ar6003 sdio wifi module
+#	make -C modules/wifi/ar6003/AR6kSDK.build_3.1_RC.514/host CROSS_COMPILE=${CROSS_COMPILE} \
+#	        ARCH=arm KERNEL_DIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} INSTALL_DIR=${LICHEE_MOD_DIR} \
+#	        clean
+#	#build usi-bmc4329 sdio wifi module
+#	make -C modules/wifi/usi-bcm4329/v4.218.248.15/open-src/src/dhd/linux \
+#			CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
+#			LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} \
+#			INSTALL_DIR=${LICHEE_MOD_DIR} clean
 }
 
 #####################################################################
