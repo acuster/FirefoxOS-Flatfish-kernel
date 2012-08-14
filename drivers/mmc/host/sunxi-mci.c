@@ -91,6 +91,7 @@ static s32 sw_mci_init_host(struct sunxi_mmc_host* smc_host)
 
 	mci_writel(smc_host, REG_FTRGL, 0x70008);
 	mci_writel(smc_host, REG_TMOUT, 0xffffffff);
+	mci_writel(smc_host, REG_IMASK, 0);
 	mci_writel(smc_host, REG_RINTR, 0xffffffff);
 	mci_writel(smc_host, REG_DBGC, 0xdeb);
 	mci_writel(smc_host, REG_FUNS, 0xceaa0000);
@@ -384,8 +385,11 @@ static int sw_mci_prepare_dma(struct sunxi_mmc_host* smc_host, struct mmc_data* 
 	}
 
 	for_each_sg(data->sg, sg, data->sg_len, i) {
-		if (sg->offset & 3 || sg->length & 3)
+		if (sg->offset & 3 || sg->length & 3) {
+			SMC_ERR(smc_host, "unaligned scatterlist: os %x length %d\n",
+				sg->offset, sg->length);
 			return -EINVAL;
+		}
 	}
 
 	sw_mci_init_idma_des(smc_host, data);
@@ -410,11 +414,6 @@ static int sw_mci_prepare_dma(struct sunxi_mmc_host* smc_host, struct mmc_data* 
 	mci_writel(smc_host, REG_FTRGL, (2U<<28)|(7<<16)|8);
 
 	return 0;
-}
-
-int sw_mci_check_r1_ready(struct sunxi_mmc_host* smc_host)
-{
-	return mci_readl(smc_host, REG_STAS) & SDXC_CardDataBusy ? 0 : 1;
 }
 
 int sw_mci_send_manual_stop(struct sunxi_mmc_host* smc_host, struct mmc_request* request)
@@ -900,8 +899,8 @@ static irqreturn_t sw_mci_irq(int irq, void *dev_id)
 	}
 
 	if (smc_host->wait == SDC_WAIT_NONE && !sdio_int) {
-		SMC_ERR(smc_host, "smc %x, nothing to complete, raw_int = %08x, "
-			"mask_int = %08x\n", smc_host->pdev->id, raw_int, msk_int);
+		SMC_ERR(smc_host, "smc %x, nothing to complete, ri %08x, "
+			"mi %08x\n", smc_host->pdev->id, raw_int, msk_int);
 
 		mci_writew(smc_host, REG_IMASK, 0);
 		goto irq_out;
@@ -1297,6 +1296,13 @@ void sw_mci_rescan_card(unsigned id, unsigned insert)
 	return;
 }
 EXPORT_SYMBOL_GPL(sw_mci_rescan_card);
+
+int sw_mci_check_r1_ready(struct mmc_host* mmc)
+{
+	struct sunxi_mmc_host *smc_host = mmc_priv(mmc);
+	return mci_readl(smc_host, REG_STAS) & SDXC_CardDataBusy ? 0 : 1;
+}
+EXPORT_SYMBOL_GPL(sw_mci_check_r1_ready);
 
 static struct mmc_host_ops sw_mci_ops = {
 	.request	= sw_mci_request,
@@ -1820,7 +1826,7 @@ static int __init sw_mci_init(void)
 
 		#ifdef MMC_FPGA
 		ret = ret;
-		used = i==2;
+		used = SMC_FPGA_MMC_PREUSED(i);
 		#endif
 
 		if (used) {
