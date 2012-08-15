@@ -33,7 +33,8 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/jiffies.h>
-
+#include <linux/gpio.h>
+#include <asm-generic/gpio.h>
 #include <asm/uaccess.h>
 #include <asm/memory.h>
 #include <asm/unistd.h>
@@ -50,14 +51,47 @@
 #include <mach/system.h>
 #include <mach/hardware.h>
 
+
 #include "tscdrv.h"
 
 //module_param(ts_dev_major, int, S_IRUGO);
 //module_param(ts_dev_minor, int, S_IRUGO);
 
+//#define GPIO_ENBALBED
 
 static DECLARE_WAIT_QUEUE_HEAD(wait_proc);
 
+struct gpio_config tsc_gpio_cfg[] = {
+	/* use default if you donot care the pull or driver level status */
+	{GPIOE(0), 2, GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT},
+	{GPIOE(1), 2, GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT},
+	{GPIOE(2), 2, GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT},
+	{GPIOE(3), 2, GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT},
+	{GPIOE(4), 2, GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT},
+	{GPIOE(5), 2, GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT},
+	{GPIOE(6), 2, GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT},
+	{GPIOE(7), 2, GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT},
+	{GPIOE(8), 2, GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT},
+	{GPIOE(9), 2, GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT},
+	{GPIOE(10), 2, GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT},
+	{GPIOE(11), 2, GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT},
+
+};
+
+struct gpio tsc_gpio_arry[] = {
+	{GPIOE(0),  GPIOF_IN, "pe0"},
+	{GPIOE(1),  GPIOF_IN, "pe1"},
+	{GPIOE(2),  GPIOF_IN, "pe2"},
+	{GPIOE(3),  GPIOF_IN, "pe3"},
+	{GPIOE(4),  GPIOF_IN, "pe4"},
+	{GPIOE(5),  GPIOF_IN, "pe5"},
+	{GPIOE(6),  GPIOF_IN, "pe6"},
+	{GPIOE(7),  GPIOF_IN, "pe7"},
+	{GPIOE(8),  GPIOF_IN, "pe8"},
+	{GPIOE(9),  GPIOF_IN, "pe9"},
+	{GPIOE(10), GPIOF_IN, "pe10"},
+	{GPIOE(11), GPIOF_IN, "pe11"}
+};
 /*
  * unmap/release iomem
  */
@@ -460,18 +494,18 @@ static int tscdev_mmap(struct file *filp, struct vm_area_struct *vma)
 
     return 0;
 }
-
+#ifdef GPIO_ENBALBED
 static unsigned int request_tsc_pio(void)
 {
     unsigned int handle = 0;
 	handle = sw_gpio_request_ex("tsc_para", NULL);
 	return handle;
 }
-
 static void release_tsc_pio(unsigned int handle, unsigned int reset)
 {
 	sw_gpio_release(handle, reset);
 }
+#endif
 
 
 static struct file_operations tscdev_fops = {
@@ -504,11 +538,12 @@ static int __init tscdev_init(void)
     char * pbuf;
     int gsize;
 
-    int i;
-    int tsc_used = 0;
-    static user_gpio_set_t gpio_set[12];
-
     dev_t dev = 0;
+
+#ifdef GPIO_ENBALBED
+	int i;
+	int tsc_used = 0;
+    static user_gpio_set_t gpio_set[12];
 
     ret = script_parser_fetch("tsc_para", "tsc_used", &tsc_used, sizeof(tsc_used)/sizeof(int));
     __wrn(" ret %d, tsc_used %d", ret, tsc_used);
@@ -521,6 +556,7 @@ static int __init tscdev_init(void)
         __err(" tsc driver is disabled ");
         return 0;
     }
+#endif
 
     tsc_devp = kmalloc(sizeof(struct tsc_dev), GFP_KERNEL);
     if (tsc_devp == NULL) {
@@ -588,6 +624,7 @@ static int __init tscdev_init(void)
 
     /* request TS irq */
 
+#ifdef GPIO_ENBALBED
     tsc_devp->pio_handle = request_tsc_pio();
     __wrn(" request tsc pio return %u", tsc_devp->pio_handle);
     if(tsc_devp->pio_handle == 0){
@@ -595,6 +632,24 @@ static int __init tscdev_init(void)
 	ret = -EINVAL;
 	goto _err_exit;
     }
+	sw_gpio_get_all_pin_status(tsc_devp->pio_handle, gpio_set, 12, 0);
+    for(i = 0; i< 12; i++){
+	__wrn("name %-8s, port %d, port_num %d, mul_sel %d", gpio_set[i].gpio_name, gpio_set[i].port, gpio_set[i].port_num, gpio_set[i].mul_sel);
+    }
+#else
+	tsc_devp->pio_handle = 0;
+	#if 1
+	if(0 != gpio_request_array(tsc_gpio_arry, ARRAY_SIZE(tsc_gpio_arry))) {
+		__wrn("request gpio failed");
+		goto _err_exit;
+	}
+	#endif
+	if(0 != sw_gpio_setall_range(tsc_gpio_cfg, ARRAY_SIZE(tsc_gpio_cfg))) {
+		__wrn("set gpio failed");
+		goto _err_exit;
+	}
+	tsc_devp->pio_handle = 1;
+#endif
 
     ret = request_irq(TS_IRQ_NO, tscdriverinterrupt, 0, "tsc_dev", NULL);
     if (ret < 0){
@@ -603,13 +658,6 @@ static int __init tscdev_init(void)
 	goto _err_exit;
     }
     tsc_devp->irq = TS_IRQ_NO;
-
-
-    sw_gpio_get_all_pin_status(tsc_devp->pio_handle, gpio_set, 12, 0);
-    for(i = 0; i< 12; i++){
-	__wrn("name %-8s, port %d, port_num %d, mul_sel %d", gpio_set[i].gpio_name, gpio_set[i].port, gpio_set[i].port_num, gpio_set[i].mul_sel);
-    }
-
     /* Create char device */
     devno = MKDEV(tsc_devp->ts_dev_major,tsc_devp->ts_dev_minor);
     cdev_init(&tsc_devp->cdev, &tscdev_fops);
@@ -632,11 +680,17 @@ _err_exit:
 	 if(tsc_devp == NULL)
 		 return -EINVAL;
 	 free_irq(TS_IRQ_NO, NULL);
-
+#ifdef GPIO_ENBALBED
 	 if(tsc_devp->pio_handle){
 		 release_tsc_pio(tsc_devp->pio_handle, 1);
 	 }
-
+#else
+#if 1
+    if(tsc_devp->pio_handle){
+		gpio_free_array(tsc_gpio_arry, ARRAY_SIZE(tsc_gpio_arry));
+	}
+#endif
+#endif
     pbuf   = tsc_devp->pmem;
     gsize  = tsc_devp->gsize;
     if(tsc_devp->pmem){
@@ -674,11 +728,9 @@ static void __exit tscdev_exit(void)
     char *pbuf;
     int gsize;
 
+#ifdef GPIO_ENBALBED
     int ret;
     int tsc_used = 0;
-
-    dev = MKDEV(tsc_devp->ts_dev_major, tsc_devp->ts_dev_minor);
-
     ret = script_parser_fetch("tsc_para","tsc_used", &tsc_used, sizeof(int));
     if (ret)
     {
@@ -689,15 +741,22 @@ static void __exit tscdev_exit(void)
         __wrn(" tsc driver is disabled ");
         return ;
     }
+	if(tsc_devp->pio_handle){
+	release_tsc_pio(tsc_devp->pio_handle, 1);
+    }
+#else
+#if 1
+    if(tsc_devp->pio_handle){
+		gpio_free_array(tsc_gpio_arry, ARRAY_SIZE(tsc_gpio_arry));
+	}
+#endif
+#endif
 
+    dev = MKDEV(tsc_devp->ts_dev_major, tsc_devp->ts_dev_minor);
     /* Release TS irq */
     free_irq(TS_IRQ_NO, NULL);
     if(tsc_devp == NULL)
 		 return ;
-
-    if(tsc_devp->pio_handle){
-	release_tsc_pio(tsc_devp->pio_handle, 1);
-    }
 
     pbuf   = tsc_devp->pmem;
     gsize  = tsc_devp->gsize;

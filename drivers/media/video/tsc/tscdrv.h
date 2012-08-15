@@ -3,7 +3,7 @@
 
 #include "dvb_drv_sun7i.h"
 #define DRV_VERSION               "0.01alpha"      //version
-#define TS_IRQ_NO                 (113)             //interrupt number,
+#define TS_IRQ_NO                 (35)             //interrupt number,
 
 #ifndef TSCDEV_MAJOR
 #define TSCDEV_MAJOR            (225)
