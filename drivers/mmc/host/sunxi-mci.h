@@ -37,7 +37,7 @@
 #ifdef MMC_FPGA
 #undef SMC_IRQNO
 #define SMC_IRQNO(x)	(45)
-#define SMC_FPGA_MMC_USED(x)	((x) == 0)
+#define SMC_FPGA_MMC_PREUSED(x)	((x) == 0)
 #endif
 #endif
 
