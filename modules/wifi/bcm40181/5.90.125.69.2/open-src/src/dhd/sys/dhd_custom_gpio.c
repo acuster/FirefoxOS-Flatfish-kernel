@@ -42,12 +42,20 @@
 
 
 #if defined (CONFIG_MMC_SUN6I) || defined (CONFIG_MMC_SUN7I)
+extern void sw_mci_rescan_card(unsigned id, unsigned insert);
 #define CUSTOMER_AW
 #define SDIO_ID	1
-extern void sw_mci_rescan_card(unsigned id, unsigned insert);
+
+#ifdef CONFIG_MMC_SDIOPM
 extern int mmc_pm_get_mod_type(void);
 extern int mmc_pm_gpio_ctrl(char* name, int level);
 extern int mmc_pm_get_io_val(char* name);
+#else
+static int mmc_pm_get_mod_type(void){return 0;}
+static int mmc_pm_gpio_ctrl(char* name, int level){return -1;}
+static int mmc_pm_get_io_val(char* name){return -1;}
+#endif
+
 #endif
 
 #ifdef CUSTOMER_HW
@@ -142,10 +150,12 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 		case WLAN_RESET_OFF:
 			WL_TRACE(("%s: call customer specific GPIO to insert WLAN RESET\n",
 				__FUNCTION__));
+#ifdef CUSTOMER_AW
 			mmc_pm_gpio_ctrl("bcm40181_shdn", 0);
 			mmc_pm_gpio_ctrl("bcm40181_vcc_en", 0);
 			mmc_pm_gpio_ctrl("bcm40181_vdd_en", 0);
 			printk("[bcm40181]: bcm40181_shdn=>0 !!\n");
+#endif
 
 #ifdef CUSTOMER_HW
 			bcm_wlan_power_off(2);

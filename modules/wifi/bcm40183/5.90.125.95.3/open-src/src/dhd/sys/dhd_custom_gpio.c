@@ -41,9 +41,15 @@
 #define CUSTOMER_AW
 #define SDIO_ID	1
 extern void sw_mci_rescan_card(unsigned id, unsigned insert);
+#ifdef CONFIG_MMC_SDIOPM
 extern int mmc_pm_get_mod_type(void);
 extern int mmc_pm_gpio_ctrl(char* name, int level);
 extern int mmc_pm_get_io_val(char* name);
+#else
+static int mmc_pm_get_mod_type(void){return 0;}
+static int mmc_pm_gpio_ctrl(char* name, int level){return -1;}
+static int mmc_pm_get_io_val(char* name){return -1;}
+#endif
 #endif
 
 #ifdef CUSTOMER_HW
