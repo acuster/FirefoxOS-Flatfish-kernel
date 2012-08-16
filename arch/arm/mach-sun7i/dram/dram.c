@@ -18,8 +18,7 @@
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
-#include <mach/sys_config.h>
-#include <mach/dram.h>
+#include <mach/includes.h>
 
 
 #define SUNXI_DRAM_DEBUG

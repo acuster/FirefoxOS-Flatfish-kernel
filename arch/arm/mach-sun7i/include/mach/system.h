@@ -23,9 +23,9 @@
 
 #include <linux/io.h>
 #include <asm/proc-fns.h>
-#include <mach/hardware.h>
-#include <mach/platform.h>
+#include <mach/includes.h>
 #include <asm/delay.h>
+#include <linux/printk.h>
 
 static inline void arch_idle(void)
 {

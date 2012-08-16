@@ -14,7 +14,6 @@
 #define __DRAM_H__
 
 #include <linux/kernel.h>
-#include <mach/platform.h>
 
 struct dram_para_t
 {

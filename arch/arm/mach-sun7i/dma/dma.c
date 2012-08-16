@@ -25,11 +25,9 @@
 
 #include <asm/system.h>
 #include <asm/irq.h>
-#include <mach/hardware.h>
-#include <mach/dma.h>
 
-#include <mach/platform.h>
-#include <mach/dma.h>
+#include <mach/includes.h>
+
 #include "dma_regs.h"
 
 /*

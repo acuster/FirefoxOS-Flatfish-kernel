@@ -25,17 +25,14 @@
 
 #include <asm/system.h>
 #include <asm/irq.h>
-#include <mach/hardware.h>
-#include <mach/dma.h>
+
+#include <mach/includes.h>
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
-
-#include <mach/dma.h>
-#include <mach/system.h>
 
 static struct sw_dma_map __initdata sw_dma_mappings[DMACH_MAX] = {
 	[DMACH_NSPI0_RX] = {

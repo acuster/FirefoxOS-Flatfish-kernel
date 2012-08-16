@@ -15,7 +15,7 @@
 
 #include <linux/init.h>
 #include <linux/types.h>
-#include <mach/platform.h>
+#include <mach/includes.h>
 
 
 #if (0)

@@ -17,8 +17,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include <mach/platform.h>
-#include <mach/clock.h>
 #include "ccm_i.h"
 
 #define make_aw_clk_inf(clk_id, clk_name)   {.id = clk_id, .name = clk_name}

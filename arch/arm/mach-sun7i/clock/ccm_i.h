@@ -21,10 +21,10 @@
 #define __AW_CCMU_I_H__
 
 #include <linux/kernel.h>
+#include <linux/printk.h>
 #include <asm/io.h>
 #include <asm/div64.h>
-#include <mach/clock.h>
-#include <mach/ccmu.h>
+#include <mach/includes.h>
 
 
 extern __ccmu_reg_list_t   *aw_ccu_reg;

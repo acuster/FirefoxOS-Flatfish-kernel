@@ -14,7 +14,7 @@
 
 #include <asm/smp_twd.h>
 #include <asm/localtimer.h>
-#include <mach/irqs.h>
+#include <mach/includes.h>
 
 /*
  * Setup the local clock events for a CPU.

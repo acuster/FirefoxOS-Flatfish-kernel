@@ -24,8 +24,7 @@
 #include <linux/init.h>
 
 #include <linux/io.h>
-#include <mach/hardware.h>
-#include <mach/platform.h>
+#include <mach/includes.h>
 
 void aw_put_char(u32 uart_base, u8 val)
 {

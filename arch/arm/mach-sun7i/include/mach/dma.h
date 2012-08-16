@@ -16,7 +16,7 @@
 #ifndef __SW_DMA_H
 #define __SW_DMA_H
 
-#include <mach/hardware.h>
+#include <linux/spinlock.h>
 
 #define USE_SPINLOCK_20120802	/* use spin_lock_irqsave instead of local_irq_save */
 

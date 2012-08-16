@@ -43,13 +43,11 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include <mach/hardware.h>
-#include <mach/irqs.h>
-#include <mach/platform.h>
-#include <mach/system.h>
-#include <mach/io.h>
+#include <mach/includes.h>
 
 #include "core.h"
+
+#define MEM_RESERVE_20120816 /* liugang, reserve memory for de/mp/sys_config/ve, 2012-8-16 */
 
 static struct map_desc sun7i_io_desc[] __initdata = {
 	{IO_ADDRESS(AW_IO_PHYS_BASE), __phys_to_pfn(AW_IO_PHYS_BASE),  AW_IO_SIZE, MT_DEVICE_NONSHARED},
@@ -168,12 +166,37 @@ static void sun7i_fixup(struct tag *tags, char **from,
 {
 	printk("[%s] enter\n", __FUNCTION__);
 	meminfo->bank[0].start = 0x40000000;
-	meminfo->bank[0].size = SZ_128M;
+	meminfo->bank[0].size = SZ_1G;
 
 	memblock_reserve(0x40000000 + 0x4000000, SZ_32M);
 
 	meminfo->nr_banks = 1;
 }
+
+#ifdef MEM_RESERVE_20120816
+u32 g_mem_resv[][2] = {
+	{SW_SCRIPT_MEM_BASE, 	SW_SCRIPT_MEM_SIZE	},
+	{SW_FB_MEM_BASE, 	SW_FB_MEM_SIZE		},
+	{SW_G2D_MEM_BASE, 	SW_G2D_MEM_SIZE		},
+	{SW_CSI_MEM_BASE, 	SW_CSI_MEM_SIZE		},
+	{SW_GPU_MEM_BASE, 	SW_GPU_MEM_SIZE		},
+	{SW_VE_MEM_BASE, 	SW_VE_MEM_SIZE		},
+};
+
+static void __init sun7i_reserve(void)
+{
+	u32 	i = 0;
+
+	for(i = 0; i < ARRAY_SIZE(g_mem_resv); i++)
+		if(0 != memblock_reserve(g_mem_resv[i][0], g_mem_resv[i][1]))
+			printk("%s err, line %d, base 0x%08x, size 0x%08x\n", __FUNCTION__,
+				__LINE__, g_mem_resv[i][0], g_mem_resv[i][1]);
+
+	pr_info("Memory Reserved(in bytes):\n");
+	for(i = 0; i < ARRAY_SIZE(g_mem_resv); i++)
+		pr_info("\t: 0x%08x, 0x%08x\n", g_mem_resv[i][0], g_mem_resv[i][1]);
+}
+#endif /* MEM_RESERVE_20120816 */
 
 static void sun7i_restart(char mode, const char *cmd)
 {
@@ -217,4 +240,7 @@ MACHINE_START(SUN7I, "Allwinner AW165x")
 	.dma_zone_size	= SZ_256M,
 #endif
 	.restart	= sun7i_restart,
+#ifdef MEM_RESERVE_20120816
+	.reserve        = sun7i_reserve,
+#endif /* MEM_RESERVE_20120816 */
 MACHINE_END

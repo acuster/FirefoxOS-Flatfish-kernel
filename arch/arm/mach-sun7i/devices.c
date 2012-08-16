@@ -33,9 +33,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/setup.h>
-#include <mach/hardware.h>
-#include <mach/system.h>
-#include <mach/platform.h>
+#include <mach/includes.h>
 
 /* uart */
 static struct plat_serial8250_port debug_uart_platform_data[] = {

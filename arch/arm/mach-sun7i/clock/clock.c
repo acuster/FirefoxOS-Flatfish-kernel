@@ -28,7 +28,7 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/debugfs.h>
-#include <mach/clock.h>
+#include <mach/includes.h>
 #include "ccm_i.h"
 
 // alloc memory for store clock informatioin

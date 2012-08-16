@@ -28,9 +28,7 @@
 #include <linux/types.h>
 #include <asm-generic/gpio.h>
 
-#include <mach/memory.h>
-#include <mach/platform.h>
-#include <mach/gpio.h>
+#include <mach/includes.h>
 
 #include "gpio_common.h"
 #include "gpio_eint.h"

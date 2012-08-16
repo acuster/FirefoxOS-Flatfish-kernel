@@ -27,10 +27,9 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/regulator/consumer.h>
-#include <mach/sys_config.h>
+#include <mach/includes.h>
 #include "cpu-freq.h"
 #include <linux/pm.h>
-#include <mach/ar100_cp.h>
 
 static struct sunxi_cpu_freq_t  cpu_cur;    /* current cpu frequency configuration  */
 static unsigned int last_target = ~0;       /* backup last target frequency         */

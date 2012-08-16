@@ -13,8 +13,6 @@
  *
  */
 
-#include <mach/hardware.h>
-#include <mach/platform.h>
 #include <linux/init.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
@@ -24,7 +22,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <asm/sched_clock.h>
-#include <mach/timer.h>
+#include <mach/includes.h>
 
 #undef TIMER_DBG
 #undef TIMER_ERR

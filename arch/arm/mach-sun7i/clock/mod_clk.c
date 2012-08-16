@@ -23,7 +23,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/clk.h>
-#include <mach/clock.h>
+#include <mach/includes.h>
 #include "ccm_i.h"
 
 

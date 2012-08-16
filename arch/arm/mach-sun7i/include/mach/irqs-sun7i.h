@@ -21,7 +21,7 @@
 #ifndef __MACH_IRQS_AW_H
 #define __MACH_IRQS_AW_H
 
-#define SUN7I_ON_FPGA
+#define SUN7I_IRQ_ON_FPGA
 
 #define AW_IRQ_GIC_START        32
 
@@ -64,7 +64,7 @@
 /*
  * AW on-board gic irq sources
  */
-#ifdef SUN7I_ON_FPGA
+#ifdef SUN7I_IRQ_ON_FPGA
 /* NOTE: maybe err, need redifine irqs number on sun7i fpga */
 #define AW_IRQ_NMI       	(AW_IRQ_GIC_START + 0 )    /* NMI    */
 #define AW_IRQ_UART0     	(AW_IRQ_GIC_START + 1 )    /* UART0  */
@@ -237,7 +237,7 @@
 #define AW_IRQ_HSTIMER1  	(AW_IRQ_GIC_START + 82)    /* hr-timer1 */
 #define AW_IRQ_HSTIMER2  	(AW_IRQ_GIC_START + 83)    /* hr-timer2 */
 #define AW_IRQ_HSTIMER3  	(AW_IRQ_GIC_START + 84)    /* hr-timer3 */
-#endif /* SUN7I_ON_FPGA */
+#endif /* SUN7I_IRQ_ON_FPGA */
 
 /*
  * GIC

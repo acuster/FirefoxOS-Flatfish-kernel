@@ -17,14 +17,12 @@
 #include <linux/jiffies.h>
 #include <linux/smp.h>
 
-#include <mach/hardware.h>
+#include <mach/includes.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <asm/smp_scu.h>
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
-
-#include <mach/platform.h>
 
 #include "core.h"
 
@@ -48,7 +46,6 @@ static void __iomem *scu_base_addr(void)
 void enable_aw_cpu(int cpu)
 {
 	long paddr;
-	volatile long reg1 = 0x0;
 
 	paddr = virt_to_phys(sun7i_secondary_startup);
         writel(paddr, IO_ADDRESS(AW_CPUCFG_BASE) + AW_CPUCFG_P_REG0);
