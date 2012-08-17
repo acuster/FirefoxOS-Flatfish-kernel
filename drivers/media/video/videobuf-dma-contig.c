@@ -45,8 +45,9 @@ struct videobuf_dma_contig_memory {
 extern unsigned long ve_start;
 extern unsigned long ve_size;
 #else
-unsigned long ve_start = 0x48000000;
-unsigned long ve_size = 32*1024*1024;
+#include <arch/arm/mach-sun7i/include/mach/memory.h>
+unsigned long ve_start = SW_CSI_MEM_BASE;
+unsigned long ve_size = SW_CSI_MEM_SIZE;
 #endif
 #endif
 
