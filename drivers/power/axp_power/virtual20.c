@@ -392,5 +392,5 @@ static void __exit regulator_virtual_consumer_exit(void)
 module_exit(regulator_virtual_consumer_exit);
 
 MODULE_AUTHOR("Donglu Zhang Krosspower");
-//MODULE_DESCRIPTION("Virtual regulator consumer");
-//MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Virtual regulator consumer");
+MODULE_LICENSE("GPL");

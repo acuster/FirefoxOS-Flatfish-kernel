@@ -290,7 +290,6 @@ static int __devinit axp_gpio_probe(struct platform_device *pdev)
 	//struct axp_mfd_chip *axp_chip = dev_get_drvdata(pdev->dev.parent);
 	struct virtual_gpio_data *drvdata;
 	int ret, i;
-
 	drvdata = kzalloc(sizeof(struct virtual_gpio_data), GFP_KERNEL);
 	if (drvdata == NULL) {
 		ret = -ENOMEM;

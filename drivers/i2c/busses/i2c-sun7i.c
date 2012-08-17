@@ -535,7 +535,7 @@ static int twi_stop(void *base_addr, int bus_num)
 		return SUN7I_I2C_TFAIL;
 	}
 
-	timeout = 0xff;
+	timeout = 0xffff;
 	while((TWI_STAT_IDLE != readl(base_addr + TWI_STAT_REG))&&(--timeout));
 	if(timeout == 0)
 	{
@@ -1376,11 +1376,11 @@ static struct resource sun7i_twi1_resources[] = {
 		.end	= TWI1_BASE_ADDR_END,
 		.flags	= IORESOURCE_MEM,
 	},
-	// {
-		// .start	= SW_INT_IRQNO_TWI1,
-		// .end	= SW_INT_IRQNO_TWI1,
-		// .flags	= IORESOURCE_IRQ,
-	// },
+	{
+		.start	= 34,
+		.end	= 34,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 static struct sun7i_i2c_platform_data sun7i_twi1_pdata[] = {
@@ -1433,21 +1433,21 @@ struct platform_device sun7i_twi2_device = {
 
 // static struct i2c_board_info eeprom_i2c_board_info[] __initdata = {
 	// {
-		// I2C_BOARD_INFO("24c16", 0x50),
+		// I2C_BOARD_INFO("i2c_test", 0x50),
 	// },
 // };
 
 static int __init sun7i_i2c_adap_init(void) {
 	// int status;
-	// status = i2c_register_board_info(1, eeprom_i2c_board_info, ARRAY_SIZE(eeprom_i2c_board_info));
+	// status = i2c_register_board_info(0, eeprom_i2c_board_info, ARRAY_SIZE(eeprom_i2c_board_info));
 	// if(status) {
-		// printk("eeprom init failed!\n");
+		// printk("i2c driver board init failed!\n");
 	// }
 	// else{
-		// printk("eeprom init successed!\n");
+		// printk("i2c driver board init successed!\n");
 	// }
-	platform_device_register(&sun7i_twi0_device);
-	// platform_device_register(&sun7i_twi1_device);
+	// platform_device_register(&sun7i_twi0_device);
+	platform_device_register(&sun7i_twi1_device);
 	// platform_device_register(&sun7i_twi2_device);
 
 	return platform_driver_register(&sun7i_i2c_driver);

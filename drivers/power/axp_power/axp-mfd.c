@@ -298,6 +298,8 @@ static int __devinit axp_mfd_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, chip);
 
+	client->irq = 32;
+
 	ret = chip->ops->init_chip(chip);
 	if (ret)
 		goto out_free_chip;
@@ -325,13 +327,7 @@ static int __devinit axp_mfd_probe(struct i2c_client *client,
 	}
 
 	/* set ac/usb_in shutdown mean restart */
-	ret = script_parser_fetch("target", "power_start", &power_start, sizeof(int));
-	if (ret)
-	{
-	printk("[AXP]axp driver uning configuration failed(%d)\n", __LINE__);
-	power_start = 0;
-	printk("[AXP]power_start = %d\n",power_start);
-	}
+	power_start = 1;
 
 	return 0;
 

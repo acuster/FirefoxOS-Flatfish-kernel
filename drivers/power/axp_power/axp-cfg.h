@@ -8,7 +8,7 @@
 #define	AXP19_I2CBUS		0
 #define	AXP20_I2CBUS		0
 #define BATRDC				200 //initial rdc
-#define AXP20_IRQNO     0
+#define AXP20_IRQNO     32
 
 
 #define	LDO1SET				0  //0: LDO1SET connect AGND, 1: LDO1SET connect AIPS, for axp189 LDOSET bonding to AGND

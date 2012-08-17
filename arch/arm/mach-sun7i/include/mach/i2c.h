@@ -176,7 +176,7 @@ Foscl is clock SCL;standard mode:100KHz or fast mode:400KHz
 #define TWI2_BASE_ADDR_END    (TWI2_BASE_ADDR_START + SUN7I_TWI_ADDR_SIZE)
 
 #define TWI0_TRANSFER_SPEED     (400000)
-#define TWI1_TRANSFER_SPEED     (200000)
+#define TWI1_TRANSFER_SPEED     (400000)
 #define TWI2_TRANSFER_SPEED     (200000)
 
 

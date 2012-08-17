@@ -1780,7 +1780,6 @@ static int axp_battery_probe(struct platform_device *pdev)
 	set_bit(EV_REL, powerkeydev->evbit);
 	//set_bit(EV_REP, powerkeydev->evbit);
 	set_bit(KEY_POWER, powerkeydev->keybit);
-
 	ret = input_register_device(powerkeydev);
 	if(ret) {
 		printk("Unable to Register the power key\n");
@@ -1788,10 +1787,9 @@ static int axp_battery_probe(struct platform_device *pdev)
 
 	if (pdata == NULL)
 		return -EINVAL;
-
-	if (pdata->chgcur > 1800000 ||
-		pdata->chgvol < 4100000 ||
-		pdata->chgvol > 4360000){
+	pdata->chgcur = pdata->chgcur*1000;
+	pdata->chgvol = pdata->chgvol*1000;
+	if (pdata->chgcur > 1800000 ||pdata->chgvol < 4100000 ||pdata->chgvol > 4360000){
 		printk("charger milliamp is too high or target voltage is over range\n");
 		return -EINVAL;
 	}
