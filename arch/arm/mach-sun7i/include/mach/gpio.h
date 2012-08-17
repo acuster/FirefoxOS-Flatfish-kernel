@@ -176,5 +176,6 @@ s32  sw_gpio_set_one_pin_driver_level(u32 p_handler, u32 set_driver_level, const
 s32  sw_gpio_read_one_pin_value(u32 p_handler, const char *gpio_name);
 s32  sw_gpio_write_one_pin_value(u32 p_handler, u32 value_to_gpio, const char *gpio_name);
 u32  sw_gpio_get_index(u32 p_handler, const char *gpio_name);
+u32  sw_gpio_port_to_index(u32 port, u32 port_num);
 
 #endif /* __SW_GPIO_H */
