@@ -48,11 +48,11 @@
 #define PHY_POWER 0
 #define DYNAMIC_MAC_SYSCONFIG 0
 #undef	SYSCONFIG_GPIO
-#undef	SYSCONFIG_CCMU
+//#undef	SYSCONFIG_CCMU
+#define	SYSCONFIG_CCMU
 
 /* Board/System/Debug information/definition ---------------- */
 
-unsigned int WEMAC_PHY = 1;
 #define CARDNAME	"wemac"
 #define DRV_VERSION	"2.50"
 #define DMA_CPU_TRRESHOLD 2000
@@ -71,8 +71,13 @@ unsigned int WEMAC_PHY = 1;
  */
 static int 	watchdog = 5000;
 unsigned char 	mac_addr[6] = {0x00};
+
 module_param(watchdog, int, 0400);
 MODULE_PARM_DESC(watchdog, "Transmit timeout in milliseconds");
+
+int phy_addr = 1;
+module_param(phy_addr, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(phy_addr, "Physical device address");
 
 /* WEMAC register address locking.
  *
@@ -124,7 +129,6 @@ typedef struct wemac_board_info {
 	void (*dumpblk)(void __iomem *port, int length);
 
 	struct device	*dev;	     /* parent device */
-	struct resource *irq_res;
 
 	struct mutex	 addr_lock;	/* phy and eeprom access lock */
 	spinlock_t	lock;
@@ -433,23 +437,6 @@ static int wemac_get_eeprom_len(struct net_device *dev)
 static int wemac_get_eeprom(struct net_device *dev,
 		struct ethtool_eeprom *ee, u8 *data)
 {
-	//	wemac_board_info_t *dm = to_wemac_board(dev);
-	//	int offset = ee->offset;
-	//	int len = ee->len;
-	//	int i;
-	//
-	//	/* EEPROM access is aligned to two bytes */
-	//
-	//	if ((len & 1) != 0 || (offset & 1) != 0)
-	//		return -EINVAL;
-	//
-	//	if (dm->flags & WEMAC_PLATF_NO_EEPROM)
-	//		return -ENOENT;
-	//
-	//	ee->magic = DM_EEPROM_MAGIC;
-	//
-	//	for (i = 0; i < len; i += 2)
-	//		wemac_read_eeprom(dm, (offset + i) / 2, data + i);
 
 	return 0;
 }
@@ -457,24 +444,6 @@ static int wemac_get_eeprom(struct net_device *dev,
 static int wemac_set_eeprom(struct net_device *dev,
 		struct ethtool_eeprom *ee, u8 *data)
 {
-	//	wemac_board_info_t *dm = to_wemac_board(dev);
-	//	int offset = ee->offset;
-	//	int len = ee->len;
-	//	int i;
-	//
-	//	/* EEPROM access is aligned to two bytes */
-	//
-	//	if ((len & 1) != 0 || (offset & 1) != 0)
-	//		return -EINVAL;
-	//
-	//	if (dm->flags & WEMAC_PLATF_NO_EEPROM)
-	//		return -ENOENT;
-	//
-	//	if (ee->magic != DM_EEPROM_MAGIC)
-	//		return -EINVAL;
-	//
-	//	for (i = 0; i < len; i += 2)
-	//		wemac_write_eeprom(dm, (offset + i) / 2, data + i);
 
 	return 0;
 }
@@ -527,8 +496,9 @@ void emac_sys_setup(wemac_board_info_t * db)
 
 #ifdef SYSCONFIG_CCMU
 	/*  set up clock gating  */
-	db->emac_clk = clk_get(NULL, "ahb_emac");
-	if(db->emac_clk != NULL) clk_enable(db->emac_clk);
+	db->emac_clk = clk_get(db->dev, "ahb_emac");
+	if(db->emac_clk != NULL)
+		clk_enable(db->emac_clk);
 #else
 	reg_val = readl(db->ccmu_vbase + CCM_AHB_GATING_REG0);
 	reg_val |= 0x1<<17;			//EMAC
@@ -570,18 +540,14 @@ unsigned int emac_setup(struct net_device *ndev )
 	reg_val = readl(db->emac_vbase + EMAC_RX_CTL_REG);
 	CONFIG_REG(EMAC_RX_DRQ_MODE, reg_val, 1);
 	CONFIG_REG(EMAC_RX_TM, reg_val, 2);
-	CONFIG_REG(EMAC_RX_PA, reg_val, 4);
 	CONFIG_REG(EMAC_RX_PCF, reg_val, 5);
 	CONFIG_REG(EMAC_RX_PCRCE, reg_val, 6);
 	CONFIG_REG(EMAC_RX_PLE, reg_val, 7);
 	CONFIG_REG(EMAC_RX_POR, reg_val, 8);
-	CONFIG_REG(EMAC_RX_UCAD, reg_val, 16);
-	CONFIG_REG(EMAC_RX_DAF, reg_val, 17);
-	CONFIG_REG(EMAC_RX_MCO, reg_val, 20);
-	CONFIG_REG(EMAC_RX_MHF, reg_val, 21);
-	CONFIG_REG(EMAC_RX_BCO, reg_val, 22);
+
 	CONFIG_REG(EMAC_RX_SAF, reg_val, 24);
 	CONFIG_REG(EMAC_RX_SAIF, reg_val, 25);
+
 	writel(reg_val, db->emac_vbase + EMAC_RX_CTL_REG);
 
 	//set MAC CTL0
@@ -613,7 +579,6 @@ unsigned int emac_setup(struct net_device *ndev )
 		phy_val = wemac_phy_read(ndev, 0, 0);
 		dev_dbg(db->dev, "PHY reg 0 value: %x\n", phy_val);
 
-		//mdelay(10);
 		phy_val = (PHY_SPEED<<13)|(EMAC_MAC_FULL<<8) ;
 		dev_dbg(db->dev, "PHY SETUP, write reg 0 with value: %x\n", phy_val);
 		wemac_phy_write(ndev, 0, 0, phy_val);
@@ -747,25 +712,6 @@ static void wemac_poll_work(struct work_struct *w)
 	wemac_board_info_t *db = container_of(dw, wemac_board_info_t, phy_poll);
 	struct net_device *ndev = db->ndev;
 
-	//	if (db->flags & WEMAC_PLATF_SIMPLE_PHY &&
-	//	    !(db->flags & WEMAC_PLATF_EXT_PHY)) {
-	//		unsigned nsr = wemac_read_locked(db, WEMAC_NSR);
-	//		unsigned old_carrier = netif_carrier_ok(ndev) ? 1 : 0;
-	//		unsigned new_carrier;
-	//
-	//		new_carrier = (nsr & NSR_LINKST) ? 1 : 0;
-	//
-	//		if (old_carrier != new_carrier) {
-	//			if (netif_msg_link(db))
-	//				wemac_show_carrier(db, new_carrier, nsr);
-	//
-	//			if (!new_carrier)
-	//				netif_carrier_off(ndev);
-	//			else
-	//				netif_carrier_on(ndev);
-	//		}
-	//	} else
-
 	mii_check_media(&db->mii, netif_msg_link(db), 0);
 
 	if (netif_running(ndev))
@@ -802,8 +748,10 @@ static void wemac_release_board(struct platform_device *pdev,
 		release_mem_region(iomem->start, resource_size(iomem));
 	}
 #else
-	if (db->emac_clk)
+	if (db->emac_clk){
 		clk_disable(db->emac_clk);
+		clk_put(db->emac_clk);
+	}
 #endif
 
 #ifndef SYSCONFIG_GPIO
@@ -947,7 +895,6 @@ static void wemac_init_wemac(struct net_device *dev)
 	/* PHY POWER UP */
 	phy_reg = wemac_phy_read(dev, 0, 0);
 	wemac_phy_write(dev, 0, 0, phy_reg & (~(1 <<11)));
-	//mdelay(1);
 #endif
 
 	phy_reg = wemac_phy_read(dev, 0, 0);
@@ -985,23 +932,27 @@ static void wemac_init_wemac(struct net_device *dev)
 static void wemac_timeout(struct net_device *dev)
 {
 	wemac_board_info_t *db = netdev_priv(dev);
-	unsigned long flags;
+	int i = 0;
 
 	if(netif_msg_timer(db))
 		dev_err(db->dev, "tx time out.\n");
 
-	/* Save previous register address */
-	spin_lock_irqsave(&db->lock, flags);
+	emac_reg_dump(db);
+#ifdef DEBUG
+	printk("\n+++++++++++++Dump phy reg+++++++++++++\n");
+	for(i=0; i<7; i++){
+		printk("\tReg(%d): %08x\n", i, wemac_phy_read(dev, db->mii.phy_id, i));
+	}
+	printk("\n+++++++++++++Dump phy reg+++++++++++++\n");
+#endif
 
 	netif_stop_queue(dev);
 	wemac_reset(db);
 	wemac_init_wemac(dev);
+
 	/* We can accept TX packets again */
 	dev->trans_start = jiffies;
 	netif_wake_queue(dev);
-
-	/* Restore previous register address */
-	spin_unlock_irqrestore(&db->lock, flags);
 }
 
 #define PINGPANG_BUF 1
@@ -1058,10 +1009,6 @@ static int wemac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Second packet */
 		netif_stop_queue(dev);
 	}
-
-#if 0
-	emac_reg_dump(db);
-#endif
 
 	spin_unlock_irqrestore(&db->lock, flags);
 
@@ -1309,10 +1256,6 @@ static irqreturn_t wemac_interrupt(int irq, void *dev_id)
 		printk(" ab : %x \n", int_status);
 	}
 
-	//if (int_status & (1<<18)) {    // carrier lost
-	//		printk("eth net carrier lost\n");
-	//	}
-
 	/* Re-enable interrupt mask */
 	if (emacrx_completed_flag == 1) {
 		reg_val = readl(db->emac_vbase + EMAC_INT_CTL_REG);
@@ -1341,11 +1284,11 @@ static void emac_reg_dump(wemac_board_info_t *db)
 	int i=0;
 	void __iomem *vbase = db->emac_vbase;
 
-	dev_dbg(db->dev, "\n============EMAC reg dump============\n");
+	dev_dbg(db->dev, "\n============Regsiter dump============\n");
 	for(i=0; i<=0xE0; i+=4){
 		dev_dbg(db->dev, "(OFFSET: 0x%02x) -- 0x%08x\n", i, readl(vbase + i));
 	}
-	dev_dbg(db->dev, "\n============dump over============\n");
+	dev_dbg(db->dev, "\n============Regsiter dump============\n");
 }
 
 /*
@@ -1355,7 +1298,6 @@ static void emac_reg_dump(wemac_board_info_t *db)
 static int wemac_open(struct net_device *dev)
 {
 	wemac_board_info_t *db = netdev_priv(dev);
-	unsigned long irqflags = db->irq_res->flags & IRQF_TRIGGER_MASK;
 
 	if (netif_msg_ifup(db))
 		dev_dbg(db->dev, "enabling %s\n", dev->name);
@@ -1363,13 +1305,10 @@ static int wemac_open(struct net_device *dev)
 	/* If there is no IRQ type specified, default to something that
 	 * may work, and tell the user that this is a problem */
 
-	if (irqflags == IRQF_TRIGGER_NONE)
-		dev_warn(db->dev, "WARNING: no IRQ resource flags set.\n");
-
-	irqflags |= IRQF_SHARED;
-
-	if (request_irq(dev->irq, &wemac_interrupt, irqflags, dev->name, dev))
+	if (request_irq(dev->irq, &wemac_interrupt, IRQF_SHARED, dev->name, dev)){
+		printk(KERN_ERR "Request irq(%u) is failed\n", dev->irq);
 		return -EAGAIN;
+	}
 
 	/* Initialize WEMAC board */
 	wemac_reset(db);
@@ -1390,7 +1329,7 @@ static int wemac_open(struct net_device *dev)
 /*
  *   Read a word from phyxcer
  */
-static int wemac_phy_read(struct net_device *dev, int phyaddr_unused, int reg)
+static int wemac_phy_read(struct net_device *dev, int phyaddr, int reg)
 {
 	wemac_board_info_t *db = netdev_priv(dev);
 	unsigned long flags;
@@ -1400,19 +1339,17 @@ static int wemac_phy_read(struct net_device *dev, int phyaddr_unused, int reg)
 
 	spin_lock_irqsave(&db->lock,flags);
 	/* issue the phy address and reg */
-	writel((WEMAC_PHY << 8) | reg, db->emac_vbase + EMAC_MAC_MADR_REG);
-	wmb();
+	writel((phyaddr << 8) | reg, db->emac_vbase + EMAC_MAC_MADR_REG);
 	/* pull up the phy io line */
 	writel(0x1, db->emac_vbase + EMAC_MAC_MCMD_REG);
 	spin_unlock_irqrestore(&db->lock,flags);
 
-	udelay(200);
+	while(readl(db->emac_vbase + EMAC_MAC_MIND_REG) & 0x01);
 
 	/* push down the phy io line and read data */
 	spin_lock_irqsave(&db->lock,flags);
 	/* push down the phy io line */
 	writel(0x0, db->emac_vbase + EMAC_MAC_MCMD_REG);
-	rmb();
 	/* and write data */
 	ret = readl(db->emac_vbase + EMAC_MAC_MRDD_REG);
 	spin_unlock_irqrestore(&db->lock,flags);
@@ -1426,7 +1363,7 @@ static int wemac_phy_read(struct net_device *dev, int phyaddr_unused, int reg)
  *   Write a word to phyxcer
  */
 static void wemac_phy_write(struct net_device *dev,
-							int phyaddr_unused, int reg, int value)
+							int phyaddr, int reg, int value)
 {
 	wemac_board_info_t *db = netdev_priv(dev);
 	unsigned long flags;
@@ -1435,12 +1372,11 @@ static void wemac_phy_write(struct net_device *dev,
 
 	spin_lock_irqsave(&db->lock,flags);
 	/* issue the phy address and reg */
-	writel((WEMAC_PHY << 8) | reg, db->emac_vbase + EMAC_MAC_MADR_REG);
+	writel((phyaddr << 8) | reg, db->emac_vbase + EMAC_MAC_MADR_REG);
 	writel(0x1, db->emac_vbase + EMAC_MAC_MCMD_REG);
 	spin_unlock_irqrestore(&db->lock, flags);
 
-	//wemac_msleep(db, 1);		/* Wait write complete */
-	udelay(200);
+	while(readl(db->emac_vbase + EMAC_MAC_MIND_REG) & 0x01);
 
 	spin_lock_irqsave(&db->lock,flags);
 	/* push down the phy io line */
@@ -1576,7 +1512,7 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 #ifndef SYSCONFIG_GPIO
 	iomem_gpio = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 #endif
-	db->irq_res  = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	ndev->irq  = platform_get_irq(pdev, 0);
 
 	if (iomem_emac == NULL
 			|| iomem_sram == NULL
@@ -1586,7 +1522,7 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 #ifndef SYSCONFIG_CCMU
 			|| iomem_ccmu == NULL
 #endif
-			|| db->irq_res == NULL) {
+			|| ndev->irq < 0 ) {
 		dev_err(db->dev, "insufficient resources\n");
 		ret = -ENOENT;
 		goto out;
@@ -1689,7 +1625,6 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 
 	/* fill in parameters for net-dev structure */
 	ndev->base_addr = (unsigned long)db->emac_vbase;
-	ndev->irq	= db->irq_res->start;
 
 	/* ensure at least we have a default set of IO routines */
 	db->dumpblk = wemac_dumpblk_32bit;
@@ -1714,7 +1649,6 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 
 	emac_sys_setup(db);
 	wemac_powerup(ndev);
-	wemac_reset(db);
 
 	/* driver system function */
 	ether_setup(ndev);
@@ -1729,6 +1663,7 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 
 	db->msg_enable       = 0xffffffff & (~NETIF_MSG_TX_DONE)
 							& (~NETIF_MSG_INTR) & (~NETIF_MSG_RX_STATUS);
+	db->mii.phy_id		 = phy_addr;
 	db->mii.phy_id_mask  = 0x1f;
 	db->mii.reg_num_mask = 0x1f;
 	db->mii.force_media  = 0; // change force_media value to 0 to force check link status
@@ -1761,9 +1696,9 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 
 	if (ret == 0)
 		wemac_dbg(db, 3, "%s: at %p, IRQ %d MAC: %p\n",
-				ndev->name,
-				db->emac_vbase, ndev->irq,
-				ndev->dev_addr);
+						ndev->name, db->emac_vbase,
+						ndev->irq, ndev->dev_addr);
+
 	return 0;
 
 #ifndef SYSCONFIG_CCMU
@@ -1771,6 +1706,7 @@ err_ccmu_map:
 	release_mem_region(iomem_ccmu->start, resource_size(iomem_ccmu));
 err_ccmu_region:
 #endif
+
 #ifndef SYSCONFIG_GPIO
 	iounmap(db->gpio_vbase);
 err_gpio_map:

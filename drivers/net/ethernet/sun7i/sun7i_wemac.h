@@ -175,12 +175,7 @@
 #define EMAC_CRCERR		(1<<4)
 #define EMAC_LENERR		(3<<5)
 
-#define WEMAC_PLATF_8BITONLY    (0x0001)
-#define WEMAC_PLATF_16BITONLY   (0x0002)
-#define WEMAC_PLATF_32BITONLY   (0x0004)
 #define WEMAC_PLATF_EXT_PHY     (0x0008)
-#define WEMAC_PLATF_NO_EEPROM   (0x0010)
-#define WEMAC_PLATF_SIMPLE_PHY	(0x0020)  /* Use NSR to find LinkStatus */
 
 /* platfrom data for platfrom device structure's platfrom_data field */
 struct wemac_plat_data {
