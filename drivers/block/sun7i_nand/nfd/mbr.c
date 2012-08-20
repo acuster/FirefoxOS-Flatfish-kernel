@@ -99,7 +99,7 @@ int mbr2disks(struct nand_disk* disk_array)
 	int part_cnt = 0;
 	int part_index;
 
-#if 0
+#if 1
 	if(_get_mbr()){
 		printk("get mbr error\n" );
 		return part_cnt;
