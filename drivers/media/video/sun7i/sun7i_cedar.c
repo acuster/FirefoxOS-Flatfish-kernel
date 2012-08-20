@@ -44,11 +44,12 @@
 #include <asm/signal.h>
 #include <mach/system.h>
 #include <mach/clock.h>
+#include <mach/memory.h>
 #include "sun7i_cedar.h"
 
 #define DRV_VERSION "0.01alpha"
 
-#define CHIP_VERSION_F23
+#define CHIP_VERSION_F51
 
 #undef USE_CEDAR_ENGINE
 
@@ -69,11 +70,7 @@ int g_dev_minor = CEDARDEV_MINOR;
 module_param(g_dev_major, int, S_IRUGO);//S_IRUGO represent that g_dev_major can be read,but canot be write
 module_param(g_dev_minor, int, S_IRUGO);
 
-#ifdef CHIP_VERSION_F23
-#define VE_IRQ_NO (53)
-#else
-#define VE_IRQ_NO (48)
-#endif
+#define VE_IRQ_NO (56)
 
 struct clk *ve_moduleclk = NULL;
 struct clk *ve_pll4clk = NULL;
@@ -89,7 +86,7 @@ extern unsigned long ve_size;
 extern int flush_clean_user_range(long start, long end);
 struct iomap_para{
 	volatile char* regs_macc;
-	#ifdef CHIP_VERSION_F23
+	#ifdef CHIP_VERSION_F51
 	volatile char* regs_avs;
 	#else
 	volatile char* regs_ccmu;
@@ -419,32 +416,6 @@ static void cedar_engine_for_events(unsigned long arg)
 	spin_unlock_irqrestore(&cedar_spin_lock, flags);
 }
 
-#ifdef CHIP_VERSION_F23
-short VEPLLTable[][6] =
-{
-	//set, actual, Nb, Kb, Mb, Pb
-	{ 60,  60,  5,  2,  2,  1},
-	{ 90,  90,  5,  2,  0,  2},
-	{120, 120,  5,  2,  2,  0},
-	{150, 150, 25,  0,  0,  2},
-	{180, 180,  5,  2,  0,  1},
-	{216, 216,  6,  2,  0,  1},
-	{240, 240,  5,  3,  0,  1},
-	{270, 270, 15,  2,  0,  2},
-	{300, 300, 25,  0,  0,  1},
-	{330, 336,  7,  1,  0,  0},
-	{360, 360,  5,  2,  0,  0},
-	{384, 384,  4,  3,  0,  0},
-	{402, 400, 25,  1,  2,  0},
-	{420, 416, 13,  3,  2,  0},
-	{444, 448, 14,  3,  2,  0},
-	{456, 456, 19,  0,  0,  0},
-	{468, 468, 13,  2,  0,  1},
-	{480, 480,  5,  3,  0,  0},
-	{492, 496, 31,  1,  2,  0},
-};
-#endif
-
 /*
  * ioctl function
  * including : wait video engine done,
@@ -588,8 +559,8 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		case IOCTL_RESET_VE:
             clk_disable(dram_veclk);
-            clk_reset(ve_moduleclk, 1);
-            clk_reset(ve_moduleclk, 0);
+            clk_reset(ve_moduleclk, AW_CCU_CLK_RESET);
+            clk_reset(ve_moduleclk, AW_CCU_CLK_NRESET);
             clk_enable(dram_veclk);
 		break;
 
@@ -694,12 +665,12 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
         case IOCTL_GET_ENV_INFO:
         {
-//            struct cedarv_env_infomation env_info;
-//            env_info.phymem_start = (unsigned int)phys_to_virt(ve_start);
-//            env_info.phymem_total_size = ve_size;
-//	        env_info.address_macc = (unsigned int)cedar_devp->iomap_addrs.regs_macc;
-//            if (copy_to_user((char *)arg, &env_info, sizeof(struct cedarv_env_infomation)))
-//                return -EFAULT;
+            struct cedarv_env_infomation env_info;
+            env_info.phymem_start = (unsigned int)phys_to_virt(SW_VE_MEM_BASE);//(0x4d000000);
+            env_info.phymem_total_size = SW_VE_MEM_SIZE;//0x05000000;
+	        env_info.address_macc = (unsigned int)cedar_devp->iomap_addrs.regs_macc;
+            if (copy_to_user((char *)arg, &env_info, sizeof(struct cedarv_env_infomation)))
+                return -EFAULT;
         }
         break;
         case IOCTL_GET_IC_VER:
@@ -888,7 +859,7 @@ static int __init cedardev_init(void)
 	int devno;
 	unsigned int val;
 	dev_t dev = 0;
-	printk("[cedar dev]: install start!!!\n");
+	printk("[hx-cedar dev]: install start!!!\n");
 	if((platform_device_register(&sw_device_cedar))<0)
 		return err;
 
@@ -962,7 +933,7 @@ static int __init cedardev_init(void)
 		printk("set parent of avs_moduleclk to hosc_clk failed!\n");
 		return -EFAULT;
 	}
-
+	clk_reset(ve_moduleclk, AW_CCU_CLK_NRESET);
 	/*for clk test*/
 	#ifdef CEDAR_DEBUG
 	printk("PLL4 CLK:0xf1c20018 is:%x\n", *(volatile int *)0xf1c20018);
