@@ -288,82 +288,6 @@ static int __init Fb_map_video_memory(struct fb_info *info)
 		memset(info->screen_base,0,info->fix.smem_len);
 		__inf("Fb_map_video_memory, pa=0x%08lx size:0x%x\n",info->fix.smem_start, info->fix.smem_len);
 
-{
-    dma_addr_t map_dma,map_dma2;
-    char __iomem *base_tmp, *base_tmp2;
-    __u32 len,len2;
-    __u32 i;
-
-        len = 1920*1080;
-        base_tmp = dma_alloc_writecombine(NULL, PAGE_ALIGN(len),
-					   &map_dma, GFP_KERNEL);
-        if(base_tmp)
-        {
-            printk("[dev_fb] len=0x%08x ==ok",len);
-            dma_free_writecombine(NULL, PAGE_ALIGN(len),
-	        base_tmp, map_dma);
-        }else
-        {
-            printk("[dev_fb] len=0x%08x ==fail",len);
-        }
-
-
-        len = 1920*1080*2;
-        base_tmp = dma_alloc_writecombine(NULL, PAGE_ALIGN(len),
-					   &map_dma, GFP_KERNEL);
-        if(base_tmp)
-        {
-            printk("[dev_fb] len=0x%08x  ok==\n",len);
-            dma_free_writecombine(NULL, PAGE_ALIGN(len),
-	        base_tmp, map_dma);
-        }else
-        {
-            printk("[dev_fb] len=0x%08x, fail==\n",len);
-        }
-
-        len = 800*480*2;
-        base_tmp = dma_alloc_writecombine(NULL, PAGE_ALIGN(len),
-					   &map_dma, GFP_KERNEL);
-        if(base_tmp)
-        {
-            printk("[dev_fb] len=0x%08x ==ok",len);
-        }
-
-        len2 = 800*480*2;
-        base_tmp2 = dma_alloc_writecombine(NULL, PAGE_ALIGN(len2),
-					   &map_dma2, GFP_KERNEL);
-        if(base_tmp2)
-        {
-            printk("[dev_fb] len=0x%08x ==(2-1)ok",len2);
-        }else
-        {
-            printk("[dev_fb] len=0x%08x ==(2-1)fail",len2);
-        }
-
-        len = 1280*720*2;
-        base_tmp = dma_alloc_writecombine(NULL, PAGE_ALIGN(len),
-					   &map_dma, GFP_KERNEL);
-        if(base_tmp)
-        {
-            printk("[dev_fb] len=0x%08x ==(2-2)ok",len);
-        }else
-        {
-            printk("[dev_fb] len=0x%08x ==(2-2)fail",len);
-        }
-
-
-        if(base_tmp)
-        {
-            dma_free_writecombine(NULL, PAGE_ALIGN(len),
-	        base_tmp, map_dma);
-        }
-        if(base_tmp2)
-        {
-            dma_free_writecombine(NULL, PAGE_ALIGN(len2),
-	        base_tmp2, map_dma2);
-        }
-
-}
 		return 0;
 	}
 	else
@@ -1420,7 +1344,7 @@ __s32 Fb_Init(__u32 from)
                 g_fbi.disp_init.b_init = 1;
                 g_fbi.disp_init.disp_mode = 0;
                 g_fbi.disp_init.output_type[0] = 1;
-                g_fbi.disp_init.scaler_mode[0] = 1;
+                g_fbi.disp_init.scaler_mode[0] = 0;
                 g_fbi.disp_init.buffer_num[0] =1;
                 g_fbi.disp_init.format[0] = 0xa;
                 g_fbi.disp_init.seq[0] = 0;
