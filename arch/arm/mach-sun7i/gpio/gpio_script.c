@@ -116,13 +116,12 @@ End:
  */
 u32 sw_gpio_request(user_gpio_set_t *gpio_list, u32 group_count_max)
 {
-	char               *user_gpio_buf;                                        //按照char类型申请
-	system_gpio_set_t  *user_gpio_set, *tmp_sys_gpio_data;                      //user_gpio_set将是申请内存的句柄
-	user_gpio_set_t  *tmp_user_gpio_data;
-	u32                real_gpio_count = 0, first_port;                      //保存真正有效的GPIO的个数
-	u32  port, port_num;
-	s32  i;
-
+	char         	*user_gpio_buf;                                        //按照char类型申请
+	system_gpio_set_t *user_gpio_set, *tmp_sys_gpio_data;                      //user_gpio_set将是申请内存的句柄
+	user_gpio_set_t	*tmp_user_gpio_data;
+	u32        	real_gpio_count = 0, first_port;                      //保存真正有效的GPIO的个数
+	u32  		port, port_num;
+	s32  		i;
 	u32		pio_index = 0;
 	u32		usign = 0;
 	struct gpio_config config_stru = {0};
@@ -144,7 +143,7 @@ u32 sw_gpio_request(user_gpio_set_t *gpio_list, u32 group_count_max)
 	if(!user_gpio_buf)
 		return (u32)0;
 	memset(user_gpio_buf, 0, 16 + sizeof(system_gpio_set_t) * real_gpio_count);        //首先全部清零
-	    *(int *)user_gpio_buf = real_gpio_count;                                           //保存有效的GPIO个数
+	*(int *)user_gpio_buf = real_gpio_count;                                           //保存有效的GPIO个数
 	user_gpio_set = (system_gpio_set_t *)(user_gpio_buf + 16);                         //指向第一个结构体
 
 	//找到gpio_list第一个有效port, 并获取其原始硬件配置信息
@@ -203,6 +202,9 @@ u32 sw_gpio_request(user_gpio_set_t *gpio_list, u32 group_count_max)
 #if 1
 		/* get the gpio index */
 		pio_index = port_to_gpio_index(port, port_num);
+
+		PIO_DBG("%s: pio_index %d, mul_sel %d, pull %d, drv_level %d\n", __FUNCTION__, pio_index,
+			tmp_user_gpio_data->mul_sel, tmp_user_gpio_data->pull, tmp_user_gpio_data->drv_level);
 
 		/* backup the last config(read from hw) to hardware_gpio_status */
 		tmp_sys_gpio_data->hardware_gpio_status.mul_sel = sw_gpio_getcfg(pio_index);
@@ -338,9 +340,8 @@ End:
 			user_gpio_buf = NULL;
 		}
 		return 0;
-	} else {
+	} else
 		return (u32)user_gpio_buf;
-	}
 }
 EXPORT_SYMBOL_GPL(sw_gpio_request);
 
@@ -1265,7 +1266,7 @@ EXPORT_SYMBOL(sw_gpio_write_one_pin_value);
  * sw_gpio_get_index - get the global gpio index
  * @p_handler: gpio handler
  * @gpio_name: gpio name whose index will be got. when NULL,
- ? 		the first port of p_handler willbe treated.
+? 		the first port of p_handler willbe treated.
  *
  * return the gpio index for the port, GPIO_INDEX_INVALID indicate err
  */

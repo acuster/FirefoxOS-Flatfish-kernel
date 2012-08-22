@@ -487,6 +487,8 @@ u32 sw_gpio_setall_range(struct gpio_config *pcfg, u32 cfg_num)
 		if(false == is_gpio_requested(pcfg->gpio)) {
 			PIO_ERR("%s to check: gpio %d not requested, line %d\n", __FUNCTION__, pcfg->gpio, __LINE__);
 		}
+		PIO_DBG("%s: gpio %d, mul_sel %d, pull %d, drv_level %d\n", __FUNCTION__, pcfg->gpio,
+			pcfg->mul_sel, pcfg->pull, pcfg->drv_level);
 #endif /* DBG_GPIO */
 		pchip = gpio_to_aw_gpiochip(pcfg->gpio);
 		if(NULL == pchip) {

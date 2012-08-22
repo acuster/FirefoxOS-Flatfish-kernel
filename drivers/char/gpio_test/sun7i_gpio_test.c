@@ -20,7 +20,7 @@
 #define TEST_GPIOLIB_API	/* test the standard linux gpio api */
 #define TEST_CONFIG_API		/* test gpio multi-function */
 #define TEST_GPIO_EINT_API	/* test gpio external interrupt */
-//#define TEST_GPIO_SCRIPT_API	/* test gpio script api, to do#### */
+#define TEST_GPIO_SCRIPT_API	/* test gpio script api, to do#### */
 
 /*
  * cur test case
@@ -93,7 +93,7 @@ u32 __gtc_api(void)
 	 * test for request and free
 	 */
 #ifdef TEST_REQUEST_FREE
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(0 == gpio_request(GPIOA(0), "pa0"), uret, End);
 	PIO_CHECK_RST(0 == gpio_request(GPIOA(PA_NR / 2), "pa_mid"), uret, End);
 	PIO_CHECK_RST(0 == gpio_request(GPIOA(PA_NR - 1), "pa_end_sub_1"), uret, End);
@@ -102,105 +102,105 @@ u32 __gtc_api(void)
 	PIO_CHECK_RST(0 == gpio_request(GPIOA(PA_NR + 1), "pa_end_plus_1"), uret, End); /* err */
 #endif
 	gpio_free(GPIOA(0));
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	gpio_free(GPIOA(PA_NR / 2));
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	gpio_free(GPIOA(PA_NR - 1));
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 
 	PIO_CHECK_RST(0 == gpio_request(GPIOB(0), "pb0"), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(0 == gpio_request(GPIOB(PB_NR / 2), "pb_mid"), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(0 == gpio_request(GPIOB(PB_NR - 1), "pb_end_sub_1"), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 
 	gpio_free(GPIOB(0));
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	gpio_free(GPIOB(PB_NR / 2));
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	gpio_free(GPIOB(PB_NR - 1));
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 #endif /* TEST_REQUEST_FREE */
 
 	/*
 	 * test for re-request and re-free the same pio
 	 */
 #ifdef TEST_RE_REQUEST_FREE
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 #if 1	/* free an un-requested pio, warn */
 	gpio_free(GPIOA(PA_NR / 2));
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 #endif
 
 	PIO_CHECK_RST(0 == gpio_request(GPIOA(PA_NR / 2), "pa_mid"), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	gpio_free(GPIOA(PA_NR / 2));
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 #if 1	/* re-free, warn */
 	gpio_free(GPIOA(PA_NR / 2));
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 #endif
 
 	PIO_CHECK_RST(0 == gpio_request(GPIOB(PB_NR / 2), "pb_mid"), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 #if 0	/* re-request, err */
 	PIO_CHECK_RST(0 == gpio_request(GPIOB(PB_NR / 2), "pb_mid"), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 #endif
 	gpio_free(GPIOB(PB_NR / 2));
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 #endif /* TEST_RE_REQUEST_FREE */
 
 	/*
 	 * test for gpiolib api
 	 */
 #ifdef TEST_GPIOLIB_API
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	/* test gpio_request_one */
 	PIO_CHECK_RST(0 == gpio_request_one(GPIOC(1), GPIOF_OUT_INIT_HIGH, "pc_1"), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(1 == __gpio_get_value(GPIOC(1)), uret, End); /* check if data ok */
 	gpio_free(GPIOC(1));
 
 	PIO_CHECK_RST(0 == gpio_request_one(GPIOC(1), GPIOF_OUT_INIT_LOW, "pc_1"), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(0 == __gpio_get_value(GPIOC(1)), uret, End); /* check if data ok */
 	gpio_free(GPIOC(1));
 
 	/* test gpio_request_array */
 	PIO_CHECK_RST(0 == gpio_request_array(gpio_arry, ARRAY_SIZE(gpio_arry)), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 #if 1	/* check if request array success */
 	PIO_CHECK_RST(0 == sw_gpio_getall_range(gpio_cfg_temp, ARRAY_SIZE(gpio_cfg_temp)), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	sw_gpio_dump_config(gpio_cfg_temp, ARRAY_SIZE(gpio_cfg_temp));
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 #endif
 
 	/* test gpio_free_array */
 	gpio_free_array(gpio_arry, ARRAY_SIZE(gpio_arry));
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 
 	/* test gpiochip_find */
 	offset = 5;
 	utemp = GPIOB(offset);
 	PIO_CHECK_RST(0 == gpio_request(utemp, "pb5"), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(NULL != (pchip = gpiochip_find(&utemp, gpio_chip_match)), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	printk("%s: gpiochip_find success, 0x%08x\n", __FUNCTION__, (u32)pchip);
 
 	/* test gpiochip_is_requested */
 	PIO_CHECK_RST(NULL != gpiochip_is_requested(pchip, offset), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	gpio_free(utemp);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 
 	/* test gpio_direction_input/__gpio_get_value/gpio_get_value_cansleep */
 	upio_index = GPIOE(10);
 	PIO_CHECK_RST(0 == gpio_direction_input(upio_index), uret, End); /* warn autorequest */
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	utemp = __gpio_get_value(upio_index); /* __gpio_get_value */
 	printk("%s: __gpio_get_value pe10 value %d\n", __FUNCTION__, utemp);
 	utemp = (u32)gpio_get_value_cansleep(upio_index); /* gpio_get_value_cansleep, success even can_sleep flag not set */
@@ -211,25 +211,25 @@ u32 __gtc_api(void)
 	upio_index = GPIOI(12);
 	PIO_CHECK_RST(0 == gpio_request(upio_index, "pI12"), uret, End);
 
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(0 == gpio_direction_output(upio_index, 1), uret, End); /* gpio_direction_output */
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(1 == __gpio_get_value(upio_index), uret, End); /* __gpio_get_value */
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(0 == gpio_direction_output(upio_index, 0), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(0 == __gpio_get_value(upio_index), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	__gpio_set_value(upio_index, 1); /* __gpio_set_value */
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(1 == __gpio_get_value(upio_index), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	gpio_set_value_cansleep(upio_index, 0); /* gpio_set_value_cansleep */
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	/* test gpio_set_debounce, gpio_chip->set_debounce not impletment, so err here */
 	utemp = gpio_set_debounce(upio_index, 10);
 	printk("%s: gpio_set_debounce %d return %d\n", __FUNCTION__, upio_index, utemp);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	/* test __gpio_cansleep */
 	utemp = (u32)__gpio_cansleep(upio_index);
 	printk("%s: __gpio_cansleep %d return %d\n", __FUNCTION__, upio_index, utemp);
@@ -238,7 +238,7 @@ u32 __gtc_api(void)
 	printk("%s: __gpio_to_irq %d return %d\n", __FUNCTION__, upio_index, utemp);
 
 	gpio_free(upio_index);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 #endif /* TEST_GPIOLIB_API */
 
 	/*
@@ -247,45 +247,45 @@ u32 __gtc_api(void)
 #ifdef TEST_CONFIG_API
 	upio_index = GPIOA(1);
 	PIO_CHECK_RST(0 == gpio_request(upio_index, "pa1"), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 
 	/* config to output/input */
 	PIO_CHECK_RST(0 == gpio_direction_output(upio_index, 0), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(1 == sw_gpio_getcfg(upio_index), uret, End); /* sw_gpio_getcfg output */
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(0 == gpio_direction_input(upio_index), uret, End);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(0 == sw_gpio_getcfg(upio_index), uret, End); /* sw_gpio_getcfg input */
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 
 	/* config to function */
 	PIO_CHECK_RST(0 == sw_gpio_setcfg(upio_index, 3), uret, End); /* sw_gpio_setcfg(PA1->LCD1_D1) */
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(3 == sw_gpio_getcfg(upio_index), uret, End); /* sw_gpio_getcfg */
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 
 	/* pull test */
 	PIO_CHECK_RST(0 == sw_gpio_setpull(upio_index, 2), uret, End); /* sw_gpio_setpull down */
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(2 == sw_gpio_getpull(upio_index), uret, End); /* sw_gpio_getpull */
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 
 	/* drvlevel test */
 	PIO_CHECK_RST(0 == sw_gpio_setdrvlevel(upio_index, 2), uret, End); /* sw_gpio_setdrvlevel level2 */
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 	PIO_CHECK_RST(2 == sw_gpio_getdrvlevel(upio_index), uret, End); /* sw_gpio_getdrvlevel */
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 
 	gpio_free(upio_index);
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 
 	/* range config test */
 	PIO_CHECK_RST(0 == sw_gpio_setall_range(gpio_cfg, ARRAY_SIZE(gpio_cfg)), uret, End); /* sw_gpio_setall_range */
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 
 	PIO_CHECK_RST(0 == sw_gpio_getall_range(gpio_cfg, ARRAY_SIZE(gpio_cfg)), uret, End); /* sw_gpio_getall_range */
-	PIO_DBG_FUN_LINE;
+	PIO_TEST_DBG_FUN_LINE;
 
 	sw_gpio_dump_config(gpio_cfg, ARRAY_SIZE(gpio_cfg)); /* sw_gpio_dump_config */
 #endif /* TEST_CONFIG_API */
@@ -316,28 +316,28 @@ u32 __gtc_api(void)
 		/* request the gpios first */
 		for(utemp = 0; utemp < ARRAY_SIZE(cfg_eint); utemp++)
 			PIO_CHECK_RST(0 == gpio_request(cfg_eint[utemp].gpio, NULL), uret, End);
-		PIO_DBG_FUN_LINE;
+		PIO_TEST_DBG_FUN_LINE;
 
 		/* dump the orginal struct */
 		sw_gpio_eint_dumpall_range(cfg_eint, ARRAY_SIZE(cfg_eint));
-		PIO_DBG_FUN_LINE;
+		PIO_TEST_DBG_FUN_LINE;
 
 		/* test sw_gpio_eint_setall_range */
 		PIO_CHECK_RST(0 == sw_gpio_eint_setall_range(cfg_eint, ARRAY_SIZE(cfg_eint)), uret, End);
-		PIO_DBG_FUN_LINE;
+		PIO_TEST_DBG_FUN_LINE;
 
 		/* test sw_gpio_eint_getall_range */
 		PIO_CHECK_RST(0 == sw_gpio_eint_getall_range(cfg_eint_temp, ARRAY_SIZE(cfg_eint_temp)), uret, End);
-		PIO_DBG_FUN_LINE;
+		PIO_TEST_DBG_FUN_LINE;
 
 		/* dump the new got struct from hw */
 		sw_gpio_eint_dumpall_range(cfg_eint_temp, ARRAY_SIZE(cfg_eint_temp));
-		PIO_DBG_FUN_LINE;
+		PIO_TEST_DBG_FUN_LINE;
 
 		/* free the gpios */
 		for(utemp = 0; utemp < ARRAY_SIZE(cfg_eint); utemp++)
 			gpio_free(cfg_eint[utemp].gpio);
-		PIO_DBG_FUN_LINE;
+		PIO_TEST_DBG_FUN_LINE;
 #endif
 
 		/* NOTE: sw_gpio_irq_request should be test singlely, incase gpio irq occur */
@@ -365,23 +365,23 @@ u32 __gtc_api(void)
 
 		if(0 != handle_temp[0])
 			sw_gpio_irq_free(handle_temp[0]);
-		PIO_DBG_FUN_LINE;
+		PIO_TEST_DBG_FUN_LINE;
 		if(0 != handle_temp[1])
 			sw_gpio_irq_free(handle_temp[1]);
-		PIO_DBG_FUN_LINE;
+		PIO_TEST_DBG_FUN_LINE;
 		if(0 != handle_temp[2])
 			sw_gpio_irq_free(handle_temp[2]);
-		PIO_DBG_FUN_LINE;
+		PIO_TEST_DBG_FUN_LINE;
 		if(0 != handle_temp[3])
 			sw_gpio_irq_free(handle_temp[3]);
-		PIO_DBG_FUN_LINE;
+		PIO_TEST_DBG_FUN_LINE;
 
 		//gpio_request(GPIOI(10), NULL);
-		//PIO_DBG_FUN_LINE;
+		//PIO_TEST_DBG_FUN_LINE;
 		//sw_gpio_irq_free(handle_temp[0]); /* WARNING: Trying to free already-freed IRQ 43 */
-		//PIO_DBG_FUN_LINE;
+		//PIO_TEST_DBG_FUN_LINE;
 		//gpio_free(GPIOI(10));
-		//PIO_DBG_FUN_LINE;
+		//PIO_TEST_DBG_FUN_LINE;
 	}
 #endif /* TEST_GPIO_EINT_API */
 
@@ -389,71 +389,71 @@ u32 __gtc_api(void)
 	 * test for script gpio api, to do...
 	 */
 #ifdef TEST_GPIO_SCRIPT_API
-	PIO_DBG_FUN_LINE_TODO;
+	PIO_TEST_DBG_FUN_LINE_TODO;
 	{
 		u32 	pin_hdl = 0;
-		struct gpio_config cfg_card_boot0[] = {
+		struct gpio_config mmc0_para[] = {
 			{GPIOF(0)},
 			{GPIOF(1)},
 			{GPIOF(2)},
 			{GPIOF(3)},
 			{GPIOF(4)},
 			{GPIOF(5)},
+			{GPIOH(1)},
 		};
-		struct gpio_config cfg_card_boot2[] = {
-			{GPIOC(6)},
-			{GPIOC(7)},
-			{GPIOC(8)},
-			{GPIOC(9)},
-			{GPIOC(10)},
-			{GPIOC(11)},
+		struct gpio_config usbc0[] = {
+			{GPIOH(4)},
+			{GPIOH(5)},
+			{GPIOB(9)},
 		};
 
 		/*
-		[card_boot0_para]
-		card_ctrl 		= 0
-		card_high_speed 	= 1
-		card_line       	= 4
+		[mmc0_para]
+		sdc_used    		= 1
+		sdc_detmode 		= 1
+		bus_width   		= 4
 		sdc_d1      		= port:PF0<2><1><default><default>
 		sdc_d0      		= port:PF1<2><1><default><default>
-		sdc_clk     		= port:PF2<2><1><default><default>
+		sdc_ckj     		= port:PF2<2><1><default><default>
 		sdc_cmd     		= port:PF3<2><1><default><default>
 		sdc_d3      		= port:PF4<2><1><default><default>
 		sdc_d2      		= port:PF5<2><1><default><default>
+		sdc_det     		= port:PH1<0><1><default><default>
+		sdc_use_wp  		= 0
+		sdc_wp      		=
 
-		[card_boot2_para]
-		card_ctrl 		= 2
-		card_high_speed 	= 1
-		card_line       	= 4
-		sdc_cmd		 	= port:PC6<3><1>
-		sdc_clk	    		= port:PC7<3><1>
-		sdc_d0		 	= port:PC8<3><1>
-		sdc_d1		 	= port:PC9<3><1>
-		sdc_d2		 	= port:PC10<3><1>
-		sdc_d3		 	= port:PC11<3><1>
+		[usbc0]
+		usb_used            	= 1
+		usb_port_type       	= 2
+		usb_detect_type     	= 1
+		usb_id_gpio         	= port:PH4<0><1><default><default>
+		usb_det_vbus_gpio   	= port:PH5<0><0><default><default>
+		usb_drv_vbus_gpio   	= port:PB9<1><0><default><0>
+		usb_host_state      	= 0
 		*/
 
-		/* test for card_boot0_para */
-		PIO_CHECK_RST(0 != (pin_hdl = sw_gpio_request_ex("card_boot0_para", NULL)), uret, End);
-		PIO_DBG_FUN_LINE;
-		PIO_CHECK_RST(0 == sw_gpio_getall_range(cfg_card_boot0, ARRAY_SIZE(cfg_card_boot0)), uret, End);
-		PIO_DBG_FUN_LINE;
-		sw_gpio_dump_config(cfg_card_boot0, ARRAY_SIZE(cfg_card_boot0));
-		PIO_DBG_FUN_LINE;
-		sw_gpio_release(pin_hdl, 1);
-		PIO_DBG_FUN_LINE;
+		/* test for mmc0_para */
+		PIO_CHECK_RST(0 != (pin_hdl = sw_gpio_request_ex("mmc0_para", NULL)), uret, End);
+		PIO_TEST_DBG_FUN_LINE;
+		PIO_CHECK_RST(0 == sw_gpio_getall_range(mmc0_para, ARRAY_SIZE(mmc0_para)), uret, End);
+		PIO_TEST_DBG_FUN_LINE;
+		sw_gpio_dump_config(mmc0_para, ARRAY_SIZE(mmc0_para));
+		PIO_TEST_DBG_FUN_LINE;
+		sw_gpio_release(pin_hdl, 2);
+		PIO_TEST_DBG_FUN_LINE;
 
-		/* test for card_boot2_para */
-		PIO_CHECK_RST(0 != (pin_hdl = sw_gpio_request_ex("card_boot2_para", NULL)), uret, End);
-		PIO_DBG_FUN_LINE;
-		PIO_CHECK_RST(0 == sw_gpio_getall_range(cfg_card_boot2, ARRAY_SIZE(cfg_card_boot2)), uret, End);
-		PIO_DBG_FUN_LINE;
-		sw_gpio_dump_config(cfg_card_boot2, ARRAY_SIZE(cfg_card_boot2));
-		PIO_DBG_FUN_LINE;
+		/* test for usbc0 */
+		PIO_CHECK_RST(0 != (pin_hdl = sw_gpio_request_ex("usbc0", NULL)), uret, End);
+		PIO_TEST_DBG_FUN_LINE;
+		PIO_CHECK_RST(0 == sw_gpio_getall_range(usbc0, ARRAY_SIZE(usbc0)), uret, End);
+		PIO_TEST_DBG_FUN_LINE;
+		sw_gpio_dump_config(usbc0, ARRAY_SIZE(usbc0));
+		PIO_TEST_DBG_FUN_LINE;
 		sw_gpio_release(pin_hdl, 1);
-		PIO_DBG_FUN_LINE;
+		PIO_TEST_DBG_FUN_LINE;
 
-		/*sw_gpio_request
+		/*
+		sw_gpio_request
 		sw_gpio_get_all_pin_status
 		sw_gpio_get_one_pin_status
 		sw_gpio_set_one_pin_status
@@ -461,7 +461,8 @@ u32 __gtc_api(void)
 		sw_gpio_set_one_pin_pull
 		sw_gpio_set_one_pin_driver_level
 		sw_gpio_read_one_pin_value
-		sw_gpio_write_one_pin_value*/
+		sw_gpio_write_one_pin_value
+		*/
 	}
 #endif /* TEST_GPIO_SCRIPT_API */
 
