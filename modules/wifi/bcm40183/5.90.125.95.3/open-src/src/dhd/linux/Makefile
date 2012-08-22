@@ -504,6 +504,9 @@ objdir: showenv
 	@echo "Making objdir $(OBJDIR)"
 	@echo "TARGET is $(TARGET)"
 	mkdir -p $(OBJDIR)
+ifneq ($(shell find -L -type l | wc -l), 0)
+	rm $(OBJDIR)/*
+endif
 ifeq ($(KERNELVER_2_5_0_OR_LATER), FALSE)
 	$(MAKE) -C $(OBJDIR) -f $(SRCBASE)/dhd/linux/Makefile SRCBASE=$(SRCBASE) dep
 endif
@@ -527,7 +530,7 @@ dep: $(foreach file,$(CFILES),.$(file).depend)
 
 ifeq ($(KERNELVER_2_5_0_OR_LATER), TRUE)
 modules: $(OFILES)
-	test -r ./Makefile || ln -s $(SRCBASE)/dhd/linux/makefile.26 ./Makefile
+	test -r ./Makefile || ln -sf $(SRCBASE)/dhd/linux/makefile.26 ./Makefile
 	$(MAKE) -C $(LINUXDIR) M=$(shell pwd) $(if $(VERBOSE),V=1) modules
 else
 modules: $(MODULES)
@@ -539,7 +542,7 @@ dhd.o: $(OFILES)
 ifeq ($(KERNELVER_2_5_0_OR_LATER), TRUE)
 %.o: %.c
   # when make is called from 2.6, vpath doesn't work so we need to link the files.
-	test -r ./$< || ln -s $< .
+	test -r ./$< || ln -sf $< .
 else
 %.o: %.c
 	$(HOSTCC) $(HOSTCFLAGS) -c -o $@ $<
