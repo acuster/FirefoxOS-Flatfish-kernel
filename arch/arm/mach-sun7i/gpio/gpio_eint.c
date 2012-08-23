@@ -300,6 +300,7 @@ u32 sw_gpio_eint_set_trigtype(u32 gpio, enum gpio_eint_trigtype trig_type)
 	PIO_CHIP_UNLOCK(&pchip->lock, flags);
 	return uret;
 }
+EXPORT_SYMBOL(sw_gpio_eint_set_trigtype);
 
 /**
  * sw_gpio_eint_get_trigtype - get trig type of the gpio
@@ -338,6 +339,7 @@ u32 sw_gpio_eint_get_trigtype(u32 gpio, enum gpio_eint_trigtype *pval)
 	PIO_DBG("%s: gpio 0x%08x, trig_type ret %d\n", __FUNCTION__, gpio, (u32)*pval);
 	return uret;
 }
+EXPORT_SYMBOL(sw_gpio_eint_get_trigtype);
 
 /**
  * sw_gpio_eint_set_enable - enable/disable the gpio eint
@@ -375,6 +377,7 @@ u32 sw_gpio_eint_set_enable(u32 gpio, u32 enable)
 	PIO_CHIP_UNLOCK(&pchip->lock, flags);
 	return uret;
 }
+EXPORT_SYMBOL(sw_gpio_eint_set_enable);
 
 /**
  * sw_gpio_eint_get_enable - get the gpio eint's enable/disable satus
@@ -413,6 +416,7 @@ u32 sw_gpio_eint_get_enable(u32 gpio, u32 *penable)
 	PIO_DBG("%s: gpio 0x%08x, penable ret %d\n", __FUNCTION__, gpio, *penable);
 	return uret;
 }
+EXPORT_SYMBOL(sw_gpio_eint_get_enable);
 
 /**
  * sw_gpio_eint_get_irqpd_sta - get the irqpend status of the gpio
@@ -450,6 +454,7 @@ u32 sw_gpio_eint_get_irqpd_sta(u32 gpio)
 	PIO_DBG("%s: gpio 0x%08x, ret %d\n", __FUNCTION__, gpio, uret);
 	return uret;
 }
+EXPORT_SYMBOL(sw_gpio_eint_get_irqpd_sta);
 
 /**
  * sw_gpio_eint_clr_irqpd_sta - clr the irqpend status of the gpio
@@ -485,6 +490,7 @@ u32 sw_gpio_eint_clr_irqpd_sta(u32 gpio)
 	PIO_CHIP_UNLOCK(&pchip->lock, flags);
 	return uret;
 }
+EXPORT_SYMBOL(sw_gpio_eint_clr_irqpd_sta);
 
 /**
  * sw_gpio_eint_get_debounce - get the debounce of the gpio group
@@ -515,6 +521,7 @@ u32 sw_gpio_eint_get_debounce(u32 gpio, struct gpio_eint_debounce *pdbc)
 	PIO_CHIP_UNLOCK(&pchip->lock, flags);
 	return uret;
 }
+EXPORT_SYMBOL(sw_gpio_eint_get_debounce);
 
 /**
  * sw_gpio_eint_set_debounce - set the debounce of the gpio group
@@ -545,6 +552,7 @@ u32 sw_gpio_eint_set_debounce(u32 gpio, struct gpio_eint_debounce dbc)
 	PIO_CHIP_UNLOCK(&pchip->lock, flags);
 	return uret;
 }
+EXPORT_SYMBOL(sw_gpio_eint_set_debounce);
 
 /**
  * sw_gpio_eint_setall_range - config a range of gpio, config mul sel to eint,
@@ -609,6 +617,7 @@ u32 sw_gpio_eint_setall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
 
 	return uret;
 }
+EXPORT_SYMBOL(sw_gpio_eint_setall_range);
 
 /**
  * sw_gpio_eint_getall_range - get a range of gpio's eint info
@@ -667,6 +676,7 @@ u32 sw_gpio_eint_getall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
 
 	return uret;
 }
+EXPORT_SYMBOL(sw_gpio_eint_getall_range);
 
 /**
  * sw_gpio_eint_dumpall_range - dump a range of gpio's eint config info.
@@ -696,6 +706,7 @@ void sw_gpio_eint_dumpall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
 	}
 	PIO_DBG("-----------%s-----------\n", __FUNCTION__);
 }
+EXPORT_SYMBOL(sw_gpio_eint_dumpall_range);
 
 irqreturn_t gpio_irq_hdl(int irq, void *dev)
 {
@@ -781,6 +792,7 @@ End:
 	}
 	return (u32)pdev_id;
 }
+EXPORT_SYMBOL(sw_gpio_irq_request);
 
 /**
  * sw_gpio_irq_free - free gpio irq.
@@ -814,3 +826,4 @@ u32 sw_gpio_irq_free(u32 handle)
 	gpio_free(gpio);
 	return 0;
 }
+EXPORT_SYMBOL(sw_gpio_irq_free);
