@@ -747,7 +747,10 @@ u32 sw_gpio_irq_request(u32 gpio, enum gpio_eint_trigtype trig_type,
 	PIO_DBG("%s: gpio %d, trig %d, handle 0x%08x, para 0x%08x\n", __FUNCTION__,
 		gpio, trig_type, (u32)handle, (u32)para);
 
-	gpio_request(gpio, NULL);
+	if(0 != gpio_request(gpio, NULL)) {
+		PIO_ERR("%s err: request gpio %d failed, line %d\n", __FUNCTION__, gpio, __LINE__);
+		return __LINE__;
+	}
 
 	if(false == gpio_canbe_eint(gpio)) {
 		usign = __LINE__;
@@ -786,6 +789,9 @@ u32 sw_gpio_irq_request(u32 gpio, enum gpio_eint_trigtype trig_type,
 End:
 	if(0 != usign) {
 		PIO_ERR("%s err, line %d\n", __FUNCTION__, usign);
+
+		gpio_free(gpio);
+
 		if(NULL == pdev_id)
 			kfree(pdev_id);
 		pdev_id = NULL;
