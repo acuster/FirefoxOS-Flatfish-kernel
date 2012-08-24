@@ -1280,7 +1280,13 @@ inline void rtw_suspend_lock_uninit()
 
 	#if  defined(CONFIG_WAKELOCK) || defined(CONFIG_ANDROID_POWER)
 	DBG_871X("##########%s###########\n", __FUNCTION__);
-	if(rtw_suspend_lock.link.next == LIST_POISON1 || rtw_suspend_lock.link.prev == LIST_POISON2) {
+	//modified by winner, yemao, 2012-8-24 17:19:51
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(3,3,00)
+	if(rtw_suspend_lock.link.next == LIST_POISON1 || rtw_suspend_lock.link.prev == LIST_POISON2)
+	#else
+	if(rtw_suspend_lock.ws.entry.next == LIST_POISON1 || rtw_suspend_lock.ws.entry.prev == LIST_POISON2)
+	#endif
+	{
 		DBG_871X("##########%s########### list poison!!\n", __FUNCTION__);
 		return;
 	}
@@ -1299,7 +1305,13 @@ inline void rtw_lock_suspend()
 
 	#if  defined(CONFIG_WAKELOCK) || defined(CONFIG_ANDROID_POWER)
 	//DBG_871X("##########%s###########\n", __FUNCTION__);
-	if(rtw_suspend_lock.link.next == LIST_POISON1 || rtw_suspend_lock.link.prev == LIST_POISON2) {
+	//modified by winner, yemao, 2012-8-24 17:19:51
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(3,3,00)
+	if(rtw_suspend_lock.link.next == LIST_POISON1 || rtw_suspend_lock.link.prev == LIST_POISON2)
+	#else
+	if(rtw_suspend_lock.ws.entry.next == LIST_POISON1 || rtw_suspend_lock.ws.entry.prev == LIST_POISON2)
+	#endif
+	{
 		DBG_871X("##########%s########### list poison!!\n", __FUNCTION__);
 		return;
 	}
@@ -1316,7 +1328,13 @@ inline void rtw_unlock_suspend()
 {
 	#if  defined(CONFIG_WAKELOCK) || defined(CONFIG_ANDROID_POWER)
 	//DBG_871X("##########%s###########\n", __FUNCTION__);
-	if(rtw_suspend_lock.link.next == LIST_POISON1 || rtw_suspend_lock.link.prev == LIST_POISON2) {
+	//modified by winner, yemao, 2012-8-24 17:19:51
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(3,3,00)
+	if(rtw_suspend_lock.link.next == LIST_POISON1 || rtw_suspend_lock.link.prev == LIST_POISON2)
+	#else
+	if(rtw_suspend_lock.ws.entry.next == LIST_POISON1 || rtw_suspend_lock.ws.entry.prev == LIST_POISON2)
+	#endif
+	{
 		DBG_871X("##########%s########### list poison!!\n", __FUNCTION__);
 		return;
 	}
