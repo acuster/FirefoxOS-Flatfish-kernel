@@ -749,7 +749,7 @@ u32 sw_gpio_irq_request(u32 gpio, enum gpio_eint_trigtype trig_type,
 
 	if(0 != gpio_request(gpio, NULL)) {
 		PIO_ERR("%s err: request gpio %d failed, line %d\n", __FUNCTION__, gpio, __LINE__);
-		return __LINE__;
+		return NULL;
 	}
 
 	if(false == gpio_canbe_eint(gpio)) {
