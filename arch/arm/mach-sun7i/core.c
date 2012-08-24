@@ -49,6 +49,10 @@
 
 #define MEM_RESERVE_20120816 /* liugang, reserve memory for de/mp/sys_config/ve, 2012-8-16 */
 
+static void __iomem *timer_cpu_base = 0;
+
+#define TIMER0_VALUE (AW_CLOCK_SRC / (AW_CLOCK_DIV*100))
+
 static struct map_desc sun7i_io_desc[] __initdata = {
 	{IO_ADDRESS(AW_IO_PHYS_BASE), __phys_to_pfn(AW_IO_PHYS_BASE),  AW_IO_SIZE, MT_DEVICE_NONSHARED},
 };
@@ -58,19 +62,10 @@ static void __init sun7i_map_io(void)
 	iotable_init(sun7i_io_desc, ARRAY_SIZE(sun7i_io_desc));
 }
 
-static void __iomem *timer_cpu_base = 0;
-
-#if 0
-static struct amba_device *amba_devs[] __initdata = {
-};
-#endif
-
 static void __init gic_init_irq(void)
 {
 	gic_init(0, 29, (void *)IO_ADDRESS(AW_GIC_DIST_BASE), (void *)IO_ADDRESS(AW_GIC_CPU_BASE));
 }
-
-#define TIMER0_VALUE (AW_CLOCK_SRC / (AW_CLOCK_DIV*100))
 
 static void timer_set_mode(enum clock_event_mode mode, struct clock_event_device *clk)
 {
@@ -168,8 +163,6 @@ static void sun7i_fixup(struct tag *tags, char **from,
 	meminfo->bank[0].start = 0x40000000;
 	meminfo->bank[0].size = SZ_1G;
 
-	memblock_reserve(0x40000000 + 0x4000000, SZ_32M);
-
 	meminfo->nr_banks = 1;
 }
 
@@ -187,14 +180,15 @@ static void __init sun7i_reserve(void)
 {
 	u32 	i = 0;
 
-	for(i = 0; i < ARRAY_SIZE(g_mem_resv); i++)
+	pr_info("Memory Reserved(in bytes):\n");
+
+	for(i = 0; i < ARRAY_SIZE(g_mem_resv); i++) {
 		if(0 != memblock_reserve(g_mem_resv[i][0], g_mem_resv[i][1]))
 			printk("%s err, line %d, base 0x%08x, size 0x%08x\n", __FUNCTION__,
 				__LINE__, g_mem_resv[i][0], g_mem_resv[i][1]);
-
-	pr_info("Memory Reserved(in bytes):\n");
-	for(i = 0; i < ARRAY_SIZE(g_mem_resv); i++)
-		pr_info("\t: 0x%08x, 0x%08x\n", g_mem_resv[i][0], g_mem_resv[i][1]);
+		else
+			pr_info("\t: 0x%08x, 0x%08x\n", g_mem_resv[i][0], g_mem_resv[i][1]);
+	}
 }
 #endif /* MEM_RESERVE_20120816 */
 

@@ -40,8 +40,8 @@
 #define CLK_CFG_NEW_20120806
 #define DEBUG_IR
 
-//#define SUN7I_SYS_GPIO_CFG_EN
-//#define SUN7I_SYS_CLK_CFG_EN
+#define SUN7I_SYS_GPIO_CFG_EN
+#define SUN7I_SYS_CLK_CFG_EN
 #define SUN7I_PRINT_SUSPEND_INFO
 
 #ifdef DEBUG_IR
@@ -183,26 +183,24 @@ static void ir_clk_cfg(void)
 
 	apb_ir_clk = clk_get(NULL, "apb_ir0");
 	if(!apb_ir_clk) {
-			printk("try to get apb_ir0 clock failed!\n");
-			return;
+		printk("%s err: try to get apb_ir0 clock failed! line %d\n", __func__, __LINE__);
+		return;
 	}
 
 	ir_clk = clk_get(NULL, "ir0");
 	if(!ir_clk) {
-			printk("try to get ir0 clock failed!\n");
-			return;
+		printk("%s err: try to get ir0 clock failed! line %d\n", __func__, __LINE__);
+		return;
 	}
 
-	if(clk_set_rate(ir_clk, rate)) {
-			printk("set ir0 clock freq to 3M failed!\n");
-	}
+	if(clk_set_rate(ir_clk, rate))
+		printk("%s err: set ir0 clock freq to 3M failed! line %d\n", __func__, __LINE__);
 
-	if(clk_enable(apb_ir_clk)) {
-		printk("try to enable apb_ir_clk failed!\n");
-		}
-	if(clk_enable(ir_clk)) {
-		printk("try to enable apb_ir_clk failed!\n");
-	}
+	if(clk_enable(apb_ir_clk))
+		printk("%s err: try to enable apb_ir_clk failed! line %d\n", __func__, __LINE__);
+
+	if(clk_enable(ir_clk))
+		printk("%s err: try to enable apb_ir_clk failed! line %d\n", __func__, __LINE__);
 
 #else
 

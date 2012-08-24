@@ -152,7 +152,7 @@ u32 sw_gpio_request(user_gpio_set_t *gpio_list, u32 group_count_max)
 		port     = tmp_user_gpio_data->port;                         //读出端口数值
 		port_num = tmp_user_gpio_data->port_num;                     //读出端口中的某一个GPIO
 		if(!port) {
-			PIO_DBG_FUN_LINE;
+			PIO_INF("%s maybe err: port(0) invalid, line %d\n", __FUNCTION__, __LINE__);
 			continue;
 		}
 
@@ -174,7 +174,8 @@ u32 sw_gpio_request(user_gpio_set_t *gpio_list, u32 group_count_max)
 		break;
 	}
 	if(first_port >= group_count_max) { //找不到有效port, 则返回
-		PIO_DBG_FUN_LINE;
+		PIO_INF("%s maybe err: first_port(%d) > group_count_max(%d), line %d\n",
+			__FUNCTION__, first_port, group_count_max, __LINE__);
 		return 0;
 	}
 
