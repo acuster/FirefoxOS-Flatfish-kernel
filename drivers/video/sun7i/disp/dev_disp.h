@@ -4,7 +4,7 @@
 #include "drv_disp_i.h"
 
 // 1M + 64M(ve) + 16M(fb)
-//#define FB_RESERVED_MEM
+#define FB_RESERVED_MEM
 
 
 struct info_mm {

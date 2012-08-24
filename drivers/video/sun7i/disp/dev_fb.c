@@ -1285,8 +1285,8 @@ __s32 Display_set_fb_timming(__u32 sel)
     return 0;
 }
 
-extern unsigned long fb_start;
-extern unsigned long fb_size;
+//extern unsigned long fb_start;
+//extern unsigned long fb_size;
 
 __s32 Fb_Init(__u32 from)
 {
@@ -1297,8 +1297,8 @@ __s32 Fb_Init(__u32 from)
     if(from == 0)//call from lcd driver
     {
 #ifdef FB_RESERVED_MEM
-        __inf("fbmem: fb_start=%lu, fb_size=%lu\n", fb_start, fb_size);
-        disp_create_heap((unsigned long)(__va(fb_start)),  fb_size);
+        __inf("fbmem: fb_start=%lu, fb_size=%lu\n", SW_FB_MEM_BASE, SW_FB_MEM_SIZE);
+        disp_create_heap((unsigned long)(__va(SW_FB_MEM_BASE)),  SW_FB_MEM_SIZE);
 #endif
 
         for(i=0; i<8; i++)
