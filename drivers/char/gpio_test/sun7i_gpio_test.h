@@ -55,6 +55,6 @@ enum gpio_test_case_e {
 #define PIO_TEST_DBG_FUN_LINE_TODO	printk("[GPIO_TEST]%s, line %d, todo############\n", __FUNCTION__, __LINE__)
 #define PIO_TEST_DBG_FUN_LINE 		printk("[GPIO_TEST]%s, line %d\n", __FUNCTION__, __LINE__)
 #define PIO_TEST_ERR_FUN_LINE 		printk("[GPIO_TEST]%s err, line %d\n", __FUNCTION__, __LINE__)
-#define PIO_CHECK_RST(x, ret, pos)	if(!(x)) {ret = __LINE__; goto pos;}
+#define PIO_ASSERT_RET(x, ret, pos)	if(!(x)) {ret = __LINE__; goto pos;}
 
 #endif /* __SUN7I_GPIO_TEST_H */
