@@ -1170,6 +1170,20 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 		write_wvalue(G2D_DMA0_LADDR_REG, reg_val);
 		write_wvalue(G2D_DMA0_SIZE_REG, (para->src_rect.w -1) | ((para->src_rect.h -1)<<16));
 
+		if((para->flag & G2D_BLT_ROTATE90) || (para->flag & G2D_BLT_ROTATE270))
+		{
+			write_wvalue(G2D_SCALER_SIZE_REG,(para->dst_rect.h - 1) | ((para->dst_rect.w -1)<<16));
+			reg_val = (para->src_rect.w/para->dst_rect.h)<<16;
+			reg_tmp = (para->src_rect.w%para->dst_rect.h);
+			reg_val |= (reg_tmp<<16)/para->dst_rect.h;
+			write_wvalue(G2D_SCALER_HFACTOR_REG,reg_val);
+			reg_val = (para->src_rect.h/para->dst_rect.w)<<16;
+			reg_tmp = (para->src_rect.h%para->dst_rect.w);
+			reg_val |= (reg_tmp<<16)/para->dst_rect.w;
+			write_wvalue(G2D_SCALER_VFACTOR_REG,reg_val);
+		}
+		else
+		{
 		write_wvalue(G2D_SCALER_SIZE_REG,(para->dst_rect.w - 1) | ((para->dst_rect.h -1)<<16));
 		reg_val = (para->src_rect.w/para->dst_rect.w)<<16;
 		reg_tmp = (para->src_rect.w%para->dst_rect.w);
@@ -1179,7 +1193,7 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 		reg_tmp = (para->src_rect.h%para->dst_rect.h);
 		reg_val |= (reg_tmp<<16)/para->dst_rect.h;
 		write_wvalue(G2D_SCALER_VFACTOR_REG,reg_val);
-
+		}
 		/* pyuv422/420/411uvc */
 		if((para->src_image.format>0x16)&&(para->src_image.format<0x1A))
 		{
@@ -1229,9 +1243,7 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 		write_wvalue(G2D_DMA3_SIZE_REG, (para->dst_rect.w -1) | ((para->dst_rect.h -1)<<16));
 
 		/* output surface is the dst surface */
-		if((para->flag & G2D_BLT_ROTATE90) || (para->flag & G2D_BLT_ROTATE270))
-			 write_wvalue(G2D_OUTPUT_SIZE_REG, (para->dst_rect.h -1) | ((para->dst_rect.w -1)<<16));
-		else write_wvalue(G2D_OUTPUT_SIZE_REG, (para->dst_rect.w -1) | ((para->dst_rect.h -1)<<16));
+		write_wvalue(G2D_OUTPUT_SIZE_REG, (para->dst_rect.w -1) | ((para->dst_rect.h -1)<<16));
 		addr_val = mixer_get_addr(para->dst_image.addr[0],para->dst_image.format,para->dst_image.w,para->dst_rect.x,para->dst_rect.y);
 		reg_val = (addr_val>>32)&0xF;/* high addr in bits */
 		write_wvalue(G2D_OUTPUT_HADDR_REG, reg_val);

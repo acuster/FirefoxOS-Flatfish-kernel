@@ -114,12 +114,15 @@ int g2d_wait_cmd_finish(void)
 int g2d_blit(g2d_blt * para)
 {
 	__s32 err = 0;
+	__u32 tmp_w,tmp_h;
 
+	if ((para->flag & G2D_BLT_ROTATE90) || (para->flag & G2D_BLT_ROTATE270)){tmp_w = para->src_rect.h;tmp_h = para->src_rect.w;}
+	else {tmp_w = para->src_rect.w;tmp_h = para->src_rect.h;}
 	/* check the parameter valid */
     if(((para->src_rect.x < 0)&&((-para->src_rect.x) > para->src_rect.w)) ||
        ((para->src_rect.y < 0)&&((-para->src_rect.y) > para->src_rect.h)) ||
-       ((para->dst_x < 0)&&((-para->dst_x) > para->src_rect.w)) ||
-       ((para->dst_y < 0)&&((-para->dst_y) > para->src_rect.h)) ||
+       ((para->dst_x < 0)&&((-para->dst_x) > tmp_w)) ||
+       ((para->dst_y < 0)&&((-para->dst_y) > tmp_h)) ||
        ((para->src_rect.x > 0)&&(para->src_rect.x > para->src_image.w - 1)) ||
        ((para->src_rect.y > 0)&&(para->src_rect.y > para->src_image.h - 1)) ||
        ((para->dst_x > 0)&&(para->dst_x > para->dst_image.w - 1)) ||
@@ -149,23 +152,23 @@ int g2d_blit(g2d_blt * para)
 			para->src_rect.h = para->src_image.h - para->src_rect.y;
 		}
 
-		if(((para->dst_x < 0)&&((-para->dst_x) < para->src_rect.w)))
+		if(((para->dst_x < 0)&&((-para->dst_x) < tmp_w)))
 		{
-			para->src_rect.w = para->src_rect.w + para->dst_x;
+			para->src_rect.w = tmp_w + para->dst_x;
 			para->src_rect.x = (-para->dst_x);
 			para->dst_x = 0;
 		}
-		else if((para->dst_x + para->src_rect.w) > para->dst_image.w)
+		else if((para->dst_x + tmp_w) > para->dst_image.w)
 		{
 			para->src_rect.w = para->dst_image.w - para->dst_x;
 		}
-		if(((para->dst_y < 0)&&((-para->dst_y) < para->src_rect.h)))
+		if(((para->dst_y < 0)&&((-para->dst_y) < tmp_h)))
 		{
-			para->src_rect.h = para->src_rect.h + para->dst_y;
+			para->src_rect.h = tmp_h + para->dst_y;
 			para->src_rect.y = (-para->dst_y);
 			para->dst_y = 0;
 		}
-		else if((para->dst_y + para->src_rect.h) > para->dst_image.h)
+		else if((para->dst_y + tmp_h) > para->dst_image.h)
 		{
 			para->src_rect.h = para->dst_image.h - para->dst_y;
 		}
