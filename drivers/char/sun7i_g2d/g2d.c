@@ -21,7 +21,7 @@ int g2d_openclk(void)
 	g2d_mclk = clk_get(NULL,"de_mix");
 
 	/*disable mp clk reset*/
-	clk_reset(g2d_mclk,0);
+	clk_reset(g2d_mclk,AW_CCU_CLK_NRESET);
 
 	/* set g2d clk value */
 	g2d_src = clk_get(NULL,"sdram_pll_p");//video_pll0
