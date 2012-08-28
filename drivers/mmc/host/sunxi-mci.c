@@ -1643,7 +1643,7 @@ static int __devexit sw_mci_remove(struct platform_device *pdev)
 
 void sw_mci_regs_save(struct sunxi_mmc_host* smc_host)
 {
-	struct sunximmc_ctrl_regs* bak_regs = &smc_host->bak_regs;
+	struct sunxi_mmc_ctrl_regs* bak_regs = &smc_host->bak_regs;
 
 	bak_regs->gctrl		= mci_readl(smc_host, REG_GCTRL);
 	bak_regs->clkc		= mci_readl(smc_host, REG_CLKCR);
@@ -1657,7 +1657,7 @@ void sw_mci_regs_save(struct sunxi_mmc_host* smc_host)
 
 void sw_mci_regs_restore(struct sunxi_mmc_host* smc_host)
 {
-	struct sunximmc_ctrl_regs* bak_regs = &smc_host->bak_regs;
+	struct sunxi_mmc_ctrl_regs* bak_regs = &smc_host->bak_regs;
 
 	mci_writel(smc_host, REG_GCTRL, bak_regs->gctrl   );
 	mci_writel(smc_host, REG_CLKCR, bak_regs->clkc    );
