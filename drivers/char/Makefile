@@ -71,3 +71,5 @@ obj-$(CONFIG_SUN7I_G2D) += sun7i_g2d/
 js-rtc-y = rtc.o
 
 obj-$(CONFIG_TILE_SROM)		+= tile-srom.o
+obj-y	+= sunxi_mem/
+obj-y	+= sunxi_mem_test/
