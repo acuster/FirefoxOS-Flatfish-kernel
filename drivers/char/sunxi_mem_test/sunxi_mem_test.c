@@ -33,7 +33,7 @@
 static int func_name(void * arg)										\
 {														\
 	do {													\
-		u32 	va = 0, pa = 0, rest_size = 0, temp = 0;						\
+		u32 	/* va = 0, */pa = 0, rest_size = 0, temp = 0;						\
 		u32	size = (get_random_int() % 32) * SZ_1M;							\
 		struct timeval start_time, end_time;								\
 														\
@@ -43,15 +43,15 @@ static int func_name(void * arg)										\
 		while(1) {											\
 			do_gettimeofday(&end_time);								\
 			if(0 == test_sec || end_time.tv_sec - start_time.tv_sec <= test_sec) {			\
-				if(false == sunxi_mem_alloc(size, &va, &pa))					\
+				if(false == sunxi_mem_alloc(size, /* &va,  */&pa))				\
 					printk("%s: out of memory! size 0x%08x\n", __func__, size);		\
 				else {										\
 					temp = (get_random_int() % 10) * 100; msleep(temp);			\
 					rest_size = sunxi_mem_get_rest_size();					\
-					printk("%s: alloc %d Mbytes success, va 0x%08x, pa 0x%08x, sleep %d ms, rest %d Mbytes\n",\
-						__func__, size / SZ_1M, va, pa, temp, rest_size / SZ_1M);	\
-					sunxi_mem_free(va, pa);							\
-					va = 0;									\
+					printk("%s: alloc %d Mbytes success, pa 0x%08x, sleep %d ms, rest %d Mbytes\n",\
+						__func__, size / SZ_1M, pa, temp, rest_size / SZ_1M);		\
+					sunxi_mem_free(/* va,  */pa);						\
+					/* va = 0; */								\
 					pa = 0;									\
 				}										\
 				msleep(100);									\
@@ -74,11 +74,11 @@ static int func_name(void * arg)										\
  *
  * the second para is test time in seconds, 0 means test forever.
  */
-DEFINE_SUNXIMEMTEST_FUNC(sunxi_mem_test_thread1, 0)
-DEFINE_SUNXIMEMTEST_FUNC(sunxi_mem_test_thread2, 0)
-DEFINE_SUNXIMEMTEST_FUNC(sunxi_mem_test_thread3, 0)
-DEFINE_SUNXIMEMTEST_FUNC(sunxi_mem_test_thread4, 0)
-DEFINE_SUNXIMEMTEST_FUNC(sunxi_mem_test_thread5, 0)
+DEFINE_SUNXIMEMTEST_FUNC(sunxi_mem_test_thread1, 20)
+DEFINE_SUNXIMEMTEST_FUNC(sunxi_mem_test_thread2, 20)
+DEFINE_SUNXIMEMTEST_FUNC(sunxi_mem_test_thread3, 20)
+DEFINE_SUNXIMEMTEST_FUNC(sunxi_mem_test_thread4, 20)
+DEFINE_SUNXIMEMTEST_FUNC(sunxi_mem_test_thread5, 20)
 
 static int __init sunxi_mem_test_init(void)
 {

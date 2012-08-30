@@ -22,9 +22,9 @@
 #include <mach/includes.h>
 #include "sunxi_physmem_i.h"
 
-#define	BUFFER_VADDR			SW_VE_MEM_BASE
 #define	BUFFER_PADDR			SW_VE_MEM_BASE
-#define	BUFFER_SIZE			(SZ_64M + SZ_16M)
+#define	BUFFER_VADDR			BUFFER_PADDR
+#define	BUFFER_SIZE			SW_VE_MEM_SIZE
 
 #define	MEMORY_GAP_MIN			0x10000
 
@@ -321,14 +321,16 @@ bool sunxi_mem_allocator_init(void)
 }
 arch_initcall(sunxi_mem_allocator_init);
 
-bool sunxi_mem_alloc(u32 size, u32* virmem, u32* phymem)
+//bool sunxi_mem_alloc(u32 size, u32* virmem, u32* phymem)
+bool sunxi_mem_alloc(u32 size, u32* phymem)
 {
 	bool 	ret = false;
+	u32	vtemp = 0;
 	unsigned long	flags;
 
 	spin_lock_irqsave(&sunxi_memlock, flags);
 	if(NULL != g_allocator)
-		ret = g_allocator->allocate(g_allocator, size, virmem, phymem);
+		ret = g_allocator->allocate(g_allocator, size, &vtemp, phymem);
 	else
 		printk("%s err, line %d, g_allocator not initailized yet!\n", __func__, __LINE__);
 	spin_unlock_irqrestore(&sunxi_memlock, flags);
@@ -337,13 +339,15 @@ bool sunxi_mem_alloc(u32 size, u32* virmem, u32* phymem)
 }
 EXPORT_SYMBOL(sunxi_mem_alloc);
 
-void sunxi_mem_free(u32 virmem, u32 phymem)
+//void sunxi_mem_free(u32 virmem, u32 phymem)
+void sunxi_mem_free(u32 phymem)
 {
+	u32	vtemp = phymem; /* to check */
 	unsigned long	flags;
 
 	spin_lock_irqsave(&sunxi_memlock, flags);
 	if(NULL != g_allocator)
-		g_allocator->free(g_allocator, virmem, phymem);
+		g_allocator->free(g_allocator, vtemp, phymem);
 	spin_unlock_irqrestore(&sunxi_memlock, flags);
 }
 EXPORT_SYMBOL(sunxi_mem_free);

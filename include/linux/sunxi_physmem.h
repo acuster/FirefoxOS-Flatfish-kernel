@@ -16,8 +16,8 @@
 #ifndef __SUNXI_PHYSMEM_H
 #define __SUNXI_PHYSMEM_H
 
-bool sunxi_mem_alloc(u32 size, u32* virmem, u32* phymem);
-void sunxi_mem_free(u32 virmem, u32 phymem);
+bool sunxi_mem_alloc(u32 size, u32* phymem);
+void sunxi_mem_free(u32 phymem);
 u32 sunxi_mem_get_rest_size(void);
 
 #endif /* __SUNXI_PHYSMEM_H */
