@@ -93,7 +93,5 @@ static struct platform_device *sw_pdevs[] __initdata = {
 
 void sw_pdev_init(void)
 {
-	AW_UART_LOG("enter");
 	platform_add_devices(sw_pdevs, ARRAY_SIZE(sw_pdevs));
-	AW_UART_LOG("leave");
 }
