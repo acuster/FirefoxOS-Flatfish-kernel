@@ -288,14 +288,14 @@
 /*
  * Core device addresses
  */
-//#define AW_CCM_BASE                 0x01c20000
-//#define AW_PIO_BASE                 0x01c20800
+#define AW_CCM_BASE                 0x01c20000
+#define AW_PIO_BASE                 0x01c20800
 #define AW_GIC_DIST_BASE            0x01c81000
 #define AW_GIC_CPU_BASE             0x01c82000
 #define AW_TIMER_BASE               0x01c20c00
 #define AW_SCU_BASE                 0x01c80000
-//#define AW_TIMER_G_BASE             0x01c80200 /* CPU global timer, not used */
-//#define AW_TIMER_P_BASE             0x01c80600 /* CPU private timer, not used */
+#define AW_TIMER_G_BASE             0x01c80200 /* CPU global timer, not used */
+#define AW_TIMER_P_BASE             0x01c80600 /* CPU private timer, not used */
 #define AW_CPUCFG_BASE              0x01c25C00
 #define AW_DMA_BASE                 0x01c02000
 
@@ -320,10 +320,10 @@
 #define AW_TMR0_INTV_VALUE_REG      0x0014
 #define AW_TMR0_CUR_VALUE_REG       0x0018
 
-//#define AW_AVS_CNT_CTL_REG          0x0080
-//#define AW_AVS_CNT0_REG             0x0084
-//#define AW_AVS_CNT1_REG             0x0088
-//#define AW_AVS_CNT_DIV_REG          0x008c
+#define AW_AVS_CNT_CTL_REG          0x0080
+#define AW_AVS_CNT0_REG             0x0084
+#define AW_AVS_CNT1_REG             0x0088
+#define AW_AVS_CNT_DIV_REG          0x008c
 
 /*
  * CPUCFG
@@ -350,6 +350,9 @@
 #define AW_UART_TFL 		0x80 /* Transmit FIFO Level */
 #define AW_UART_RFL 		0x84 /* RFL */
 #define AW_UART_HALT		0xa4 /* Halt TX Register */
+
+#define AW_UART_LOG(fmt, args...) 	do {} while(0)
+#define AW_R_UART_LOG(fmt, args...)   	do {} while(0)
 
 #endif
 
