@@ -64,8 +64,8 @@ extern unsigned long g2d_start;
 extern unsigned long g2d_size;
 
 #else
-unsigned long g2d_start = 0x48000000;
-unsigned long g2d_size = 0x0000000;
+unsigned long g2d_start = SW_G2D_MEM_BASE;
+unsigned long g2d_size = SW_G2D_MEM_SIZE;
 #endif
 
 __s32 g2d_create_heap(__u32 pHeapHead, __u32 nHeapSize)
