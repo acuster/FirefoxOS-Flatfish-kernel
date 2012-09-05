@@ -95,6 +95,11 @@ ep_matches (
 				if (gadget_is_pxa (gadget)
 						&& 'i' == tmp [1])
 					return 0;
+                /* softwinner otg support -int */
+				if(gadget_is_softwinner_otg(gadget) && 'n' != tmp [2]){
+					printk("gadget_is_softwinner_otg is not -int\n");
+					return 0;
+				}
 				break;
 			case USB_ENDPOINT_XFER_BULK:
 				if ('b' != tmp[1])	// != "-bulk"
