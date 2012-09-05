@@ -61,7 +61,7 @@ static struct clocksource aw_clocksrc =
 #ifdef CONFIG_HIGH_RES_TIMERS
 static struct clock_event_device aw_clock_event =
 {
-    .name = "aw clock event device",
+    .name = "time1",
     .features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
     .max_delta_ns = 100000000000ULL,
     .min_delta_ns = (1000000000 + AW_HPET_CLOCK_EVENT_HZ - 1) / AW_HPET_CLOCK_EVENT_HZ,

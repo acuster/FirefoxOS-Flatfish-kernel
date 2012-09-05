@@ -137,7 +137,7 @@ static int __cpuinit arch_timer_setup(struct clock_event_device *clk)
 	arch_timer_disable();
 
 	clk->features = CLOCK_EVT_FEAT_ONESHOT;
-	clk->name = "arch_sys_timer";
+	clk->name = "local_timer";
 	clk->rating = 450;
 	clk->set_mode = arch_timer_set_mode;
 	clk->set_next_event = arch_timer_set_next_event;
