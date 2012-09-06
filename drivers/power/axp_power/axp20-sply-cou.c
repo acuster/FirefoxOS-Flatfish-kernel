@@ -2054,7 +2054,11 @@ static int axp_battery_probe(struct platform_device *pdev)
 	axp_read(charger->master,AXP20_DATA_BUFFER1,&val1);
 	DBG_PSY_MSG("last_rest_vol = %d, now_rest_vol	= %d\n",(val1 &	0x7F),charger->ocv_rest_vol);
 
-	bat_cap =	Get_Buffer_Cou(charger);
+#if 0
+	bat_cap = Get_Buffer_Cou(charger);
+#else
+	bat_cap = 2600;
+#endif
 
 	axp_read(charger->master,AXP20_DATA_BUFFER0,&val);
 	Get_Rest_Cap(charger,&saved_cap);

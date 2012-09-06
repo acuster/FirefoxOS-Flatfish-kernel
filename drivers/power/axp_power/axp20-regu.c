@@ -431,15 +431,16 @@ static int __devinit axp_regulator_probe(struct platform_device *pdev)
 	if(ri->desc.id == AXP20_ID_LDO4)
 		ri->desc.ops = &axp20_ldo4_ops;
 
-
 	if(ri->desc.id == AXP20_ID_LDOIO0)
 		ri->desc.ops = &axp20_ldoio0_ops;
 
+	ri->desc.irq = 32;
 	rdev = regulator_register(&ri->desc, &pdev->dev,pdev->dev.platform_data, ri, NULL);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",ri->desc.name);
 		return PTR_ERR(rdev);
 	}
+	// rdev->desc->irq = 32;
 	platform_set_drvdata(pdev, rdev);
 	if(ri->desc.id == AXP20_ID_BUCK2 ||ri->desc.id == AXP20_ID_BUCK3){
 		ret = axp_regu_create_attrs(pdev);
