@@ -500,7 +500,7 @@ u32 sw_gpio_setall_range(struct gpio_config *pcfg, u32 cfg_num)
 		if(NULL == pchip) {
 			PIO_ERR("%s err: line %d, gpio_to_aw_gpiochip(%d) return NULL\n",
 				__FUNCTION__, __LINE__, pcfg->gpio);
-			continue;
+			return __LINE__;
 		}
 
 		PIO_CHIP_LOCK(&pchip->lock, flags);
@@ -542,7 +542,7 @@ u32 sw_gpio_getall_range(struct gpio_config *pcfg, u32 cfg_num)
 		if(NULL == pchip) {
 			PIO_ERR("%s err: line %d, gpio_to_aw_gpiochip(%d) return NULL\n",
 				__FUNCTION__, __LINE__, pcfg->gpio);
-			continue;
+			return __LINE__;
 		}
 
 		PIO_CHIP_LOCK(&pchip->lock, flags);

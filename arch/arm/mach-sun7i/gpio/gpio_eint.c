@@ -575,14 +575,14 @@ u32 sw_gpio_eint_setall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
 		if(0 != __para_check(pcfg->gpio)
 			|| pcfg->trig_type >= TRIG_INALID) {
 			PIO_ERR("%s err: line %d, gpio %d\n", __FUNCTION__, __LINE__, pcfg->gpio);
-			continue;
+			return __LINE__;
 		}
 
 		pchip = gpio_to_aw_gpiochip(pcfg->gpio);
 		if(NULL == pchip) {
 			PIO_ERR("%s err: line %d, gpio_to_aw_gpiochip(%d) return NULL\n",
 				__FUNCTION__, __LINE__, pcfg->gpio);
-			continue;
+			return __LINE__;
 		}
 
 		offset = pcfg->gpio - pchip->chip.base;
@@ -638,14 +638,14 @@ u32 sw_gpio_eint_getall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
 	for(i = 0; i < cfg_num; i++, pcfg++) {
 		if(0 != __para_check(pcfg->gpio)) {
 			PIO_ERR("%s err: line %d, gpio %d\n", __FUNCTION__, __LINE__, pcfg->gpio);
-			continue;
+			return __LINE__;
 		}
 
 		pchip = gpio_to_aw_gpiochip(pcfg->gpio);
 		if(NULL == pchip) {
 			PIO_ERR("%s err: line %d, gpio_to_aw_gpiochip(%d) return NULL\n",
 				__FUNCTION__, __LINE__, pcfg->gpio);
-			continue;
+			return __LINE__;
 		}
 
 		offset = pcfg->gpio - pchip->chip.base;
