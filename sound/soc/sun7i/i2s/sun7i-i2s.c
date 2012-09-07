@@ -113,12 +113,6 @@ void sun7i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 		reg_val = readl(sun7i_iis.regs + SUN7I_IISINT);
 		reg_val |= SUN7I_IISINT_TXDRQEN;
 		writel(reg_val, sun7i_iis.regs + SUN7I_IISINT);
-
-		//Global Enable Digital Audio Interface
-		reg_val = readl(sun7i_iis.regs + SUN7I_IISCTL);
-		reg_val |= SUN7I_IISCTL_GEN;
-		writel(reg_val, sun7i_iis.regs + SUN7I_IISCTL);
-
 	} else {
 		/* IIS TX DISABLE */
 		reg_val = readl(sun7i_iis.regs + SUN7I_IISCTL);
@@ -129,11 +123,6 @@ void sun7i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 		reg_val = readl(sun7i_iis.regs + SUN7I_IISINT);
 		reg_val &= ~SUN7I_IISINT_TXDRQEN;
 		writel(reg_val, sun7i_iis.regs + SUN7I_IISINT);
-
-		//Global disable Digital Audio Interface
-		reg_val = readl(sun7i_iis.regs + SUN7I_IISCTL);
-		reg_val &= ~SUN7I_IISCTL_GEN;
-		writel(reg_val, sun7i_iis.regs + SUN7I_IISCTL);
 	}
 }
 
