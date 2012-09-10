@@ -24,32 +24,27 @@
 #define SUN7I_MEM_ON_FPGA
 
 #define PLAT_PHYS_OFFSET		UL(0x40000000)
+#define PLAT_MEM_SIZE			SZ_1G
 
-/*
- * add by liugang for mali driver, need modify.
- */
-#ifdef SUN7I_MEM_ON_FPGA
 #define SW_SCRIPT_MEM_BASE		SYS_CONFIG_MEMBASE	/* 0x43000000 		*/
 #define SW_SCRIPT_MEM_SIZE		SYS_CONFIG_MEMSIZE	/* 0x00010000(SZ_64K) 	*/
 
-#define SW_FB_MEM_BASE     		0x44000000		/* 0x44000000 		*/
+/*
+ * memory reserved areas.
+ */
+#ifdef SUN7I_MEM_ON_FPGA
 #define SW_FB_MEM_SIZE     		0x02000000		/* SZ_32M 		*/
-
-#define SW_G2D_MEM_BASE     		0x46000000		/* 0x46000000		*/
 #define SW_G2D_MEM_SIZE     		0x01000000		/* SZ_16M 		*/
-
-#define SW_CSI_MEM_BASE     		0x47000000		/* 0x47000000		*/
 #define SW_CSI_MEM_SIZE     		0x02000000		/* SZ_32M 		*/
-
-#define SW_GPU_MEM_BASE    		0x49000000		/* 0x49000000		*/
 #define SW_GPU_MEM_SIZE    		0x04000000		/* SZ_64M		*/
-
-#define SW_VE_MEM_BASE     		0x4d000000		/* 0x4d000000		*/
 #define SW_VE_MEM_SIZE     		0x05000000		/* SZ_64M + SZ_16M	*/
-#else
-#define SW_SCRIPT_MEM_BASE		XXX			/* XXX 			*/
-#define SW_SCRIPT_MEM_SIZE		XXX			/* XXX 			*/
 
+#define SW_FB_MEM_BASE     		(PLAT_PHYS_OFFSET + PLAT_MEM_SIZE - SW_FB_MEM_SIZE)
+#define SW_G2D_MEM_BASE     		(SW_FB_MEM_BASE - SW_G2D_MEM_SIZE)
+#define SW_CSI_MEM_BASE     		(SW_G2D_MEM_BASE - SW_CSI_MEM_SIZE)
+#define SW_GPU_MEM_BASE    		(SW_CSI_MEM_BASE - SW_GPU_MEM_SIZE)
+#define SW_VE_MEM_BASE     		(SW_GPU_MEM_BASE - SW_VE_MEM_SIZE)
+#else
 #define SW_FB_MEM_BASE     		XXX			/* XXX 			*/
 #define SW_FB_MEM_SIZE     		XXX			/* XXX 			*/
 
