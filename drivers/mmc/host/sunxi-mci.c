@@ -1063,7 +1063,7 @@ static void sw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (sw_mci_card_present(mmc) == 0 || smc_host->ferror || !smc_host->power_on) {
 		SMC_DBG(smc_host, "no medium present, ferr %d, pwd %d\n",
 			    smc_host->ferror, smc_host->power_on);
-		smc_host->mrq->cmd->error = -ENOMEDIUM;
+		mrq->cmd->error = -ENOMEDIUM;
 		mmc_request_done(mmc, mrq);
 		return;
 	}
