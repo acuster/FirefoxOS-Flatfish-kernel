@@ -9,6 +9,7 @@ __disp_drv_t g_disp_drv;
 
 #define MY_BYTE_ALIGN(x) ( ( (x + (4*1024-1)) >> 12) << 12)             /* alloc based on 4K byte */
 static struct alloc_struct_t boot_heap_head, boot_heap_tail;
+static unsigned int fb_start_phy, fb_start_virt;
 
 static unsigned int gbuffer[4096];
 static __u32 suspend_output_type[2] = {0,0};
@@ -67,8 +68,7 @@ static struct resource disp_resource[DISP_IO_NUM] =
 	},
 };
 
-
-__s32 disp_create_heap(__u32 pHeapHead, __u32 nHeapSize)
+__s32 disp_create_heap(__u32 pHeapHead, __u32 pHeapHeadPhy, __u32 nHeapSize)
 {
     boot_heap_head.size    = boot_heap_tail.size = 0;
     boot_heap_head.address = pHeapHead;
@@ -76,11 +76,14 @@ __s32 disp_create_heap(__u32 pHeapHead, __u32 nHeapSize)
     boot_heap_head.next    = &boot_heap_tail;
     boot_heap_tail.next    = 0;
 
+    fb_start_phy = pHeapHeadPhy;
+    fb_start_virt = pHeapHead;
+
     __inf("head:%x,tail:%x\n" ,boot_heap_head.address, boot_heap_tail.address);
     return 0;
 }
 
-void *disp_malloc(__u32 num_bytes)
+void *disp_malloc(__u32 num_bytes, __u32 *phy_addr)
 {
     struct alloc_struct_t *ptr, *newptr;
     __u32  actual_bytes;
@@ -124,6 +127,8 @@ void *disp_malloc(__u32 num_bytes)
     newptr->o_size  = num_bytes;
     newptr->next    = ptr->next;
     ptr->next       = newptr;
+
+    *phy_addr = newptr->address + fb_start_phy - fb_start_virt;
 
     return (void *)newptr->address;
 }
@@ -384,12 +389,13 @@ int disp_mem_request(int sel,__u32 size)
 	}
 #else
     __u32 ret = 0;
+    __u32 phy_addr;
 
-	ret = (__u32)disp_malloc(size);
+	ret = (__u32)disp_malloc(size, &phy_addr);
 	if(ret != 0)
 	{
 	    g_disp_mm[sel].info_base = (void*)ret;
-	    g_disp_mm[sel].mem_start = virt_to_phys(g_disp_mm[sel].info_base);
+	    g_disp_mm[sel].mem_start = phy_addr;
 	    memset(g_disp_mm[sel].info_base,0,size);
 	    __inf("pa=0x%08lx va=0x%p size:0x%x\n",g_disp_mm[sel].mem_start, g_disp_mm[sel].info_base, size);
 
@@ -433,6 +439,7 @@ int disp_mmap(struct file *file, struct vm_area_struct * vma)
 	unsigned long mypfn = physics >> PAGE_SHIFT;
 	unsigned long vmsize = vma->vm_end-vma->vm_start;
 
+    vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	if(remap_pfn_range(vma,vma->vm_start,mypfn,vmsize,vma->vm_page_prot))
 		return -EAGAIN;
 

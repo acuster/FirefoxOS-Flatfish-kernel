@@ -296,13 +296,19 @@ static int __init Fb_map_video_memory(struct fb_info *info)
 		return -ENOMEM;
 	}
 #else
-    info->screen_base = (char __iomem *)disp_malloc(info->fix.smem_len);
-    info->fix.smem_start = (unsigned long)__pa(info->screen_base);
-    memset(info->screen_base,0,info->fix.smem_len);
 
-    __inf("Fb_map_video_memory, pa=0x%08lx size:0x%x\n",info->fix.smem_start, info->fix.smem_len);
+    info->screen_base = (char __iomem *)disp_malloc(info->fix.smem_len, &info->fix.smem_start);
+    if(info->screen_base)
+    {
+        __inf("Fb_map_video_memory, pa=0x%08lx size:0x%x\n",info->fix.smem_start, info->fix.smem_len);
+        memset(info->screen_base,0,info->fix.smem_len);
 
-    return 0;
+        return 0;
+    }else
+    {
+        __wrn("disp_malloc fail!\n");
+        return -ENOMEM;
+    }
 #endif
 }
 
@@ -1298,7 +1304,7 @@ __s32 Fb_Init(__u32 from)
     {
 #ifdef FB_RESERVED_MEM
         __inf("fbmem: fb_start=%lu, fb_size=%lu\n", SW_FB_MEM_BASE, SW_FB_MEM_SIZE);
-        disp_create_heap((unsigned long)(__va(SW_FB_MEM_BASE)),  SW_FB_MEM_SIZE);
+        disp_create_heap((unsigned long)(ioremap_nocache(SW_FB_MEM_BASE, SW_FB_MEM_SIZE)), SW_FB_MEM_BASE, SW_FB_MEM_SIZE);
 #endif
 
         for(i=0; i<8; i++)
