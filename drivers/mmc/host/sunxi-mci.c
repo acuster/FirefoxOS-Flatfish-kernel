@@ -106,7 +106,7 @@ static s32 sw_mci_init_host(struct sunxi_mmc_host* smc_host)
 		return -1;
 	}
 	smc_host->power_on = 1;
-	smc_host->debuglevel = 0;
+	smc_host->debuglevel = CONFIG_MMC_PRE_DBGLVL_SUNXI;
 	smc_host->voltage = SDC_WOLTAGE_3V3;
 	if (smc_host->pdev->id == sunxi_io_dev)
 		smc_host->io_flag = 1;
@@ -1690,9 +1690,9 @@ static int sw_mci_suspend(struct device *dev)
 				clk_disable(smc_host->hclk);
 			sw_mci_suspend_pins(smc_host);
 		}
+		SMC_DBG(smc_host, "smc %d suspend\n", pdev->id);
 	}
 
-	SMC_DBG(smc_host, "smc %d suspend\n", pdev->id);
 	return ret;
 }
 
@@ -1719,9 +1719,9 @@ static int sw_mci_resume(struct device *dev)
 
 		if (!(mmc->pm_flags & MMC_PM_KEEP_POWER))
 			ret = mmc_resume_host(mmc);
+		SMC_DBG(smc_host, "smc %d resume\n", pdev->id);
 	}
 
-	SMC_DBG(smc_host, "smc %d resume\n", pdev->id);
 	return ret;
 }
 
