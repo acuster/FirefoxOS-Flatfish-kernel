@@ -8,6 +8,7 @@ obj-y += dma/
 obj-y += gpio/
 obj-y += sys_config.o
 obj-$(CONFIG_CPU_FREQ)			+= cpu-freq/
+obj-$(CONFIG_PM) += pm/
 
 ifeq ($(CONFIG_SMP),y)
 obj-y += platsmp.o headsmp.o

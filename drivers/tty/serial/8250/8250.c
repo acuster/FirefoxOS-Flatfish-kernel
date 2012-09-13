@@ -70,7 +70,7 @@ static unsigned int skip_txen_test; /* force skip of txen test at init time */
 /*
  * Debugging.
  */
-#if 0
+#if 1
 #define DEBUG_AUTOCONF(fmt...)	printk(fmt)
 #else
 #define DEBUG_AUTOCONF(fmt...)	do { } while (0)
@@ -3130,18 +3130,118 @@ static int __devexit serial8250_remove(struct platform_device *dev)
 	}
 	return 0;
 }
-
+#if 0
+#define UART_MSG(fmt...)    printk("[uart]: "fmt)
+#else
+#define UART_MSG(fmt...)	do { } while (0)
+#endif
+/* Register base define */
+#define UART_BASE       (0x01C28000)
+#define UART_BASE_OS    (0x400)
+#define UARTx_BASE(x)   (UART_BASE + (x) * UART_BASE_OS)
+#define RESSIZE(res)    (((res)->end - (res)->start)+1)
+#define OFFSET			0xf0000000
+#define FCR_AW  0x0e1
+#define REG_RD_U(fmt...)	readl(port_base_addr + fmt)
+#define REG_WD_U(member,fmt...)	writel(member,port_base_addr + fmt)
+struct sw_serial_port {
+    struct uart_port    port;
+    char                name[16];
+    int                 port_no;
+    int                 pin_num;
+    u32                 pio_hdle;
+    struct clk          *clk;
+    u32                 sclk;
+    struct resource     *mmres;
+    u32                 irq;
+    struct platform_device* pdev;
+};
+typedef struct backup_reg_def{
+	u32 dll; 		/* 0x00	*/
+	u32 dlh;		/* 0x04 */
+	u32 ier;		/* 0x04 */
+	u32 fcr;		/* 0x08 */
+	u32 lcr;		/* 0x0C */
+	u32 mcr;		/* 0x10 */
+	u32 sch;		/* 0x1C */
+	u32 halt;		/* 0xA4 */
+} backup_reg_t;
+#define	BACK_REG	backup_reg[port_num]
+#define U_DLL		0X00
+#define U_RX		0X00
+#define U_DLH		0X04
+#define U_IER		0X04
+#define U_FCR		0X08
+#define U_LCR		0X0c
+#define U_MCR		0X10
+#define U_SCH		0X1c
+#define	U_USR		0X7c
+#define U_HALT		0Xa4
+static backup_reg_t backup_reg[1];
+void sunxi_8250_backup_reg(int port_num ,struct uart_port *port)
+{
+	unsigned long port_base_addr;
+	port_base_addr = port->mapbase + OFFSET;
+	UART_MSG("\nport_base_addr is %x \n port->mapbase is %x\n",port_base_addr,port->mapbase);
+	BACK_REG.lcr	= REG_RD_U(U_LCR);
+	BACK_REG.mcr	= REG_RD_U(U_MCR);
+	BACK_REG.sch	= REG_RD_U(U_SCH);
+	BACK_REG.halt	= REG_RD_U(U_HALT);
+	BACK_REG.fcr	= FCR_AW;
+	while (REG_RD_U(U_USR)&1)
+        REG_RD_U(U_RX);
+	REG_WD_U(BACK_REG.lcr & 0x7f,U_LCR);
+	UART_MSG("\n1: lcr is %x  \n backup_reg.lcr is %x\n",REG_RD_U(U_LCR),BACK_REG.lcr);
+	BACK_REG.ier	= REG_RD_U(U_IER);
+	UART_MSG("\norgin: lcr is %x mcr is %x sch is %x halt is %x ier is %x\n",REG_RD_U(U_LCR),REG_RD_U(U_MCR),REG_RD_U(U_SCH),REG_RD_U(U_HALT),REG_RD_U(U_IER));
+	UART_MSG("\nback: lcr is %x mcr is %x sch is %x halt is %x ier is %x\n",BACK_REG.lcr,BACK_REG.mcr,BACK_REG.sch,BACK_REG.halt,BACK_REG.ier);
+	while (REG_RD_U(U_USR)&1)
+        REG_RD_U(U_RX);
+	REG_WD_U(BACK_REG.lcr | 0x80,U_LCR);
+	BACK_REG.dll	= REG_RD_U(U_DLL);
+	BACK_REG.dlh	= REG_RD_U(U_DLH);
+	while (REG_RD_U(U_USR)&1)
+        REG_RD_U(U_RX);
+	REG_WD_U(BACK_REG.lcr,U_LCR);
+	UART_MSG("\n2: lcr is %x  \n backup_reg.lcr is %x\n",REG_RD_U(U_LCR),BACK_REG.lcr);
+}
+void sunxi_8250_comeback_reg(int port_num,struct uart_port *port)
+{
+	unsigned long port_base_addr;
+	port_base_addr = port->mapbase + OFFSET;
+	REG_WD_U(BACK_REG.sch,U_SCH);
+	REG_WD_U(BACK_REG.halt,U_HALT);
+	REG_WD_U(BACK_REG.mcr,U_MCR);
+	REG_WD_U(BACK_REG.fcr,U_FCR);
+	while (REG_RD_U(U_USR)&1)
+        REG_RD_U(U_RX);
+	REG_WD_U(BACK_REG.lcr & 0x7f,U_LCR);
+	UART_MSG("\n1: lcr is %x  \n backup_reg.lcr is %x\n",REG_RD_U(U_LCR),BACK_REG.lcr);
+	REG_WD_U(BACK_REG.ier,U_IER);
+	UART_MSG("\nback1: lcr is %x mcr is %x sch is %x halt is %x ier is %x\n",REG_RD_U(U_LCR),REG_RD_U(U_MCR),REG_RD_U(U_SCH),REG_RD_U(U_HALT),REG_RD_U(U_IER));
+	while (REG_RD_U(U_USR)&1)
+        REG_RD_U(U_RX);
+	REG_WD_U(BACK_REG.lcr | 0x80,U_LCR);
+	REG_WD_U(BACK_REG.dll,U_DLL);
+	REG_WD_U(BACK_REG.dlh,U_DLH);
+	while (REG_RD_U(U_USR)&1)
+        REG_RD_U(U_RX);
+	REG_WD_U(BACK_REG.lcr,U_LCR);
+	UART_MSG("\nback1: lcr is %x mcr is %x sch is %x halt is %x ier is %x\n",REG_RD_U(U_LCR),REG_RD_U(U_MCR),REG_RD_U(U_SCH),REG_RD_U(U_HALT),REG_RD_U(U_IER));
+	UART_MSG("\n3: lcr is %x  \n backup_reg.lcr is %x\n",REG_RD_U(U_LCR),BACK_REG.lcr);
+}
 static int serial8250_suspend(struct platform_device *dev, pm_message_t state)
 {
-	int i;
 
+	int i;
 	for (i = 0; i < UART_NR; i++) {
 		struct uart_8250_port *up = &serial8250_ports[i];
 
-		if (up->port.type != PORT_UNKNOWN && up->port.dev == &dev->dev)
-			uart_suspend_port(&serial8250_reg, &up->port);
+		if (up->port.type != PORT_UNKNOWN && up->port.dev == &dev->dev){
+			//uart_suspend_port(&serial8250_reg, &up->port);
+			sunxi_8250_backup_reg(i,&up->port);
+		}
 	}
-
 	return 0;
 }
 
@@ -3152,8 +3252,10 @@ static int serial8250_resume(struct platform_device *dev)
 	for (i = 0; i < UART_NR; i++) {
 		struct uart_8250_port *up = &serial8250_ports[i];
 
-		if (up->port.type != PORT_UNKNOWN && up->port.dev == &dev->dev)
-			serial8250_resume_port(i);
+		if (up->port.type != PORT_UNKNOWN && up->port.dev == &dev->dev){
+			sunxi_8250_comeback_reg(i,&up->port);
+			//serial8250_resume_port(i);
+		}
 	}
 
 	return 0;

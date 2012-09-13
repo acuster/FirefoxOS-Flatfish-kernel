@@ -38,12 +38,16 @@
 #define SW_CSI_MEM_SIZE     		0x02000000		/* SZ_32M 		*/
 #define SW_GPU_MEM_SIZE    		0x04000000		/* SZ_64M		*/
 #define SW_VE_MEM_SIZE     		0x05000000		/* SZ_64M + SZ_16M	*/
+#define SUPER_STANDBY_SIZE     		(SZ_64K)
 
+#define SUPER_STANDBY_BASE     		(0x52000000)      	/* NOTICE: this addr can not be change */
 #define SW_FB_MEM_BASE     		(PLAT_PHYS_OFFSET + PLAT_MEM_SIZE - SW_FB_MEM_SIZE)
 #define SW_G2D_MEM_BASE     		(SW_FB_MEM_BASE - SW_G2D_MEM_SIZE)
 #define SW_CSI_MEM_BASE     		(SW_G2D_MEM_BASE - SW_CSI_MEM_SIZE)
 #define SW_GPU_MEM_BASE    		(SW_CSI_MEM_BASE - SW_GPU_MEM_SIZE)
 #define SW_VE_MEM_BASE     		(SW_GPU_MEM_BASE - SW_VE_MEM_SIZE)
+
+
 #else
 #define SW_FB_MEM_BASE     		XXX			/* XXX 			*/
 #define SW_FB_MEM_SIZE     		XXX			/* XXX 			*/

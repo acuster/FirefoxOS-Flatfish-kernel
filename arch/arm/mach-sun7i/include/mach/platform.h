@@ -263,16 +263,13 @@
 #define AW_IO_SIZE                  0x00400000  /* 4MB(Max) */
 
 #define AW_SRAM_A1_BASE             0x00000000
-#define AW_SRAM_A1_SIZE             0x00004000
+#define AW_SRAM_A1_SIZE             0x00004000 /*16k*/
 
 #define AW_SRAM_A2_BASE             0x00004000
-#define AW_SRAM_A2_SIZE             0x00004000
+#define AW_SRAM_A2_SIZE             0x00004000 /*16k*/
 
-#define AW_SRAM_A3_BASE             0x00008000
-#define AW_SRAM_A3_SIZE             0x00003400
-
-#define AW_SRAM_A4_BASE             0x0000B400
-#define AW_SRAM_A4_SIZE             0x00000C00
+#define AW_SRAM_A3_A4_BASE          0x00008000
+#define AW_SRAM_A3_A4_SIZE          0x00004000 /*16k*/
 
 #define AW_SRAM_D_BASE              0x00010000
 #define AW_SRAM_D_SIZE              0x00001000

@@ -54,6 +54,9 @@ static void __iomem *timer_cpu_base = 0;
 #define TIMER0_VALUE (AW_CLOCK_SRC / (AW_CLOCK_DIV*100))
 
 static struct map_desc sun7i_io_desc[] __initdata = {
+	{IO_ADDRESS(AW_SRAM_A1_BASE), __phys_to_pfn(AW_SRAM_A1_BASE),  AW_SRAM_A1_SIZE, MT_MEMORY_ITCM},	/*16K bytes*/
+	{IO_ADDRESS(AW_SRAM_A2_BASE), __phys_to_pfn(AW_SRAM_A2_BASE),  AW_SRAM_A2_SIZE, MT_MEMORY_ITCM},	/*16K bytes*/
+	{IO_ADDRESS(AW_SRAM_A3_A4_BASE), __phys_to_pfn(AW_SRAM_A3_A4_SIZE),  AW_SRAM_A2_SIZE, MT_MEMORY_ITCM}, 	/*16K bytes*/
 	{IO_ADDRESS(AW_IO_PHYS_BASE), __phys_to_pfn(AW_IO_PHYS_BASE),  AW_IO_SIZE, MT_DEVICE_NONSHARED},
 };
 
@@ -174,6 +177,8 @@ u32 g_mem_resv[][2] = {
 	{SW_CSI_MEM_BASE, 	SW_CSI_MEM_SIZE		},
 	{SW_GPU_MEM_BASE, 	SW_GPU_MEM_SIZE		},
 	{SW_VE_MEM_BASE, 	SW_VE_MEM_SIZE		},
+	{SUPER_STANDBY_BASE,	SUPER_STANDBY_SIZE	},	//for standby: 0x5200,0000-0x5200,0000+64k;
+
 };
 
 static void __init sun7i_reserve(void)

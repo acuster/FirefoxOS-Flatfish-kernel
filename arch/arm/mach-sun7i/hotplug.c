@@ -46,6 +46,7 @@ void platform_cpu_die(unsigned int cpu)
 
 int platform_cpu_disable(unsigned int cpu)
 {
-	printk("[%s] Not implemented!\n", __FUNCTION__);
-	return -1;
+       printk("[%s] just return 0!\n", __FUNCTION__);
+       return 0;
+
 }
