@@ -308,4 +308,9 @@ static inline void print_hex_dump_bytes(const char *prefix_str, int prefix_type,
 
 #endif
 
+#define  print_call_info(...)({										\
+		do{															\
+			printk("%s, %s, %d. \n" , __FILE__, __func__, __LINE__);\
+		}while(0);})
+
 #endif
