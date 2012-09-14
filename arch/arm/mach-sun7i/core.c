@@ -44,6 +44,7 @@
 #include <asm/mach/time.h>
 
 #include <mach/includes.h>
+#include <mach/timer.h>
 
 #include "core.h"
 
@@ -51,6 +52,8 @@
 
 static void __iomem *timer_cpu_base = 0;
 
+static int timer_set_next_clkevt(unsigned long delta, struct clock_event_device *dev);
+static spinlock_t timer0_spin_lock;
 #define TIMER0_VALUE (AW_CLOCK_SRC / (AW_CLOCK_DIV*100))
 
 static struct map_desc sun7i_io_desc[] __initdata = {
@@ -82,6 +85,10 @@ static void timer_set_mode(enum clock_event_mode mode, struct clock_event_device
                 ctrl |= 1;  /* Enable this timer */
                 break;
         case CLOCK_EVT_MODE_ONESHOT:
+		    writel(TIMER0_VALUE, timer_cpu_base + AW_TMR0_INTV_VALUE_REG); /* interval (999+1) */
+                ctrl = readl(timer_cpu_base + AW_TMR0_CTRL_REG);
+                ctrl &= (1<<7);    /* single mode */
+                ctrl |= 1;  /* Enable this timer */
                 break;
         case CLOCK_EVT_MODE_UNUSED:
         case CLOCK_EVT_MODE_SHUTDOWN:
@@ -94,12 +101,31 @@ static void timer_set_mode(enum clock_event_mode mode, struct clock_event_device
         writel(ctrl, timer_cpu_base + AW_TMR0_CTRL_REG);
 }
 
+static int timer_set_next_clkevt(unsigned long delta, struct clock_event_device *dev)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&timer0_spin_lock, flags);
+    /* disable timer and clear pending first    */
+    TMR_REG_TMR0_CTL &= ~(1<<0);
+
+    /* set timer intervalue         */
+    TMR_REG_TMR0_INTV = delta;
+    /* reload the timer intervalue  */
+    TMR_REG_TMR0_CTL |= (1<<1);
+
+    /* enable timer */
+    TMR_REG_TMR0_CTL |= (1<<0);
+    spin_unlock_irqrestore(&timer0_spin_lock, flags);
+    return 0;
+}
 static struct clock_event_device sun7i_timer0_clockevent = {
         .name = "timer0",
         .shift = 32,
-        .rating = 100,
+        .rating = 450,
         .features = CLOCK_EVT_FEAT_PERIODIC,
         .set_mode = timer_set_mode,
+        .set_next_event = timer_set_next_clkevt,
 };
 
 static irqreturn_t sun7i_timer_interrupt(int irq, void *dev_id)
@@ -124,6 +150,7 @@ static struct irqaction sun7i_timer_irq = {
         .irq = 36,
 };
 
+extern int aw_clksrc_init(void);
 static void __init sun7i_timer_init(void)
 {
 	int ret;
@@ -132,27 +159,28 @@ static void __init sun7i_timer_init(void)
 	printk("[%s] base=%p\n", __FUNCTION__,timer_cpu_base);
 
         /* Disable & clear all timers */
-	writel(0x3f, timer_cpu_base + AW_TMR_IRQ_EN_REG);
-        writel(0x3f, timer_cpu_base + AW_TMR_IRQ_STA_REG);
+	writel(0x0, timer_cpu_base + AW_TMR_IRQ_EN_REG);
+    writel(0x3f, timer_cpu_base + AW_TMR_IRQ_STA_REG);
 
-        /* Init timer0 */
-        writel(TIMER0_VALUE, timer_cpu_base + AW_TMR0_INTV_VALUE_REG);
-        writel(0x66, timer_cpu_base + AW_TMR0_CTRL_REG);
+    /* Init timer0 */
+    writel(TIMER0_VALUE, timer_cpu_base + AW_TMR0_INTV_VALUE_REG);
+    writel(0x66, timer_cpu_base + AW_TMR0_CTRL_REG);
 
-        ret = setup_irq(36, &sun7i_timer_irq);
-        if (ret) {
-                early_printk("failed to setup irq %d\n", 36);
-        }
+    ret = setup_irq(36, &sun7i_timer_irq);
+    if (ret) {
+            early_printk("failed to setup irq %d\n", 36);
+    }
 
-        /* Enable timer0 */
-        writel(0x1, timer_cpu_base + AW_TMR_IRQ_EN_REG);
+    /* Enable timer0 */
+    writel(0x1, timer_cpu_base + AW_TMR_IRQ_EN_REG);
 
-        sun7i_timer0_clockevent.mult = div_sc(AW_CLOCK_SRC/AW_CLOCK_DIV, NSEC_PER_SEC, sun7i_timer0_clockevent.shift);
-        sun7i_timer0_clockevent.max_delta_ns = clockevent_delta2ns(0xff, &sun7i_timer0_clockevent);
-        sun7i_timer0_clockevent.min_delta_ns = clockevent_delta2ns(0x1, &sun7i_timer0_clockevent);
-        sun7i_timer0_clockevent.cpumask = cpu_all_mask;
-        sun7i_timer0_clockevent.irq = sun7i_timer_irq.irq;
-        clockevents_register_device(&sun7i_timer0_clockevent);
+    sun7i_timer0_clockevent.mult = div_sc(AW_CLOCK_SRC/AW_CLOCK_DIV, NSEC_PER_SEC, sun7i_timer0_clockevent.shift);
+    sun7i_timer0_clockevent.max_delta_ns = clockevent_delta2ns(0xff, &sun7i_timer0_clockevent);
+    sun7i_timer0_clockevent.min_delta_ns = clockevent_delta2ns(0x1, &sun7i_timer0_clockevent)+100000;
+    sun7i_timer0_clockevent.cpumask = cpu_all_mask;
+    sun7i_timer0_clockevent.irq = sun7i_timer_irq.irq;
+    clockevents_register_device(&sun7i_timer0_clockevent);
+    aw_clksrc_init();
 }
 
 static struct sys_timer sun7i_timer = {

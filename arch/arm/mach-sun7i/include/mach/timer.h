@@ -28,6 +28,11 @@
 /* define timer io register address */
 #define TMR_REG_o_IRQ_EN        (AW_TMR_IO_BASE + 0x0000)
 #define TMR_REG_o_IRQ_STAT      (AW_TMR_IO_BASE + 0x0004)
+
+#define TMR_REG_o_TMR0_CTL      (AW_TMR_IO_BASE + 0x0010)
+#define TMR_REG_o_TMR0_INTV     (AW_TMR_IO_BASE + 0x0014)
+#define TMR_REG_o_TMR0_CUR      (AW_TMR_IO_BASE + 0x0018)
+
 #define TMR_REG_o_TMR1_CTL      (AW_TMR_IO_BASE + 0x0020)
 #define TMR_REG_o_TMR1_INTV     (AW_TMR_IO_BASE + 0x0024)
 #define TMR_REG_o_TMR1_CUR      (AW_TMR_IO_BASE + 0x0028)
@@ -42,9 +47,15 @@
 /* define timer io register value */
 #define TMR_REG_IRQ_EN          __tmr_reg(TMR_REG_o_IRQ_EN   )
 #define TMR_REG_IRQ_STAT        __tmr_reg(TMR_REG_o_IRQ_STAT )
+
 #define TMR_REG_TMR1_CTL        __tmr_reg(TMR_REG_o_TMR1_CTL )
 #define TMR_REG_TMR1_INTV       __tmr_reg(TMR_REG_o_TMR1_INTV)
 #define TMR_REG_TMR1_CUR        __tmr_reg(TMR_REG_o_TMR1_CUR )
+
+#define TMR_REG_TMR0_CTL        __tmr_reg(TMR_REG_o_TMR0_CTL )
+#define TMR_REG_TMR0_INTV       __tmr_reg(TMR_REG_o_TMR0_INTV)
+#define TMR_REG_TMR0_CUR        __tmr_reg(TMR_REG_o_TMR0_CUR )
+
 #define TMR_REG_CNT64_CTL       __tmr_reg(TMR_REG_o_CNT64_CTL)
 #define TMR_REG_CNT64_LO        __tmr_reg(TMR_REG_o_CNT64_LO )
 #define TMR_REG_CNT64_HI        __tmr_reg(TMR_REG_o_CNT64_HI )
