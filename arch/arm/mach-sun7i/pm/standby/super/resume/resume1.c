@@ -54,7 +54,7 @@ int main(void)
 	mem_memcpy((void *)&mem_para_info, (void *)(DRAM_BACKUP_BASE_ADDR1_PA), sizeof(mem_para_info));
 	/*restore mmu configuration*/
 	restore_mmu_state(&(mem_para_info.saved_mmu_state));
-	//disable_dcache();
+	disable_dcache();
 
 #endif
 	serial_init();

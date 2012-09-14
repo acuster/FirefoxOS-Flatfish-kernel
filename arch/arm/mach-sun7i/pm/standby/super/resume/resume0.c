@@ -52,7 +52,8 @@ int main(void)
 	save_sp_nommu();
 #endif
 #endif
-
+	serial_init_nommu();
+	printk_nommu("start of resume0. \n");
 #ifndef GET_CYCLE_CNT
 	init_perfcounters(1, 0);
 #endif
@@ -105,7 +106,7 @@ int main(void)
 	/*restore dram training area*/
 	mem_memcpy((void *)DRAM_BASE_ADDR_PA, (void *)DRAM_BACKUP_BASE_ADDR2_PA, DRAM_TRANING_SIZE);
 
-
+	printk_nommu("before jump to resume1. \n");
 	//busy_waiting();
 	resume1 = (int (*)(void))SRAM_FUNC_START_PA;
 	//move resume1 code from dram to sram

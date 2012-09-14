@@ -590,7 +590,7 @@ mem_enter:
 resume:
 	aw_late_resume();
 	//have been disable dcache in resume1
-	//enable_cache();
+	enable_cache();
 
 suspend_err:
 	pr_info("suspend_status_flag = %d. \n", suspend_status_flag);
