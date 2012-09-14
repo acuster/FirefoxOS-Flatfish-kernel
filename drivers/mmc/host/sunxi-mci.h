@@ -37,7 +37,7 @@
 #ifdef MMC_FPGA
 #undef SMC_IRQNO
 #define SMC_IRQNO(x)	(45)
-#define SMC_FPGA_MMC_PREUSED(x)	((x) == 0)
+#define SMC_FPGA_MMC_PREUSED(x)	((x) == 2)
 #endif
 #endif
 
@@ -271,7 +271,6 @@ struct sunxi_mmc_host {
 	struct clk 	*mclk;
 
 	/* ios information */
-	u32 		power_on;
 	u32 		mod_clk;
 	u32 		card_clk;
 	u32 		oclk_dly;
@@ -321,8 +320,10 @@ struct sunxi_mmc_host {
 #define CARD_ALWAYS_PRESENT     (3)	/* mmc always present, without detect pin */
 #define CARD_DETECT_BY_FS       (4)	/* mmc insert/remove by fs, /proc/sunxi-mmc.x/insert node */
 
-	u32 read_only;
-	u32 io_flag;
+	u32 power_on:8;
+	u32 read_only:8;
+	u32 io_flag:8;
+	u32 suspend:8;
 
 	u32 debuglevel;
 #ifdef CONFIG_PROC_FS
@@ -337,7 +338,6 @@ struct sunxi_mmc_host {
 	/* backup register structrue */
 	struct sunxi_mmc_ctrl_regs bak_regs;
 	user_gpio_set_t bak_gpios[6];
-	u32 gpio_suspend_ok;
 };
 
 #define SMC_MSG(d, ...)    do { printk("[mmc]: "__VA_ARGS__); } while(0)

@@ -98,13 +98,6 @@ static s32 sw_mci_init_host(struct sunxi_mmc_host* smc_host)
 	rval = mci_readl(smc_host, REG_GCTRL)|SDXC_INTEnb|SDXC_WaitMemAccessDone;
 	mci_writel(smc_host, REG_GCTRL, rval);
 
-	/* alloc idma descriptor structure */
-	smc_host->sg_cpu = dma_alloc_writecombine(NULL, PAGE_SIZE,
-					&smc_host->sg_dma, GFP_KERNEL);
-	if (smc_host->sg_cpu == NULL) {
-		SMC_ERR(smc_host, "alloc dma des failed\n");
-		return -1;
-	}
 	smc_host->power_on = 1;
 	smc_host->debuglevel = CONFIG_MMC_PRE_DBGLVL_SUNXI;
 	smc_host->voltage = SDC_WOLTAGE_3V3;
@@ -115,14 +108,12 @@ static s32 sw_mci_init_host(struct sunxi_mmc_host* smc_host)
 
 s32 sw_mci_exit_host(struct sunxi_mmc_host* smc_host)
 {
-	/* free idma descriptor structrue */
-	if (smc_host->sg_cpu) {
-		dma_free_coherent(NULL, PAGE_SIZE,
-				  smc_host->sg_cpu, smc_host->sg_dma);
-		smc_host->sg_cpu = NULL;
-		smc_host->sg_dma = 0;
-	}
+	u32 rval;
 
+	SMC_DBG(smc_host, "MMC Driver exit host %d\n", smc_host->pdev->id);
+
+	rval = mci_readl(smc_host, REG_GCTRL) | SDXC_HWReset;
+	mci_writel(smc_host, REG_GCTRL, SDXC_HWReset);
 	return 0;
 }
 
@@ -578,8 +569,6 @@ static int sw_mci_set_clk(struct sunxi_mmc_host* smc_host, u32 clk)
 	}
 	clk_set_parent(smc_host->mclk, sclk);
 	clk_set_rate(smc_host->mclk, mod_clk);
-	clk_enable(smc_host->mclk);
-	clk_enable(smc_host->hclk);
 	clk_put(sclk);
 
 	/* set internal divider */
@@ -683,9 +672,18 @@ static int sw_mci_resource_request(struct sunxi_mmc_host *smc_host)
 		goto free_hclk;
 	}
 
+	/* alloc idma descriptor structure */
+	smc_host->sg_cpu = dma_alloc_writecombine(NULL, PAGE_SIZE,
+					&smc_host->sg_dma, GFP_KERNEL);
+	if (smc_host->sg_cpu == NULL) {
+		SMC_ERR(smc_host, "alloc dma des failed\n");
+		goto free_mclk;
+	}
+
 	ret = 0;
 	goto out;
-
+free_mclk:
+	clk_put(smc_host->mclk);
 free_hclk:
 	clk_put(smc_host->hclk);
 iounmap:
@@ -701,9 +699,15 @@ out:
 
 static int sw_mci_resource_release(struct sunxi_mmc_host *smc_host)
 {
-	clk_disable(smc_host->hclk);
+	/* free idma descriptor structrue */
+	if (smc_host->sg_cpu) {
+		dma_free_coherent(NULL, PAGE_SIZE,
+				  smc_host->sg_cpu, smc_host->sg_dma);
+		smc_host->sg_cpu = NULL;
+		smc_host->sg_dma = 0;
+	}
+
 	clk_put(smc_host->hclk);
-	clk_disable(smc_host->mclk);
 	clk_put(smc_host->mclk);
 
 	iounmap(smc_host->reg_base);
@@ -714,7 +718,7 @@ static int sw_mci_resource_release(struct sunxi_mmc_host *smc_host)
 	return 0;
 }
 
-static void sw_mci_suspend_pins(struct sunxi_mmc_host* smc_host)
+static void sw_mci_hold_io(struct sunxi_mmc_host* smc_host)
 {
 	int ret;
 	user_gpio_set_t suspend_gpio_set_io = {"suspend_pins_sdio", 0, 0, 0, 2, 1, 0};     //for sdio
@@ -742,20 +746,20 @@ static void sw_mci_suspend_pins(struct sunxi_mmc_host* smc_host)
 		}
 	}
 
-	smc_host->gpio_suspend_ok = 1;
+	smc_host->suspend = 1;
 
 	return;
 }
 
-static void sw_mci_resume_pins(struct sunxi_mmc_host* smc_host)
+static void sw_mci_restore_io(struct sunxi_mmc_host* smc_host)
 {
 	int ret;
 	u32 i;
 
 	SMC_DBG(smc_host, "mmc %d resume pins\n", smc_host->pdev->id);
 	/* restore gpios' backup configuration */
-	if (smc_host->gpio_suspend_ok) {
-		smc_host->gpio_suspend_ok = 0;
+	if (smc_host->suspend) {
+		smc_host->suspend = 0;
 		for (i=0; i<6; i++) {
 			ret = sw_gpio_set_one_pin_status(smc_host->pio_hdle,
 				&smc_host->bak_gpios[i], smc_host->bak_gpios[i].gpio_name, 1);
@@ -946,12 +950,54 @@ static void sw_mci_tasklet(unsigned long data)
 static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct sunxi_mmc_host *smc_host = mmc_priv(mmc);
+	char* bus_mode[] = {"", "OD", "PP"};
+	char* pwr_mode[] = {"OFF", "UP", "ON"};
+	char* vdd[] = {"3.3V", "1.8V", "1.2V"};
+	char* timing[] = {"LEGACY(SDR12)", "MMC-HS(SDR20)", "SD-HS(SDR25)",
+			"UHS-SDR50", "UHS-SDR104", "UHS-DDR50", "MMC-HS200"};
+	char* drv_type[] = {"B", "A", "C", "D"};
+	static u32 last_clock = 0;
 	u32 temp;
 
+	BUG_ON(ios->bus_mode >= 3);
+	BUG_ON(ios->power_mode >= 3);
+	BUG_ON(ios->signal_voltage >= 3);
+	BUG_ON(ios->timing >= 7);
 	SMC_MSG(smc_host, "smc%d set ios: "
-		"clock %dHz busmode %d powermode %d Vdd %d width %d timing %d\n",
-		smc_host->pdev->id, ios->clock, ios->bus_mode, ios->power_mode,
-		ios->vdd, 1 << ios->bus_width, ios->timing);
+		"clock %dHz busmode %s powermode %s vdd %s width %d timing %s drvtype %s\n",
+		smc_host->pdev->id, ios->clock, bus_mode[ios->bus_mode],
+		pwr_mode[ios->power_mode], vdd[ios->signal_voltage],
+		1 << ios->bus_width, timing[ios->timing], drv_type[ios->drv_type]);
+
+	/* Set the power state */
+	switch (ios->power_mode) {
+		case MMC_POWER_ON:
+			break;
+		case MMC_POWER_UP:
+			if (!smc_host->power_on) {
+				SMC_MSG(smc_host, "mmc %d power on !!\n", smc_host->pdev->id);
+				sw_mci_restore_io(smc_host);
+				clk_enable(smc_host->hclk);
+				clk_enable(smc_host->mclk);
+				sw_mci_init_host(smc_host);
+				sw_mci_update_clk(smc_host);
+				enable_irq(smc_host->irq);
+				smc_host->power_on = 1;
+			}
+			break;
+		case MMC_POWER_OFF:
+			if (smc_host->power_on) {
+				SMC_MSG(smc_host, "mmc %d power off !!\n", smc_host->pdev->id);
+				disable_irq(smc_host->irq);
+				sw_mci_exit_host(smc_host);
+				clk_disable(smc_host->mclk);
+				clk_disable(smc_host->hclk);
+				sw_mci_hold_io(smc_host);
+				smc_host->power_on = 0;
+				smc_host->ferror = 0;
+			}
+			break;
+	}
 	/* set bus width */
 	switch (ios->bus_width) {
 		case MMC_BUS_WIDTH_1:
@@ -980,7 +1026,7 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	mci_writel(smc_host, REG_GCTRL, temp);
 
 	/* set up clock */
-	if (ios->clock) {
+	if (ios->clock && ios->clock != last_clock) {
 		/* 8bit ddr, mod_clk = 2 * card_clk */
 		if (smc_host->ddr && smc_host->bus_width == 8)
 			smc_host->mod_clk = ios->clock << 1;
@@ -993,34 +1039,9 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			smc_host->card_clk = smc_host->mod_clk;
 		#endif
 		sw_mci_set_clk(smc_host, smc_host->card_clk);
+		last_clock = ios->clock;
 	}
 
-	/* Set the power state */
-	switch (ios->power_mode) {
-		case MMC_POWER_ON:
-		case MMC_POWER_UP:
-			if (!smc_host->power_on) {
-				SMC_MSG(smc_host, "mmc %d power on !!\n", smc_host->pdev->id);
-				sw_mci_resume_pins(smc_host);
-				clk_enable(smc_host->hclk);
-				clk_enable(smc_host->mclk);
-				sw_mci_update_clk(smc_host);
-				enable_irq(smc_host->irq);
-				smc_host->power_on = 1;
-			}
-			break;
-		case MMC_POWER_OFF:
-			if (smc_host->power_on) {
-				SMC_MSG(smc_host, "mmc %d power off !!\n", smc_host->pdev->id);
-				disable_irq(smc_host->irq);
-				clk_disable(smc_host->mclk);
-				clk_disable(smc_host->hclk);
-				sw_mci_suspend_pins(smc_host);
-				smc_host->power_on = 0;
-				smc_host->ferror = 0;
-			}
-		break;
-	}
 }
 
 static void sw_mci_enable_sdio_irq(struct mmc_host *mmc, int enable)
@@ -1544,7 +1565,6 @@ static int __devinit sw_mci_probe(struct platform_device *pdev)
 		goto probe_free_host;
 	}
 
-	sw_mci_init_host(smc_host);
 	sw_mci_procfs_attach(smc_host);
 
 	smc_host->irq = SMC_IRQNO(pdev->id);
@@ -1553,6 +1573,7 @@ static int __devinit sw_mci_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto probe_free_resource;
 	}
+	disable_irq(smc_host->irq);
 
 	if (smc_host->cd_mode == CARD_ALWAYS_PRESENT) {
 		smc_host->present = 1;
@@ -1676,21 +1697,9 @@ static int sw_mci_suspend(struct device *dev)
 	int ret = 0;
 
 	if (mmc) {
-		struct sunxi_mmc_host *smc_host = mmc_priv(mmc);
+		ret = mmc_suspend_host(mmc);
 
-		if (!(mmc->pm_flags & MMC_PM_KEEP_POWER))
-			ret = mmc_suspend_host(mmc);
-
-		if (smc_host->power_on) {
-			/* disable irq */
-			disable_irq(smc_host->irq);
-			sw_mci_regs_save(smc_host);
-			clk_disable(smc_host->mclk);
-			if (mmc->card && mmc->card->type!=MMC_TYPE_SDIO)
-				clk_disable(smc_host->hclk);
-			sw_mci_suspend_pins(smc_host);
-		}
-		SMC_DBG(smc_host, "smc %d suspend\n", pdev->id);
+		SMC_MSG(NULL, "smc %d suspend\n", pdev->id);
 	}
 
 	return ret;
@@ -1703,23 +1712,8 @@ static int sw_mci_resume(struct device *dev)
 	int ret = 0;
 
 	if (mmc) {
-		struct sunxi_mmc_host *smc_host = mmc_priv(mmc);
-
-		if (smc_host->power_on) {
-			/* resume pins to correct status */
-			sw_mci_resume_pins(smc_host);
-			if (mmc->card && mmc->card->type!=MMC_TYPE_SDIO)
-				clk_enable(smc_host->hclk);
-			clk_enable(smc_host->mclk);
-			if (mmc->card && mmc->card->type!=MMC_TYPE_SDIO)
-				sw_mci_regs_restore(smc_host);
-			sw_mci_update_clk(smc_host);
-			enable_irq(smc_host->irq);
-		}
-
-		if (!(mmc->pm_flags & MMC_PM_KEEP_POWER))
-			ret = mmc_resume_host(mmc);
-		SMC_DBG(smc_host, "smc %d resume\n", pdev->id);
+		ret = mmc_resume_host(mmc);
+		SMC_MSG(NULL, "smc %d resume\n", pdev->id);
 	}
 
 	return ret;
