@@ -1025,8 +1025,8 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 	mci_writel(smc_host, REG_GCTRL, temp);
 
-	/* set up clock */
-	if (ios->clock && ios->clock != last_clock) {
+	/* set up clock && ios->clock != last_clock */
+	if (ios->clock) {
 		/* 8bit ddr, mod_clk = 2 * card_clk */
 		if (smc_host->ddr && smc_host->bus_width == 8)
 			smc_host->mod_clk = ios->clock << 1;
