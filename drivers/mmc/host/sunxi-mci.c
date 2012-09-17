@@ -959,10 +959,10 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	static u32 last_clock = 0;
 	u32 temp;
 
-	BUG_ON(ios->bus_mode >= 3);
-	BUG_ON(ios->power_mode >= 3);
-	BUG_ON(ios->signal_voltage >= 3);
-	BUG_ON(ios->timing >= 7);
+	BUG_ON(ios->bus_mode >= sizeof(bus_mode)/sizeof(bus_mod[0]));
+	BUG_ON(ios->power_mode >= sizeof(pwr_mode)/sizeof(pwr_mode[0]));
+	BUG_ON(ios->signal_voltage >= sizeof(vdd)/sizeof(vdd[0]));
+	BUG_ON(ios->timing >= sizeof(timing)/sizeof(timing[0]));
 	SMC_MSG(smc_host, "smc%d set ios: "
 		"clock %dHz busmode %s powermode %s vdd %s width %d timing %s drvtype %s\n",
 		smc_host->pdev->id, ios->clock, bus_mode[ios->bus_mode],
@@ -1040,6 +1040,8 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		#endif
 		sw_mci_set_clk(smc_host, smc_host->card_clk);
 		last_clock = ios->clock;
+	} else if (!ios->clock) {
+		last_clock = 0;
 	}
 
 }
