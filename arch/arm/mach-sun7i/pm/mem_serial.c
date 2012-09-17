@@ -17,6 +17,7 @@
 
 void serial_init_nommu(void)
 {
+#if 0
 	__u32 p2clk;
 	__u32 df;
 	__u32 lcr;
@@ -47,6 +48,7 @@ void serial_init_nommu(void)
 
 	/* set mode, Set Lin Control Register*/
 	writel(3, SUART_LCR_PA);
+#endif
 	/* enable fifo */
 	writel(0xe1, SUART_FCR_PA);
 
@@ -101,7 +103,7 @@ __u32 serial_gets_nommu(char* buf, __u32 n)
 
 void serial_init(void)
 {
-
+#if 0
 	__u32 p2clk;
 	__u32 df;
 	__u32 lcr;
@@ -134,6 +136,8 @@ void serial_init(void)
 	writel(3, SUART_LCR);
 	/* enable fifo */
 	writel(0xe1, SUART_FCR);
+#endif
+
 
 }
 
