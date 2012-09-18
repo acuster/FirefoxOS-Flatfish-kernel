@@ -959,7 +959,7 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	static u32 last_clock = 0;
 	u32 temp;
 
-	BUG_ON(ios->bus_mode >= sizeof(bus_mode)/sizeof(bus_mod[0]));
+	BUG_ON(ios->bus_mode >= sizeof(bus_mode)/sizeof(bus_mode[0]));
 	BUG_ON(ios->power_mode >= sizeof(pwr_mode)/sizeof(pwr_mode[0]));
 	BUG_ON(ios->signal_voltage >= sizeof(vdd)/sizeof(vdd[0]));
 	BUG_ON(ios->timing >= sizeof(timing)/sizeof(timing[0]));
