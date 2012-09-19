@@ -73,7 +73,9 @@ RESUME0_OBJ =	./super/common.o             \
 		./super/super_delay.o      \
 		./super/super_clock.o      \
 		./super/resume1_asm.o        \
-		./super/resume/resume0.o \
+		./super/resume/resume0.o 	\
+		./super/resume/resume_head.o 	\
+		./super/resume/resume0_c_part.o \
 		pm_debug.o                   \
 		mem_mmu_pc_asm.o             \
 		mem_cpu.o                    \
@@ -211,7 +213,9 @@ resume0:
 	$(CC) $(INCLUDE) $(CFLAGS) ./super/super_clock.c             -o ./super/super_clock.o
 	$(CC) $(INCLUDE) $(CFLAGS) ./super/resume1_asm.S               -o ./super/resume1_asm.o
 
-	$(CC) $(INCLUDE) $(CFLAGS) ./super/resume/resume0.c        -o ./super/resume/resume0.o
+	$(CC) $(INCLUDE) $(CFLAGS) ./super/resume/resume0.S        -o ./super/resume/resume0.o
+	$(CC) $(INCLUDE) $(CFLAGS) ./super/resume/resume_head.c        -o ./super/resume/resume_head.o
+	$(CC) $(INCLUDE) $(CFLAGS) ./super/resume/resume0_c_part.c        -o ./super/resume/resume0_c_part.o
 
 	$(CC) $(INCLUDE) $(CFLAGS) ./../pm_debug.c                     -o pm_debug.o
 	$(CC) $(INCLUDE) $(CFLAGS) ./../mem_mmu_pc_asm.S               -o mem_mmu_pc_asm.o

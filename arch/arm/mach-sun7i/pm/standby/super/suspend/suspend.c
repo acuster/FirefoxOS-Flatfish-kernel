@@ -170,8 +170,6 @@ int main(void)
 
 	printk("before power init. \n");
 
-	//busy_waiting();
-#if 1
 	while(mem_power_init(mem_para_info.axp_event)&&--retry){
 		printk("mem_power_init failed. \n");
 		;
@@ -181,38 +179,36 @@ int main(void)
 	}else{
 		retry = RETRY_TIMES;
 	}
-#endif
 
-		printk("before dram enter selfresh. \n");
 
-		/* dram enter self-refresh */
-		//busy_waiting();
+
+	/* dram enter self-refresh */
 #ifdef DRAM_ENTER_SELFRESH
+	printk("before dram enter selfresh. \n");
 #ifdef GET_CYCLE_CNT
-		start = get_cyclecount();
+	start = get_cyclecount();
 #endif
 #if 0
-		if(dram_power_save_process()){
-			goto suspend_dram_err;
-		}
+	if(dram_power_save_process()){
+		goto suspend_dram_err;
+	}
 #else
-		//mctl_power_save_entry();
-		mctl_self_refresh_entry();
+	//mctl_power_save_entry();
+	mctl_self_refresh_entry();
 #endif
 
-		/* gating off dram clock */
-	    printk("before gating off dram clock. \n");
+	/* gating off dram clock */
+	printk("before gating off dram clock. \n");
+	mem_clk_dramgating(0);
 
-	    mem_clk_dramgating(0);
 #ifdef GET_CYCLE_CNT
-		start = get_cyclecount() - start;
-		//busy_waiting();
+	start = get_cyclecount() - start;
+	//busy_waiting();
 #endif
 
 #endif
 
 	//need to mask all the int src
-
 	printk("before power off. \n");
 #ifdef DISABLE_MMU
 	if(suspend_with_nommu()){
@@ -227,17 +223,20 @@ int main(void)
 
 
 suspend_err:
+	printk("err: \n");
+#ifdef DRAM_ENTER_SELFRESH
 #if 0
 	init_DRAM();
 #else
 	mctl_self_refresh_exit();
 	//mctl_power_save_exit();
 #endif
+#endif
 
 suspend_dram_err:
 mem_power_init_err:
 
-	printk("err: \n");
+
 #if 0
     while(mem_power_exit(mem_para_info.axp_event)&&--retry){
 		;

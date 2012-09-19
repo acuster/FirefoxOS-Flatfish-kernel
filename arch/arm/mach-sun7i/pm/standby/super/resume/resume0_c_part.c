@@ -34,7 +34,7 @@ static int (*resume1)(void);
 
 #if defined(ENTER_SUPER_STANDBY) || defined(ENTER_SUPER_STANDBY_WITH_NOMMU) || defined(WATCH_DOG_RESET)
 #undef MMU_OPENED
-#define SWITCH_STACK
+#undef SWITCH_STACK
 #define SET_COPRO_REG
 #define FLUSH_TLB
 #define FLUSH_ICACHE
@@ -42,9 +42,8 @@ static int (*resume1)(void);
 #endif
 
 // #define no_save __attribute__ ((section(".no_save")))
-int main(void)
+int resume0_c_part(void)
 {
-
 #ifdef SWITCH_STACK
 #ifdef MMU_OPENED
 	save_sp();
@@ -52,8 +51,12 @@ int main(void)
 	save_sp_nommu();
 #endif
 #endif
+#if 1
+	//busy_waiting();
 	serial_init_nommu();
-	printk_nommu("start of resume0. \n");
+	serial_puts_nommu("start of resume0. \n");
+#endif
+
 #ifndef GET_CYCLE_CNT
 	init_perfcounters(1, 0);
 #endif
@@ -106,7 +109,7 @@ int main(void)
 	/*restore dram training area*/
 	mem_memcpy((void *)DRAM_BASE_ADDR_PA, (void *)DRAM_BACKUP_BASE_ADDR2_PA, DRAM_TRANING_SIZE);
 
-	printk_nommu("before jump to resume1. \n");
+	serial_puts_nommu("before jump to resume1. \n");
 	//busy_waiting();
 	resume1 = (int (*)(void))SRAM_FUNC_START_PA;
 	//move resume1 code from dram to sram
@@ -121,4 +124,19 @@ int main(void)
 
 
 	while(1);
+}
+
+/*******************************************************************************
+*函数名称: set_pll
+*函数原型：void set_pll( void )
+*函数功能: resume中用C语言编写的 调整CPU频率
+*入口参数: void
+*返 回 值: void
+*备    注:
+*******************************************************************************/
+void set_pll( void )
+{
+	//cpus in charge this
+
+	return ;
 }

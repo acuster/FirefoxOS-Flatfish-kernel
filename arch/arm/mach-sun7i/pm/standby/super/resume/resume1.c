@@ -57,8 +57,8 @@ int main(void)
 	disable_dcache();
 
 #endif
-	serial_init();
-	printk("after restore mmu. \n");
+	//serial_init();
+	serial_puts("after restore mmu. \n");
 
 //after open mmu mapping
 #ifdef FLUSH_TLB
