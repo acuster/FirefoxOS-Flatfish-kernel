@@ -21,6 +21,10 @@
 
 #define AXP_IICBUS      (1)
 #define TWI_CHECK_TIMEOUT       (0xf2ff)
+#define PM_STANDBY_PRINT_STANDBY (1U << 0)
+#define PM_STANDBY_PRINT_RESUME (1U << 1)
+#define PM_STANDBY_PRINT_IO_STATUS (1U << 2)
+
 
 typedef struct __MEM_TMR_REG
 {
@@ -149,6 +153,7 @@ struct aw_mem_para{
 	__u32 suspend_freq;
 	__u32 axp_event;
 	__u32 sys_event;
+	__u32 debug_mask;
 	struct clk_div_t clk_div;
 	struct pll_factor_t pll_factor;
 	__u32 saved_runtime_context_svc[RUNTIME_CONTEXT_SIZE];

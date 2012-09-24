@@ -74,6 +74,8 @@
 /* define major number for power manager */
 #define AW_PMU_MAJOR    267
 
+static int debug_mask = PM_STANDBY_PRINT_STANDBY | PM_STANDBY_PRINT_RESUME;
+module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 extern char *standby_bin_start;
 extern char *standby_bin_end;
@@ -563,8 +565,12 @@ mem_enter:
 	mem_para_info.mem_flag = 1;
 	standby_level = STANDBY_WITH_POWER_OFF;
 	mem_para_info.resume_pointer = (void *)&&mem_enter;
+	mem_para_info.debug_mask = debug_mask;
 	//busy_waiting();
-	pr_info("resume_pointer = 0x%x. \n", (unsigned int)(mem_para_info.resume_pointer));
+	if(unlikely(debug_mask&PM_STANDBY_PRINT_STANDBY)){
+		pr_info("resume_pointer = 0x%x. \n", (unsigned int)(mem_para_info.resume_pointer));
+	}
+
 
 #if 1
 	/* config system wakeup evetn type */
@@ -593,7 +599,9 @@ resume:
 	enable_cache();
 
 suspend_err:
-	pr_info("suspend_status_flag = %d. \n", suspend_status_flag);
+	if(unlikely(debug_mask&PM_STANDBY_PRINT_RESUME)){
+		pr_info("suspend_status_flag = %d. \n", suspend_status_flag);
+	}
 
 	return 0;
 

@@ -159,16 +159,18 @@ int main(void)
 	/*get input para*/
 	mem_memcpy((void *)&mem_para_info, (void *)(DRAM_BACKUP_BASE_ADDR1), sizeof(mem_para_info));
 
-	printk("before init devices. \n");
-
+	if(unlikely((mem_para_info.debug_mask)&PM_STANDBY_PRINT_STANDBY)){
+		printk("before init devices. \n");
+	}
 	/* initialise mem modules */
 	mem_clk_init();
 	mem_int_init();
 	mem_tmr_init();
 	mem_twi_init(AXP_IICBUS);
 
-
-	printk("before power init. \n");
+	if(unlikely((mem_para_info.debug_mask)&PM_STANDBY_PRINT_STANDBY)){
+		printk("before power init. \n");
+	}
 
 	while(mem_power_init(mem_para_info.axp_event)&&--retry){
 		printk("mem_power_init failed. \n");
@@ -184,7 +186,9 @@ int main(void)
 
 	/* dram enter self-refresh */
 #ifdef DRAM_ENTER_SELFRESH
-	printk("before dram enter selfresh. \n");
+	if(unlikely((mem_para_info.debug_mask)&PM_STANDBY_PRINT_STANDBY)){
+		printk("before dram enter selfresh. \n");
+	}
 #ifdef GET_CYCLE_CNT
 	start = get_cyclecount();
 #endif
@@ -198,7 +202,9 @@ int main(void)
 #endif
 
 	/* gating off dram clock */
-	printk("before gating off dram clock. \n");
+	if(unlikely((mem_para_info.debug_mask)&PM_STANDBY_PRINT_STANDBY)){
+		printk("before gating off dram clock. \n");
+	}
 	mem_clk_dramgating(0);
 
 #ifdef GET_CYCLE_CNT
@@ -209,7 +215,9 @@ int main(void)
 #endif
 
 	//need to mask all the int src
-	printk("before power off. \n");
+	if(unlikely((mem_para_info.debug_mask)&PM_STANDBY_PRINT_STANDBY)){
+		printk("before power off. \n");
+	}
 #ifdef DISABLE_MMU
 	if(suspend_with_nommu()){
 		goto suspend_err;
@@ -223,7 +231,9 @@ int main(void)
 
 
 suspend_err:
-	printk("err: \n");
+	if(unlikely((mem_para_info.debug_mask)&PM_STANDBY_PRINT_STANDBY)){
+		printk("err: \n");
+	}
 #ifdef DRAM_ENTER_SELFRESH
 #if 0
 	init_DRAM();
@@ -276,9 +286,14 @@ static __s32 suspend_with_nommu(void)
 			/*NOTICE: not support to power off yet after disable mmu.
 			  * because twi use virtual addr.
 			  */
-			printk_nommu("notify pmu to power off. \n");
+			if(unlikely((mem_para_info.debug_mask)&PM_STANDBY_PRINT_STANDBY)){
+				printk_nommu("notify pmu to power off. \n");
+			}
+
 			while(mem_power_off_nommu()&&--retry){
-				printk_nommu("notify pmu to power off: failed one time, retry.... \n");
+				if(unlikely((mem_para_info.debug_mask)&PM_STANDBY_PRINT_STANDBY)){
+					printk_nommu("notify pmu to power off: failed one time, retry.... \n");
+				}
 				;
 			}
 			if(0 == retry){

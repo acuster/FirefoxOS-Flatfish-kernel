@@ -141,7 +141,7 @@ enable_cache:
     MRC     p15, 0, r0, c1, c0, 0       /*read cr                  */
     ORR	    r0, r0, #0x1 << 12
     ORR	    r0, r0, #0x1 << 2
-    MCR     p15, 0, r0, c1, c0, 0       /*disable cache                  */
+    MCR     p15, 0, r0, c1, c0, 0       /*enable cache                  */
     ISB
     pop     {r0-r3}
     MOV     pc, lr

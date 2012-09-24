@@ -15,6 +15,8 @@
 #define writew(v, addr)	(*((volatile unsigned short *)(addr)) = (unsigned short)(v))
 #define writel(v, addr)	(*((volatile unsigned long  *)(addr)) = (unsigned long)(v))
 
+#define USE_FIFO
+
 void serial_init_nommu(void)
 {
 #if 0
@@ -49,15 +51,27 @@ void serial_init_nommu(void)
 	/* set mode, Set Lin Control Register*/
 	writel(3, SUART_LCR_PA);
 #endif
+
+#ifdef USE_FIFO
 	/* enable fifo */
 	writel(0xe1, SUART_FCR_PA);
+#endif
 
 }
 
 static void serial_put_char_nommu(char c)
 {
-	while (!(readb(SUART_USR_PA) & 2));
-	writeb(c, SUART_THR_PA);
+#ifdef USE_FIFO
+		while (!(readb(SUART_USR_PA) & 2));
+		//writeb(readb(SUART_TX_FIFO_LEVEL_PA), SUART_THR_PA); //fifo level;
+		writeb(c, SUART_THR_PA);
+
+#else
+		while (!(readb(SUART_LSR_PA) & ( 1 << 6 )));
+		writeb(c, SUART_THR_PA);
+#endif
+
+
 }
 
 static char serial_get_char_nommu(void)
@@ -144,8 +158,17 @@ void serial_init(void)
 
 static void serial_put_char(char c)
 {
-	while (!(readb(SUART_USR) & 2));
+#ifdef USE_FIFO
+	//while (!(readb(SUART_USR) & 2));
+	//while (!(readb(SUART_USR) & 4));
+	//writeb(readb(SUART_TX_FIFO_LEVEL_VA), SUART_THR); //fifo level;
+	while (!(readb(SUART_TX_FIFO_LEVEL_VA) < 48))
+		;
 	writeb(c, SUART_THR);
+#else
+	while (!(readb(SUART_LSR) & ( 1 << 6 )));
+	writeb(c, SUART_THR);
+#endif
 }
 
 static char serial_get_char(void)
