@@ -664,7 +664,7 @@ static void wemac_phy_check(wemac_board_info_t *db)
 	u32 ctl1 = 0;
 	u32 speed = 0;
 
-	duplex = mii_check_media(mii_if, netif_msg_link(db), mii_if->advertising ? 0 : 1);
+	duplex = mii_check_media(mii_if, netif_msg_link(db), 0);
 
 	if(netif_carrier_ok(ndev)){
 
@@ -872,6 +872,7 @@ static int wemac_phy_init(wemac_board_info_t *db)
 {
 	struct mii_if_info *mii_if = &db->mii;
 	int i;
+	unsigned long timeout;
 	u16 phy_status;
 	u16 phy_reg;
 	u32 reg_val;
@@ -913,7 +914,15 @@ static int wemac_phy_init(wemac_board_info_t *db)
 
 	phy_reg = (*mii_if->mdio_read)(mii_if->dev, mii_if->phy_id, MII_BMCR);
 	(*mii_if->mdio_write)(mii_if->dev, mii_if->phy_id, MII_BMCR, BMCR_RESET | phy_reg);
-	while((*mii_if->mdio_read)(mii_if->dev, mii_if->phy_id, MII_BMCR) & BMCR_RESET);
+
+	/* time out is 100ms */
+	timeout = jiffies + HZ/10;
+	while(wemac_phy_read(mii_if->dev, db->mii.phy_id, MII_BMCR) & BMCR_RESET){
+		if(time_after(jiffies, timeout)){
+			printk(KERN_WARNING "Reset the phy is timeout!!\n");
+			break;
+		}
+	}
 
 #ifdef EMAC_ON_FPGA
 	/* set In 10M/full-duplex */
@@ -1380,6 +1389,7 @@ static int wemac_phy_read(struct net_device *dev, int phyaddr, int reg)
 {
 	wemac_board_info_t *db = netdev_priv(dev);
 	unsigned long flags;
+	unsigned long timeout;
 	int ret = 0;
 
 	mutex_lock(&db->addr_lock);
@@ -1391,7 +1401,14 @@ static int wemac_phy_read(struct net_device *dev, int phyaddr, int reg)
 	writel(0x1, db->emac_vbase + EMAC_MAC_MCMD_REG);
 	spin_unlock_irqrestore(&db->lock,flags);
 
-	while(readl(db->emac_vbase + EMAC_MAC_MIND_REG) & 0x01);
+	/* time out is 10ms */
+	timeout = jiffies + HZ/100;
+	while(readl(db->emac_vbase + EMAC_MAC_MIND_REG) & 0x01){
+		if(time_after(jiffies, timeout)){
+			printk(KERN_WARNING "Read the EMAC_MAC_MCMD_REG is timeout!\n");
+			break;
+		}
+	}
 
 	/* push down the phy io line and read data */
 	spin_lock_irqsave(&db->lock,flags);
@@ -1414,6 +1431,7 @@ static void wemac_phy_write(struct net_device *dev,
 {
 	wemac_board_info_t *db = netdev_priv(dev);
 	unsigned long flags;
+	unsigned long timeout;
 
 	mutex_lock(&db->addr_lock);
 
@@ -1423,7 +1441,14 @@ static void wemac_phy_write(struct net_device *dev,
 	writel(0x1, db->emac_vbase + EMAC_MAC_MCMD_REG);
 	spin_unlock_irqrestore(&db->lock, flags);
 
-	while(readl(db->emac_vbase + EMAC_MAC_MIND_REG) & 0x01);
+	/* time out is 10ms */
+	timeout = jiffies + HZ/100;
+	while(readl(db->emac_vbase + EMAC_MAC_MIND_REG) & 0x01){
+		if(time_after(jiffies, timeout)){
+			printk(KERN_WARNING "Read the EMAC_MAC_MCMD_REG is timeout!\n");
+			break;
+		}
+	}
 
 	spin_lock_irqsave(&db->lock,flags);
 	/* push down the phy io line */
@@ -1437,6 +1462,7 @@ static void wemac_phy_write(struct net_device *dev,
 
 static void wemac_shutdown(struct net_device *dev)
 {
+	unsigned long timeout;
 	unsigned int reg_val;
 	wemac_board_info_t *db = netdev_priv(dev);
 
@@ -1467,7 +1493,15 @@ static void wemac_shutdown(struct net_device *dev)
 	writel(reg_val, db->sram_vbase + SRAMC_CFG_REG);
 
 	wemac_phy_write(dev, db->mii.phy_id, MII_BMCR, BMCR_RESET);
-	while(wemac_phy_read(dev, db->mii.phy_id, MII_BMCR) & BMCR_RESET);
+
+	/* time out is 100ms */
+	timeout = jiffies + HZ/10;
+	while(wemac_phy_read(dev, db->mii.phy_id, MII_BMCR) & BMCR_RESET){
+		if(time_after(jiffies, timeout)){
+			printk(KERN_WARNING "Reset the phy is timeout!!\n");
+			break;
+		}
+	}
 
 	do{
 		reg_val = wemac_phy_read(dev, db->mii.phy_id, MII_BMCR);
@@ -1825,13 +1859,17 @@ static int wemac_drv_suspend(struct platform_device *dev, pm_message_t state)
 
 	if (!ndev)
 		return 0;
-	db = netdev_priv(ndev);
 
-	if(mii_link_ok(&db->mii))
-		netif_carrier_off(ndev);
-	netif_device_detach(ndev);
+	if(netif_running(ndev)){
+		db = netdev_priv(ndev);
 
-	wemac_stop(ndev);
+		if(mii_link_ok(&db->mii))
+			netif_carrier_off(ndev);
+		netif_device_detach(ndev);
+
+		wemac_stop(ndev);
+	}
+
 	return 0;
 }
 
@@ -1843,11 +1881,13 @@ static int wemac_drv_resume(struct platform_device *dev)
 	if (!ndev)
 		return 0;
 
-	wemac_open(ndev);
+	if(netif_running(ndev)){
+		wemac_open(ndev);
 
-	netif_device_attach(ndev);
-	if(mii_link_ok(&db->mii))
-		netif_carrier_on(ndev);
+		netif_device_attach(ndev);
+		if(mii_link_ok(&db->mii))
+			netif_carrier_on(ndev);
+	}
 
 	return 0;
 }
