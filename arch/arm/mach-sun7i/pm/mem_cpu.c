@@ -78,9 +78,12 @@ static struct saved_context default_copro_value = {
 	.i_tlblr = 0x00000000,		/* Instruction TLB Lockdown Register */
 #elif defined(CORTEX_A7)
 #endif
-	.prrr = 0x00098AA4,		/* Primary Region Remap Register */
+	.prrr = 0x000A81A8,		/* Primary Region Remap Register: tex[0], c, b = 010, + A => normal memory
+					*                        tex[0], c, b = 100 || 101, + 1 => strong order or device
+					*/
 	.nrrr = 0x44E048E0,		/* Normal Memory Remap Register */
-
+	//.prrr = 0xFF0A81A8,		/* Primary Region Remap Register */
+	//.nrrr = 0x40E040E0,		/* Normal Memory Remap Register */
 	/* CR11 */
 #ifdef CORTEX_A8
 	.pleuar = 0x00000000,		/* PLE User Accessibility */
