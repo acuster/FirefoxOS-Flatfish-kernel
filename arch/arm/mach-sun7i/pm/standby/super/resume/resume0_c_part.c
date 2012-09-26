@@ -78,7 +78,7 @@ int resume0_c_part(void)
 #ifdef FLUSH_ICACHE
 	//clean i cache
 	flush_icache();
-	enable_icache();
+	enable_cache();
 #endif
 
 #ifdef INVALIDATE_DCACHE

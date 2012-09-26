@@ -596,7 +596,7 @@ mem_enter:
 resume:
 	aw_late_resume();
 	//have been disable dcache in resume1
-	enable_cache();
+	//enable_cache();
 
 suspend_err:
 	if(unlikely(debug_mask&PM_STANDBY_PRINT_RESUME)){

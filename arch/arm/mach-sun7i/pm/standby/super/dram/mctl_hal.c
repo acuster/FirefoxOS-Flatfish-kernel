@@ -189,7 +189,6 @@ void mctl_self_refresh_entry(void)
 	wait(0x100);
 
 	mctl_write_w(SDR_DPCR, 0x16510001);
-	printk("set pad hold on. \n");
 
 }
 

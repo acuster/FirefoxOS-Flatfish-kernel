@@ -54,11 +54,13 @@ int main(void)
 	mem_memcpy((void *)&mem_para_info, (void *)(DRAM_BACKUP_BASE_ADDR1_PA), sizeof(mem_para_info));
 	/*restore mmu configuration*/
 	restore_mmu_state(&(mem_para_info.saved_mmu_state));
-	disable_dcache();
+	//disable_dcache();
 
 #endif
 	//serial_init();
-	serial_puts("after restore mmu. \n");
+	if(unlikely((mem_para_info.debug_mask)&PM_STANDBY_PRINT_RESUME)){
+		serial_puts("after restore mmu. \n");
+	}
 
 //after open mmu mapping
 #ifdef FLUSH_TLB
