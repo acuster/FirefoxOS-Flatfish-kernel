@@ -25,6 +25,21 @@
 #define PM_STANDBY_PRINT_RESUME (1U << 1)
 #define PM_STANDBY_PRINT_IO_STATUS (1U << 2)
 
+#ifdef CONFIG_ARCH_SUN4I
+#define INT_REG_LENGTH	((0x90+0x4)>>2)
+#define GPIO_REG_LENGTH	((0x218+0x4)>>2)
+#define SRAM_REG_LENGTH	((0x94+0x4)>>2)
+#elif defined CONFIG_ARCH_SUN5I
+#define INT_REG_LENGTH	((0x94+0x4)>>2)
+#define GPIO_REG_LENGTH	((0x218+0x4)>>2)
+#define SRAM_REG_LENGTH	((0x94+0x4)>>2)
+#elif defined CONFIG_ARCH_SUN6I
+#define GPIO_REG_LENGTH	((0x278+0x4)>>2)
+#define SRAM_REG_LENGTH	((0x94+0x4)>>2)
+#elif defined CONFIG_ARCH_SUN7I
+#define GPIO_REG_LENGTH	((0x218+0x4)>>2)
+#define SRAM_REG_LENGTH	((0x94+0x4)>>2)
+#endif
 
 typedef struct __MEM_TMR_REG
 {

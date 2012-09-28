@@ -624,8 +624,18 @@ static int aw_pm_enter(suspend_state_t state)
 {
 	asm volatile ("stmfd sp!, {r1-r12, lr}" );
 	int (*standby)(struct aw_pm_info *arg) = 0;
+	int i = 0;
 
 	PM_DBG("enter state %d\n", state);
+
+	if(unlikely(debug_mask&PM_STANDBY_PRINT_IO_STATUS)){
+		printk(KERN_INFO "IO status as follow:");
+		for(i=0; i<(GPIO_REG_LENGTH); i++){
+			printk(KERN_INFO "ADDR = %x, value = %x .\n", \
+				IO_ADDRESS(SW_PA_PORTC_IO_BASE) + i*0x04, *(volatile __u32 *)(IO_ADDRESS(SW_PA_PORTC_IO_BASE) + i*0x04));
+		}
+	}
+
 	if(NORMAL_STANDBY== standby_type){
 		print_call_info();
 		standby = (int (*)(struct aw_pm_info *arg))SRAM_FUNC_START;
