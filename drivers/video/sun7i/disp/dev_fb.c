@@ -1351,7 +1351,8 @@ __s32 Fb_Init(__u32 from)
                 g_fbi.disp_init.disp_mode = 0;
                 g_fbi.disp_init.output_type[0] = 1;
                 g_fbi.disp_init.scaler_mode[0] = 0;
-                g_fbi.disp_init.buffer_num[0] =1;
+                //g_fbi.disp_init.buffer_num[0] =1;
+                g_fbi.disp_init.buffer_num[0] =2; /* liugang, fix gpu demo problem, 2012-9-28 */
                 g_fbi.disp_init.format[0] = 0xa;
                 g_fbi.disp_init.seq[0] = 0;
 #endif

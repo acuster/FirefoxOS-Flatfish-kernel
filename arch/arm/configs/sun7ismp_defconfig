@@ -640,7 +640,7 @@ CONFIG_BLK_DEV=y
 # CONFIG_ATA_OVER_ETH is not set
 # CONFIG_MG_DISK is not set
 # CONFIG_BLK_DEV_RBD is not set
-# CONFIG_SUN7I_NANDFLASH is not set
+CONFIG_SUN7I_NANDFLASH=y
 
 #
 # Misc devices
