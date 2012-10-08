@@ -1372,6 +1372,7 @@ static int wemac_open(struct net_device *dev)
 
 	/* set up EMAC */
 	emac_setup(dev);
+	wemac_set_rx_mode(dev);
 
 	/* wemac_reset(db); */
 	wemac_init_wemac(dev);
