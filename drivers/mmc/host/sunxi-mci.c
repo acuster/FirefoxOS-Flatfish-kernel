@@ -402,7 +402,7 @@ static int sw_mci_prepare_dma(struct sunxi_mmc_host* smc_host, struct mmc_data* 
 
 	//write descriptor address to register
 	mci_writel(smc_host, REG_DLBA, smc_host->sg_dma);
-	mci_writel(smc_host, REG_FTRGL, (2U<<28)|(7<<16)|8);
+	mci_writel(smc_host, REG_FTRGL, smc_host->pdata->dma_tl);
 
 	return 0;
 }
@@ -1025,8 +1025,8 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 	mci_writel(smc_host, REG_GCTRL, temp);
 
-	/* set up clock && ios->clock != last_clock */
-	if (ios->clock) {
+	/* set up clock */
+	if (ios->clock && ios->clock != last_clock) {
 		/* 8bit ddr, mod_clk = 2 * card_clk */
 		if (smc_host->ddr && smc_host->bus_width == 8)
 			smc_host->mod_clk = ios->clock << 1;
@@ -1439,6 +1439,27 @@ static int sw_mci_proc_write_dbglevel(struct file *file, const char __user *buff
 	return sizeof(smc_debug);
 }
 
+static int sw_mci_proc_read_cdmode(char *page, char **start, off_t off,
+					int count, int *eof, void *data)
+{
+	char *p = page;
+	struct sunxi_mmc_host *smc_host = (struct sunxi_mmc_host *)data;
+
+	p += sprintf(p, "card detect mode: %d\n", smc_host->cd_mode);
+	return p - page;
+}
+
+static int sw_mci_proc_write_cdmode(struct file *file, const char __user *buffer,
+					unsigned long count, void *data)
+{
+	u32 cdmode;
+	struct sunxi_mmc_host *smc_host = (struct sunxi_mmc_host *)data;
+	cdmode = simple_strtoul(buffer, NULL, 10);
+
+	smc_host->cd_mode = cdmode;
+	return sizeof(cdmode);
+}
+
 static int sw_mci_proc_read_insert_status(char *page, char **start, off_t off,
 					int coutn, int *eof, void *data)
 {
@@ -1508,6 +1529,14 @@ void sw_mci_procfs_attach(struct sunxi_mmc_host *smc_host)
 	smc_host->proc_dbglevel->read_proc = sw_mci_proc_read_dbglevel;
 	smc_host->proc_dbglevel->write_proc = sw_mci_proc_write_dbglevel;
 
+	smc_host->proc_cdmode = create_proc_entry("cdmode", 0644, smc_host->proc_root);
+	if (IS_ERR(smc_host->proc_cdmode))
+		SMC_MSG(smc_host, "%s: failed to create procfs \"cdmode\".\n", dev_name(dev));
+
+	smc_host->proc_cdmode->data = smc_host;
+	smc_host->proc_cdmode->read_proc = sw_mci_proc_read_cdmode;
+	smc_host->proc_cdmode->write_proc = sw_mci_proc_write_cdmode;
+
 	smc_host->proc_insert = create_proc_entry("insert", 0644, smc_host->proc_root);
 	if (IS_ERR(smc_host->proc_insert))
 		SMC_MSG(smc_host, "%s: failed to create procfs \"insert\".\n", dev_name(dev));
@@ -1526,6 +1555,7 @@ void sw_mci_procfs_remove(struct sunxi_mmc_host *smc_host)
 	snprintf(sw_mci_proc_rootname, sizeof(sw_mci_proc_rootname),
 		"driver/%s", dev_name(dev));
 	remove_proc_entry("insert", smc_host->proc_root);
+	remove_proc_entry("cdmode", smc_host->proc_root);
 	remove_proc_entry("debug-level", smc_host->proc_root);
 	remove_proc_entry("register", smc_host->proc_root);
 	remove_proc_entry("hostinfo", smc_host->proc_root);
@@ -1741,6 +1771,7 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 			| MMC_CAP_SET_XPC_330 | MMC_CAP_DRIVER_TYPE_A,
 		.f_min = 400000,
 		.f_max = 120000000,
+		.dma_tl= 0x20070008,
 	},
 	[1] = {
 		.ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34,
@@ -1748,6 +1779,7 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 			| MMC_CAP_SDIO_IRQ,
 		.f_min = 400000,
 		.f_max = 120000000,
+		.dma_tl= 0x20070008,
 	},
 	[2] = {
 		.ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_165_195,
@@ -1764,6 +1796,7 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.caps2 = MMC_CAP2_HS200_1_8V_SDR,
 		.f_min = 400000,
 		.f_max = 120000000,
+		.dma_tl= 0x20070008,
 	},
 	[3] = {
 		.ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_165_195,
@@ -1777,6 +1810,7 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.caps2 = MMC_CAP2_HS200_1_8V_SDR,
 		.f_min = 400000,
 		.f_max = 120000000,
+		.dma_tl= MMC3_DMA_TL,
 	},
 };
 static struct platform_device sw_mci_device[4] = {

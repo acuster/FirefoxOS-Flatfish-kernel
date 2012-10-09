@@ -33,6 +33,7 @@
 #define MMC_SRCCLK_PLL6	"sys_pll6"
 #define MMC_AHBCLK_PREFIX	"ahb_sdmmc"
 #define MMC_MODCLK_PREFIX	"mod_sdc"
+#define MMC3_DMA_TL	(0x2007000f)
 
 #ifdef MMC_FPGA
 #undef SMC_IRQNO
@@ -52,6 +53,7 @@
 #define MMC_SRCCLK_PLL6	"sata_pll_2"
 #define MMC_AHBCLK_PREFIX	"ahb_sdc"
 #define MMC_MODCLK_PREFIX	"sdc"
+#define MMC3_DMA_TL	(0x20070008)
 
 #ifdef MMC_FPGA
 #undef SMC_IRQNO
@@ -253,6 +255,7 @@ struct sunxi_mmc_platform_data {
 	u32 caps2;
 	u32 f_min;
 	u32 f_max;
+	u32 dma_tl;
 };
 
 struct sunxi_mmc_host {
@@ -333,6 +336,7 @@ struct sunxi_mmc_host {
 	struct proc_dir_entry *proc_dbglevel;
 	struct proc_dir_entry *proc_regs;
 	struct proc_dir_entry *proc_insert;
+	struct proc_dir_entry *proc_cdmode;
 #endif
 
 	/* backup register structrue */
