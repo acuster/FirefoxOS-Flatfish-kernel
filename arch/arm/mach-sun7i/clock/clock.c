@@ -35,7 +35,8 @@
 static __ccu_clk_t          aw_clock[AW_CCU_CLK_CNT];
 static struct clk_lookup    lookups[AW_CCU_CLK_CNT];
 
-
+#define CCU_LOCK_DBG	printk /* liugang */
+//#define CCU_LOCK_DBG
 
 /*
 *********************************************************************************************************
@@ -68,6 +69,11 @@ int clk_init(void)
         if(aw_ccu_get_clk(i, &aw_clock[i]) != 0) {
             CCU_ERR("try toc get clock(id:%d) informaiton failed!\n", i);
         }
+#ifdef CCU_LOCK_LIUGANG_20120930
+	CCU_DBG("spinlock init for clock%d!\n", i);
+	/* init clk spin lock */
+	CCU_LOCK_INIT(&aw_clock[i].lock);
+#endif /* CCU_LOCK_LIUGANG_20120930 */
         /* register clk device */
         lookups[i].con_id = aw_clock[i].aw_clk->name;
         lookups[i].clk    = &aw_clock[i];
@@ -97,14 +103,21 @@ void __clk_put(struct clk *clk)
 
 int clk_enable(struct clk *clk)
 {
+    DEFINE_FLAGS(flags);
+
     if((clk == NULL) || IS_ERR(clk))
         return -EINVAL;
+
+    CCU_LOCK_DBG("%s start, clk 0x%08x\n", __func__, (u32)clk);
+    CCU_LOCK(&clk->lock, flags);
 
     if(!clk->enable) {
         clk->ops->set_status(clk->aw_clk->id, AW_CCU_CLK_ON);
     }
     clk->enable++;
 
+    CCU_UNLOCK(&clk->lock, flags);
+    CCU_LOCK_DBG("%s end, clk 0x%08x\n",  __func__, (u32)clk);
     return 0;
 }
 EXPORT_SYMBOL(clk_enable);
@@ -112,17 +125,26 @@ EXPORT_SYMBOL(clk_enable);
 
 void clk_disable(struct clk *clk)
 {
+    DEFINE_FLAGS(flags);
+
     if(clk == NULL || IS_ERR(clk) || !clk->enable)
         return;
 
     CCU_DBG("%s:%d:%s: %s !\n", __FILE__, __LINE__, __FUNCTION__, clk->aw_clk->name);
 
+    CCU_LOCK_DBG("%s start, clk 0x%08x\n", __func__, (u32)clk);
+    CCU_LOCK(&clk->lock, flags);
+
     clk->enable--;
     if(clk->enable){
+        CCU_UNLOCK(&clk->lock, flags);
+        CCU_LOCK_DBG("%s end, clk 0x%08x\n",  __func__, (u32)clk);
         return;
     }
     clk->ops->set_status(clk->aw_clk->id, AW_CCU_CLK_OFF);
 
+    CCU_UNLOCK(&clk->lock, flags);
+    CCU_LOCK_DBG("%s end, clk 0x%08x\n",  __func__, (u32)clk);
     return;
 }
 EXPORT_SYMBOL(clk_disable);
@@ -130,27 +152,48 @@ EXPORT_SYMBOL(clk_disable);
 
 unsigned long clk_get_rate(struct clk *clk)
 {
-    if((clk == NULL) || IS_ERR(clk)) {
+    unsigned long ret = 0;
+    DEFINE_FLAGS(flags);
+
+    if((clk == NULL) || IS_ERR(clk))
         return 0;
-    }
 
     CCU_DBG("%s:%d:%s: %s !\n", __FILE__, __LINE__, __FUNCTION__, clk->aw_clk->name);
+
+    CCU_LOCK_DBG("%s start, clk 0x%08x\n", __func__, (u32)clk);
+    CCU_LOCK(&clk->lock, flags);
+
     clk->aw_clk->rate = clk->ops->get_rate(clk->aw_clk->id);
-    return (unsigned long)clk->aw_clk->rate;
+    ret = (unsigned long)clk->aw_clk->rate;
+
+    CCU_UNLOCK(&clk->lock, flags);
+    CCU_LOCK_DBG("%s end, clk 0x%08x\n",  __func__, (u32)clk);
+    return ret;
 }
 EXPORT_SYMBOL(clk_get_rate);
 
 
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
+    DEFINE_FLAGS(flags);
+
     if(clk == NULL || IS_ERR(clk))
         return -1;
 
     CCU_DBG("%s:%d:%s: %s !\n", __FILE__, __LINE__, __FUNCTION__, clk->aw_clk->name);
+
+    CCU_LOCK_DBG("%s start, clk 0x%08x\n", __func__, (u32)clk);
+    CCU_LOCK(&clk->lock, flags);
+
     if(clk->ops->set_rate(clk->aw_clk->id, rate) == 0) {
         clk->aw_clk->rate = clk->ops->get_rate(clk->aw_clk->id);
+        CCU_UNLOCK(&clk->lock, flags);
+	CCU_LOCK_DBG("%s end, clk 0x%08x\n",  __func__, (u32)clk);
         return 0;
     }
+
+    CCU_UNLOCK(&clk->lock, flags);
+    CCU_LOCK_DBG("%s end, clk 0x%08x\n",  __func__, (u32)clk);
     return -1;
 }
 EXPORT_SYMBOL(clk_set_rate);
@@ -158,28 +201,51 @@ EXPORT_SYMBOL(clk_set_rate);
 
 struct clk *clk_get_parent(struct clk *clk)
 {
+    struct clk *clk_ret = NULL;
+    DEFINE_FLAGS(flags);
+
     if((clk == NULL) || IS_ERR(clk)) {
         return NULL;
     }
 
     CCU_DBG("%s:%d:%s: %s !\n", __FILE__, __LINE__, __FUNCTION__, clk->aw_clk->name);
-    return &aw_clock[clk->aw_clk->parent];
+
+    CCU_LOCK_DBG("%s start, clk 0x%08x\n", __func__, (u32)clk);
+    CCU_LOCK(&clk->lock, flags);
+
+    clk_ret = &aw_clock[clk->aw_clk->parent];
+
+    CCU_UNLOCK(&clk->lock, flags);
+    CCU_LOCK_DBG("%s end, clk 0x%08x\n",  __func__, (u32)clk);
+    return clk_ret;
 }
 EXPORT_SYMBOL(clk_get_parent);
 
 
 int clk_set_parent(struct clk *clk, struct clk *parent)
 {
+    DEFINE_FLAGS(flags);
+
     if((clk == NULL) || IS_ERR(clk) || (parent == NULL) || IS_ERR(parent)) {
         return -1;
     }
 
     CCU_DBG("%s:%d:%s: %s !\n", __FILE__, __LINE__, __FUNCTION__, clk->aw_clk->name);
+
+    CCU_LOCK_DBG("%s start, clk 0x%08x\n", __func__, (u32)clk);
+    CCU_LOCK(&clk->lock, flags);
+
     if(clk->ops->set_parent(clk->aw_clk->id, parent->aw_clk->id) == 0) {
         clk->aw_clk->parent = clk->ops->get_parent(clk->aw_clk->id);
         clk->aw_clk->rate   = clk->ops->get_rate(clk->aw_clk->id);
+
+	CCU_UNLOCK(&clk->lock, flags);
+	CCU_LOCK_DBG("%s end, clk 0x%08x\n",  __func__, (u32)clk);
         return 0;
     }
+
+    CCU_UNLOCK(&clk->lock, flags);
+    CCU_LOCK_DBG("%s end, clk 0x%08x\n",  __func__, (u32)clk);
     return -1;
 }
 EXPORT_SYMBOL(clk_set_parent);
@@ -187,14 +253,22 @@ EXPORT_SYMBOL(clk_set_parent);
 
 int clk_reset(struct clk *clk, __aw_ccu_clk_reset_e reset)
 {
+    DEFINE_FLAGS(flags);
+
     if((clk == NULL) || IS_ERR(clk)) {
         return -EINVAL;
     }
 
     CCU_DBG("%s:%d:%s: %s !\n", __FILE__, __LINE__, __FUNCTION__, clk->aw_clk->name);
+
+    CCU_LOCK_DBG("%s start, clk 0x%08x\n", __func__, (u32)clk);
+    CCU_LOCK(&clk->lock, flags);
+
     clk->ops->set_reset(clk->aw_clk->id, reset);
     clk->aw_clk->reset = reset;
 
+    CCU_UNLOCK(&clk->lock, flags);
+    CCU_LOCK_DBG("%s end, clk 0x%08x\n",  __func__, (u32)clk);
     return 0;
 }
 EXPORT_SYMBOL(clk_reset);

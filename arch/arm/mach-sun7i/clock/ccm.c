@@ -23,7 +23,8 @@
 __ccmu_reg_list_t       *aw_ccu_reg;
 
 
-static __aw_ccu_clk_t aw_ccu_clk_tbl[] =
+//static __aw_ccu_clk_t aw_ccu_clk_tbl[] =
+__aw_ccu_clk_t aw_ccu_clk_tbl[] = /* liugang, for dailybuild test, 2012-10-9 */
 {
     make_aw_clk_inf(AW_SYS_CLK_NONE,        "sys_none"          ),
     make_aw_clk_inf(AW_SYS_CLK_LOSC,        "losc"              ),

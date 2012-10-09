@@ -20,7 +20,7 @@
 #define TEST_GPIOLIB_API	/* test the standard linux gpio api */
 #define TEST_CONFIG_API		/* test gpio multi-function */
 #define TEST_GPIO_EINT_API	/* test gpio external interrupt */
-#define TEST_GPIO_SCRIPT_API	/* test gpio script api, to do#### */
+//#define TEST_GPIO_SCRIPT_API	/* test gpio script api, to do#### */
 
 /*
  * cur test case
@@ -200,7 +200,8 @@ u32 __gtc_api(void)
 
 	/* test gpio_direction_input/__gpio_get_value/gpio_get_value_cansleep */
 	upio_index = GPIOE(10);
-	PIO_ASSERT_RET(0 == gpio_direction_input(upio_index), uret, End); /* warn autorequest */
+	PIO_ASSERT_RET(0 == gpio_request(upio_index, "pe_10"), uret, End);
+	PIO_ASSERT_RET(0 == gpio_direction_input(upio_index), uret, End); /* warn autorequest if not request above */
 	PIO_TEST_DBG_FUN_LINE;
 	utemp = __gpio_get_value(upio_index); /* __gpio_get_value */
 	printk("%s: __gpio_get_value pe10 value %d\n", __FUNCTION__, utemp);

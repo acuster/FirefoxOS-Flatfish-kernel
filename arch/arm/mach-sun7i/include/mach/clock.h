@@ -15,6 +15,23 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/spinlock.h>
+
+#define CCU_LOCK_LIUGANG_20120930 	/* add ccu lock, liugang, 2012-9-30 */
+
+#ifdef CCU_LOCK_LIUGANG_20120930
+#define CCU_LOCK_INIT(lock)	spin_lock_init(lock)
+#define CCU_LOCK_DEINIT(lock)	do{} while(0)
+#define CCU_LOCK(lock, flags)	spin_lock_irqsave((lock), (flags))
+#define CCU_UNLOCK(lock, flags)	spin_unlock_irqrestore((lock), (flags))
+#define DEFINE_FLAGS(x)		unsigned long x
+#else
+#define CCU_LOCK_INIT(lock)	do{} while(0)
+#define CCU_LOCK_DEINIT(lock)	do{} while(0)
+#define CCU_LOCK(lock, flags)	do{} while(0)
+#define CCU_UNLOCK(lock, flags)	do{} while(0)
+#define DEFINE_FLAGS(flags)	do{} while(0)
+#endif /* CCU_LOCK_LIUGANG_20120930 */
 
 /* define clock error type      */
 typedef enum __AW_CCU_ERR
@@ -296,7 +313,11 @@ static inline __s32 ccu_clk_calc_hash(char *string)
 
 static inline __u64 ccu_clk_uldiv(__u64 dividend, __u32 divisior)
 {
-    do_div(dividend, divisior);
+    __u32   rem = 0;
+
+    rem = do_div(dividend, divisior);
+    if(0 != rem) /* for no-dividable rate, increase div by 1, liugang, 2012-10-9 */
+	dividend += 1;
     return dividend;
 }
 
@@ -306,6 +327,9 @@ typedef struct clk
     __aw_ccu_clk_t  *aw_clk;    /* clock handle from ccu csp                            */
     __clk_ops_t     *ops;       /* clock operation handle                               */
     int             enable;     /* enable count, when it down to 0, it will be disalbe  */
+#ifdef CCU_LOCK_LIUGANG_20120930
+    spinlock_t      lock;	/* to synchronize the clock setting */
+#endif /* CCU_LOCK_LIUGANG_20120930 */
 
 } __ccu_clk_t;
 

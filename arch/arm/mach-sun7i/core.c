@@ -119,6 +119,18 @@ static int timer_set_next_clkevt(unsigned long delta, struct clock_event_device 
     spin_unlock_irqrestore(&timer0_spin_lock, flags);
     return 0;
 }
+
+#ifdef CHANGE_TMR_LIUGANG_20121008
+static struct clock_event_device sun7i_timer0_clockevent = {
+        .name = "timer0",
+        .shift = 32,
+        //.rating = 450, /* will lead to msleep NOT accurate,eg msleep(5) last 2 seconds, liugang */
+        .rating = 100,
+        .features = CLOCK_EVT_FEAT_PERIODIC,
+        .set_mode = timer_set_mode,
+        .set_next_event = timer_set_next_clkevt,
+};
+#else
 static struct clock_event_device sun7i_timer0_clockevent = {
         .name = "timer0",
         .shift = 32,
@@ -127,6 +139,7 @@ static struct clock_event_device sun7i_timer0_clockevent = {
         .set_mode = timer_set_mode,
         .set_next_event = timer_set_next_clkevt,
 };
+#endif /* CHANGE_TMR_LIUGANG_20121008 */
 
 static irqreturn_t sun7i_timer_interrupt(int irq, void *dev_id)
 {
@@ -151,6 +164,46 @@ static struct irqaction sun7i_timer_irq = {
 };
 
 extern int aw_clksrc_init(void);
+
+#ifdef CHANGE_TMR_LIUGANG_20121008
+static void __init sun7i_timer_init(void)
+{
+	int ret;
+
+	timer_cpu_base = ioremap_nocache(AW_TIMER_BASE, 0x1000);
+	printk("[%s] base=%p\n", __FUNCTION__,timer_cpu_base);
+
+        /* Disable & clear all timers */
+	writel(0x0, timer_cpu_base + AW_TMR_IRQ_EN_REG);
+    writel(0x3f, timer_cpu_base + AW_TMR_IRQ_STA_REG);
+
+    /* Init timer0 */
+    writel(TIMER0_VALUE, timer_cpu_base + AW_TMR0_INTV_VALUE_REG);
+    //writel(0x66, timer_cpu_base + AW_TMR0_CTRL_REG);
+    writel(0x46, timer_cpu_base + AW_TMR0_CTRL_REG); /* src: 24000000 pre-scale: 16 */
+
+    ret = setup_irq(36, &sun7i_timer_irq);
+    if (ret) {
+            early_printk("failed to setup irq %d\n", 36);
+    }
+
+    /* Enable timer0 */
+    writel(0x1, timer_cpu_base + AW_TMR_IRQ_EN_REG);
+
+    sun7i_timer0_clockevent.mult = div_sc(AW_CLOCK_SRC/AW_CLOCK_DIV, NSEC_PER_SEC, sun7i_timer0_clockevent.shift);
+    sun7i_timer0_clockevent.max_delta_ns = clockevent_delta2ns(0xff, &sun7i_timer0_clockevent);
+    //sun7i_timer0_clockevent.min_delta_ns = clockevent_delta2ns(0x1, &sun7i_timer0_clockevent)+100000;
+    sun7i_timer0_clockevent.min_delta_ns = clockevent_delta2ns(0x1, &sun7i_timer0_clockevent); /* liugang */
+    sun7i_timer0_clockevent.cpumask = cpu_all_mask;
+    sun7i_timer0_clockevent.irq = sun7i_timer_irq.irq;
+    early_printk("%s: sun7i_timer0_clockevent mult %d, max_delta_ns %d, min_delta_ns %d, cpumask 0x%08x, irq %d\n",
+        __func__, (int)sun7i_timer0_clockevent.mult, (int)sun7i_timer0_clockevent.max_delta_ns,
+        (int)sun7i_timer0_clockevent.min_delta_ns, (int)sun7i_timer0_clockevent.cpumask,
+        (int)sun7i_timer0_clockevent.irq);
+    clockevents_register_device(&sun7i_timer0_clockevent);
+    //aw_clksrc_init();
+}
+#else
 static void __init sun7i_timer_init(void)
 {
 	int ret;
@@ -182,6 +235,7 @@ static void __init sun7i_timer_init(void)
     clockevents_register_device(&sun7i_timer0_clockevent);
     aw_clksrc_init();
 }
+#endif /* CHANGE_TMR_LIUGANG_20121008 */
 
 static struct sys_timer sun7i_timer = {
 	.init		= sun7i_timer_init,

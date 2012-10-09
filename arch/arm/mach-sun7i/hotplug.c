@@ -19,34 +19,33 @@ extern volatile int pen_release;
 
 static inline void cpu_enter_lowpower(void)
 {
-	printk("[%s] Not implemented!\n", __FUNCTION__);
+	printk("[%s] need implement\n", __func__);
 }
 
 static inline void cpu_leave_lowpower(void)
 {
-	printk("[%s] Not implemented!\n", __FUNCTION__);
+	printk("[%s] need implement\n", __func__);
 }
 
 static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
 {
-	printk("[%s] Not implemented!\n", __FUNCTION__);
+	printk("[%s] cpu%d, need implement\n", __func__, cpu);
 }
 
 int platform_cpu_kill(unsigned int cpu)
 {
-	printk("[%s] kill cpu%d\n", __FUNCTION__, cpu);
+	printk("[%s] cpu%d, need implement, return 1 temporarily\n", __func__, cpu);
 	return 1;
 }
 
 void platform_cpu_die(unsigned int cpu)
 {
-	printk("[%s] cpu%d die\n", __FUNCTION__, cpu);
+	printk("[%s] cpu%d, need check, call asm wfi\n", __func__, cpu);
 	asm("wfi");
 }
 
 int platform_cpu_disable(unsigned int cpu)
 {
-       printk("[%s] just return 0!\n", __FUNCTION__);
-       return 0;
-
+	printk("[%s] cpu%d, need implement, return 0 temporarily\n", __func__, cpu);
+	return 0;
 }

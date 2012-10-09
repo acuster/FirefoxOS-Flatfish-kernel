@@ -38,7 +38,8 @@
 #define TMR_REG_o_TMR1_CUR      (AW_TMR_IO_BASE + 0x0028)
 
 /*define timer counter base on aw chips*/
-#define AW_TMR_IO_COUNT_BASE	0xf1f01c00
+//#define AW_TMR_IO_COUNT_BASE	0xf1f01c00
+#define AW_TMR_IO_COUNT_BASE	0xf1c25c00 /* liugang, 2012-10-9 */
 /*define timer counter io register address*/
 #define TMR_REG_o_CNT64_CTL     (AW_TMR_IO_COUNT_BASE + 0x0280)
 #define TMR_REG_o_CNT64_LO      (AW_TMR_IO_COUNT_BASE + 0x0284)

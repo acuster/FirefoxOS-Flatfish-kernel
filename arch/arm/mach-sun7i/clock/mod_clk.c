@@ -156,17 +156,20 @@ static inline __s32 _set_module0_clk_rate(volatile __ccmu_module0_clk_t *reg, __
     else if(rate > 16*4)
     {
         reg->ClkPreDiv = 3;
-        reg->ClkDiv    = (rate>>3)-1;
+        //reg->ClkDiv    = (rate>>3)-1;
+        reg->ClkDiv    = ((rate + 7) >> 3) - 1; /* liugang, 2012-10-9 */
     }
     else if(rate > 16*2)
     {
         reg->ClkPreDiv = 2;
-        reg->ClkDiv    = (rate>>2)-1;
+        //reg->ClkDiv    = (rate>>2)-1;
+        reg->ClkDiv    = ((rate + 3) >> 2) - 1; /* liugang, 2012-10-9 */
     }
     else if(rate > 16*1)
     {
        reg->ClkPreDiv = 1;
-        reg->ClkDiv    = (rate>>1)-1;
+        //reg->ClkDiv    = (rate>>1)-1;
+        reg->ClkDiv    = ((rate + 1) >> 1) - 1; /* liugang, 2012-10-9 */
     }
     else if(rate > 0)
     {
@@ -175,6 +178,7 @@ static inline __s32 _set_module0_clk_rate(volatile __ccmu_module0_clk_t *reg, __
     }
     else
     {
+        CCU_ERR("clock(reg:%d) rate %d invlid!\n", (__u32)reg, (__u32)rate);
         return -1;
     }
 
@@ -1950,18 +1954,21 @@ static __s32 mod_clk_set_rate(__aw_ccu_clk_id_e id, __s64 rate)
             else if(rate > 32*4)
             {
                 aw_ccu_reg->KeyPadClk.ClkPreDiv = 3;
-                aw_ccu_reg->KeyPadClk.ClkDiv    = (rate>>3)-1;
+                //aw_ccu_reg->KeyPadClk.ClkDiv    = (rate>>3)-1;
+		aw_ccu_reg->KeyPadClk.ClkDiv    = ((rate + 7) >> 3) - 1; /* liugang, 2012-10-9 */
             }
             else if(rate > 32*2)
             {
                 aw_ccu_reg->KeyPadClk.ClkPreDiv = 2;
-                aw_ccu_reg->KeyPadClk.ClkDiv    = (rate>>2)-1;
-            }
+                //aw_ccu_reg->KeyPadClk.ClkDiv    = (rate>>2)-1;
+		aw_ccu_reg->KeyPadClk.ClkDiv    = ((rate + 3) >> 2) - 1; /* liugang, 2012-10-9 */
+           }
             else if(rate > 32*1)
             {
                 aw_ccu_reg->KeyPadClk.ClkPreDiv = 1;
-                aw_ccu_reg->KeyPadClk.ClkDiv    = (rate>>1)-1;
-            }
+                //aw_ccu_reg->KeyPadClk.ClkDiv    = (rate>>1)-1;
+		aw_ccu_reg->KeyPadClk.ClkDiv    = ((rate + 1) >> 1) - 1; /* liugang, 2012-10-9 */
+           }
             else if(rate > 32*0)
             {
                 aw_ccu_reg->KeyPadClk.ClkPreDiv = 0;
@@ -2168,17 +2175,20 @@ static __s32 mod_clk_set_rate(__aw_ccu_clk_id_e id, __s64 rate)
             else if(rate > 16*4)
             {
                 aw_ccu_reg->MBusClk.ClkDivN = 3;
-                aw_ccu_reg->MBusClk.ClkDivM = (rate>>3)-1;
+                //aw_ccu_reg->MBusClk.ClkDivM = (rate>>3)-1;
+		aw_ccu_reg->MBusClk.ClkDivM = ((rate + 7) >> 3) - 1; /* liugang, 2012-10-9 */
             }
             else if(rate > 16*2)
             {
                 aw_ccu_reg->MBusClk.ClkDivN = 2;
-                aw_ccu_reg->MBusClk.ClkDivM = (rate>>2)-1;
+                //aw_ccu_reg->MBusClk.ClkDivM = (rate>>2)-1;
+		aw_ccu_reg->MBusClk.ClkDivM = ((rate + 3) >> 2) - 1; /* liugang, 2012-10-9 */
             }
             else if(rate > 16*1)
             {
                 aw_ccu_reg->MBusClk.ClkDivN = 1;
-                aw_ccu_reg->MBusClk.ClkDivM = (rate>>1)-1;
+                //aw_ccu_reg->MBusClk.ClkDivM = (rate>>1)-1;
+		aw_ccu_reg->MBusClk.ClkDivM = ((rate + 1) >> 1) - 1; /* liugang, 2012-10-9 */
             }
             else if(rate > 16*0)
             {
@@ -2207,17 +2217,20 @@ static __s32 mod_clk_set_rate(__aw_ccu_clk_id_e id, __s64 rate)
             else if(rate > 32*4)
             {
                 aw_ccu_reg->ClkOutA.ClkDivN = 3;
-                aw_ccu_reg->ClkOutA.ClkDivM = (rate>>3)-1;
+                //aw_ccu_reg->ClkOutA.ClkDivM = (rate>>3)-1;
+		aw_ccu_reg->ClkOutA.ClkDivM = ((rate + 7) >> 3) - 1; /* liugang, 2012-10-9 */
             }
             else if(rate > 32*2)
             {
                 aw_ccu_reg->ClkOutA.ClkDivN = 2;
-                aw_ccu_reg->ClkOutA.ClkDivM = (rate>>2)-1;
-            }
+                //aw_ccu_reg->ClkOutA.ClkDivM = (rate>>2)-1;
+		aw_ccu_reg->ClkOutA.ClkDivM = ((rate + 3) >> 2) - 1; /* liugang, 2012-10-9 */
+           }
             else if(rate > 32*1)
             {
                 aw_ccu_reg->ClkOutA.ClkDivN = 1;
-                aw_ccu_reg->ClkOutA.ClkDivM = (rate>>1)-1;
+                //aw_ccu_reg->ClkOutA.ClkDivM = (rate>>1)-1;
+		aw_ccu_reg->ClkOutA.ClkDivM = ((rate + 1) >> 1) - 1; /* liugang, 2012-10-9 */
             }
             else if(rate > 32*0)
             {
@@ -2247,17 +2260,20 @@ static __s32 mod_clk_set_rate(__aw_ccu_clk_id_e id, __s64 rate)
             else if(rate > 32*4)
             {
                 aw_ccu_reg->ClkOutB.ClkDivN = 3;
-                aw_ccu_reg->ClkOutB.ClkDivM = (rate>>3)-1;
+                //aw_ccu_reg->ClkOutB.ClkDivM = (rate>>3)-1;
+		aw_ccu_reg->ClkOutB.ClkDivM = ((rate + 7) >> 3) - 1; /* liugang, 2012-10-9 */
             }
             else if(rate > 32*2)
             {
                 aw_ccu_reg->ClkOutB.ClkDivN = 2;
-                aw_ccu_reg->ClkOutB.ClkDivM = (rate>>2)-1;
+                //aw_ccu_reg->ClkOutB.ClkDivM = (rate>>2)-1;
+		aw_ccu_reg->ClkOutB.ClkDivM = ((rate + 3) >> 2) - 1; /* liugang, 2012-10-9 */
             }
             else if(rate > 32*1)
             {
                 aw_ccu_reg->ClkOutB.ClkDivN = 1;
-                aw_ccu_reg->ClkOutB.ClkDivM = (rate>>1)-1;
+                //aw_ccu_reg->ClkOutB.ClkDivM = (rate>>1)-1;
+		aw_ccu_reg->ClkOutB.ClkDivM = ((rate + 1) >> 1) - 1; /* liugang, 2012-10-9 */
             }
             else if(rate > 32*0)
             {

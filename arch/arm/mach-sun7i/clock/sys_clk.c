@@ -236,11 +236,11 @@ static __u64 sys_clk_get_rate(__aw_ccu_clk_id_e id)
             tmpReg = *(volatile __u32 *)&aw_ccu_reg->Pll2Ctl;
             if(((tmpReg>>8) & 0x7f) == 79)
             {
-                return 22579200;
+                return 22579200; /* liugang, 22.571mhz ~= 22579200, 22579200*2/1024=44100 2012-10-9 */
             }
             else if(((tmpReg>>8) & 0x7f) == 86)
             {
-                return 24576000;
+                return 24576000; /* liugang, 24.571mhz ~= 24576000, 24576000*2/1024=48000 2012-10-9 */
             }
             else
             {
@@ -255,11 +255,11 @@ static __u64 sys_clk_get_rate(__aw_ccu_clk_id_e id)
         {
             if(sys_clk_get_rate(AW_SYS_CLK_PLL2) == 24576000)
             {
-                return 24576000 * 18;
+                return 24576000 * 18; /* liugang, why not 24576000 * 8? 2012-10-9 */
             }
             else
             {
-                return 22579200 * 20;
+                return 22579200 * 20; /* liugang, why not 22579200 * 8? 2012-10-9 */
             }
         }
         case AW_SYS_CLK_PLL3:
