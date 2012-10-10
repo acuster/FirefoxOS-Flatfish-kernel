@@ -41,6 +41,7 @@
 #include "sys_config.h"
 #include "timer.h"
 #include "timex.h"
+#include "sunxi_dump_reg.h"
 
 
 #endif /* __SUN7I_MACH_INCLUDES_H */
