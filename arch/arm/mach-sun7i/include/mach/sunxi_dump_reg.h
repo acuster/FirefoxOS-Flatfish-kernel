@@ -17,6 +17,7 @@
 #define __SUNXI_DUMP_REG_H
 
 #define MAX_COMPARE_ITEM 	256
+#define MAX_WRITE_ITEM 		256
 
 /**
  * compare_item - reg compare item struct
@@ -32,7 +33,7 @@ struct compare_item {
 
 /**
  * compare_group - reg compare group struct
- * @num:	pitem element count.
+ * @num:	pitem element count. cannot exceed MAX_COMPARE_ITEM.
  * @pitem: 	items that will be compared, provided by caller.
  */
 struct compare_group {
@@ -40,7 +41,28 @@ struct compare_group {
 	struct compare_item *pitem;
 };
 
-void sunxi_dump_reg(u32 start_reg, u32 end_reg);
-void sunxi_dump_compare_regs(struct compare_group *pgroup);
+/**
+ * write_item - reg write item struct
+ * @reg_addr:	reg physical address.
+ * @val: 	value to write
+ */
+struct write_item {
+	u32 	reg_addr;
+	u32	val;
+};
+
+/**
+ * write_group - reg write group struct
+ * @num:	pitem element count. cannot exceed MAX_WRITE_ITEM.
+ * @pitem: 	items that will be write, provided by caller.
+ */
+struct write_group {
+	u32	num;
+	struct write_item *pitem;
+};
+
+void sunxi_dump_regs(u32 start_reg, u32 end_reg);
+void sunxi_compare_regs(struct compare_group *pgroup);
+void sunxi_write_regs(struct write_group *pgroup);
 
 #endif /* __SUNXI_DUMP_REG_H */

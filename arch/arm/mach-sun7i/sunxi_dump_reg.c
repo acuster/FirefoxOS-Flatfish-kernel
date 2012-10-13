@@ -78,41 +78,6 @@ char * first_str_to_u32(char *pstr, char ch, u32 *pout)
 }
 
 /**
- * sunxi_dump_reg - dump a range of registers' value.
- * @start_reg:   physcal address of start reg.
- * @end_reg:     physcal address of end reg.
- */
-void sunxi_dump_reg(u32 start_reg, u32 end_reg)
-{
-	int 	itemp;
-	u32 	first_addr = 0, end_addr = 0;
-
-	if(start_reg == end_reg) { /* only one to dump */
-		DUMP_INF("0x%08x: 0x%08x\n", start_reg, readl(IO_ADDRESS(start_reg)));
-		return;
-	}
-
-	first_addr = start_reg & (~0xf);
-	end_addr   = end_reg   & (~0xf);
-
-	DUMP_INF("0x%08x: ", first_addr);
-
-	for(itemp = first_addr; itemp < end_addr + 0xf; itemp += 4) {
-		if(itemp < start_reg || itemp > end_reg)
-			DUMP_INF("           "); /* "0x12345678 ", 11 space*/
-		else
-			DUMP_INF("0x%08x ", readl(IO_ADDRESS(itemp)));
-
-		if((itemp & 0xc) == 0xc) {
-			DUMP_INF("\n");
-			if(itemp + 4 < end_addr + 0xf) /* avoid the last blank line */
-				DUMP_INF("0x%08x: ", itemp + 4);
-		}
-	}
-}
-EXPORT_SYMBOL(sunxi_dump_reg);
-
-/**
  * parse_dump_str - parse the input string for dump attri.
  * @buf:     the input string, eg: "0x01c20000,0x01c20300".
  * @size:    buf size.
@@ -144,6 +109,41 @@ int parse_dump_str(const char *buf, size_t size, u32 *start, u32 *end)
 }
 
 /**
+ * sunxi_dump_regs - dump a range of registers' value.
+ * @start_reg:   physcal address of start reg.
+ * @end_reg:     physcal address of end reg.
+ */
+void sunxi_dump_regs(u32 start_reg, u32 end_reg)
+{
+	int 	itemp;
+	u32 	first_addr = 0, end_addr = 0;
+
+	if(start_reg == end_reg) { /* only one to dump */
+		DUMP_INF("0x%08x: 0x%08x\n", start_reg, readl(IO_ADDRESS(start_reg)));
+		return;
+	}
+
+	first_addr = start_reg & (~0xf);
+	end_addr   = end_reg   & (~0xf);
+
+	DUMP_INF("0x%08x: ", first_addr);
+
+	for(itemp = first_addr; itemp < end_addr + 0xf; itemp += 4) {
+		if(itemp < start_reg || itemp > end_reg)
+			DUMP_INF("           "); /* "0x12345678 ", 11 space*/
+		else
+			DUMP_INF("0x%08x ", readl(IO_ADDRESS(itemp)));
+
+		if((itemp & 0xc) == 0xc) {
+			DUMP_INF("\n");
+			if(itemp + 4 < end_addr + 0xf) /* avoid the last blank line */
+				DUMP_INF("0x%08x: ", itemp + 4);
+		}
+	}
+}
+EXPORT_SYMBOL(sunxi_dump_regs);
+
+/**
  * dump_store - store func of dump attribute.
  * @class:   class ptr.
  * @attr:    attribute ptr.
@@ -166,7 +166,7 @@ ssize_t dump_store(struct class *class, struct class_attribute *attr,
 		return -EINVAL;
 	}
 
-	sunxi_dump_reg(start_reg, end_reg);
+	sunxi_dump_regs(start_reg, end_reg);
 	return size;
 }
 
@@ -231,7 +231,7 @@ int compare_item_init(const char *buf, size_t size, struct compare_group **ppgro
 	/* get item from buf */
 	ptr = (char *)buf;
 	while((ptr2 = strchr(ptr, ',')) != NULL) {
-		itemp = ptr2 - ptr; /* get head string */
+		itemp = ptr2 - ptr;
 		memcpy(str_temp, ptr, itemp);
 		str_temp[itemp] = 0;
 		if(0 != parse_compare_str(str_temp, &reg_addr, &val_expect, &val_mask))
@@ -293,11 +293,10 @@ void compare_item_deinit(struct compare_group *pgroup)
 }
 
 /**
- * sunxi_dump_compare_regs - dump values for compare items.
- * @pgroup: the compare struct allocated in compare_item_init.
- * 	     contain items that will be dumped.
+ * sunxi_compare_regs - dump values for compare items.
+ * @pgroup: the compare struct which contain items that will be dumped.
  */
-void sunxi_dump_compare_regs(struct compare_group *pgroup)
+void sunxi_compare_regs(struct compare_group *pgroup)
 {
 	int 	i = 0;
 	u32 	reg = 0, expect = 0, actual = 0, mask = 0;
@@ -314,7 +313,7 @@ void sunxi_dump_compare_regs(struct compare_group *pgroup)
 			DUMP_DBG("0x%08x  0x%08x  0x%08x  0x%08x  ERR\n", reg, expect, actual, mask);
 	}
 }
-EXPORT_SYMBOL(sunxi_dump_compare_regs);
+EXPORT_SYMBOL(sunxi_compare_regs);
 
 /**
  * compare_store - store func of compare attribute.
@@ -334,7 +333,7 @@ ssize_t compare_store(struct class *class, struct class_attribute *attr,
 		return -EINVAL;
 
 	/* dump the items */
-	sunxi_dump_compare_regs(item_group);
+	sunxi_compare_regs(item_group);
 
 	/* release struct memory */
 	if(NULL != item_group)
@@ -342,9 +341,167 @@ ssize_t compare_store(struct class *class, struct class_attribute *attr,
 	return size;
 }
 
+/**
+ * parse_write_str - parse the input string for write attri.
+ * @str:     string to be parsed, eg: "0x01c20818 0x55555555".
+ * @reg_addr:   store the reg address. eg: 0x01c20818.
+ * @val: store the expect value. eg: 0x55555555.
+ *
+ * return 0 if success, otherwise failed.
+ */
+int parse_write_str(char *str, u32 *reg_addr, u32 *val)
+{
+	char *ptr = str;
+
+	ptr = first_str_to_u32(ptr, ' ', reg_addr);
+	if(NULL == ptr)
+		return -EINVAL;
+
+	ptr += 1;
+	if(strict_strtoul(ptr, 16, (long unsigned int *)val))
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
+ * write_item_init - init for write attri. parse input string, and construct write struct.
+ * @buf:     the input string, eg: "0x01c20800 0x00000031,0x01c20818 0x55555555,...".
+ * @size:    buf size.
+ * @ppgroup: store the struct allocated, the struct contains items parsed from input buf.
+ *
+ * return 0 if success, otherwise failed.
+ */
+int write_item_init(const char *buf, size_t size, struct write_group **ppgroup)
+{
+	int 	itemp = 0;
+	char 	str_temp[256] = {0};
+	char 	*ptr = NULL, *ptr2 = NULL;
+	u32 	reg_addr = 0, val;
+	struct write_group *pgroup = NULL;
+
+	/* alloc item buffer */
+	pgroup = kmalloc(sizeof(struct write_group), GFP_KERNEL);
+	if(NULL == pgroup)
+		return -EINVAL;
+	pgroup->pitem = kmalloc(sizeof(struct write_item) * MAX_WRITE_ITEM, GFP_KERNEL);
+	if(NULL == pgroup->pitem) {
+		kfree(pgroup);
+		return -EINVAL;
+	}
+
+	pgroup->num = 0;
+
+	/* get item from buf */
+	ptr = (char *)buf;
+	while((ptr2 = strchr(ptr, ',')) != NULL) {
+		itemp = ptr2 - ptr;
+		memcpy(str_temp, ptr, itemp);
+		str_temp[itemp] = 0;
+		if(0 != parse_write_str(str_temp, &reg_addr, &val))
+			DUMP_ERR("%s err, line %d, str_temp %s\n", __func__, __LINE__, str_temp);
+		else {
+			//DUMP_DBG("%s: reg_addr 0x%08x, val 0x%08x\n", __func__, reg_addr, val);
+			if(pgroup->num < MAX_WRITE_ITEM) {
+				pgroup->pitem[pgroup->num].reg_addr = reg_addr;
+				pgroup->pitem[pgroup->num].val = val;
+				pgroup->num++;
+			} else {
+				DUMP_ERR("%s err, line %d, pgroup->num %d exceed %d\n",
+					__func__, __LINE__, pgroup->num, MAX_WRITE_ITEM);
+				break;
+			}
+		}
+
+		ptr = ptr2 + 1;
+	}
+
+	/* the last item */
+	if(0 != parse_write_str(ptr, &reg_addr, &val))
+		DUMP_ERR("%s err, line %d, ptr %s\n", __func__, __LINE__, ptr);
+	else {
+		//DUMP_DBG("%s: line %d, reg_addr 0x%08x, val 0x%08x\n", __func__, __LINE__, reg_addr, val);
+		if(pgroup->num < MAX_WRITE_ITEM) {
+			pgroup->pitem[pgroup->num].reg_addr = reg_addr;
+			pgroup->pitem[pgroup->num].val = val;
+			pgroup->num++;
+		}
+	}
+
+	/* free buffer if no valid item */
+	if(0 == pgroup->num) {
+		kfree(pgroup->pitem);
+		kfree(pgroup);
+		return -EINVAL;
+	}
+
+	*ppgroup = pgroup;
+	return 0;
+}
+
+/**
+ * write_item_deinit - release memory that created by write_item_init.
+ * @pgroup: the write struct allocated in write_item_init.
+ */
+void write_item_deinit(struct write_group *pgroup)
+{
+	if(NULL != pgroup) {
+		if(NULL != pgroup->pitem)
+			kfree(pgroup->pitem);
+		kfree(pgroup);
+	}
+}
+
+/**
+ * sunxi_write_regs - write a group of regs' value.
+ * @pgroup: the write struct which contain items that will be write.
+ */
+void sunxi_write_regs(struct write_group *pgroup)
+{
+	int 	i = 0;
+	u32 	reg = 0, val = 0, readback = 0;
+
+	DUMP_DBG("reg         to_write    after_write \n");
+	for(i = 0; i < pgroup->num; i++) {
+		reg    	= pgroup->pitem[i].reg_addr;
+		val 	= pgroup->pitem[i].val;
+		writel(val, IO_ADDRESS(reg));
+		readback = readl(IO_ADDRESS(reg));
+		DUMP_DBG("0x%08x  0x%08x  0x%08x\n", reg, val, readback);
+	}
+}
+EXPORT_SYMBOL(sunxi_write_regs);
+
+/**
+ * write_store - store func of dump attribute.
+ * @class:   class ptr.
+ * @attr:    attribute ptr.
+ * @buf:     the input buf which contain reg&val to write.
+ * 		eg: "0x01c20800 0x00000031,0x01c20818 0x55555555,...\n"
+ * @size:    buf size.
+ */
+ssize_t write_store(struct class *class, struct class_attribute *attr,
+			const char *buf, size_t size)
+{
+	struct write_group *item_group = NULL;
+
+	/* parse input buf for items that will be dumped */
+	if(write_item_init(buf, size, &item_group) < 0)
+		return -EINVAL;
+
+	/* write the items */
+	sunxi_write_regs(item_group);
+
+	/* release struct memory */
+	if(NULL != item_group)
+		write_item_deinit(item_group);
+	return size;
+}
+
 static struct class_attribute dump_class_attrs[] = {
 	__ATTR(dump, 	0200, NULL, dump_store),
 	__ATTR(compare,	0200, NULL, compare_store),
+	__ATTR(write,	0200, NULL, write_store),
 	__ATTR_NULL,
 };
 
