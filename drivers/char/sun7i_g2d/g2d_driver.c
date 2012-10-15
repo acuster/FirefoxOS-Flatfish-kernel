@@ -86,6 +86,8 @@ __s32 g2d_create_heap(__u32 pHeapHead, __u32 nHeapSize)
     return 0;
 }
 
+unsigned long 	g_virt_base = 0;
+#define g2d_virt_to_phys(x)		((x) - (g_virt_base - g2d_start))
 __s32 drv_g2d_init(void)
 {
     g2d_init_para init_para;
@@ -108,7 +110,8 @@ __s32 drv_g2d_init(void)
 
 if(g2d_size !=0){
     INFO("g2dmem: g2d_start=%x, g2d_size=%x\n", (unsigned int)g2d_start, (unsigned int)g2d_size);
-    g2d_create_heap((unsigned long)(__va(g2d_start)), g2d_size);
+    g_virt_base = (unsigned long)ioremap_nocache(g2d_start, g2d_size);
+    g2d_create_heap(g_virt_base, g2d_size);
 }
 
     return 0;
@@ -249,7 +252,7 @@ else{
 	{
 	    g2d_mem[sel].virt_addr = (void*)ret;
 	    memset(g2d_mem[sel].virt_addr,0,size);
-		g2d_mem[sel].phy_addr = virt_to_phys(g2d_mem[sel].virt_addr);
+		g2d_mem[sel].phy_addr = g2d_virt_to_phys(g2d_mem[sel].virt_addr);
 		g2d_mem[sel].mem_len = size;
 		g2d_mem[sel].b_used = 1;
 
@@ -309,7 +312,8 @@ int g2d_mmap(struct file *file, struct vm_area_struct * vma)
 	physics =  g2d_mem[g2d_mem_sel].phy_addr;
 	mypfn = physics >> PAGE_SHIFT;
 
-	if(remap_pfn_range(vma,vma->vm_start,mypfn,vmsize,vma->vm_page_prot))
+	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+    if (remap_pfn_range(vma,vma->vm_start,mypfn,vmsize,vma->vm_page_prot))
 		return -EAGAIN;
 
 	return 0;
