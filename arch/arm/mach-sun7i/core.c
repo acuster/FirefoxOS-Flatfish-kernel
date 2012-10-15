@@ -246,7 +246,7 @@ static void sun7i_fixup(struct tag *tags, char **from,
 {
 	printk("[%s] enter\n", __FUNCTION__);
 	meminfo->bank[0].start = PLAT_PHYS_OFFSET;
-	meminfo->bank[0].size = PLAT_MEM_SIZE - (SW_FB_MEM_SIZE + SW_GPU_MEM_SIZE);
+	meminfo->bank[0].size = PLAT_MEM_SIZE - (SW_FB_MEM_SIZE + SW_GPU_MEM_SIZE + SW_G2D_MEM_BASE);
 
 	meminfo->nr_banks = 1;
 }
@@ -256,7 +256,7 @@ u32 g_mem_resv[][2] = {
 	{SW_SCRIPT_MEM_BASE, 	SW_SCRIPT_MEM_SIZE	},
 	//{SW_FB_MEM_BASE, 	SW_FB_MEM_SIZE		},
 	//{SW_GPU_MEM_BASE, 	SW_GPU_MEM_SIZE		},
-	{SW_G2D_MEM_BASE, 	SW_G2D_MEM_SIZE		},
+	//{SW_G2D_MEM_BASE, 	SW_G2D_MEM_SIZE		},
 	{SW_CSI_MEM_BASE, 	SW_CSI_MEM_SIZE		},
 	{SW_VE_MEM_BASE, 	SW_VE_MEM_SIZE		},
 	{SUPER_STANDBY_BASE,	SUPER_STANDBY_SIZE	},	//for standby: 0x5200,0000-0x5200,0000+64k;
