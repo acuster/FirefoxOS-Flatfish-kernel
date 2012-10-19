@@ -322,20 +322,23 @@ bool sunxi_mem_allocator_init(void)
 arch_initcall(sunxi_mem_allocator_init);
 
 //bool sunxi_mem_alloc(u32 size, u32* virmem, u32* phymem)
-bool sunxi_mem_alloc(u32 size, u32* phymem)
+u32 sunxi_mem_alloc(u32 size)
 {
-	bool 	ret = false;
-	u32	vtemp = 0;
+	u32	vtemp = 0, ptemp = 0;
 	unsigned long	flags;
 
 	spin_lock_irqsave(&sunxi_memlock, flags);
-	if(NULL != g_allocator)
-		ret = g_allocator->allocate(g_allocator, size, &vtemp, phymem);
+	if(NULL != g_allocator) {
+		if(false == g_allocator->allocate(g_allocator, size, &vtemp, &ptemp)) {
+			printk("%s err, line %d, allocate failed!\n", __func__, __LINE__);
+			ptemp = 0;
+		}
+	}
 	else
 		printk("%s err, line %d, g_allocator not initailized yet!\n", __func__, __LINE__);
 	spin_unlock_irqrestore(&sunxi_memlock, flags);
 
-	return ret;
+	return ptemp;
 }
 EXPORT_SYMBOL(sunxi_mem_alloc);
 

@@ -16,9 +16,23 @@
 #ifndef __SUNXI_PHYSMEM_I_H
 #define __SUNXI_PHYSMEM_I_H
 
+#include <linux/spinlock.h>
+
 #define SUNXIMEM_DBG_FUN_LINE_TODO	printk("%s, line %d, todo############\n", __func__, __LINE__)
 #define SUNXIMEM_DBG_FUN_LINE 		printk("%s, line %d\n", __func__, __LINE__)
 #define SUNXIMEM_ERR_FUN_LINE 		printk("%s err, line %d\n", __func__, __LINE__)
+
+#if 0
+#define DEFINE_FLAGS(x)			do{}while(0)
+#define SUNMM_LOCK_INIT(lock)		do{}while(0)
+#define SUNMM_LOCK(lock, flag)		do{}while(0)
+#define SUNMM_UNLOCK(lock, flag)	do{}while(0)
+#else
+#define DEFINE_FLAGS(x)			unsigned long x
+#define SUNMM_LOCK_INIT(lock)		spin_lock_init((lock))
+#define SUNMM_LOCK(lock, flag)		spin_lock_irqsave((lock), (flag))
+#define SUNMM_UNLOCK(lock, flag)	spin_unlock_irqrestore((lock), (flag))
+#endif
 
 struct mem_list {
 	u32	   	virt_addr;
@@ -47,6 +61,17 @@ struct sunxi_mem_allocator {
 	struct mem_list *node_free_listh;
 	struct mem_list *free_listh;
 	struct mem_list *inuse_listh;
+};
+
+struct sunxi_mem_des {
+	u32 	phys_addr;		/* buf physical addr */
+	u32 	size;			/* buf size */
+	struct list_head list;     	/* list node */
+};
+
+struct sunxi_mem_data {
+	spinlock_t 	lock;		/* buflist lock */
+	struct list_head list;     	/* list node of sunxi_mem_des */
 };
 
 #endif /* __SUNXI_PHYSMEM_I_H */

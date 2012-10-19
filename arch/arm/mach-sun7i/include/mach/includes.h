@@ -43,5 +43,7 @@
 #include "timex.h"
 #include "sunxi_dump_reg.h"
 
+/* omit script api and gpio-script api for load img debugging, liugang, 2012-10-18 */
+#define OMIT_SCRIPT_ON_FPGA_20121018
 
 #endif /* __SUN7I_MACH_INCLUDES_H */

@@ -1,5 +1,5 @@
 /*
- *  arch/arm/mach-sun7i/common.c
+ *  arch/arm/mach-sun7i/core.c
  *
  *  Copyright (C) 2012 - 2016 Allwinner Limited
  *  Benn Huang (benn@allwinnertech.com)
@@ -85,7 +85,7 @@ static void timer_set_mode(enum clock_event_mode mode, struct clock_event_device
                 ctrl |= 1;  /* Enable this timer */
                 break;
         case CLOCK_EVT_MODE_ONESHOT:
-		    writel(TIMER0_VALUE, timer_cpu_base + AW_TMR0_INTV_VALUE_REG); /* interval (999+1) */
+		writel(TIMER0_VALUE, timer_cpu_base + AW_TMR0_INTV_VALUE_REG); /* interval (999+1) */
                 ctrl = readl(timer_cpu_base + AW_TMR0_CTRL_REG);
                 ctrl &= (1<<7);    /* single mode */
                 ctrl |= 1;  /* Enable this timer */
@@ -246,7 +246,7 @@ static void sun7i_fixup(struct tag *tags, char **from,
 {
 	printk("[%s] enter\n", __FUNCTION__);
 	meminfo->bank[0].start = PLAT_PHYS_OFFSET;
-	meminfo->bank[0].size = PLAT_MEM_SIZE - (SW_FB_MEM_SIZE + SW_GPU_MEM_SIZE + SW_G2D_MEM_BASE);
+	meminfo->bank[0].size = PLAT_MEM_SIZE - (SW_FB_MEM_SIZE + SW_GPU_MEM_SIZE + SW_G2D_MEM_SIZE);
 
 	meminfo->nr_banks = 1;
 }

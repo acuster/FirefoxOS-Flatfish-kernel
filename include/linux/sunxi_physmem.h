@@ -16,7 +16,12 @@
 #ifndef __SUNXI_PHYSMEM_H
 #define __SUNXI_PHYSMEM_H
 
-bool sunxi_mem_alloc(u32 size, u32* phymem);
+#define SUNXI_MEM_ALLOC 	1
+#define SUNXI_MEM_FREE 		2
+#define SUNXI_MEM_GET_REST_SZ 	3
+
+//bool sunxi_mem_alloc(u32 size, u32* phymem);
+u32 sunxi_mem_alloc(u32 size);
 void sunxi_mem_free(u32 phymem);
 u32 sunxi_mem_get_rest_size(void);
 

@@ -50,8 +50,8 @@ int gpio_script_init(void)
 {
 	PIO_DBG("%s, line %d, init pin", __FUNCTION__, __LINE__);
 
-	//gpio_g_pioMemBase = (u32)CSP_OSAL_PHY_2_VIRT(CSP_PIN_PHY_ADDR_BASE , CSP_PIN_PHY_ADDR_SIZE);
 #ifdef FPGA_RUNTIME_ENV
+	PIO_DBG("%s todo, generate sys_cofig_data buf for FPGA env", __FUNCTION__);
 	return script_parser_init((char *)(sys_cofig_data));
 #else
 	return script_parser_init((char *)__va(SYS_CONFIG_MEMBASE));
@@ -114,6 +114,13 @@ End:
  *
  * return gpio handle if success, 0 if failed
  */
+#ifdef OMIT_SCRIPT_ON_FPGA_20121018
+u32 sw_gpio_request(user_gpio_set_t *gpio_list, u32 group_count_max)
+{
+	PIO_DBG("%s: just return 0(failed)\n", __func__);
+	return 0;
+}
+#else
 u32 sw_gpio_request(user_gpio_set_t *gpio_list, u32 group_count_max)
 {
 	char         	*user_gpio_buf;                                        //按照char类型申请
@@ -344,6 +351,7 @@ End:
 	} else
 		return (u32)user_gpio_buf;
 }
+#endif /* OMIT_SCRIPT_ON_FPGA_20121018 */
 EXPORT_SYMBOL_GPL(sw_gpio_request);
 
 /**
@@ -353,6 +361,13 @@ EXPORT_SYMBOL_GPL(sw_gpio_request);
  *
  * return gpio handle if success, 0 if failed
  */
+#ifdef OMIT_SCRIPT_ON_FPGA_20121018
+u32 sw_gpio_request_ex(char *main_name, const char *sub_name)  //设备申请GPIO函数扩展接口
+{
+	PIO_DBG("%s: just return 0(failed)\n", __func__);
+	return 0;
+}
+#else
 u32 sw_gpio_request_ex(char *main_name, const char *sub_name)  //设备申请GPIO函数扩展接口
 {
 	user_gpio_set_t    *gpio_list=NULL;
@@ -388,6 +403,7 @@ u32 sw_gpio_request_ex(char *main_name, const char *sub_name)  //设备申请GPI
 
 	return gpio_handle;
 }
+#endif /* OMIT_SCRIPT_ON_FPGA_20121018 */
 EXPORT_SYMBOL(sw_gpio_request_ex);
 
 /**
@@ -397,6 +413,13 @@ EXPORT_SYMBOL(sw_gpio_request_ex);
  *
  * return EGPIO_SUCCESS if success, EGPIO_FAIL if failed
  */
+#ifdef OMIT_SCRIPT_ON_FPGA_20121018
+s32 sw_gpio_release(u32 p_handler, s32 if_release_to_default_status)
+{
+	PIO_DBG("%s: just return 0(success)\n", __func__);
+	return EGPIO_SUCCESS;
+}
+#else
 s32 sw_gpio_release(u32 p_handler, s32 if_release_to_default_status)
 {
 	char               *tmp_buf;                                        //转换成char类型
@@ -526,6 +549,7 @@ End:
 		return EGPIO_SUCCESS;
 	}
 }
+#endif /* OMIT_SCRIPT_ON_FPGA_20121018 */
 EXPORT_SYMBOL(sw_gpio_release);
 
 /**
@@ -537,6 +561,13 @@ EXPORT_SYMBOL(sw_gpio_release);
  *
  * return EGPIO_SUCCESS if success, EGPIO_FAIL if failed
  */
+#ifdef OMIT_SCRIPT_ON_FPGA_20121018
+s32  sw_gpio_get_all_pin_status(u32 p_handler, user_gpio_set_t *gpio_status, u32 gpio_count_max, u32 if_get_from_hardware)
+{
+	PIO_DBG("%s: just return 0(success)\n", __func__);
+	return EGPIO_SUCCESS;
+}
+#else
 s32  sw_gpio_get_all_pin_status(u32 p_handler, user_gpio_set_t *gpio_status, u32 gpio_count_max, u32 if_get_from_hardware)
 {
 	char               *tmp_buf;                                        //转换成char类型
@@ -666,6 +697,7 @@ End:
 		return EGPIO_SUCCESS;
 	}
 }
+#endif /* OMIT_SCRIPT_ON_FPGA_20121018 */
 EXPORT_SYMBOL(sw_gpio_get_all_pin_status);
 
 /**
@@ -677,6 +709,13 @@ EXPORT_SYMBOL(sw_gpio_get_all_pin_status);
  *
  * return EGPIO_SUCCESS if success, EGPIO_FAIL if failed
  */
+#ifdef OMIT_SCRIPT_ON_FPGA_20121018
+s32  sw_gpio_get_one_pin_status(u32 p_handler, user_gpio_set_t *gpio_status, const char *gpio_name, u32 if_get_from_hardware)
+{
+	PIO_DBG("%s: just return 0(success)\n", __func__);
+	return EGPIO_SUCCESS;
+}
+#else
 s32  sw_gpio_get_one_pin_status(u32 p_handler, user_gpio_set_t *gpio_status, const char *gpio_name, u32 if_get_from_hardware)
 {
 	char              *tmp_buf;                                        //转换成char类型
@@ -765,6 +804,7 @@ End:
 		return EGPIO_SUCCESS;
 	}
 }
+#endif /* OMIT_SCRIPT_ON_FPGA_20121018 */
 EXPORT_SYMBOL(sw_gpio_get_one_pin_status);
 
 /**
@@ -776,6 +816,13 @@ EXPORT_SYMBOL(sw_gpio_get_one_pin_status);
  *
  * return EGPIO_SUCCESS if success, EGPIO_FAIL if failed
  */
+#ifdef OMIT_SCRIPT_ON_FPGA_20121018
+s32  sw_gpio_set_one_pin_status(u32 p_handler, user_gpio_set_t *gpio_status, const char *gpio_name, u32 if_set_to_current_input_status)
+{
+	PIO_DBG("%s: just return 0(success)\n", __func__);
+	return EGPIO_SUCCESS;
+}
+#else
 s32  sw_gpio_set_one_pin_status(u32 p_handler, user_gpio_set_t *gpio_status, const char *gpio_name, u32 if_set_to_current_input_status)
 {
 	char               *tmp_buf;                                        //转换成char类型
@@ -903,6 +950,7 @@ End:
 		return EGPIO_SUCCESS;
 	}
 }
+#endif /* OMIT_SCRIPT_ON_FPGA_20121018 */
 EXPORT_SYMBOL(sw_gpio_set_one_pin_status);
 
 /**
@@ -913,6 +961,13 @@ EXPORT_SYMBOL(sw_gpio_set_one_pin_status);
  *
  * return EGPIO_SUCCESS if success, EGPIO_FAIL if failed
  */
+#ifdef OMIT_SCRIPT_ON_FPGA_20121018
+s32  sw_gpio_set_one_pin_io_status(u32 p_handler, u32 if_set_to_output_status, const char *gpio_name)
+{
+	PIO_DBG("%s: just return 0(success)\n", __func__);
+	return EGPIO_SUCCESS;
+}
+#else
 s32  sw_gpio_set_one_pin_io_status(u32 p_handler, u32 if_set_to_output_status, const char *gpio_name)
 {
 	char               *tmp_buf;                                        //转换成char类型
@@ -974,6 +1029,7 @@ s32  sw_gpio_set_one_pin_io_status(u32 p_handler, u32 if_set_to_output_status, c
 
 return EGPIO_SUCCESS;
 }
+#endif /* OMIT_SCRIPT_ON_FPGA_20121018 */
 EXPORT_SYMBOL(sw_gpio_set_one_pin_io_status);
 
 /**
@@ -984,6 +1040,13 @@ EXPORT_SYMBOL(sw_gpio_set_one_pin_io_status);
  *
  * return EGPIO_SUCCESS if success, EGPIO_FAIL if failed
  */
+#ifdef OMIT_SCRIPT_ON_FPGA_20121018
+s32  sw_gpio_set_one_pin_pull(u32 p_handler, u32 set_pull_status, const char *gpio_name)
+{
+	PIO_DBG("%s: just return 0(success)\n", __func__);
+	return EGPIO_SUCCESS;
+}
+#else
 s32  sw_gpio_set_one_pin_pull(u32 p_handler, u32 set_pull_status, const char *gpio_name)
 {
 	char               *tmp_buf;                                        //转换成char类型
@@ -1042,6 +1105,7 @@ s32  sw_gpio_set_one_pin_pull(u32 p_handler, u32 set_pull_status, const char *gp
 
 return EGPIO_SUCCESS;
 }
+#endif /* OMIT_SCRIPT_ON_FPGA_20121018 */
 EXPORT_SYMBOL(sw_gpio_set_one_pin_pull);
 
 /**
@@ -1052,6 +1116,13 @@ EXPORT_SYMBOL(sw_gpio_set_one_pin_pull);
  *
  * return EGPIO_SUCCESS if success, EGPIO_FAIL if failed
  */
+#ifdef OMIT_SCRIPT_ON_FPGA_20121018
+s32  sw_gpio_set_one_pin_driver_level(u32 p_handler, u32 set_driver_level, const char *gpio_name)
+{
+	PIO_DBG("%s: just return 0(success)\n", __func__);
+	return EGPIO_SUCCESS;
+}
+#else
 s32  sw_gpio_set_one_pin_driver_level(u32 p_handler, u32 set_driver_level, const char *gpio_name)
 {
 	char               *tmp_buf;                                        //转换成char类型
@@ -1111,6 +1182,7 @@ s32  sw_gpio_set_one_pin_driver_level(u32 p_handler, u32 set_driver_level, const
 
 return EGPIO_SUCCESS;
 }
+#endif /* OMIT_SCRIPT_ON_FPGA_20121018 */
 EXPORT_SYMBOL(sw_gpio_set_one_pin_driver_level);
 
 /**
@@ -1120,6 +1192,13 @@ EXPORT_SYMBOL(sw_gpio_set_one_pin_driver_level);
  *
  * return the pin value if success, EGPIO_FAIL if failed
  */
+#ifdef OMIT_SCRIPT_ON_FPGA_20121018
+s32  sw_gpio_read_one_pin_value(u32 p_handler, const char *gpio_name)
+{
+	PIO_DBG("%s: just return 0(low), to check\n", __func__);
+	return 0;
+}
+#else
 s32  sw_gpio_read_one_pin_value(u32 p_handler, const char *gpio_name)
 {
 	char               *tmp_buf;                                        //转换成char类型
@@ -1181,6 +1260,7 @@ s32  sw_gpio_read_one_pin_value(u32 p_handler, const char *gpio_name)
 	PIO_ERR_FUN_LINE;
 	return EGPIO_FAIL;
 }
+#endif /* OMIT_SCRIPT_ON_FPGA_20121018 */
 EXPORT_SYMBOL(sw_gpio_read_one_pin_value);
 
 /**
@@ -1191,6 +1271,13 @@ EXPORT_SYMBOL(sw_gpio_read_one_pin_value);
  *
  * return EGPIO_SUCCESS if success, EGPIO_FAIL if failed
  */
+#ifdef OMIT_SCRIPT_ON_FPGA_20121018
+s32  sw_gpio_write_one_pin_value(u32 p_handler, u32 value_to_gpio, const char *gpio_name)
+{
+	PIO_DBG("%s: just return 0(success)\n", __func__);
+	return EGPIO_SUCCESS;
+}
+#else
 s32  sw_gpio_write_one_pin_value(u32 p_handler, u32 value_to_gpio, const char *gpio_name)
 {
 	char              *tmp_buf;                                        //转换成char类型
@@ -1261,6 +1348,7 @@ s32  sw_gpio_write_one_pin_value(u32 p_handler, u32 value_to_gpio, const char *g
 
 	return EGPIO_FAIL;
 }
+#endif /* OMIT_SCRIPT_ON_FPGA_20121018 */
 EXPORT_SYMBOL(sw_gpio_write_one_pin_value);
 
 /**

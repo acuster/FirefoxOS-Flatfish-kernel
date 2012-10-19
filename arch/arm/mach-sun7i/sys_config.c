@@ -137,6 +137,13 @@ int script_parser_exit(void)
     return SCRIPT_PARSER_OK;
 }
 
+#ifdef OMIT_SCRIPT_ON_FPGA_20121018
+int script_parser_fetch(char *main_name, char *sub_name, int value[], int count)
+{
+	pr_debug("%s: just return -4(not found)\n", __func__);
+	return SCRIPT_PARSER_KEY_NOT_FIND;
+}
+#else
 int script_parser_fetch(char *main_name, char *sub_name, int value[], int count)
 {
     char   main_bkname[32], sub_bkname[32];
@@ -237,8 +244,16 @@ int script_parser_fetch(char *main_name, char *sub_name, int value[], int count)
 
     return SCRIPT_PARSER_KEY_NOT_FIND;
 }
+#endif /* OMIT_SCRIPT_ON_FPGA_20121018 */
 EXPORT_SYMBOL(script_parser_fetch);
 
+#ifdef OMIT_SCRIPT_ON_FPGA_20121018
+int script_parser_fetch_ex(char *main_name, char *sub_name, int value[], script_parser_value_type_t *type, int count)
+{
+	pr_debug("%s: just return -4(not found)\n", __func__);
+	return SCRIPT_PARSER_KEY_NOT_FIND;
+}
+#else
 int script_parser_fetch_ex(char *main_name, char *sub_name, int value[], script_parser_value_type_t *type, int count)
 {
     char   main_bkname[32], sub_bkname[32];
@@ -341,6 +356,7 @@ int script_parser_fetch_ex(char *main_name, char *sub_name, int value[], script_
 
     return SCRIPT_PARSER_KEY_NOT_FIND;
 }
+#endif /* OMIT_SCRIPT_ON_FPGA_20121018 */
 EXPORT_SYMBOL(script_parser_fetch_ex);
 
 int script_parser_subkey_count(char *main_name)
@@ -392,6 +408,13 @@ int script_parser_mainkey_count(void)
     return     script_main_key_count;
 }
 
+#ifdef OMIT_SCRIPT_ON_FPGA_20121018
+int script_parser_mainkey_get_gpio_count(char *main_name)
+{
+	pr_debug("%s: just return -1(SCRIPT_PARSER_EMPTY_BUFFER)\n", __func__);
+	return SCRIPT_PARSER_EMPTY_BUFFER;
+}
+#else
 int script_parser_mainkey_get_gpio_count(char *main_name)
 {
     char   main_bkname[32];
@@ -442,6 +465,7 @@ int script_parser_mainkey_get_gpio_count(char *main_name)
 
     return gpio_count;
 }
+#endif /* OMIT_SCRIPT_ON_FPGA_20121018 */
 EXPORT_SYMBOL(script_parser_mainkey_get_gpio_count);
 int script_parser_mainkey_get_gpio_cfg(char *main_name, void *gpio_cfg, int gpio_count)
 {

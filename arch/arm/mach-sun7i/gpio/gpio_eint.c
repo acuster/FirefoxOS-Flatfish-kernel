@@ -717,6 +717,9 @@ irqreturn_t gpio_irq_hdl(int irq, void *dev)
 	u32 	ret = 0;
 	struct gpio_irq_handle *pdev_id = (struct gpio_irq_handle *)dev;
 
+	/* to do: sync pdev_id for gpio_irq_hdl/sw_gpio_irq_free with mutex */
+	PIO_DBG_FUN_LINE_TODO;
+
 	gpio = pdev_id->gpio;
 	if(0 == sw_gpio_eint_get_irqpd_sta(gpio))
 		return IRQ_NONE;
@@ -816,6 +819,9 @@ u32 sw_gpio_irq_free(u32 handle)
 	struct gpio_irq_handle *pdev_id = (struct gpio_irq_handle *)handle;
 
 	PIO_DBG("%s: handle 0x%08x\n", __FUNCTION__, (u32)handle);
+
+	/* to do: sync pdev_id for gpio_irq_hdl/sw_gpio_irq_free with mutex */
+	PIO_DBG_FUN_LINE_TODO;
 
 	if(NULL == pdev_id) {
 		PIO_ERR_FUN_LINE;

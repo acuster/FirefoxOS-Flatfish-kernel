@@ -19,7 +19,7 @@
 #define TEST_RE_REQUEST_FREE	/* test for re-gpio_request/re-gpio_free, so get warning */
 #define TEST_GPIOLIB_API	/* test the standard linux gpio api */
 #define TEST_CONFIG_API		/* test gpio multi-function */
-#define TEST_GPIO_EINT_API	/* test gpio external interrupt */
+//#define TEST_GPIO_EINT_API	/* test gpio external interrupt */
 //#define TEST_GPIO_SCRIPT_API	/* test gpio script api, to do#### */
 
 /*

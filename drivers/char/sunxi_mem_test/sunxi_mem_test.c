@@ -33,7 +33,7 @@
 static int func_name(void * arg)										\
 {														\
 	do {													\
-		u32 	/* va = 0, */pa = 0, rest_size = 0, temp = 0;						\
+		u32 	pa = 0, rest_size = 0, temp = 0;							\
 		u32	size = (get_random_int() % 32) * SZ_1M;							\
 		struct timeval start_time, end_time;								\
 														\
@@ -43,15 +43,14 @@ static int func_name(void * arg)										\
 		while(1) {											\
 			do_gettimeofday(&end_time);								\
 			if(0 == test_sec || end_time.tv_sec - start_time.tv_sec <= test_sec) {			\
-				if(false == sunxi_mem_alloc(size, /* &va,  */&pa))				\
+				if(0 == (pa = sunxi_mem_alloc(size)))						\
 					printk("%s: out of memory! size 0x%08x\n", __func__, size);		\
 				else {										\
 					temp = (get_random_int() % 10) * 100; msleep(temp);			\
 					rest_size = sunxi_mem_get_rest_size();					\
 					printk("%s: alloc %d Mbytes success, pa 0x%08x, sleep %d ms, rest %d Mbytes\n",\
 						__func__, size / SZ_1M, pa, temp, rest_size / SZ_1M);		\
-					sunxi_mem_free(/* va,  */pa);						\
-					/* va = 0; */								\
+					sunxi_mem_free(pa);							\
 					pa = 0;									\
 				}										\
 				msleep(100);									\
