@@ -17,8 +17,8 @@
 #define __SUNXI_PHYSMEM_H
 
 #define SUNXI_MEM_ALLOC 	1
-#define SUNXI_MEM_FREE 		2
-#define SUNXI_MEM_GET_REST_SZ 	3
+#define SUNXI_MEM_FREE 		3 /* cannot be 2, which reserved in linux */
+#define SUNXI_MEM_GET_REST_SZ 	4
 
 //bool sunxi_mem_alloc(u32 size, u32* phymem);
 u32 sunxi_mem_alloc(u32 size);

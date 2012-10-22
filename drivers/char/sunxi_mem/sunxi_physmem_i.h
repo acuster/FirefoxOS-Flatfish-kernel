@@ -18,9 +18,28 @@
 
 #include <linux/spinlock.h>
 
-#define SUNXIMEM_DBG_FUN_LINE_TODO	printk("%s, line %d, todo############\n", __func__, __LINE__)
-#define SUNXIMEM_DBG_FUN_LINE 		printk("%s, line %d\n", __func__, __LINE__)
-#define SUNXIMEM_ERR_FUN_LINE 		printk("%s err, line %d\n", __func__, __LINE__)
+/*
+ * gpio print macro
+ */
+#define SXM_DBG_LEVEL	3
+
+#if (SXM_DBG_LEVEL == 1)
+	#define SXM_DBG(format,args...)   printk("[gpio-dbg] "format,##args)
+	#define SXM_INF(format,args...)   printk("[gpio-inf] "format,##args)
+	#define SXM_ERR(format,args...)   printk("[gpio-err] "format,##args)
+#elif (SXM_DBG_LEVEL == 2)
+	#define SXM_DBG(format,args...)
+	#define SXM_INF(format,args...)   printk("[gpio-inf] "format,##args)
+	#define SXM_ERR(format,args...)   printk("[gpio-err] "format,##args)
+#elif (SXM_DBG_LEVEL == 3)
+	#define SXM_DBG(format,args...)
+	#define SXM_INF(format,args...)
+	#define SXM_ERR(format,args...)   printk("[gpio-err] "format,##args)
+#endif
+
+#define SXM_DBG_FUN_LINE_TODO		printk("%s, line %d, todo############\n", __func__, __LINE__)
+#define SXM_DBG_FUN_LINE 		printk("%s, line %d\n", __func__, __LINE__)
+#define SXM_ERR_FUN_LINE 		printk("%s err, line %d\n", __func__, __LINE__)
 
 #if 0
 #define DEFINE_FLAGS(x)			do{}while(0)

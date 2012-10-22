@@ -68,7 +68,7 @@ static u32 sunxi_init(struct sunxi_mem_allocator *this, u32 size, u32 va, u32 pa
 
 	this->normal_size = size;
 
-	SUNXIMEM_DBG_FUN_LINE_TODO;
+	SXM_DBG_FUN_LINE_TODO;
 	//memset((void *)va, 0x00, this->normal_size);
 
 	this->node_free_listh = this->create_new_node(this, 0, 0, 0);
@@ -100,7 +100,7 @@ static u32 sunxi_init(struct sunxi_mem_allocator *this, u32 size, u32 va, u32 pa
 
 end:
 	if(0 != uret)
-		printk("%s err, line %d\n", __func__, uret);
+		SXM_ERR("%s err, line %d\n", __func__, uret);
 
 	return uret;
 }
@@ -131,7 +131,7 @@ static struct mem_list * sunxi_create_new_node(struct sunxi_mem_allocator *this,
 	if((size == 0) || IS_LIST_EMPTY(this->node_free_listh))	{
 		pnode = (struct mem_list *)kmalloc(sizeof(*pnode), GFP_ATOMIC);
 		if(NULL == pnode) {
-			SUNXIMEM_ERR_FUN_LINE;
+			SXM_ERR_FUN_LINE;
 			return NULL;
 		}
 	} else {
@@ -296,7 +296,7 @@ bool sunxi_mem_allocator_init(void)
 
 	g_allocator = kmalloc(sizeof(struct sunxi_mem_allocator), GFP_KERNEL);
 	if(NULL == g_allocator) {
-		printk("%s err: out of memory, line %d\n", __func__, __LINE__);
+		SXM_ERR("%s err: out of memory, line %d\n", __func__, __LINE__);
 		return false;
 	}
 
@@ -312,7 +312,7 @@ bool sunxi_mem_allocator_init(void)
 	g_allocator->free_list 		= sunxi_free_list;
 
 	if(0 != g_allocator->init(g_allocator, buf_size, buf_vaddr, buf_paddr)) {
-		printk("%s err, line %d, size 0x%08x, vaddr 0x%08x, paddr 0x%08x\n",
+		SXM_ERR("%s err, line %d, size 0x%08x, vaddr 0x%08x, paddr 0x%08x\n",
 			__func__, __LINE__, buf_size, buf_vaddr, buf_paddr);
 		return false;
 	}
@@ -330,14 +330,15 @@ u32 sunxi_mem_alloc(u32 size)
 	spin_lock_irqsave(&sunxi_memlock, flags);
 	if(NULL != g_allocator) {
 		if(false == g_allocator->allocate(g_allocator, size, &vtemp, &ptemp)) {
-			printk("%s err, line %d, allocate failed!\n", __func__, __LINE__);
+			SXM_ERR("%s err, line %d, allocate failed!\n", __func__, __LINE__);
 			ptemp = 0;
 		}
 	}
 	else
-		printk("%s err, line %d, g_allocator not initailized yet!\n", __func__, __LINE__);
+		SXM_ERR("%s err, line %d, g_allocator not initailized yet!\n", __func__, __LINE__);
 	spin_unlock_irqrestore(&sunxi_memlock, flags);
 
+	SXM_DBG("%s: size 0x%08x, ret 0x%08x!\n", __func__, size, ptemp);
 	return ptemp;
 }
 EXPORT_SYMBOL(sunxi_mem_alloc);
@@ -347,6 +348,8 @@ void sunxi_mem_free(u32 phymem)
 {
 	u32	vtemp = phymem; /* to check */
 	unsigned long	flags;
+
+	SXM_DBG("%s: phymem 0x%08x!\n", __func__, phymem);
 
 	spin_lock_irqsave(&sunxi_memlock, flags);
 	if(NULL != g_allocator)
