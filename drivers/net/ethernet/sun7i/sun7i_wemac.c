@@ -44,23 +44,16 @@
 
 #include "sun7i_wemac.h"
 
-/* #undef EMAC_ON_FPGA */
-#define EMAC_ON_FPGA
-
 #undef	PHY_POWER
 #undef	DYNAMIC_MAC_SYSCONFIG
 #undef	SYSCONFIG_GPIO
-
-/* #undef	SYSCONFIG_CCMU */
 #define	SYSCONFIG_CCMU
 
+#undef	PKT_DUMP
+#undef	PHY_DUMP
+#undef	MAC_DUMP
+
 /* Board/System/Debug information/definition ---------------- */
-
-#define CARDNAME	"wemac"
-#define DRV_VERSION	"3.00"
-#define DMA_CPU_TRRESHOLD 2000
-
-/* debug code */
 #define CONFIG_WEMAC_DEBUGLEVEL 0
 
 #ifdef DEBUG
@@ -78,6 +71,9 @@
 
 #endif
 
+#define CARDNAME	"wemac"
+#define DRV_VERSION	"3.00"
+#define DMA_CPU_TRRESHOLD 2000
 #ifndef PHY_MAX_ADDR
 #define PHY_MAX_ADDR 0x1f
 #endif
@@ -161,7 +157,6 @@ typedef struct wemac_board_info {
 	u32 mos_pin_handler;
 #endif
 
-	struct standby_data *reg_saves;
 	u32 multi_filter[2];
 } wemac_board_info_t;
 
@@ -177,6 +172,7 @@ static void wemac_rx(struct net_device *dev);
 static void wemac_get_macaddr(wemac_board_info_t *db);
 static void emac_reg_dump(wemac_board_info_t *db);
 static void phy_reg_dump(wemac_board_info_t *db);
+static void pkt_dump(unsigned char *buf, int len);
 
 struct sw_dma_client emacrx_dma_client = {
 	.name="EMACRX_DMA",
@@ -378,7 +374,7 @@ static void wemac_dumpblk_32bit(void __iomem *reg, int count)
 
 static void wemac_schedule_poll(wemac_board_info_t *db)
 {
-	schedule_delayed_work(&db->phy_poll, HZ * 1);
+	schedule_delayed_work(&db->phy_poll, HZ/10);
 }
 
 static int wemac_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
@@ -518,7 +514,6 @@ void emac_sys_setup(wemac_board_info_t * db)
 	reg_val |= 0x1<<17;
 	writel(reg_val, db->ccmu_vbase + CCM_AHB_GATING_REG0);
 #endif
-
 }
 
 unsigned int emac_setup(struct net_device *ndev )
@@ -778,8 +773,7 @@ static void wemac_release_board(struct platform_device *pdev,
 /*
  *  Set WEMAC multicast address
  */
-	static void
-wemac_set_rx_mode(struct net_device *dev)
+static void wemac_set_rx_mode(struct net_device *dev)
 {
 	wemac_board_info_t *db = netdev_priv(dev);
 	struct netdev_hw_addr *ha;
@@ -873,7 +867,7 @@ static int wemac_phy_init(wemac_board_info_t *db)
 	struct mii_if_info *mii_if = &db->mii;
 	int i;
 	unsigned long timeout;
-	u16 phy_status;
+	u32 phy_status;
 	u16 phy_reg;
 	u32 reg_val;
 
@@ -891,11 +885,12 @@ static int wemac_phy_init(wemac_board_info_t *db)
 	if(phy_addr == -1){
 		/* scan phy and find the address */
 		for (i = 0; i < PHY_MAX_ADDR; i++) {
-			phy_status = (*mii_if->mdio_read)(mii_if->dev, i, MII_BMSR);
-			wemac_dbg(db, 6, "[emac]: Read the phy_status: (0x%04x), "
+			phy_status = ((*mii_if->mdio_read)(mii_if->dev, i, MII_PHYSID1) & 0xffff) << 16;
+			phy_status |= ((*mii_if->mdio_read)(mii_if->dev, i, MII_PHYSID2) & 0xffff);
+			wemac_dbg(db, 6, "[emac]: Read the phy_id: (0x%08x), "
 									"addr: (0x%04x)\n", phy_status, i);
 
-			if(phy_status == 0xffff || phy_status == 0x0000)
+			if ((phy_status & 0x1fffffff) == 0x1fffffff)
 				continue;
 
 			mii_if->phy_id = i;
@@ -916,28 +911,13 @@ static int wemac_phy_init(wemac_board_info_t *db)
 	(*mii_if->mdio_write)(mii_if->dev, mii_if->phy_id, MII_BMCR, BMCR_RESET | phy_reg);
 
 	/* time out is 100ms */
-	timeout = jiffies + HZ/10;
+	timeout = jiffies + HZ/20;
 	while(wemac_phy_read(mii_if->dev, db->mii.phy_id, MII_BMCR) & BMCR_RESET){
 		if(time_after(jiffies, timeout)){
 			printk(KERN_WARNING "Reset the phy is timeout!!\n");
 			break;
 		}
 	}
-
-#ifdef EMAC_ON_FPGA
-	/* set In 10M/full-duplex */
-	phy_reg = (*mii_if->mdio_read)(mii_if->dev, mii_if->phy_id, MII_BMCR);
-	phy_reg &= ~BMCR_ANENABLE;
-	(*mii_if->mdio_write)(mii_if->dev, mii_if->phy_id, MII_BMCR, phy_reg);
-
-	phy_reg = (*mii_if->mdio_read)(mii_if->dev, mii_if->phy_id, MII_BMCR);
-	phy_reg &= ~BMCR_SPEED100;
-	(*mii_if->mdio_write)(mii_if->dev, mii_if->phy_id, MII_BMCR, phy_reg);
-
-	phy_reg = (*mii_if->mdio_read)(mii_if->dev, mii_if->phy_id, MII_BMCR);
-	phy_reg |= BMCR_FULLDPLX;
-	(*mii_if->mdio_write)(mii_if->dev, mii_if->phy_id, MII_BMCR, phy_reg);
-#endif
 
 	return 0;
 }
@@ -1104,7 +1084,6 @@ static void wemac_rx(struct net_device *dev)
 	do {
 		Rxcount = readl(db->emac_vbase + EMAC_RX_FBC_REG);
 
-		//add by penggang 20110621
 		if(!Rxcount) {
 			udelay(5);
 			Rxcount = readl(db->emac_vbase + EMAC_RX_FBC_REG);
@@ -1243,6 +1222,7 @@ static void wemac_rx(struct net_device *dev)
 				netif_rx(skb);
 				dev->stats.rx_packets++;
 			}
+			pkt_dump((unsigned char *)rdptr, RxLen);
 		} else {
 			/* need to dump the packet's data */
 			(db->dumpblk)(db->emac_vbase + EMAC_RX_IO_DATA_REG, RxLen);
@@ -1316,14 +1296,14 @@ static void wemac_poll_controller(struct net_device *dev)
 
 static void phy_reg_dump(wemac_board_info_t *db)
 {
-#ifdef DEBUG
+#if defined(DEBUG) && defined(PHY_DUMP)
 	struct net_device *ndev = db->ndev;
 	struct mii_if_info *mii_if = &db->mii;
 	int i = 0;
 
 	wemac_dbg(db, 6, "\n############[PHY dump]############\n");
 	for(i=0; i <= MII_EXPANSION; i++){
-		wemac_dbg(db, 6, wemac_phy_read(ndev, mii_if->phy_id, i));
+		wemac_dbg(db, 6, "PHY_REG(0x%02x): 0x%08x\n", i, wemac_phy_read(ndev, mii_if->phy_id, i));
 	}
 	wemac_dbg(db, 6, "\n############[PHY dump]############\n");
 #endif
@@ -1331,7 +1311,7 @@ static void phy_reg_dump(wemac_board_info_t *db)
 
 static void emac_reg_dump(wemac_board_info_t *db)
 {
-#ifdef DEBUG
+#if defined(DEBUG) && defined(MAC_DUMP)
 	int i=0;
 	void __iomem *vbase = db->emac_vbase;
 
@@ -1340,6 +1320,20 @@ static void emac_reg_dump(wemac_board_info_t *db)
 		wemac_dbg(db, 6, "(OFFSET: 0x%02x) -- 0x%08x\n", i, readl(vbase + i));
 	}
 	wemac_dbg(db, 6, "\n============[Regsiter dump]============\n");
+#endif
+}
+
+static void pkt_dump(unsigned char *buf, int len)
+{
+#if defined(DEBUG) && defined(PKT_DUMP)
+	int j;
+	printk("len = %d byte, buf addr: 0x%p", len, buf);
+	for (j = 0; j < len; j++) {
+		if ((j % 16) == 0)
+			printk("\n %03x:", j);
+		printk(" %02x", buf[j]);
+	}
+	printk("\n");
 #endif
 }
 
@@ -1574,7 +1568,13 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 	struct wemac_plat_data *pdata = pdev->dev.platform_data;
 	struct wemac_board_info *db;	/* Point a board information structure */
 	struct net_device *ndev;
-	struct resource *iomem_emac, *iomem_gpio, *iomem_sram, *iomem_ccmu;
+	struct resource *iomem_emac, *iomem_sram;
+#ifndef SYSCONFIG_GPIO
+	struct resource *iomem_gpio;
+#endif
+#ifndef SYSCONFIG_CCMU
+	struct resource *iomem_ccmu;
+#endif
 	int ret = 0;
 	int iosize;
 
@@ -1974,21 +1974,17 @@ static struct platform_driver wemac_driver = {
 	.resume  = wemac_drv_resume,
 };
 
+#ifndef MODULE
 static int __init set_mac_addr(char *str)
 {
 	char* p = str;
 
 	memcpy(mac_str, p, 18);
 
-#if 0
-	int i;
-	for(i=0;i<6;i++,p++)
-		mac_addr[i] = simple_strtoul(p, &p, 16);
-#endif
-
 	return 0;
 }
 __setup("mac_addr=", set_mac_addr);
+#endif
 
 static int __init wemac_init(void)
 {
