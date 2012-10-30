@@ -21,7 +21,7 @@
 
 #define GMAC_IRQ			(24 + 32) /* in fpga is 24 */
 //#define GMAC_IRQ			114
-#define GMAC_BASE			0x01c30000
+#define GMAC_BASE			0x01c50000
 
 /******************************************************************************
  *
@@ -282,10 +282,10 @@ enum rtc_control {
 
 #endif
 
-#define AHB1_GATING			(0x60)
+#define AHB1_GATING			(0x64)
 #define GMAC_AHB_BIT		0x00000200
 
-#define GMAC_CLK_REG		0x00D0
+#define GMAC_CLK_REG		0x0164
 #define GMAC_CLK_GPIT		0x00000004
 
 /* PHY address */

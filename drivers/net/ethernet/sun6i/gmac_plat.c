@@ -31,28 +31,54 @@
 #include <linux/phy.h>
 
 #include "sun6i_gmac.h"
+#include "mach/hardware.h"
 
 static int gmac_system_init(struct gmac_priv *priv)
 {
 	int reg_value;
+	int phy_interface = priv->plat->phy_interface;
 
 	if(priv->clkbase){
 		reg_value = readl(priv->clkbase + AHB1_GATING);
 		writel((reg_value | GMAC_AHB_BIT), priv->clkbase + AHB1_GATING);
-		reg_value = readl(priv->clkbase + AHB1_GATING);
+	}
+
+	if(phy_interface == PHY_INTERFACE_MODE_RGMII){
+		reg_value = readl(priv->clkbase + GMAC_CLK_REG);
+		reg_value |= 1<<2;
+		writel(reg_value, priv->clkbase + GMAC_CLK_REG);
+	} else {
+		reg_value = readl(priv->clkbase + GMAC_CLK_REG);
+		reg_value &= ~(1<<2);
 	}
 
 	/* configure system io */
 	if(priv->gpiobase){
 		writel(0x22222222, priv->gpiobase + PA_CFG0);
-		reg_value = readl(priv->gpiobase + PA_CFG0);
 
 		writel(0x22222222, priv->gpiobase + PA_CFG1);
-		reg_value = readl(priv->gpiobase + PA_CFG1);
 
-		writel(0x22222222, priv->gpiobase + PA_CFG2);
 		reg_value = readl(priv->gpiobase + PA_CFG2);
+		reg_value &= 0xffffffaa;
+		reg_value |= 0x00000022;
+		writel(reg_value, priv->gpiobase + PA_CFG2);
 	}
+
+#ifdef SUN7i_GMAC_FPGA
+	reg_value = readl(IO_ADDRESS(GPIO_BASE + 0x108));
+	reg_value |= 0x1<<20;
+	writel(reg_value, IO_ADDRESS(GPIO_BASE + 0x108));
+
+	reg_value = readl(IO_ADDRESS(GPIO_BASE + 0x10c));
+	reg_value &= ~(0x1<<29);
+	writel(reg_value, IO_ADDRESS(GPIO_BASE + 0x10c));
+
+	mdelay(200);
+
+	reg_value = readl(IO_ADDRESS(GPIO_BASE + 0x10c));
+	reg_value |= 0x1<<29;
+	writel(reg_value, IO_ADDRESS(GPIO_BASE + 0x10c));
+#endif
 
 	return 0;
 }
@@ -269,7 +295,7 @@ static struct resource gmac_resources[] = {
 	[1] = {
 		.name	= "clkbus",
 		.start	= CCMU_BASE,
-		.end		= CCMU_BASE + AHB1_GATING,
+		.end	= CCMU_BASE + GMAC_CLK_REG,
 		.flags	= IORESOURCE_MEM,
 	},
 	[2] = {
@@ -280,8 +306,8 @@ static struct resource gmac_resources[] = {
 	},
 	[3] = {
 		.name	= "gmacirq",
-		.start	= GMAC_IRQ,
-		.end	= GMAC_IRQ,
+		.start	= AW_IRQ_GMAC,
+		.end	= AW_IRQ_GMAC,
 		.flags	= IORESOURCE_IRQ,
 	}
 };
@@ -296,8 +322,8 @@ static struct gmac_mdio_bus_data gmac_mdio_data = {
 
 static struct gmac_plat_data gmac_platdata ={
 	.bus_id = 0,
-	.phy_addr = 1,
-	.phy_interface = PHY_INTERFACE_MODE_MII,
+	.phy_addr = -1,
+	.phy_interface = PHY_INTERFACE_MODE_RGMII,
 	.clk_csr = 2,
 
 	.tx_coe = 1,
