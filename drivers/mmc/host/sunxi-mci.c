@@ -1911,13 +1911,12 @@ static int __init sw_mci_init(void)
 		sprintf(mmc_para, "mmc%d_para", i);
 		used = 0;
 		ret = script_parser_fetch(mmc_para, "sdc_used", &used, sizeof(int));
-		if (ret)
+		if (ret) {
 			SMC_MSG(NULL, "get sdc%d's configuration(sdc_used) failed\n", i);
-
-		#ifdef MMC_FPGA
-		ret = ret;
-		used = SMC_FPGA_MMC_PREUSED(i);
-		#endif
+			#ifdef MMC_FPGA
+			used = SMC_FPGA_MMC_PREUSED(i);
+			#endif
+		}
 
 		if (used) {
 			sdc_used |= 1 << i;
