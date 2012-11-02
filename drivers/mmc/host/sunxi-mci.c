@@ -1494,6 +1494,56 @@ static int sw_mci_proc_card_insert_ctrl(struct file *file, const char __user *bu
 	return sizeof(insert);
 }
 
+static int sw_mci_proc_get_iodriving(char *page, char **start, off_t off,
+						int coutn, int *eof, void *data)
+{
+	char *p = page;
+	struct sunxi_mmc_host *smc_host = (struct sunxi_mmc_host *)data;
+	user_gpio_set_t gpio_set[6];
+	u32 i;
+
+	p += sprintf(p, "current io driving:\n");
+	sw_gpio_get_all_pin_status(smc_host->pio_hdle, gpio_set, 6, 1);
+	for (i=0; i<6; i++) {
+		p += sprintf(p, "%s : %d\n", gpio_set[i].gpio_name, gpio_set[i].drv_level);
+	}
+
+	return p - page;
+}
+
+static int sw_mci_proc_set_iodriving(struct file *file, const char __user *buffer,
+					unsigned long count, void *data)
+{
+	unsigned long driving = simple_strtoul(buffer, NULL, 16);
+	struct sunxi_mmc_host *smc_host = (struct sunxi_mmc_host *)data;
+	u32 clk_drv, cmd_drv, d0_drv, d1_drv, d2_drv, d3_drv;
+
+	clk_drv = 0xf & (driving >> 0);
+	cmd_drv = 0xf & (driving >> 4);
+	d0_drv = 0xf & (driving >> 8);
+	d1_drv = 0xf & (driving >> 12);
+	d2_drv = 0xf & (driving >> 16);
+	d3_drv = 0xf & (driving >> 20);
+
+	printk("set io driving, clk %x, cmd %x, d0 %x, d1 %x, d2, %x, d3 %x\n",
+		clk_drv, cmd_drv, d0_drv, d1_drv, d2_drv, d3_drv);
+	if (clk_drv > 0 && clk_drv < 4)
+		sw_gpio_set_one_pin_driver_level(smc_host->pio_hdle, clk_drv, "sdc_clk");
+	if (cmd_drv > 0 && cmd_drv < 4)
+		sw_gpio_set_one_pin_driver_level(smc_host->pio_hdle, cmd_drv, "sdc_cmd");
+	if (d0_drv > 0 && d0_drv < 4)
+		sw_gpio_set_one_pin_driver_level(smc_host->pio_hdle, d0_drv, "sdc_d0");
+	if (d1_drv > 0 && d1_drv < 4)
+		sw_gpio_set_one_pin_driver_level(smc_host->pio_hdle, d1_drv, "sdc_d1");
+	if (d2_drv > 0 && d2_drv < 4)
+		sw_gpio_set_one_pin_driver_level(smc_host->pio_hdle, d2_drv, "sdc_d2");
+	if (d3_drv > 0 && d3_drv < 4)
+		sw_gpio_set_one_pin_driver_level(smc_host->pio_hdle, d3_drv, "sdc_d3");
+
+	return count;
+}
+
+
 void sw_mci_procfs_attach(struct sunxi_mmc_host *smc_host)
 {
 	struct device *dev = &smc_host->pdev->dev;
@@ -1545,6 +1595,15 @@ void sw_mci_procfs_attach(struct sunxi_mmc_host *smc_host)
 	smc_host->proc_insert->read_proc = sw_mci_proc_read_insert_status;
 	smc_host->proc_insert->write_proc = sw_mci_proc_card_insert_ctrl;
 
+	smc_host->proc_iodrive = create_proc_entry("io-drive", 0644, smc_host->proc_root);
+	if (IS_ERR(smc_host->proc_iodrive))
+	{
+		SMC_MSG(smc_host, "%s: failed to create procfs \"io-drive\".\n", dev_name(dev));
+	}
+	smc_host->proc_iodrive->data = smc_host;
+	smc_host->proc_iodrive->read_proc = sw_mci_proc_get_iodriving;
+	smc_host->proc_iodrive->write_proc = sw_mci_proc_set_iodriving;
+
 }
 
 void sw_mci_procfs_remove(struct sunxi_mmc_host *smc_host)
@@ -1554,6 +1613,7 @@ void sw_mci_procfs_remove(struct sunxi_mmc_host *smc_host)
 
 	snprintf(sw_mci_proc_rootname, sizeof(sw_mci_proc_rootname),
 		"driver/%s", dev_name(dev));
+	remove_proc_entry("io-drive", smc_host->proc_root);
 	remove_proc_entry("insert", smc_host->proc_root);
 	remove_proc_entry("cdmode", smc_host->proc_root);
 	remove_proc_entry("debug-level", smc_host->proc_root);

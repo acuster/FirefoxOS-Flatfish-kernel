@@ -98,10 +98,10 @@
 #define AW_IRQ_TOUCH_PANEL 	(AW_IRQ_GIC_START + 8 )    /* touch pannel  */
 #define AW_IRQ_AUDIO_COEC 	(AW_IRQ_GIC_START + 8 )    /* AUDIO COEC  */
 #define AW_IRQ_LRADC    	(AW_IRQ_GIC_START + 8 )    /* LRADC  */
-#define AW_IRQ_SD0       	(AW_IRQ_GIC_START + 9 )    /* SD0   */
-#define AW_IRQ_SD1       	(AW_IRQ_GIC_START + 33)    /* SD1   */
-#define AW_IRQ_SD2       	(AW_IRQ_GIC_START + 10)    /* SD2   */
-#define AW_IRQ_SD3       	(AW_IRQ_GIC_START + 35)    /* SD3   */
+#define AW_IRQ_MMC0       	(AW_IRQ_GIC_START + 9 )    /* MMC0   */
+#define AW_IRQ_MMC1       	(AW_IRQ_GIC_START + 33)    /* MMC1   */
+#define AW_IRQ_MMC2       	(AW_IRQ_GIC_START + 10)    /* MMC2   */
+#define AW_IRQ_MMC3       	(AW_IRQ_GIC_START + 35)    /* MMC3   */
 #define AW_IRQ_MS        	(AW_IRQ_GIC_START + 10)    /* MS  */
 #define AW_IRQ_NAND        	(AW_IRQ_GIC_START + 11)    /* NAND  */
 #define AW_IRQ_USB0        	(AW_IRQ_GIC_START + 12)    /* USB0  */
@@ -185,10 +185,10 @@
 #define AW_IRQ_TOUCH_PANEL 	(AW_IRQ_GIC_START + 29)    /* touch pannel  */
 #define AW_IRQ_AUDIO_COEC 	(AW_IRQ_GIC_START + 30)    /* AUDIO COEC  */
 #define AW_IRQ_LRADC    	(AW_IRQ_GIC_START + 31)    /* LRADC  */
-#define AW_IRQ_SD0       	(AW_IRQ_GIC_START + 32)    /* SD0   */
-#define AW_IRQ_SD1       	(AW_IRQ_GIC_START + 33)    /* SD1   */
-#define AW_IRQ_SD2       	(AW_IRQ_GIC_START + 34)    /* SD2   */
-#define AW_IRQ_SD3       	(AW_IRQ_GIC_START + 35)    /* SD3   */
+#define AW_IRQ_MMC0       	(AW_IRQ_GIC_START + 32)    /* MMC0   */
+#define AW_IRQ_MMC1       	(AW_IRQ_GIC_START + 33)    /* MMC1   */
+#define AW_IRQ_MMC2       	(AW_IRQ_GIC_START + 34)    /* MMC2   */
+#define AW_IRQ_MMC3       	(AW_IRQ_GIC_START + 35)    /* MMC3   */
 #define AW_IRQ_MS        	(AW_IRQ_GIC_START + 36)    /* External NMI  */
 #define AW_IRQ_NAND        	(AW_IRQ_GIC_START + 37)    /* NAND  */
 #define AW_IRQ_USB0        	(AW_IRQ_GIC_START + 38)    /* USB0  */

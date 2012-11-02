@@ -26,8 +26,7 @@
 /*---------- for sun6i ----------*/
 #ifdef CONFIG_ARCH_SUN6I
 #define REG_FIFO_OS	(0x200)
-#define IRQNO_SMC0	(92)
-#define SMC_IRQNO(x)	(IRQNO_SMC0 + (x))
+#define SMC_IRQNO(x)	(AW_IRQ_MMC0 + (x))
 
 #define MMC_SRCCLK_HOSC	"sys_hosc"
 #define MMC_SRCCLK_PLL6	"sys_pll6"
@@ -37,7 +36,7 @@
 
 #ifdef MMC_FPGA
 #undef SMC_IRQNO
-#define SMC_IRQNO(x)	((x) & 2 ? 47 : 45)
+#define SMC_IRQNO(x)	((x) & 2 ? AW_IRQ_MMC2 : AW_IRQ_MMC0)
 #define SMC_FPGA_MMC_PREUSED(x)	((x) == 2 || (x) == 0)
 #endif
 #endif
@@ -45,8 +44,7 @@
 /*---------- for sun7i ----------*/
 #ifdef CONFIG_ARCH_SUN7I
 #define REG_FIFO_OS	(0x100)
-#define IRQNO_SMC0	(64)
-#define SMC_IRQNO(x)	(IRQNO_SMC0 + (x))
+#define SMC_IRQNO(x)	(AW_IRQ_MMC0 + (x))
 
 #define MMC_SRCCLK_HOSC	"hosc"
 #define MMC_SRCCLK_PLL5	"sdram_pll_p"
@@ -57,7 +55,7 @@
 
 #ifdef MMC_FPGA
 #undef SMC_IRQNO
-#define SMC_IRQNO(x)	(x ? 42 : 41)
+#define SMC_IRQNO(x)	((x) & 2 ? AW_IRQ_MMC2 : AW_IRQ_MMC0)
 #define SMC_FPGA_MMC_PREUSED(x)	((x) == 0 || (x) == 2)
 #endif
 #endif
@@ -337,6 +335,7 @@ struct sunxi_mmc_host {
 	struct proc_dir_entry *proc_regs;
 	struct proc_dir_entry *proc_insert;
 	struct proc_dir_entry *proc_cdmode;
+	struct proc_dir_entry *proc_iodrive;
 #endif
 
 	/* backup register structrue */
