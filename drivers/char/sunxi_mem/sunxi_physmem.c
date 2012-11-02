@@ -288,7 +288,7 @@ void sunxi_free(struct sunxi_mem_allocator *this, const u32 virtAddr, const u32 
 	}
 }
 
-bool sunxi_mem_allocator_init(void)
+int __init sunxi_mem_allocator_init(void)
 {
 	u32 	buf_size = BUFFER_SIZE;
 	u32 	buf_vaddr = BUFFER_VADDR;
@@ -297,7 +297,7 @@ bool sunxi_mem_allocator_init(void)
 	g_allocator = kmalloc(sizeof(struct sunxi_mem_allocator), GFP_KERNEL);
 	if(NULL == g_allocator) {
 		SXM_ERR("%s err: out of memory, line %d\n", __func__, __LINE__);
-		return false;
+		return -ENOMEM;
 	}
 
 	g_allocator->init 	= sunxi_init;
@@ -314,10 +314,11 @@ bool sunxi_mem_allocator_init(void)
 	if(0 != g_allocator->init(g_allocator, buf_size, buf_vaddr, buf_paddr)) {
 		SXM_ERR("%s err, line %d, size 0x%08x, vaddr 0x%08x, paddr 0x%08x\n",
 			__func__, __LINE__, buf_size, buf_vaddr, buf_paddr);
-		return false;
+		return -ENOMEM;
 	}
 
-	return true;
+	SXM_DBG("%s success, line %d\n", __func__, __LINE__);
+	return 0;
 }
 arch_initcall(sunxi_mem_allocator_init);
 

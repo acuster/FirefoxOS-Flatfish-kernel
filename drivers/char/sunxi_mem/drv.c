@@ -37,6 +37,10 @@ static struct class 	*g_class = NULL;
 struct device 		*g_dev = NULL;
 struct kmem_cache 	*g_pmem_cache = NULL; /* mem cache for struct sunxi_mem_des */
 
+/* flush cache api from cache-v7.S */
+extern int flush_dcache_all(void);
+extern int flush_clean_user_range2(long start, long end);
+
 /*
  * to sync sunmm_release and sunmm_ioctl, repetitive with SUNMM_LOCK, but any other better way?
  */
@@ -112,11 +116,13 @@ static int sunmm_release(struct inode *inode, struct file *file)
 long sunmm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long	ret = 0;
+	int 	temp = 0;
 	u32 	size_to_alloc = 0;
 	u32 	physaddr_to_free = 0;
 	u32 	uphysaddr = 0;
 	struct sunxi_mem_des *pdes = NULL;
 	struct sunxi_mem_data *pdata = NULL;
+	struct sunmm_cache_range cache_range = {0};
 	DEFINE_FLAGS(flags);
 
 	mutex_lock(&sunmm_mutex);
@@ -216,6 +222,28 @@ long sunmm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case SUNXI_MEM_GET_REST_SZ:
 		ret = (long)sunxi_mem_get_rest_size();
 		SXM_DBG("%s, SUNXI_MEM_GET_REST_SZ - ret 0x%08x\n", __func__, (int)ret);
+		break;
+
+	case SUNXI_MEM_FLUSH_CACHE:
+		if(copy_from_user(&cache_range, (u32 *)arg, sizeof(cache_range))) {
+			SXM_ERR("%s err, line %d\n", __func__, __LINE__);
+			ret = -EINVAL;
+			goto end;
+		}
+		SXM_DBG("%s, SUNXI_MEM_FLUSH_CACHE, start 0x%08x, end 0x%08x\n", __func__,
+			cache_range.start, cache_range.end);
+		temp = flush_clean_user_range2(cache_range.start, cache_range.end);
+		if(0 != temp) {
+			SXM_INF("%s, SUNXI_MEM_FLUSH_CACHE return %d\n", __func__, temp);
+		}
+		break;
+
+	case SUNXI_MEM_FLUSH_CACHE_ALL:
+		SXM_DBG("%s, SUNXI_MEM_FLUSH_CACHE_ALL\n", __func__);
+		temp = flush_dcache_all();
+		if(0 != temp) {
+			SXM_INF("%s, SUNXI_MEM_FLUSH_CACHE_ALL return %d\n", __func__, temp);
+		}
 		break;
 
 	default:

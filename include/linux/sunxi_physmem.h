@@ -16,9 +16,17 @@
 #ifndef __SUNXI_PHYSMEM_H
 #define __SUNXI_PHYSMEM_H
 
-#define SUNXI_MEM_ALLOC 	1
-#define SUNXI_MEM_FREE 		3 /* cannot be 2, which reserved in linux */
-#define SUNXI_MEM_GET_REST_SZ 	4
+#define SUNXI_MEM_ALLOC 		1
+#define SUNXI_MEM_FREE 			3 /* cannot be 2, which reserved in linux */
+#define SUNXI_MEM_GET_REST_SZ 		4
+#define SUNXI_MEM_FLUSH_CACHE 		5
+#define SUNXI_MEM_FLUSH_CACHE_ALL	6
+
+/* cache range for SUNXI_MEM_FLUSH_CACHE */
+struct sunmm_cache_range{
+	long 	start;
+	long 	end;
+};
 
 //bool sunxi_mem_alloc(u32 size, u32* phymem);
 u32 sunxi_mem_alloc(u32 size);
