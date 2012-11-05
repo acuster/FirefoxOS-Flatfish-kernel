@@ -299,18 +299,24 @@ u32 __gtc_api(void)
 	{
 		struct gpio_config_eint_all cfg_eint[] = {
 			/* __para_check err in sw_gpio_eint_setall_range, because pa10/pi9 cannot be eint */
-			{GPIOA(10), GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT, true , 0, TRIG_EDGE_POSITIVE},
+			//{GPIOA(10), GPIO_PULL_DEFAULT, GPIO_DRVLVL_DEFAULT, true , 0, TRIG_EDGE_POSITIVE}, /* err, cannot be eint */
 			{GPIOH(20), 1                , 2                  , true , 0, TRIG_EDGE_DOUBLE  },
-			{GPIOI(9 ), GPIO_PULL_DEFAULT, 1                  , false, 0, TRIG_EDGE_NEGATIVE},
+			//{GPIOI(9 ), GPIO_PULL_DEFAULT, 1                  , false, 0, TRIG_EDGE_NEGATIVE}, /* err, cannot be eint */
 			{GPIOI(10), 3                , 0                  , true , 0, TRIG_LEVL_LOW     },
 			{GPIOI(19), 2                , 1                  , true , 0, TRIG_LEVL_HIGH    },
 		};
 		struct gpio_config_eint_all cfg_eint_temp[] = {
-			{GPIOA(10)},
+			//{GPIOA(10)},
 			{GPIOH(20)},
-			{GPIOI(9) },
+			//{GPIOI(9) },
 			{GPIOI(10)},
 			{GPIOI(19)},
+		};
+		struct gpio_config_eint_all cfg_eint_temp2[] = {
+			{GPIOI(10)},
+			{GPIOH(21)},
+			{GPIOI(19)},
+			{GPIOH(0) },
 		};
 		u32 	handle_temp[10] = {0};
 		u32 	*ptemp = NULL;
@@ -341,8 +347,7 @@ u32 __gtc_api(void)
 		for(utemp = 0; utemp < ARRAY_SIZE(cfg_eint); utemp++)
 			gpio_free(cfg_eint[utemp].gpio);
 		PIO_TEST_DBG_FUN_LINE;
-#endif
-
+#else
 		/* NOTE: sw_gpio_irq_request should be test singlely, incase gpio irq occur */
 		/* test sw_gpio_irq_request/sw_gpio_irq_free api */
 
@@ -371,11 +376,17 @@ u32 __gtc_api(void)
 			(peint_handle)gpio_irq_handle_demo, (void *)&ptemp[3]);
 		printk("%s: handle_temp[3] 0x%08x\n", __FUNCTION__, handle_temp[3]);
 
+		/* dump the struct set by sw_gpio_irq_request */
+		PIO_ASSERT_RET(0 == sw_gpio_eint_getall_range(cfg_eint_temp2, ARRAY_SIZE(cfg_eint_temp2)), uret, End);
+		PIO_TEST_DBG_FUN_LINE;
+		sw_gpio_eint_dumpall_range(cfg_eint_temp2, ARRAY_SIZE(cfg_eint_temp2));
+		PIO_TEST_DBG_FUN_LINE;
+
 		/*
 		 * for test(fpga): if you set GPIOI(10) to low level trigged,
 		 * and set pi_dat10 to 0, the irq will trigged again and again
 		 */
-		//msleep(500000);
+		//msleep(1000000);
 
 		if(0 != handle_temp[0])
 			sw_gpio_irq_free(handle_temp[0]);
@@ -400,6 +411,7 @@ u32 __gtc_api(void)
 		//PIO_TEST_DBG_FUN_LINE;
 		//gpio_free(GPIOI(10));
 		//PIO_TEST_DBG_FUN_LINE;
+#endif
 	}
 #endif /* TEST_GPIO_EINT_API */
 
@@ -407,7 +419,6 @@ u32 __gtc_api(void)
 	 * test for script gpio api, to do...
 	 */
 #ifdef TEST_GPIO_SCRIPT_API
-	PIO_TEST_DBG_FUN_LINE_TODO;
 	{
 		u32 	pin_hdl = 0;
 		struct gpio_config mmc0_para[] = {
@@ -441,14 +452,16 @@ u32 __gtc_api(void)
 		sdc_wp      		=
 
 		[usbc0]
-		usb_used            	= 1
-		usb_port_type       	= 2
-		usb_detect_type     	= 1
-		usb_id_gpio         	= port:PH4<0><1><default><default>
-		usb_det_vbus_gpio   	= port:PH5<0><0><default><default>
-		usb_drv_vbus_gpio   	= port:PB9<1><0><default><0>
-		usb_host_state      	= 0
+		usb_used          = 1
+		usb_port_type       = 2
+		usb_detect_type     = 1
+		usb_id_gpio         = port:PH4<0><1><default><default>
+		usb_det_vbus_gpio   = port:PH5<0><0><default><default>
+		usb_drv_vbus_gpio   = port:PB9<1><0><default><0>
+		usb_host_state     = 0
 		*/
+
+		PIO_TEST_DBG_FUN_LINE;
 
 		/* test for mmc0_para */
 		PIO_ASSERT_RET(0 != (pin_hdl = sw_gpio_request_ex("mmc0_para", NULL)), uret, End);
