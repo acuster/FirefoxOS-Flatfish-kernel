@@ -228,7 +228,6 @@ static ssize_t ccu_parent_store(struct device *dev,
 {
 	u32 		usign = 0;
 	struct clk 	*parent = NULL;
-	struct __aw_ccu_clk_t 	*paw_clk = NULL;
 	__aw_ccu_clk_id_e 	clk_id = AW_SYS_CLK_NONE;
 	struct ccu_sysfs_handle	*pclk_handle = dev_get_drvdata(dev);
 
@@ -244,8 +243,7 @@ static ssize_t ccu_parent_store(struct device *dev,
 	}
 	CCU_DBG("%s: parent name %s, id %d\n", __func__, buf, (int)clk_id);
 
-	paw_clk = (struct __aw_ccu_clk_t *)&aw_ccu_clk_tbl[clk_id];
-	parent = (struct clk *)container_of(&paw_clk, struct clk, aw_clk);
+	parent = &aw_clock[clk_id];
 	if(0 != clk_set_parent(pclk_handle->clk, parent)) {
 		usign = __LINE__;
 		goto end;

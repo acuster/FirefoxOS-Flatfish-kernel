@@ -26,7 +26,9 @@
 #include <asm/div64.h>
 #include <mach/includes.h>
 
-extern __aw_ccu_clk_t aw_ccu_clk_tbl[]; /* liugang, for ccu test */
+/* liugang, for ccu test */
+extern __aw_ccu_clk_t aw_ccu_clk_tbl[];
+extern __ccu_clk_t    aw_clock[];
 
 extern __ccmu_reg_list_t   *aw_ccu_reg;
 extern __clk_ops_t sys_clk_ops;
