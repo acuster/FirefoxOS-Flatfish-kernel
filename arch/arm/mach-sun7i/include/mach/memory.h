@@ -29,6 +29,9 @@
 #define SW_SCRIPT_MEM_BASE		SYS_CONFIG_MEMBASE	/* 0x43000000 		*/
 #define SW_SCRIPT_MEM_SIZE		SYS_CONFIG_MEMSIZE	/* 0x00010000(SZ_64K) 	*/
 
+#define SW_VE_MEM_BASE     		(PLAT_PHYS_OFFSET + SZ_64M)
+#define SW_VE_MEM_SIZE     		(SZ_64M + SZ_16M)
+
 /*
  * memory reserved areas.
  */
@@ -37,7 +40,6 @@
 #define SW_GPU_MEM_SIZE    		0x04000000		/* SZ_64M		*/
 #define SW_G2D_MEM_SIZE     		0x01000000		/* SZ_16M 		*/
 #define SW_CSI_MEM_SIZE     		0x02000000		/* SZ_32M 		*/
-#define SW_VE_MEM_SIZE     		0x05000000		/* SZ_64M + SZ_16M	*/
 #define SUPER_STANDBY_SIZE     		(SZ_64K)
 
 #define SUPER_STANDBY_BASE     		(0x52000000)      	/* NOTICE: this addr can not be change */
@@ -45,7 +47,6 @@
 #define SW_GPU_MEM_BASE    		(SW_FB_MEM_BASE - SW_GPU_MEM_SIZE)
 #define SW_G2D_MEM_BASE     		(SW_GPU_MEM_BASE - SW_G2D_MEM_SIZE)
 #define SW_CSI_MEM_BASE     		(SW_G2D_MEM_BASE - SW_CSI_MEM_SIZE)
-#define SW_VE_MEM_BASE     		(SW_CSI_MEM_BASE - SW_VE_MEM_SIZE)
 #else
 #define SW_FB_MEM_BASE     		XXX			/* XXX 			*/
 #define SW_FB_MEM_SIZE     		XXX			/* XXX 			*/
@@ -58,9 +59,6 @@
 
 #define SW_CSI_MEM_BASE     		XXX			/* XXX 			*/
 #define SW_CSI_MEM_SIZE     		XXX			/* XXX 			*/
-
-#define SW_VE_MEM_BASE     		XXX			/* XXX 			*/
-#define SW_VE_MEM_SIZE     		XXX			/* XXX 			*/
 #endif /* SUN7I_MEM_ON_FPGA */
 
 #endif

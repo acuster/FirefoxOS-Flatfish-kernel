@@ -8,7 +8,7 @@ config NET_VENDOR_SUN7I
 if NET_VENDOR_SUN7I
 
 config SUN7I_EMAC
-	tristate "Sun7i platform 1G Ethernet driver"
+	tristate "Sun7i platform 10/100Mbps Ethernet driver"
 	depends on HAS_IOMEM && NET_VENDOR_SUN7I
 	select NET_CORE
 	select MII

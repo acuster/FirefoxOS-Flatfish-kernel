@@ -260,7 +260,6 @@ u32 g_mem_resv[][2] = {
 	{SW_CSI_MEM_BASE, 	SW_CSI_MEM_SIZE		},
 	{SW_VE_MEM_BASE, 	SW_VE_MEM_SIZE		},
 	{SUPER_STANDBY_BASE,	SUPER_STANDBY_SIZE	},	//for standby: 0x5200,0000-0x5200,0000+64k;
-
 };
 
 static void __init sun7i_reserve(void)
