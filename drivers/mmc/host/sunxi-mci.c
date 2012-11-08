@@ -979,6 +979,7 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				sw_mci_restore_io(smc_host);
 				clk_enable(smc_host->hclk);
 				clk_enable(smc_host->mclk);
+				clk_reset(smc_host->mclk, 1);
 				sw_mci_init_host(smc_host);
 				sw_mci_update_clk(smc_host);
 				enable_irq(smc_host->irq);
@@ -990,6 +991,7 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				SMC_MSG(smc_host, "mmc %d power off !!\n", smc_host->pdev->id);
 				disable_irq(smc_host->irq);
 				sw_mci_exit_host(smc_host);
+				clk_reset(smc_host->mclk, 0);
 				clk_disable(smc_host->mclk);
 				clk_disable(smc_host->hclk);
 				sw_mci_hold_io(smc_host);
