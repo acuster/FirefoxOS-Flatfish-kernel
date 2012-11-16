@@ -28,11 +28,11 @@
 #define REG_FIFO_OS	(0x200)
 #define SMC_IRQNO(x)	(AW_IRQ_MMC0 + (x))
 
-#define MMC_SRCCLK_HOSC	"sys_hosc"
-#define MMC_SRCCLK_PLL6	"sys_pll6"
-#define MMC_AHBCLK_PREFIX	"ahb_sdmmc"
-#define MMC_MODCLK_PREFIX	"mod_sdc"
-#define MMC3_DMA_TL	(0x2007000f)
+#define MMC_SRCCLK_HOSC   "sys_hosc"
+#define MMC_SRCCLK_PLL6   "sys_pll6"
+#define MMC_AHBCLK_PREFIX "ahb_sdmmc"
+#define MMC_MODCLK_PREFIX "mod_sdc"
+#define MMC3_DMA_TL       (0x2007000f)
 
 #ifdef MMC_FPGA
 #undef SMC_IRQNO
@@ -46,12 +46,12 @@
 #define REG_FIFO_OS	(0x100)
 #define SMC_IRQNO(x)	(AW_IRQ_MMC0 + (x))
 
-#define MMC_SRCCLK_HOSC	"hosc"
-#define MMC_SRCCLK_PLL5	"sdram_pll_p"
-#define MMC_SRCCLK_PLL6	"sata_pll_2"
-#define MMC_AHBCLK_PREFIX	"ahb_sdc"
-#define MMC_MODCLK_PREFIX	"sdc"
-#define MMC3_DMA_TL	(0x20070008)
+#define MMC_SRCCLK_HOSC   "hosc"
+#define MMC_SRCCLK_PLL5   "sdram_pll_p"
+#define MMC_SRCCLK_PLL6   "sata_pll_2"
+#define MMC_AHBCLK_PREFIX "ahb_sdc"
+#define MMC_MODCLK_PREFIX "sdc"
+#define MMC3_DMA_TL       (0x20070008)
 
 #ifdef MMC_FPGA
 #undef SMC_IRQNO
@@ -254,6 +254,7 @@ struct sunxi_mmc_platform_data {
 	u32 f_min;
 	u32 f_max;
 	u32 dma_tl;
+	char* regulator;
 };
 
 struct sunxi_mmc_host {

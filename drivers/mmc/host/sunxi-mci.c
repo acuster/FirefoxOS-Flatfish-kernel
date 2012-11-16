@@ -27,6 +27,7 @@
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/sd.h>
@@ -39,7 +40,6 @@
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <mach/dma.h>
 #include <mach/sys_config.h>
 #include <mach/gpio.h>
 #include <mach/clock.h>
@@ -120,21 +120,46 @@ s32 sw_mci_exit_host(struct sunxi_mmc_host* smc_host)
 s32 sw_mci_set_vddio(struct sunxi_mmc_host* smc_host, u32 vdd)
 {
 	char* vddstr[] = {"3.3V", "1.8V", "1.2V", "OFF"};
+	struct regulator* mmc_ldo = NULL;
+	static u32 on = 0;
+
+	if (smc_host->pdata->regulator == NULL)
+		return 0;
+	mmc_ldo = regulator_get(NULL, smc_host->pdata->regulator);
+	if (!mmc_ldo) {
+		SMC_ERR(smc_host, "Get mmc_ldo failed\n");
+		return -1;
+	}
 	switch (vdd) {
 		case SDC_WOLTAGE_3V3:
-
+			regulator_set_voltage(mmc_ldo, 3300000, 3300000);
+			if (!on) {
+				regulator_enable(mmc_ldo);
+				on = 1;
+			}
 			break;
 		case SDC_WOLTAGE_1V8:
-
+			regulator_set_voltage(mmc_ldo, 1800000, 1800000);
+			if (!on) {
+				regulator_enable(mmc_ldo);
+				on = 1;
+			}
 			break;
 		case SDC_WOLTAGE_1V2:
-
+			regulator_set_voltage(mmc_ldo, 1200000, 1200000);
+			if (!on) {
+				regulator_enable(mmc_ldo);
+				on = 1;
+			}
 			break;
 		case SDC_WOLTAGE_OFF:
-
+			if (on) {
+				regulator_force_disable(mmc_ldo);
+				on = 0;
+			}
 			break;
 	}
-	SMC_MSG(smc_host, "Switch voltage to %s\n", vddstr[vdd]);
+	SMC_MSG(smc_host, "Switch IO voltage to %s\n", vddstr[vdd]);
 	return 0;
 }
 
@@ -214,13 +239,13 @@ struct sw_mmc_clk_dly {
 	u32 oclk_dly;
 	u32 sclk_dly;
 } mmc_clk_dly [MMC_CLK_MOD_NUM] = {
-	{MMC_CLK_400K, 		3, 1},
-	{MMC_CLK_25M, 		3, 4},
-	{MMC_CLK_50M, 		3, 4},
-	{MMC_CLK_50MDDR, 	2, 4},
-	{MMC_CLK_50MDDR_8BIT, 	2, 4},
-	{MMC_CLK_100M, 		1, 4},
-	{MMC_CLK_200M, 		1, 4},
+	{MMC_CLK_400K,        3, 1},
+	{MMC_CLK_25M,         3, 4},
+	{MMC_CLK_50M,         3, 4},
+	{MMC_CLK_50MDDR,      2, 4},
+	{MMC_CLK_50MDDR_8BIT, 2, 4},
+	{MMC_CLK_100M,        1, 4},
+	{MMC_CLK_200M,        1, 4},
 };
 
 s32 sw_mci_set_clk_dly(struct sunxi_mmc_host* smc_host, u32 oclk_dly, u32 sclk_dly)
@@ -958,6 +983,7 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	char* drv_type[] = {"B", "A", "C", "D"};
 	static u32 last_clock = 0;
 	u32 temp;
+	s32 err;
 
 	BUG_ON(ios->bus_mode >= sizeof(bus_mode)/sizeof(bus_mode[0]));
 	BUG_ON(ios->power_mode >= sizeof(pwr_mode)/sizeof(pwr_mode[0]));
@@ -977,9 +1003,18 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			if (!smc_host->power_on) {
 				SMC_MSG(smc_host, "mmc %d power on !!\n", smc_host->pdev->id);
 				sw_mci_restore_io(smc_host);
-				clk_enable(smc_host->hclk);
-				clk_enable(smc_host->mclk);
-				clk_reset(smc_host->mclk, 1);
+				err = clk_enable(smc_host->hclk);
+				if (err) {
+					SMC_ERR(smc_host, "Failed to enable sdc%d hclk\n", smc_host->pdev->id);
+				}
+				err = clk_enable(smc_host->mclk);
+				if (err) {
+					SMC_ERR(smc_host, "Failed to enable sdc%d mclk\n", smc_host->pdev->id);
+				}
+				err = clk_reset(smc_host->mclk, AW_CCU_CLK_NRESET);
+				if (err) {
+					SMC_ERR(smc_host, "Failed to release sdc%d reset\n", smc_host->pdev->id);
+				}
 				sw_mci_init_host(smc_host);
 				sw_mci_update_clk(smc_host);
 				enable_irq(smc_host->irq);
@@ -991,7 +1026,10 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				SMC_MSG(smc_host, "mmc %d power off !!\n", smc_host->pdev->id);
 				disable_irq(smc_host->irq);
 				sw_mci_exit_host(smc_host);
-				clk_reset(smc_host->mclk, 0);
+				err = clk_reset(smc_host->mclk, AW_CCU_CLK_RESET);
+				if (err) {
+					SMC_ERR(smc_host, "Failed to set sdc%d reset\n", smc_host->pdev->id);
+				}
 				clk_disable(smc_host->mclk);
 				clk_disable(smc_host->hclk);
 				sw_mci_hold_io(smc_host);
@@ -1045,7 +1083,6 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	} else if (!ios->clock) {
 		last_clock = 0;
 	}
-
 }
 
 static void sw_mci_enable_sdio_irq(struct mmc_host *mmc, int enable)
@@ -1834,6 +1871,7 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.f_min = 400000,
 		.f_max = 120000000,
 		.dma_tl= 0x20070008,
+		.regulator=NULL,
 	},
 	[1] = {
 		.ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34,
@@ -1842,6 +1880,7 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.f_min = 400000,
 		.f_max = 120000000,
 		.dma_tl= 0x20070008,
+		.regulator=NULL,
 	},
 	[2] = {
 		.ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_165_195,
@@ -1859,6 +1898,7 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.f_min = 400000,
 		.f_max = 120000000,
 		.dma_tl= 0x20070008,
+		.regulator=NULL,
 	},
 	[3] = {
 		.ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_165_195,
@@ -1873,6 +1913,7 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.f_min = 400000,
 		.f_max = 120000000,
 		.dma_tl= MMC3_DMA_TL,
+		.regulator=NULL,
 	},
 };
 static struct platform_device sw_mci_device[4] = {
