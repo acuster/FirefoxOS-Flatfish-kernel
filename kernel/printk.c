@@ -931,7 +931,9 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 				  sizeof(printk_buf) - printed_len, fmt, args);
 
 #ifdef	CONFIG_DEBUG_LL
+#if 0
 	printascii(printk_buf);
+#endif /* liugang */
 #endif
 
 	p = printk_buf;
