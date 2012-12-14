@@ -796,6 +796,11 @@ static int remove_config(struct usb_composite_dev *cdev,
 		config->unbind(config);
 			/* may free memory for "c" */
 	}
+
+#ifdef CONFIG_USB_SW_SUN6I_USB
+    usb_ep_autoconfig_reset(cdev->gadget);
+#endif
+
 	return 0;
 }
 
@@ -1670,4 +1675,171 @@ void usb_composite_setup_continue(struct usb_composite_dev *cdev)
 
 	spin_unlock_irqrestore(&cdev->lock, flags);
 }
+
+#ifdef CONFIG_USB_SW_SUN6I_USB
+
+#include <mach/sys_config.h>
+
+static struct android_usb_config g_android_usb_config;
+
+static s32 get_android_config(struct android_usb_config *config)
+{
+
+#if defined (CONFIG_AW_FPGA_V4_PLATFORM) || defined (CONFIG_AW_FPGA_V7_PLATFORM)
+	config->vendor_id = 0x18D1;
+	config->mass_storage_id = 0x0001;
+	config->adb_id = 0x0002;
+	strcpy(config->usb_manufacturer_name, "USB Developer");
+	strcpy(config->usb_product_name, "Android");
+	strcpy(config->usb_serial_number, "20080411");
+	strcpy(config->msc_vendor_name, "USB 2.0");
+	strcpy(config->msc_product_name, "USB Flash Driver");
+	config->msc_release = 100;
+	config->luns = 3;
+#else
+    script_item_value_type_e type = 0;
+	script_item_u item_temp;
+
+	//----------------------------------------
+    //  usb_feature
+    //----------------------------------------
+    /* vendor_id */
+	type = script_get_item("usb_feature", "vendor_id", &item_temp);
+	if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+		config->vendor_id = item_temp.val;
+	}else{
+		printk("ERR: get usb_feature vendor_id failed\n");
+		config->vendor_id = 0x18D1;
+	}
+
+    /* mass_storage_id */
+	type = script_get_item("usb_feature", "mass_storage_id", &item_temp);
+	if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+		config->mass_storage_id = item_temp.val;
+	}else{
+		 printk("ERR: get usb_feature mass_storage_id failed\n");
+		config->mass_storage_id = 0x0001;
+	}
+
+    /* adb_id */
+	type = script_get_item("usb_feature", "adb_id", &item_temp);
+	if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+		config->adb_id = item_temp.val;
+	}else{
+		printk("ERR: get usb_feature adb_id failed\n");
+		config->adb_id = 0x0002;
+	}
+
+	/* manufacturer_name */
+	type = script_get_item("usb_feature", "manufacturer_name", &item_temp);
+	if(type == SCIRPT_ITEM_VALUE_TYPE_STR){
+		strcpy(config->usb_manufacturer_name, item_temp.str);
+	}else{
+		printk("ERR: get usb_feature manufacturer_name failed\n");
+		strcpy(config->usb_manufacturer_name, "USB Developer");
+	}
+
+	/* product_name */
+	type = script_get_item("usb_feature", "product_name", &item_temp);
+	if(type == SCIRPT_ITEM_VALUE_TYPE_STR){
+		strcpy(config->usb_product_name, item_temp.str);
+	}else{
+		printk("ERR: get usb_feature product_name failed\n");
+		strcpy(config->usb_product_name, "Android");
+	}
+
+	/* serial_number */
+	type = script_get_item("usb_feature", "serial_number", &item_temp);
+	if(type == SCIRPT_ITEM_VALUE_TYPE_STR){
+		strcpy(config->usb_serial_number, item_temp.str);
+	}else{
+		printk("ERR: get usb_feature serial_number failed\n");
+		strcpy(config->usb_serial_number, "20080411");
+	}
+
+
+    //----------------------------------------
+    //  msc_feature
+    //----------------------------------------
+
+	/* vendor_name */
+	type = script_get_item("msc_feature", "vendor_name", &item_temp);
+	if(type == SCIRPT_ITEM_VALUE_TYPE_STR){
+		strcpy(config->msc_vendor_name, item_temp.str);
+	}else{
+		printk("ERR: get msc_feature vendor_name failed\n");
+		strcpy(config->msc_vendor_name, "USB 2.0");
+	}
+
+	/* product_name */
+	type = script_get_item("msc_feature", "product_name", &item_temp);
+	if(type == SCIRPT_ITEM_VALUE_TYPE_STR){
+		strcpy(config->msc_product_name, item_temp.str);
+	}else{
+		printk("ERR: get msc_feature product_name failed\n");
+		strcpy(config->msc_product_name, "USB Flash Driver");
+	}
+
+	/* release */
+	type = script_get_item("msc_feature", "release", &item_temp);
+	if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+		config->msc_release = item_temp.val;
+	}else{
+		printk("ERR: get msc_feature release failed\n");
+		config->msc_release = 100;
+	}
+
+	/* luns */
+	type = script_get_item("msc_feature", "luns", &item_temp);
+	if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+		config->luns = item_temp.val;
+	}else{
+		printk("ERR: get msc_feature luns failed\n");
+		config->luns = 3;
+	}
+#endif
+    return 0;
+}
+
+static void print_android_config(struct android_usb_config *config)
+{
+    printk("------print_msc_config-----\n");
+    printk("vendor_id             = 0x%x\n", config->vendor_id);
+    printk("mass_storage_id       = 0x%x\n", config->mass_storage_id);
+    printk("adb_id                = 0x%x\n", config->adb_id);
+
+    printk("usb_manufacturer_name = %s\n", config->usb_manufacturer_name);
+    printk("usb_product_name      = %s\n", config->usb_product_name);
+    printk("usb_serial_number     = %s\n", config->usb_serial_number);
+
+    printk("msc_vendor_name       = %s\n", config->msc_vendor_name);
+    printk("msc_product_name      = %s\n", config->msc_product_name);
+    printk("msc_release           = %d\n", config->msc_release);
+    printk("luns                  = %d\n", config->luns);
+    printk("---------------------------\n");
+}
+
+s32 parse_android_usb_config(void)
+{
+    struct android_usb_config *config = &g_android_usb_config;
+
+    memset(config, 0, sizeof(struct android_usb_config));
+
+    get_android_config(config);
+
+    print_android_config(config);
+
+    return 0;
+}
+
+s32 get_android_usb_config(struct android_usb_config *config)
+{
+    memcpy(config, &g_android_usb_config, sizeof(struct android_usb_config));
+
+    return 0;
+}
+
+#endif
+
+
 

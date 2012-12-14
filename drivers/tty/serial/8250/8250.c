@@ -41,6 +41,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <mach/platform.h>
 
 #include "8250.h"
 
@@ -69,7 +70,7 @@ static unsigned int skip_txen_test; /* force skip of txen test at init time */
 /*
  * Debugging.
  */
-#if 0
+#if 1
 #define DEBUG_AUTOCONF(fmt...)	printk(fmt)
 #else
 #define DEBUG_AUTOCONF(fmt...)	do { } while (0)
@@ -687,6 +688,7 @@ static void disable_rsa(struct uart_8250_port *up)
  */
 static int size_fifo(struct uart_8250_port *up)
 {
+#ifndef CONFIG_SERIAL_8250_SUNXI
 	unsigned char old_fcr, old_mcr, old_lcr;
 	unsigned short old_dl;
 	int count;
@@ -715,6 +717,9 @@ static int size_fifo(struct uart_8250_port *up)
 	serial_outp(up, UART_LCR, old_lcr);
 
 	return count;
+#else
+	return 64;
+#endif
 }
 
 /*
@@ -837,7 +842,7 @@ static void autoconfig_has_efr(struct uart_8250_port *up)
 	else
 		up->port.type = PORT_16650V2;
 }
-
+#ifndef	CONFIG_SERIAL_8250_SUNXI
 /*
  * We detected a chip without a FIFO.  Only two fall into
  * this category - the original 8250 and the 16450.  The
@@ -860,6 +865,7 @@ static void autoconfig_8250(struct uart_8250_port *up)
 		up->port.type = PORT_16450;
 }
 
+#endif
 static int broken_efr(struct uart_8250_port *up)
 {
 	/*
@@ -903,7 +909,7 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 
 	up->port.type = PORT_16550A;
 	up->capabilities |= UART_CAP_FIFO;
-
+#ifndef CONFIG_SERIAL_8250_SUNXI
 	/*
 	 * Check for presence of the EFR when DLAB is set.
 	 * Only ST16C650V1 UARTs pass this test.
@@ -1039,7 +1045,7 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 		up->port.type = PORT_XR17D15X;
 		up->capabilities |= UART_CAP_AFE | UART_CAP_EFR;
 	}
-
+#endif
 	/*
 	 * We distinguish between 16550A and U6 16550A by counting
 	 * how many bytes are in the FIFO.
@@ -1066,8 +1072,8 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	if (!up->port.iobase && !up->port.mapbase && !up->port.membase)
 		return;
 
-	DEBUG_AUTOCONF("ttyS%d: autoconf (0x%04lx, 0x%p): ",
-		       serial_index(&up->port), up->port.iobase, up->port.membase);
+	DEBUG_AUTOCONF("ttyS%d: autoconf (0x%04lx, 0x%p  0x%04lx): ",
+		       serial_index(&up->port), up->port.iobase, up->port.membase,(long unsigned int)up->port.mapbase);
 
 	/*
 	 * We really do need global IRQs disabled here - we're going to
@@ -1150,6 +1156,9 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	 * We also initialise the EFR (if any) to zero for later.  The
 	 * EFR occupies the same register location as the FCR and IIR.
 	 */
+#ifdef CONFIG_SERIAL_8250_SUNXI
+	autoconfig_16550a(up);
+#else
 	serial_outp(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	serial_outp(up, UART_EFR, 0);
 	serial_outp(up, UART_LCR, 0);
@@ -1158,7 +1167,6 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	scratch = serial_in(up, UART_IIR) >> 6;
 
 	DEBUG_AUTOCONF("iir=%d ", scratch);
-
 	switch (scratch) {
 	case 0:
 		autoconfig_8250(up);
@@ -1173,7 +1181,6 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 		autoconfig_16550a(up);
 		break;
 	}
-
 #ifdef CONFIG_SERIAL_8250_RSA
 	/*
 	 * Only probe for RSA ports if we got the region.
@@ -1189,10 +1196,11 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 			}
 		}
 	}
-#endif
+#endif/*CONFIG_SERIAL_8250_RSA*/
 
 	serial_outp(up, UART_LCR, save_lcr);
 
+#endif/*CONFIG_SERIAL_8250_SUNXI*/
 	if (up->capabilities != uart_config[up->port.type].flags) {
 		printk(KERN_WARNING
 		       "ttyS%d: detected caps %08x should be %08x\n",
@@ -1528,6 +1536,7 @@ EXPORT_SYMBOL_GPL(serial8250_modem_status);
 /*
  * This handles the interrupt from one port.
  */
+
 int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 {
 	unsigned char status;
@@ -1535,8 +1544,21 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	struct uart_8250_port *up =
 		container_of(port, struct uart_8250_port, port);
 
-	if (iir & UART_IIR_NO_INT)
+       if ((iir & 0x7) == UART_IIR_BUSY) {
+               unsigned int mcr_t = serial_inp(up, UART_MCR);
+               AW_UART_LOG(">>> ttyS%d bus busy...", up->port.line);
+               serial_outp(up, UART_MCR, mcr_t|(1<<4));
+               while (serial_in(up, UART_USR)&1)
+               serial_inp(up, UART_RX);
+               serial_outp(up, UART_LCR, up->lcr);
+               serial_outp(up, UART_MCR, mcr_t);
+               return 1;
+       }
+
+	if (iir & UART_IIR_NO_INT) {
+		AW_UART_LOG("no int");
 		return 0;
+	}
 
 	spin_lock_irqsave(&up->port.lock, flags);
 
@@ -2256,6 +2278,8 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned char cval, fcr = 0;
 	unsigned long flags;
 	unsigned int baud, quot;
+	unsigned char mcr_tmp=0x00;
+	unsigned int count_tmp;
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
@@ -2400,11 +2424,36 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 #endif
 
+	mcr_tmp = serial_inp(up, UART_MCR);
+
 	if (up->capabilities & UART_NATSEMI) {
 		/* Switch to bank 2 not bank 1, to avoid resetting EXCR2 */
-		serial_outp(up, UART_LCR, 0xe0);
+
+		count_tmp=0;
+		mcr_tmp = serial_inp(up, UART_MCR);
+		serial_out(up, UART_MCR, mcr_tmp |(1<<4));
+		do{
+			count_tmp++;
+			serial_out(up, UART_FCR,0x07);
+			serial_outp(up, UART_LCR, 0xe0);
+			if(count_tmp==1000)
+				 break;
+		}while(serial_inp(up, UART_USR)&0x01);
 	} else {
-		serial_outp(up, UART_LCR, cval | UART_LCR_DLAB);/* set DLAB */
+
+		/*loopback mode to set lcr*/
+		mcr_tmp	= serial_inp(up, UART_MCR);
+		serial_out(up, UART_MCR, mcr_tmp |(1<<4));
+
+		count_tmp=0;
+		do{
+			count_tmp++;
+
+			serial_out(up, UART_FCR,0x07);
+			serial_outp(up, UART_LCR, cval | UART_LCR_DLAB);/* set DLAB */
+			if(count_tmp==1000)
+				break;
+		}while(serial_inp(up, UART_USR)&0x01);
 	}
 
 	serial_dl_write(up, quot);
@@ -2415,7 +2464,17 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	 */
 	if (up->port.type == PORT_16750)
 		serial_outp(up, UART_FCR, fcr);
+		count_tmp=0;
+	do{
+		count_tmp++;
 
+		serial_out(up, UART_FCR,0x07);
+		serial_outp(up, UART_LCR, cval);		/* reset DLAB */
+		if(count_tmp==1000)
+			break;
+	}while(serial_inp(up, UART_USR)&0x01);
+	/*to normal from loopback*/
+	serial_out(up, UART_MCR, mcr_tmp);
 	serial_outp(up, UART_LCR, cval);		/* reset DLAB */
 	up->lcr = cval;					/* Save LCR */
 	if (up->port.type != PORT_16750) {
@@ -2695,7 +2754,7 @@ static struct uart_ops serial8250_pops = {
 #endif
 };
 
-static struct uart_8250_port serial8250_ports[UART_NR];
+struct uart_8250_port serial8250_ports[UART_NR];
 
 static void (*serial8250_isa_config)(int port, struct uart_port *up,
 	unsigned short *capabilities);
@@ -3080,15 +3139,16 @@ static int __devexit serial8250_remove(struct platform_device *dev)
 
 static int serial8250_suspend(struct platform_device *dev, pm_message_t state)
 {
-	int i;
 
+	int i;
 	for (i = 0; i < UART_NR; i++) {
 		struct uart_8250_port *up = &serial8250_ports[i];
 
-		if (up->port.type != PORT_UNKNOWN && up->port.dev == &dev->dev)
-			uart_suspend_port(&serial8250_reg, &up->port);
+		if (up->port.type != PORT_UNKNOWN && up->port.dev == &dev->dev){
+			//uart_suspend_port(&serial8250_reg, &up->port);
+			sunxi_8250_backup_reg(i,&up->port);
+		}
 	}
-
 	return 0;
 }
 
@@ -3099,8 +3159,10 @@ static int serial8250_resume(struct platform_device *dev)
 	for (i = 0; i < UART_NR; i++) {
 		struct uart_8250_port *up = &serial8250_ports[i];
 
-		if (up->port.type != PORT_UNKNOWN && up->port.dev == &dev->dev)
-			serial8250_resume_port(i);
+		if (up->port.type != PORT_UNKNOWN && up->port.dev == &dev->dev){
+			sunxi_8250_comeback_reg(i,&up->port);
+			//serial8250_resume_port(i);
+		}
 	}
 
 	return 0;

@@ -169,6 +169,15 @@ config INPUT_KEYRESET
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called keyreset.
+	  
+config  INPUT_INIT_CTP
+       tristate  "init_ctp touchscreen driver"
+       depends on INPUT
+       default y
+       help
+         Read sys_config. Fex configuration information, 
+         and initialization CTP hardware related resources, 
+         if use CTP, please say Y, If unused, say N.
 
 comment "Input Device Drivers"
 
@@ -183,6 +192,10 @@ source "drivers/input/tablet/Kconfig"
 source "drivers/input/touchscreen/Kconfig"
 
 source "drivers/input/misc/Kconfig"
+
+source "drivers/input/gyr/Kconfig"
+
+source "drivers/input/e_compass/Kconfig"
 
 endif
 

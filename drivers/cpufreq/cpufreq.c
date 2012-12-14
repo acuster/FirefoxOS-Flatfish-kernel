@@ -526,6 +526,17 @@ static ssize_t show_affected_cpus(struct cpufreq_policy *policy, char *buf)
 	return show_cpus(policy->cpus, buf);
 }
 
+#ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
+/**
+ * show_user_event_notify - user event notify
+ */
+static ssize_t show_user_event_notify(struct cpufreq_policy *policy, char *buf)
+{
+	cpufreq_user_event_notify();
+	return sprintf(buf, "freq up");;
+}
+#endif
+
 static ssize_t store_scaling_setspeed(struct cpufreq_policy *policy,
 					const char *buf, size_t count)
 {
@@ -581,6 +592,9 @@ cpufreq_freq_attr_rw(scaling_min_freq);
 cpufreq_freq_attr_rw(scaling_max_freq);
 cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
+#ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
+cpufreq_freq_attr_ro(user_event_notify);
+#endif
 
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
@@ -594,6 +608,9 @@ static struct attribute *default_attrs[] = {
 	&scaling_driver.attr,
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
+#ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
+	&user_event_notify.attr,
+#endif
 	NULL
 };
 
@@ -1897,6 +1914,31 @@ int cpufreq_unregister_driver(struct cpufreq_driver *driver)
 }
 EXPORT_SYMBOL_GPL(cpufreq_unregister_driver);
 
+#ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
+/* user event notification */
+void cpufreq_user_event_notify(void)
+{
+	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
+	if(policy && policy->governor) {
+        policy->governor->governor(policy, CPUFREQ_GOV_USRENET);
+    }
+}
+EXPORT_SYMBOL_GPL(cpufreq_user_event_notify);
+#endif
+
+/* large scale thread event notification */
+void cpufreq_mass_thread_event_notify(void)
+{
+	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
+	if (policy && policy->governor)
+        policy->governor->governor(policy, CPUFREQ_GOV_MASS_THREAD_EVENT);
+}
+EXPORT_SYMBOL_GPL(cpufreq_mass_thread_event_notify);
+
+#ifdef CONFIG_CPU_FREQ_EARLYSUSPEND
+extern int hotplug_early_suspend_init(void);
+#endif
+
 static int __init cpufreq_core_init(void)
 {
 	int cpu;
@@ -1909,6 +1951,10 @@ static int __init cpufreq_core_init(void)
 	cpufreq_global_kobject = kobject_create_and_add("cpufreq", &cpu_subsys.dev_root->kobj);
 	BUG_ON(!cpufreq_global_kobject);
 	register_syscore_ops(&cpufreq_syscore_ops);
+
+    #ifdef CONFIG_CPU_FREQ_EARLYSUSPEND
+    hotplug_early_suspend_init();
+    #endif
 
 	return 0;
 }

@@ -277,6 +277,13 @@ struct v4l2_capability {
 /*
  *	V I D E O   I M A G E   F O R M A T
  */
+ 
+/* Add pixel size struct by raymonxiu */
+struct v4l2_pix_size {
+	__u32			width;
+	__u32			height;
+};
+ 
 struct v4l2_pix_format {
 	__u32         		width;
 	__u32			height;
@@ -719,6 +726,8 @@ struct v4l2_captureparm {
 
 /*  Flags for 'capability' and 'capturemode' fields */
 #define V4L2_MODE_HIGHQUALITY	0x0001	/*  High quality imaging mode */
+#define V4L2_MODE_VIDEO				0x0002	/*  For video capture */
+#define V4L2_MODE_IMAGE				0x0003	/*  For image capture */
 #define V4L2_CAP_TIMEPERFRAME	0x1000	/*  timeperframe field is supported */
 
 struct v4l2_outputparm {
@@ -1098,6 +1107,7 @@ struct v4l2_output {
 struct v4l2_control {
 	__u32		     id;
 	__s32		     value;
+	__u32				 user_pt;	/* Add user pointer by raymonxiu */
 };
 
 struct v4l2_ext_control {
@@ -1196,6 +1206,14 @@ struct v4l2_querymenu {
 #define V4L2_CID_BLACK_LEVEL		(V4L2_CID_BASE+11) /* Deprecated */
 #define V4L2_CID_AUTO_WHITE_BALANCE	(V4L2_CID_BASE+12)
 #define V4L2_CID_DO_WHITE_BALANCE	(V4L2_CID_BASE+13)
+enum v4l2_whiteblance {
+	V4L2_WB_AUTO = 0,
+	V4L2_WB_CLOUD = 1,
+	V4L2_WB_DAYLIGHT = 2,
+	V4L2_WB_INCANDESCENCE = 3,
+	V4L2_WB_FLUORESCENT = 4,
+	V4L2_WB_TUNGSTEN = 5,
+};
 #define V4L2_CID_RED_BALANCE		(V4L2_CID_BASE+14)
 #define V4L2_CID_BLUE_BALANCE		(V4L2_CID_BASE+15)
 #define V4L2_CID_GAMMA			(V4L2_CID_BASE+16)
@@ -1254,6 +1272,36 @@ enum v4l2_colorfx {
 
 /* last CID + 1 */
 #define V4L2_CID_LASTP1                         (V4L2_CID_BASE+42)
+/* Add camera flash light by raymonxiu */
+#define V4L2_CID_CAMERA_FLASH_MODE              (V4L2_CID_PRIVATE_BASE+0)
+enum v4l2_flash_mode {
+	V4L2_FLASH_MODE_OFF = 0,
+	V4L2_FLASH_MODE_AUTO = 1,
+	V4L2_FLASH_MODE_ON = 2,
+	V4L2_FLASH_MODE_TORCH = 3,
+	V4L2_FLASH_MODE_RED_EYE = 4,
+};
+/* Add camera autofocus mode by raymonxiu */
+#define V4L2_CID_CAMERA_AF_MODE              (V4L2_CID_PRIVATE_BASE+1)
+enum v4l2_autofocus_mode {
+	V4L2_AF_FIXED = 0,
+	V4L2_AF_INFINITY = 1,
+	V4L2_AF_MACRO = 2,
+	V4L2_AF_AUTO = 3,
+	V4L2_AF_TOUCH = 4,
+	V4L2_AF_FACE = 5,
+};
+/* Add camera autofocus ctrl by raymonxiu */
+#define V4L2_CID_CAMERA_AF_CTRL              (V4L2_CID_PRIVATE_BASE+2)
+enum v4l2_autofocus_ctrl {
+	V4L2_AF_INIT = 0,
+	V4L2_AF_RELEASE = 1,
+	V4L2_AF_TRIG_SINGLE = 2,
+	V4L2_AF_TRIG_CONTINUEOUS = 3,
+	V4L2_AF_LOCK = 4,
+	V4L2_AF_WIN_XY = 5,
+	V4L2_AF_WIN_NUM = 6,
+};
 
 /*  MPEG-class control IDs defined by V4L2 */
 #define V4L2_CID_MPEG_BASE 			(V4L2_CTRL_CLASS_MPEG | 0x900)

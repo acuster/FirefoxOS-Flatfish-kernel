@@ -30,6 +30,7 @@
 #include <asm/uaccess.h>
 #include <asm/tlbflush.h>
 #include <asm/shmparam.h>
+#include <linux/delay.h>
 
 /*** Page table manipulation functions ***/
 
@@ -1185,9 +1186,11 @@ void __init vmalloc_init(void)
 	/* Import existing vmlist entries. */
 	for (tmp = vmlist; tmp; tmp = tmp->next) {
 		va = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
-		va->flags = tmp->flags | VM_VM_AREA;
+		//va->flags = tmp->flags | VM_VM_AREA;
+		va->flags = VM_VM_AREA;
 		va->va_start = (unsigned long)tmp->addr;
 		va->va_end = va->va_start + tmp->size;
+		va->vm = tmp;
 		__insert_vmap_area(va);
 	}
 
@@ -1729,7 +1732,20 @@ static inline void *__vmalloc_node_flags(unsigned long size,
  */
 void *vmalloc(unsigned long size)
 {
-	return __vmalloc_node_flags(size, -1, GFP_KERNEL | __GFP_HIGHMEM);
+	int try_count = 0;
+	void *mem =  __vmalloc_node_flags(size, -1, GFP_KERNEL | __GFP_HIGHMEM | __GFP_NOWARN);
+	while (mem == NULL) {
+		if (try_count > 10) {
+			printk("try to vmalloc memory failed, and give up to try\n");
+			return NULL;
+		}
+		msleep(1000 + try_count * 200);
+		mem =  __vmalloc_node_flags(size, -1, GFP_KERNEL | __GFP_HIGHMEM | __GFP_NOWARN);
+		printk("try count: %d\n", try_count);
+		try_count++;
+	}
+	
+	return mem;
 }
 EXPORT_SYMBOL(vmalloc);
 

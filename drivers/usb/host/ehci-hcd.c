@@ -1376,6 +1376,13 @@ MODULE_LICENSE ("GPL");
 #define        PLATFORM_DRIVER         ehci_mv_driver
 #endif
 
+#ifdef CONFIG_USB_SW_SUN6I_HCI
+#include "ehci_sun6i.c"
+#define	PLATFORM_DRIVER		sw_ehci_hcd_driver
+#endif
+
+
+
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \
     !defined(PS3_SYSTEM_BUS_DRIVER) && !defined(OF_PLATFORM_DRIVER) && \
     !defined(XILINX_OF_PLATFORM_DRIVER)
@@ -1468,7 +1475,8 @@ err_debug:
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 	return retval;
 }
-module_init(ehci_hcd_init);
+fs_initcall(ehci_hcd_init);
+//module_init(ehci_hcd_init);
 
 static void __exit ehci_hcd_cleanup(void)
 {

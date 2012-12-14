@@ -583,7 +583,7 @@ config LOG_BUF_SHIFT
 # Architectures with an unreliable sched_clock() should select this:
 #
 config HAVE_UNSTABLE_SCHED_CLOCK
-	bool
+	bool "Support unstable sched clock"
 
 menuconfig CGROUPS
 	boolean "Control Group support"

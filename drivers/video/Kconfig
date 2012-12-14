@@ -261,6 +261,21 @@ config FB_TILEBLITTING
 comment "Frame buffer hardware drivers"
 	depends on FB
 
+config LYCHEE_FB_SUN6I
+        tristate "DISP Driver Support(sun6i)"
+        depends on FB
+        ---help---
+        default m
+
+config LYCHEE_LCD_SUN6I
+        tristate "LCD Driver Support(sun6i)"
+        ---help---
+        default m
+        
+config LYCHEE_HDMI_SUN6I
+        tristate "HDMI Driver Support(sun6i)"
+        ---help---
+        default m
 config FB_GRVGA
 	tristate "Aeroflex Gaisler framebuffer support"
 	depends on FB && SPARC

@@ -379,8 +379,12 @@ static int i2c_check_addr_validity(unsigned short addr)
 	 *  0x78-0x7b  10-bit slave addressing
 	 *  0x7c-0x7f  Reserved for future purposes
 	 */
+#ifndef CONFIG_ARCH_SUN6I
 	if (addr < 0x08 || addr > 0x77)
-		return -EINVAL;
+#else
+    if (addr < 0x03 || addr > 0x77)
+#endif
+        return -EINVAL;
 	return 0;
 }
 
@@ -1386,8 +1390,10 @@ int i2c_master_send(const struct i2c_client *client, const char *buf, int count)
 
 	ret = i2c_transfer(adap, &msg, 1);
 
-	/* If everything went ok (i.e. 1 msg transmitted), return #bytes
-	   transmitted, else error code. */
+	/*
+	 * If everything went ok (i.e. 1 msg transmitted), return #bytes
+	 * transmitted, else error code.
+	 */
 	return (ret == 1) ? count : ret;
 }
 EXPORT_SYMBOL(i2c_master_send);
@@ -1414,8 +1420,10 @@ int i2c_master_recv(const struct i2c_client *client, char *buf, int count)
 
 	ret = i2c_transfer(adap, &msg, 1);
 
-	/* If everything went ok (i.e. 1 msg transmitted), return #bytes
-	   transmitted, else error code. */
+	/*
+	 * If everything went ok (i.e. 1 msg received), return #bytes received,
+	 * else error code.
+	 */
 	return (ret == 1) ? count : ret;
 }
 EXPORT_SYMBOL(i2c_master_recv);
@@ -1485,9 +1493,11 @@ static int i2c_detect_address(struct i2c_client *temp_client,
 	if (i2c_check_addr_busy(adapter, addr))
 		return 0;
 
+#ifndef CONFIG_ARCH_SUN6I
 	/* Make sure there is something at this address */
 	if (!i2c_default_probe(adapter, addr))
 		return 0;
+#endif
 
 	/* Finally call the custom detection function */
 	memset(&info, 0, sizeof(struct i2c_board_info));

@@ -1,9 +1,10 @@
 config BCMDHD
-	tristate "Broadcom 4329/30 wireless cards support"
+	tristate "Broadcom 40181/40183 wireless cards support"
 	depends on MMC
+	default n
 	---help---
 	  This module adds support for wireless adapters based on
-	  Broadcom 4329/30 chipset.
+	  Broadcom 40181/40183 chipset.
 
 	  This driver uses the kernel's wireless extensions subsystem.
 
@@ -13,16 +14,20 @@ config BCMDHD
 config BCMDHD_FW_PATH
 	depends on BCMDHD
 	string "Firmware path"
-	default "/system/etc/firmware/fw_bcmdhd.bin"
+	default "/system/vendor/modules/fw_bcm.bin"
 	---help---
-	  Path to the firmware file.
+	  bcm40181 bcm40183 Path to the firmware file.
+	  /system/vendor/modules/fw_bcm40181a2.bin
+	  /system/vendor/modules/fw_bcm40183b2.bin
 
 config BCMDHD_NVRAM_PATH
 	depends on BCMDHD
-	string "NVRAM path"
-	default "/system/etc/wifi/bcmdhd.cal"
+	string "NVRAM path"	
+	default "/system/vendor/modules/bcm_nvram.txt"
 	---help---
-	  Path to the calibration file.
+	   bcm40181 bcm40183 Path to the calibration file.
+	   /system/vendor/modules/bcm40181_nvram.txt
+	   /system/vendor/modules/bcm40183_nvram.txt
 
 config BCMDHD_WEXT
 	bool "Enable WEXT support"
@@ -32,16 +37,9 @@ config BCMDHD_WEXT
 	help
 	  Enables WEXT support
 
-config DHD_USE_STATIC_BUF
-	bool "Enable memory preallocation"
-	depends on BCMDHD
-	default n
-	---help---
-	  Use memory preallocated in platform
-
 config DHD_USE_SCHED_SCAN
 	bool "Use CFG80211 sched scan"
 	depends on BCMDHD && CFG80211
-	default n
+	default y
 	---help---
 	  Use CFG80211 sched scan

@@ -1,0 +1,24 @@
+
+choice
+	prompt "Allwinner Platform Type"
+	depends on ARCH_SUN6I || ARCH_SUN7I
+	default AW_PLATFORM_EVB
+
+config AW_FPGA_V4_PLATFORM
+       bool "FPGAv4 board"
+       help
+         Support for Allwinner's FPGAv4 board
+
+config AW_FPGA_V7_PLATFORM
+       bool "FPGAv7 board"
+       help
+         Support for Allwinner's FPGAv4 board
+
+config AW_ASIC_EVB_PLATFORM
+       bool "EVB board"
+       help
+         Support for Allwinner's EVB board
+
+endchoice
+
+

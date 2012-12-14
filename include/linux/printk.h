@@ -100,6 +100,8 @@ int vprintk(const char *fmt, va_list args);
 asmlinkage __printf(1, 2) __cold
 int printk(const char *fmt, ...);
 
+extern int aw_printk(u32 uart_base, const char *fmt, ...);
+
 /*
  * Please don't use printk_ratelimit(), because it shares ratelimiting state
  * with all other unrelated printk_ratelimit() callsites.  Instead use
@@ -305,5 +307,10 @@ static inline void print_hex_dump_bytes(const char *prefix_str, int prefix_type,
 }
 
 #endif
+
+#define  print_call_info(...)({										\
+		do{															\
+			printk("%s, %s, %d. \n" , __FILE__, __func__, __LINE__);\
+		}while(0);})
 
 #endif

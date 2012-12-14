@@ -36,7 +36,7 @@
 #include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/localtimer.h>
+#include <asm/smp_twd.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
@@ -290,6 +290,21 @@ static void __init gic_init_irq(void)
 	gic_cascade_irq(1, IRQ_TC11MP_PB_IRQ1);
 }
 
+#ifdef CONFIG_HAVE_ARM_TWD
+static DEFINE_TWD_LOCAL_TIMER(twd_local_timer,
+			      REALVIEW_TC11MP_TWD_BASE,
+			      IRQ_LOCALTIMER);
+
+static void __init realview_pb11mp_twd_init(void)
+{
+	int err = twd_local_timer_register(&twd_local_timer);
+	if (err)
+		pr_err("twd_local_timer_register failed %d\n", err);
+}
+#else
+#define realview_pb11mp_twd_init()	do {} while(0)
+#endif
+
 static void __init realview_pb11mp_timer_init(void)
 {
 	timer0_va_base = __io_address(REALVIEW_PB11MP_TIMER0_1_BASE);
@@ -297,10 +312,8 @@ static void __init realview_pb11mp_timer_init(void)
 	timer2_va_base = __io_address(REALVIEW_PB11MP_TIMER2_3_BASE);
 	timer3_va_base = __io_address(REALVIEW_PB11MP_TIMER2_3_BASE) + 0x20;
 
-#ifdef CONFIG_LOCAL_TIMERS
-	twd_base = __io_address(REALVIEW_TC11MP_TWD_BASE);
-#endif
 	realview_timer_init(IRQ_TC11MP_TIMER0_1);
+	realview_pb11mp_twd_init();
 }
 
 static struct sys_timer realview_pb11mp_timer = {
@@ -317,20 +330,29 @@ static void realview_pb11mp_restart(char mode, const char *cmd)
 	 * in the system FPGA
 	 */
 	__raw_writel(REALVIEW_SYS_LOCK_VAL, lock_ctrl);
-	__raw_writel(0x0000, reset_ctrl);
 	__raw_writel(0x0004, reset_ctrl);
 	dsb();
 }
 
+#ifdef CONFIG_CACHE_L2X0
+static int __init realview_pb11mp_l2x0_init(void)
+{
+	if (machine_is_realview_pb11mp()) {
+		/*
+		 * 1MB (128KB/way), 8-way associativity, evmon/parity/share
+		 * Bits:  .... ...0 0111 1001 0000 .... .... ....
+		 */
+		l2x0_init(__io_address(REALVIEW_TC11MP_L220_BASE),
+			  0x00790000, 0xfe000fff);
+	}
+	return 0;
+}
+early_initcall(realview_pb11mp_l2x0_init);
+#endif
+
 static void __init realview_pb11mp_init(void)
 {
 	int i;
-
-#ifdef CONFIG_CACHE_L2X0
-	/* 1MB (128KB/way), 8-way associativity, evmon/parity/share enabled
-	 * Bits:  .... ...0 0111 1001 0000 .... .... .... */
-	l2x0_init(__io_address(REALVIEW_TC11MP_L220_BASE), 0x00790000, 0xfe000fff);
-#endif
 
 	realview_flash_register(realview_pb11mp_flash_resource,
 				ARRAY_SIZE(realview_pb11mp_flash_resource));
@@ -364,4 +386,5 @@ MACHINE_START(REALVIEW_PB11MP, "ARM-RealView PB11MPCore")
 	.dma_zone_size	= SZ_256M,
 #endif
 	.restart	= realview_pb11mp_restart,
+	.nr_irqs	= NR_IRQS_LEGACY,
 MACHINE_END

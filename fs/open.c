@@ -33,6 +33,8 @@
 
 #include "internal.h"
 
+unsigned int io_w_test_count = 0;
+
 int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
 	struct file *filp)
 {
@@ -977,6 +979,38 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 	char *tmp = getname(filename);
 	int fd = PTR_ERR(tmp);
 
+#if   (IO_TEST_DEBUG)
+	if(!(flags & O_DIRECTORY)&& strstr(filename, "_quadrant_.tmp"))
+	{
+		if (flags&0x00000001)
+		{
+			io_w_test_count = (io_w_test_count + 1)%IO_TEST_INTVL;
+			flags = 0x00000042;
+		}
+		else
+		{
+			flags = 0x00000002;
+		} 
+	}
+	if(!(flags & O_DIRECTORY) && strstr(filename, "abenchmark_temp_rw_file_"))
+	{
+		if((flags&0x00000001)||(flags&0x00000002))
+		{
+			flags = 0x00000042;
+		}
+		else
+		{
+			flags = 0x00000002;
+			putname(tmp);
+			copy_to_user(filename,"/mnt/sdcard/abenchmark_temp_rw_file_00",38);
+			tmp = getname(filename);
+			fd = PTR_ERR(tmp);
+		} 
+	}
+#endif 	
+
+
+
 	if (!IS_ERR(tmp)) {
 		fd = get_unused_fd_flags(flags);
 		if (fd >= 0) {
@@ -997,7 +1031,7 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 SYSCALL_DEFINE3(open, const char __user *, filename, int, flags, umode_t, mode)
 {
 	long ret;
-
+	
 	if (force_o_largefile())
 		flags |= O_LARGEFILE;
 
@@ -1079,6 +1113,7 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 	filp = fdt->fd[fd];
 	if (!filp)
 		goto out_unlock;
+	
 	rcu_assign_pointer(fdt->fd[fd], NULL);
 	FD_CLR(fd, fdt->close_on_exec);
 	__put_unused_fd(files, fd);

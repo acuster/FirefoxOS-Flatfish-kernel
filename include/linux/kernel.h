@@ -36,6 +36,12 @@
 #define ULLONG_MAX	(~0ULL)
 
 #define STACK_MAGIC	0xdeadbeef
+//IO≈‹∑÷≤‚ ‘
+#define IO_TEST_DEBUG 1
+#define IO_TEST_INTVL 4
+extern unsigned int io_w_test_count;
+
+
 
 #define ALIGN(x, a)		__ALIGN_KERNEL((x), (a))
 #define __ALIGN_MASK(x, mask)	__ALIGN_KERNEL_MASK((x), (mask))

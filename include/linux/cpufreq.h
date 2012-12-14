@@ -166,6 +166,10 @@ static inline unsigned long cpufreq_scale(unsigned long old, u_int div, u_int mu
 #define CPUFREQ_GOV_START  1
 #define CPUFREQ_GOV_STOP   2
 #define CPUFREQ_GOV_LIMITS 3
+#ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
+#define CPUFREQ_GOV_USRENET 4
+#endif
+#define CPUFREQ_GOV_MASS_THREAD_EVENT 5
 
 struct cpufreq_governor {
 	char	name[CPUFREQ_NAME_LEN];
@@ -253,6 +257,11 @@ int cpufreq_unregister_driver(struct cpufreq_driver *driver_data);
 
 
 void cpufreq_notify_transition(struct cpufreq_freqs *freqs, unsigned int state);
+#ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
+/* user event notification */
+void cpufreq_user_event_notify(void);
+#endif
+void cpufreq_mass_thread_event_notify(void);
 
 
 static inline void cpufreq_verify_within_limits(struct cpufreq_policy *policy, unsigned int min, unsigned int max)
@@ -366,6 +375,9 @@ extern struct cpufreq_governor cpufreq_gov_conservative;
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_INTERACTIVE)
 extern struct cpufreq_governor cpufreq_gov_interactive;
 #define CPUFREQ_DEFAULT_GOVERNOR	(&cpufreq_gov_interactive)
+#elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_FANTASYS)
+extern struct cpufreq_governor cpufreq_gov_fantasys;
+#define CPUFREQ_DEFAULT_GOVERNOR	(&cpufreq_gov_fantasys)
 #endif
 
 

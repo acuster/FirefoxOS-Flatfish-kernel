@@ -1,0 +1,9 @@
+#
+# sun6i dma test configuration.
+#
+
+config DMA_TEST_DRIVER
+	tristate "sun6i dma test driver"
+	default y
+	help
+	This is sun6i dma test driver.

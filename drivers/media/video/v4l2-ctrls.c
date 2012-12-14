@@ -352,6 +352,35 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"External",
 		NULL,
 	};
+	/* Add camera flash light by raymonxiu */
+	static const char *flash_mode[] = {
+		"Off",
+		"Auto",
+		"On",
+		"Torch",
+		"Red-Eye",
+		NULL
+	};
+	/* Add camera autofocus mode by raymonxiu */
+	static const char *af_mode[] = {
+		"Fixed",
+		"Infinity",
+		"Macro",
+		"Auto",
+		"Touch",
+		"Face",
+		NULL
+	};
+	/* Add camera autofocus ctrl by raymonxiu */
+	static const char *af_ctrl[] = {
+		"Init",
+		"Release",
+		"TrigSingle",
+		"TrigContinueous",
+		"Lock",
+		"SetWin",
+		NULL
+	};
 
 	switch (id) {
 	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
@@ -414,6 +443,15 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		return mpeg_mpeg4_level;
 	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:
 		return mpeg4_profile;
+	/* Add camera flash light by raymonxiu */
+	case V4L2_CID_CAMERA_FLASH_MODE:
+		return flash_mode;
+	/* Add camera autofocus mode by raymonxiu */
+	case V4L2_CID_CAMERA_AF_MODE:
+		return af_mode;
+	/* Add camera autofocus ctrl by raymonxiu */
+	case V4L2_CID_CAMERA_AF_CTRL:
+		return af_ctrl;
 	default:
 		return NULL;
 	}
@@ -468,6 +506,12 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:	return "Min Number of Capture Buffers";
 	case V4L2_CID_MIN_BUFFERS_FOR_OUTPUT:	return "Min Number of Output Buffers";
 	case V4L2_CID_ALPHA_COMPONENT:		return "Alpha Component";
+	/* Add camera flash light by raymonxiu */
+	case V4L2_CID_CAMERA_FLASH_MODE:    return "FlashLight Mode";
+	/* Add camera autofocus mode by raymonxiu */
+	case V4L2_CID_CAMERA_AF_MODE:		return "AutoFocus Mode";
+	/* Add camera autofocus ctrl by raymonxiu */
+	case V4L2_CID_CAMERA_AF_CTRL:		return "AutoFocus Ctrl";
 
 	/* MPEG controls */
 	/* Keep the order of the 'case's the same as in videodev2.h! */
@@ -693,6 +737,12 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC:
 	case V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL:
 	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:
+	/* Add camera flash light by raymonxiu */
+	case V4L2_CID_CAMERA_FLASH_MODE:	
+	/* Add camera autofocus mode by raymonxiu */
+	case V4L2_CID_CAMERA_AF_MODE:
+	/* Add camera autofocus ctrl by raymonxiu */
+	case V4L2_CID_CAMERA_AF_CTRL:
 		*type = V4L2_CTRL_TYPE_MENU;
 		break;
 	case V4L2_CID_RDS_TX_PS_NAME:

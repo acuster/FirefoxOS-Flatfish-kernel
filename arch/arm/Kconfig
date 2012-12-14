@@ -282,8 +282,28 @@ config ARCH_REALVIEW
 	select ARM_TIMER_SP804
 	select GPIO_PL061 if GPIOLIB
 	select NEED_MACH_MEMORY_H
+	select SPARSE_IRQ
 	help
 	  This enables support for ARM Ltd RealView boards.
+
+config ARCH_SUN6I
+	bool "Allwinner Ltd. AW163x family"
+	select ARM_AMBA
+	select CLKDEV_LOOKUP
+	select ARM_GIC
+	select CPU_V7
+	select HAVE_SMP
+	select HAVE_MACH_CLKDEV
+	select GENERIC_CLOCKEVENTS
+	select NEED_MACH_MEMORY_H
+	select MIGHT_HAVE_CACHE_L2X0
+	select ARCH_HAS_BARRIERS if SMP
+	select ZONE_DMA
+	select HAVE_SCHED_CLOCK
+	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_HAS_CPUFREQ
+	help
+	  This enables support for AllWinner Ltd develop boards.
 
 config ARCH_VERSATILE
 	bool "ARM Ltd. Versatile family"
@@ -985,6 +1005,8 @@ config ARCH_ZYNQ
 	  Support for Xilinx Zynq ARM Cortex A9 Platform
 endchoice
 
+
+
 #
 # This is sorted alphabetically by mach-* pathname.  However, plat-*
 # Kconfigs may be included either alphabetically (according to the
@@ -1039,6 +1061,8 @@ source "arch/arm/plat-mxc/Kconfig"
 source "arch/arm/mach-mxs/Kconfig"
 
 source "arch/arm/mach-netx/Kconfig"
+
+source "arch/arm/mach-sun6i/Kconfig"
 
 source "arch/arm/mach-nomadik/Kconfig"
 source "arch/arm/plat-nomadik/Kconfig"
@@ -1163,6 +1187,15 @@ if !MMU
 source "arch/arm/Kconfig-nommu"
 endif
 
+config ARM_ERRATA_326103
+	bool "ARM errata: FSR write bit incorrect on a SWP to read-only memory"
+	depends on CPU_V6
+	help
+	  Executing a SWP instruction to read-only memory does not set bit 11
+	  of the FSR on the ARM 1136 prior to r1p0. This causes the kernel to
+	  treat the access as a read, preventing a COW from occurring and
+	  causing the faulting task to livelock.
+
 config ARM_ERRATA_411920
 	bool "ARM errata: Invalidation of the Instruction Cache operation can fail"
 	depends on CPU_V6 || CPU_V6K
@@ -1280,7 +1313,7 @@ config ARM_ERRATA_743622
 	depends on CPU_V7
 	help
 	  This option enables the workaround for the 743622 Cortex-A9
-	  (r2p0..r2p2) erratum. Under very rare conditions, a faulty
+	  (r2p*) erratum. Under very rare conditions, a faulty
 	  optimisation in the Cortex-A9 Store Buffer may lead to data
 	  corruption. This workaround sets a specific bit in the diagnostic
 	  register of the Cortex-A9 which disables the Store Buffer
@@ -1520,12 +1553,25 @@ config HAVE_ARM_SCU
 	help
 	  This option enables support for the ARM system coherency unit
 
+config ARM_ARCH_TIMER
+	bool "Architected timer support"
+	depends on CPU_V7
+	select TICK_ONESHOT
+	help
+	  This option enables support for the ARM architected timer
+
 config HAVE_ARM_TWD
 	bool
 	depends on SMP
 	select TICK_ONESHOT
 	help
 	  This options enables support for the ARM timer and watchdog unit
+
+config AW_TIME_DELAY
+	bool "Timer counter delay"
+	depends on ARCH_SUN6I
+	---help---
+	  The udelay will use timer0 counter, not use bogomips.
 
 choice
 	prompt "Memory split"
