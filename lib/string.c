@@ -387,6 +387,49 @@ size_t strlen(const char *s)
 	return sc - s;
 }
 EXPORT_SYMBOL(strlen);
+
+size_t str_len(const char *str)
+{
+	u64 v;
+	const char *p = str;
+	const char *p1;
+	//将地址进行16字节对齐
+	while(*p && ((u32)p & 0xf))
+	{
+		p ++;
+	}
+	//判断对齐的地址字符串是否结束
+	if (*p == 0)
+	{
+		return (size_t)(p - str);
+	}
+	//按照8字节为单位进行比较
+	for (v = 0; !v; p += 16)
+	{
+		v = (*(u64 *)p - 0x0101010101010101) & 0x8080808080808080;	
+		if (v)
+		{
+			v &= ~*(u64 *)p;
+			p += 8;
+			break;									
+		}
+		p1 = p + 8;
+		
+		v = (*(u64 *)p1 - 0x0101010101010101) & 0x8080808080808080;
+		if (v)
+		{
+			v &= ~*(u64 *)p1;		
+		}				
+	}
+	for (; (v & 0xff) == 0; p ++)
+	{
+		v >>= 8;
+	}
+	
+	return (size_t)(p - str - 8);
+}
+EXPORT_SYMBOL(str_len);
+
 #endif
 
 #ifndef __HAVE_ARCH_STRNLEN

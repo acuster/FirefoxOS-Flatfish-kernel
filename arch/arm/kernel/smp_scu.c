@@ -32,7 +32,6 @@ unsigned int __init scu_get_core_count(void __iomem *scu_base)
         /* Read current CP15 Cache Size ID Register */
         asm volatile ("mrc p15, 1, %0, c9, c0, 2" : "=r" (cores));
 
-        printk("[%s] cores=%x\n", __FUNCTION__, cores);
         cores = ((cores >> 24) & 0x3) + 1;
         return cores;
 }

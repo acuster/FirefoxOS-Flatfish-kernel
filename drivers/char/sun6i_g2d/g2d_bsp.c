@@ -762,7 +762,11 @@ __s32 mixer_blt(g2d_blt *para){
 		write_wvalue(G2D_DMA1_CONTROL_REG, reg_val);
 	}
 	mixer_micro_block_set(para);
+	write_wvalue(G2D_DMA1_FILLCOLOR_REG, 0xFFFFFFFF);
+	write_wvalue(G2D_DMA2_FILLCOLOR_REG, 0xFFFFFFFF);
 	
+if((para->flag & G2D_BLT_PIXEL_ALPHA)||(para->flag & G2D_BLT_PLANE_ALPHA)||(para->flag & G2D_BLT_MULTI_ALPHA)||(para->flag & G2D_BLT_SRC_COLORKEY)||(para->flag & G2D_BLT_DST_COLORKEY))
+{
 	/* pyuv422/420/411uvc */
 	if((para->dst_image.format>0x16)&&(para->dst_image.format<0x1A))
 	{
@@ -782,8 +786,6 @@ __s32 mixer_blt(g2d_blt *para){
 		reg_val |= (5<<8) | G2D_IDMA_ENABLE;
 		write_wvalue(G2D_DMA2_CONTROL_REG, reg_val);
 	}
-	write_wvalue(G2D_DMA1_FILLCOLOR_REG, 0xFFFFFFFF);
-	write_wvalue(G2D_DMA2_FILLCOLOR_REG, 0xFFFFFFFF);
 
 	/* channel3 is dst surface */
 	addr_val = mixer_get_addr(para->dst_image.addr[0],para->dst_image.format,para->dst_image.w,para->dst_x,para->dst_y);
@@ -805,7 +807,8 @@ __s32 mixer_blt(g2d_blt *para){
 		reg_val |= (0xFF<<24)|0x4;
 	}	
 	write_wvalue(G2D_DMA3_CONTROL_REG, reg_val);
-	
+}
+
 	/* colorkey */
 	if (para->flag & G2D_BLT_SRC_COLORKEY)
 	{
@@ -936,7 +939,9 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 	/* channel3 is dst surface */
 	write_wvalue(G2D_DMA3_STRIDE_REG, para->dst_image.w*mixer_bpp_count(para->dst_image.format));	
 	reg_val = read_wvalue(G2D_DMA3_CONTROL_REG);
-	reg_val |= mixer_in_fmtseq_set(para->dst_image.format,para->dst_image.pixel_seq) | G2D_IDMA_ENABLE;
+	reg_val |= mixer_in_fmtseq_set(para->dst_image.format,para->dst_image.pixel_seq);
+	if((para->flag & G2D_BLT_PIXEL_ALPHA)||(para->flag & G2D_BLT_PLANE_ALPHA)||(para->flag & G2D_BLT_MULTI_ALPHA)||(para->flag & G2D_BLT_SRC_COLORKEY)||(para->flag & G2D_BLT_DST_COLORKEY))
+	reg_val |=G2D_IDMA_ENABLE;
 
 	/* rgbx/bgrx/xrgb/xbgr format */
 	if((para->src_image.format>0x03)&&(para->src_image.format<0x08))
@@ -1030,6 +1035,8 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 			reg_val |= (reg_tmp<<16)/para->dst_rect.h;
 			write_wvalue(G2D_SCALER_VFACTOR_REG,reg_val);
 
+		if((para->flag & G2D_BLT_PIXEL_ALPHA)||(para->flag & G2D_BLT_PLANE_ALPHA)||(para->flag & G2D_BLT_MULTI_ALPHA)||(para->flag & G2D_BLT_SRC_COLORKEY)||(para->flag & G2D_BLT_DST_COLORKEY))
+		{
 			/* DMA2 pyuv422/420/411uvc */
 			if((para->dst_image.format>0x16)&&(para->dst_image.format<0x1A))
 			{
@@ -1059,7 +1066,7 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 			reg_val = addr_val&0xFFFFFFFF;/* low addr in bits */
 			write_wvalue(G2D_DMA3_LADDR_REG, reg_val);
 			write_wvalue(G2D_DMA3_SIZE_REG, (0x400 -1) | ((para->dst_rect.h -1)<<16));
-			
+		}
 			/* OUT */
 			if((para->flag & G2D_BLT_ROTATE90) || (para->flag & G2D_BLT_ROTATE270))
 				 write_wvalue(G2D_OUTPUT_SIZE_REG, (para->dst_rect.h -1) | ((0x400 -1)<<16));
@@ -1160,7 +1167,8 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 		reg_tmp = (para->src_rect.h%para->dst_rect.h);
 		reg_val |= (reg_tmp<<16)/para->dst_rect.h;
 		write_wvalue(G2D_SCALER_VFACTOR_REG,reg_val);
-
+	if((para->flag & G2D_BLT_PIXEL_ALPHA)||(para->flag & G2D_BLT_PLANE_ALPHA)||(para->flag & G2D_BLT_MULTI_ALPHA)||(para->flag & G2D_BLT_SRC_COLORKEY)||(para->flag & G2D_BLT_DST_COLORKEY))
+	{
 		/* DMA2 pyuv422/420/411uvc */
 		if((para->dst_image.format>0x16)&&(para->dst_image.format<0x1A))
 		{
@@ -1191,7 +1199,7 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 		reg_val = addr_val&0xFFFFFFFF;/* low addr in bits */
 		write_wvalue(G2D_DMA3_LADDR_REG, reg_val);
 		write_wvalue(G2D_DMA3_SIZE_REG, (soutw - 1) | ((para->dst_rect.h -1)<<16));
-		
+	}
 		/* OUT */
 		if((para->flag & G2D_BLT_ROTATE90) || (para->flag & G2D_BLT_ROTATE270))
 			 write_wvalue(G2D_OUTPUT_SIZE_REG, (para->dst_rect.h -1) | ((soutw - 1)<<16));
@@ -1281,7 +1289,8 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 			reg_val |= (5<<8) | G2D_IDMA_ENABLE;
 			write_wvalue(G2D_DMA1_CONTROL_REG, reg_val);
 		}
-		
+	if((para->flag & G2D_BLT_PIXEL_ALPHA)||(para->flag & G2D_BLT_PLANE_ALPHA)||(para->flag & G2D_BLT_MULTI_ALPHA)||(para->flag & G2D_BLT_SRC_COLORKEY)||(para->flag & G2D_BLT_DST_COLORKEY))
+	{
 		/* pyuv422/420/411uvc */
 		if((para->dst_image.format>0x16)&&(para->dst_image.format<0x1A))
 		{
@@ -1301,7 +1310,7 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 			reg_val |= (5<<8) | G2D_IDMA_ENABLE;
 			write_wvalue(G2D_DMA2_CONTROL_REG, reg_val);
 		}
-		
+
 		addr_val = mixer_get_addr(para->dst_image.addr[0],para->dst_image.format,para->dst_image.w,para->dst_rect.x,para->dst_rect.y);
 		reg_val = read_wvalue(G2D_DMA_HADDR_REG);
 		reg_val |= ((addr_val>>32)&0xF)<<24;/* high addr in bits */
@@ -1309,7 +1318,7 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 		reg_val = addr_val&0xFFFFFFFF;/* low addr in bits */
 		write_wvalue(G2D_DMA3_LADDR_REG, reg_val);
 		write_wvalue(G2D_DMA3_SIZE_REG, (para->dst_rect.w -1) | ((para->dst_rect.h -1)<<16));
-		
+	}
 		/* output surface is the dst surface */
 		write_wvalue(G2D_OUTPUT_SIZE_REG, (para->dst_rect.w -1) | ((para->dst_rect.h -1)<<16));
 		addr_val = mixer_get_addr(para->dst_image.addr[0],para->dst_image.format,para->dst_image.w,para->dst_rect.x,para->dst_rect.y);

@@ -423,10 +423,9 @@ __s32 BSP_disp_layer_release(__u32 sel, __u32 hid)
             BSP_disp_cmu_layer_enable(sel, IDTOHAND(hid),FALSE);
             disp_cmu_layer_clear(sel);
 
+            Scaler_Release(layer_man->scaler_index, FALSE);      /*release a scaler object */
             BSP_disp_deu_enable(sel, IDTOHAND(hid), FALSE);
             disp_deu_clear(sel, IDTOHAND(hid));
-
-            Scaler_Release(layer_man->scaler_index, FALSE);      /*release a scaler object */
         }
         else
         {

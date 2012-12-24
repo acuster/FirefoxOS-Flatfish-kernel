@@ -77,9 +77,9 @@ int arch_timer_common_register(void);
 
 static void __init sun6i_timer_init(void)
 {
-    sun6i_clkevt_init();
-    sun6i_clksrc_init();
-    arch_timer_common_register();
+	sun6i_clkevt_init();
+	sun6i_clksrc_init();
+	arch_timer_common_register();
 }
 
 
@@ -90,7 +90,7 @@ static struct sys_timer sun6i_timer = {
 static void sun6i_fixup(struct tag *tags, char **from,
 			       struct meminfo *meminfo)
 {
-	printk("[%s] enter\n", __func__);
+	pr_debug("[%s] enter\n", __func__);
 	meminfo->bank[0].start = PLAT_PHYS_OFFSET;
 	meminfo->bank[0].size = HW_RESERVED_MEM_BASE - meminfo->bank[0].start;
 	meminfo->bank[1].start = HW_RESERVED_MEM_BASE + HW_RESERVED_MEM_SIZE;
@@ -106,7 +106,7 @@ static void sun6i_fixup(struct tag *tags, char **from,
 
 static void sun6i_restart(char mode, const char *cmd)
 {
-	printk("[%s] enter\n", __func__);
+	pr_debug("[%s] enter\n", __func__);
 	writel(0, (AW_VIR_R_WDOG_BASE + AW_WDOG0_IRQ_EN_REG));
 	writel(1, (AW_VIR_R_WDOG_BASE + AW_WDOG0_CFG_REG));
 	writel(1, (AW_VIR_R_WDOG_BASE + AW_WDOG0_MODE_REG)); /* interval is 0.5 sec */
@@ -116,14 +116,14 @@ static void sun6i_restart(char mode, const char *cmd)
 extern void sw_pdev_init(void);
 static void __init sun6i_init(void)
 {
-	printk("[%s] enter\n", __func__);
+	pr_debug("[%s] enter\n", __func__);
 	sw_pdev_init();
 	/* Register platform devices here!! */
 }
 
 void __init sun6i_init_early(void)
 {
-	printk("[%s] enter\n", __func__);
+	pr_debug("[%s] enter\n", __func__);
 }
 
 MACHINE_START(SUN6I, "sun6i")

@@ -89,6 +89,10 @@ static int input_defuzz_abs_event(int value, int old_val, int fuzz)
 #ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
 static const char *gsensor_name_list[] = {
 	"mma7660",
+	"mma8452",
+	"mma865x",
+	"lis3dh_acc",
+	"lis3de_acc",
 	"bma250",
 	"ecompass_data",
 	NULL

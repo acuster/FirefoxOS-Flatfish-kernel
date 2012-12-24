@@ -102,7 +102,7 @@ __s32 OSAL_GPIO_DevSetONEPIN_IO_STATUS(u32 p_handler, __u32 if_set_to_output_sta
     {
         if(if_set_to_output_status)
         {
-            ret = gpio_direction_output(p_handler, 1);
+            ret = gpio_direction_output(p_handler, 0);
             if(ret != 0)
             {
                 __wrn("gpio_direction_output fail!\n");

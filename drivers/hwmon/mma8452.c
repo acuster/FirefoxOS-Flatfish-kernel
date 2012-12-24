@@ -68,9 +68,9 @@
 #define MMA8452_I2C_ADDR1       0x1D
 
 enum {
-	DEBUG_BASE_LEVEL0 = 1U << 0,
-	DEBUG_BASE_LEVEL1 = 1U << 1,
-	DEBUG_BASE_LEVEL2 = 1U << 2,
+	DEBUG_INIT = 1U << 0,
+	DEBUG_CONTROL_INFO = 1U << 1,
+	DEBUG_DATA_INFO = 1U << 2,
 	DEBUG_SUSPEND = 1U << 3,
 };
 static u32 debug_mask = 0;
@@ -177,7 +177,7 @@ static int gsensor_fetch_sysconfig_para(void)
 	script_item_u	val;
 	script_item_value_type_e  type;
 		
-	dprintk(DEBUG_BASE_LEVEL0, "========%s===================\n", __func__);
+	dprintk(DEBUG_INIT, "========%s===================\n", __func__);
 	
 	type = script_get_item("gsensor_para", "gsensor_used", &val);
  
@@ -195,7 +195,7 @@ static int gsensor_fetch_sysconfig_para(void)
 		}
 		twi_id = val.val;
 		
-		dprintk(DEBUG_BASE_LEVEL0, "%s: twi_id is %d. \n", __func__, twi_id);
+		dprintk(DEBUG_INIT, "%s: twi_id is %d. \n", __func__, twi_id);
 
 		ret = 0;
 		
@@ -257,7 +257,10 @@ static ssize_t mma8452_enable_store(struct device *dev,
 		goto exit;
 	}
 
+	dprintk(DEBUG_CONTROL_INFO, "%s data = %ld \n", __func__, data);
+
 	if(data) {
+		mma_status.ctl_reg1 |= 0x01;
 		error = i2c_smbus_write_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1, mma_status.ctl_reg1);
 		assert(error==0);
 	} else {
@@ -370,17 +373,19 @@ static void report_abs(void)
 {
 	short x,y,z;
 	int result;
-	
-	do {
-		result=i2c_smbus_read_byte_data(mma8452_i2c_client, MMA8452_STATUS);
-	} while (!(result & 0x08));		/* wait for new data */
+
+	result = i2c_smbus_read_byte_data(mma8452_i2c_client, MMA8452_STATUS);
+	if (!(result & 0x08)) {
+		dprintk(DEBUG_CONTROL_INFO, "mma8452 check new data\n");
+		return;		/* wait for new data */
+	}
 
 	if (mma8452_read_data(&x,&y,&z) != 0) {
-		//DBG("mma8452 data read failed\n");
+		dprintk(DEBUG_DATA_INFO, "mma8452 no data");
 		return;
 	}
 
-	dprintk(DEBUG_BASE_LEVEL1, "x= 0x%hx, y = 0x%hx, z = 0x%hx\n", x, y, z);
+	dprintk(DEBUG_DATA_INFO, "x= 0x%hx, y = 0x%hx, z = 0x%hx\n", x, y, z);
 	input_report_abs(mma8452_idev->input, ABS_X, x);
 	input_report_abs(mma8452_idev->input, ABS_Y, y);
 	input_report_abs(mma8452_idev->input, ABS_Z, z);
@@ -397,10 +402,17 @@ static void mma8452_early_suspend(struct early_suspend *h)
 {
 	int result;
 	struct mma8452_data *mma8452_data = container_of(h, struct mma8452_data, early_suspend);
+
+	dprintk(DEBUG_SUSPEND, "mma8452 early suspend");
+
+	mma8452_idev->input->close(mma8452_idev->input);
+	
 	mma8452_data = i2c_get_clientdata(mma8452_i2c_client);
 	mma_status.ctl_reg1 = i2c_smbus_read_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1);
 	result = i2c_smbus_write_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1,mma_status.ctl_reg1 & 0xFE);
 	assert(result==0);
+
+	dprintk(DEBUG_SUSPEND, "mma8452 early suspend end");
 	return ;
 }
 
@@ -411,18 +423,20 @@ static void mma8452_late_resume(struct early_suspend *h) //(struct i2c_client *c
 	struct mma8452_data *mma8452_data = container_of(h, struct mma8452_data, early_suspend);
 	mma8452_data = i2c_get_clientdata(mma8452_i2c_client);
 
+	dprintk(DEBUG_SUSPEND, "mma8452 late resume");
+
 	if (NORMAL_STANDBY == standby_type) {
-		result = i2c_smbus_write_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1, mma_status.ctl_reg1);
-		assert(result==0);	
+		result = mma8452_init_client(mma8452_i2c_client);
+		if(result < 0)
+			printk("mma8452 resume init failed");
 	} else if (SUPER_STANDBY == standby_type) {
-		result = i2c_smbus_write_byte_data(mma8452_i2c_client, MMA8452_XYZ_DATA_CFG, mma_status.mode);
-		assert(result==0);
+		result = mma8452_init_client(mma8452_i2c_client);
+		if(result < 0)
+			printk("mma8452 resume init failed");
+	}
+	mma8452_idev->input->open(mma8452_idev->input);
 
-		result = i2c_smbus_write_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1, mma_status.ctl_reg1);
-		assert(result==0);
-
-		mdelay(MODE_CHANGE_DELAY_MS);
-	}	
+	dprintk(DEBUG_SUSPEND, "mma8452 late resume end");
 	return ;
 }
 #else
@@ -430,29 +444,37 @@ static void mma8452_late_resume(struct early_suspend *h) //(struct i2c_client *c
 static int mma8452_resume(struct i2c_client *client)
 {
 	int result;
+
+	dprintk(DEBUG_SUSPEND, "mma8452 resume");
 	
 	if (NORMAL_STANDBY == standby_type) {
-		result = i2c_smbus_write_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1, mma_status.ctl_reg1);
-		assert(result==0);	
+		result = mma8452_init_client(mma8452_i2c_client);
+		if(result < 0)
+			printk("mma8452 resume init failed");
 	} else if (SUPER_STANDBY == standby_type) {
-		result = i2c_smbus_write_byte_data(mma8452_i2c_client, MMA8452_XYZ_DATA_CFG, mma_status.mode);
-		assert(result==0);
+		result = mma8452_init_client(mma8452_i2c_client);
+		if(result < 0)
+			printk("mma8452 resume init failed");
+	}
+	mma8452_idev->input->open(mma8452_idev->input);
 
-		result = i2c_smbus_write_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1, mma_status.ctl_reg1);
-		assert(result==0);
-
-		mdelay(MODE_CHANGE_DELAY_MS);
-	}	
+	dprintk(DEBUG_SUSPEND, "mma8452 resume end");
 	return 0;
 }
 
 static int mma8452_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	int result;
+
+	dprintk(DEBUG_SUSPEND, "mma8452 suspend");
+
+	mma8452_idev->input->close(mma8452_idev->input);
 		
 	mma_status.ctl_reg1 = i2c_smbus_read_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1);
 	result = i2c_smbus_write_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1,mma_status.ctl_reg1 & 0xFE);
 	assert(result==0);
+
+	dprintk(DEBUG_SUSPEND, "mma8452 suspend end");
 	return 0;
 }
 #endif
@@ -465,7 +487,7 @@ static int __devinit mma8452_probe(struct i2c_client *client,
 	struct input_dev *idev;
 	struct i2c_adapter *adapter;
 
-	dprintk(DEBUG_BASE_LEVEL0, "mma8452 probe i2c address is %d \n",i2c_address[i2c_num-1]);
+	dprintk(DEBUG_INIT, "mma8452 probe i2c address is %d \n",i2c_address[i2c_num-1]);
 	client->addr =i2c_address[i2c_num-1];
  
 	mma8452_i2c_client = client;
@@ -475,7 +497,7 @@ static int __devinit mma8452_probe(struct i2c_client *client,
 					 I2C_FUNC_SMBUS_BYTE_DATA);
 	assert(result);
 	
-	dprintk(DEBUG_BASE_LEVEL0, "check mma8452 chip ID\n");
+	dprintk(DEBUG_INIT, "check mma8452 chip ID\n");
 	result = i2c_smbus_read_byte_data(client, MMA8452_WHO_AM_I);
 
 	if (MMA8452_ID != (result)) {	//compare the address value 
@@ -520,7 +542,7 @@ static int __devinit mma8452_probe(struct i2c_client *client,
 	}
 	result = sysfs_create_group(&mma8452_idev->input->dev.kobj, &mma8452_attribute_group);
 #ifdef CONFIG_HAS_EARLYSUSPEND	
-	dprintk(DEBUG_BASE_LEVEL1, "==register_early_suspend =\n");
+	dprintk(DEBUG_INIT, "==register_early_suspend =\n");
 	mma8452_data = kzalloc(sizeof(*mma8452_data), GFP_KERNEL);
 	if (mma8452_data == NULL) {
 		result = -ENOMEM;
@@ -532,7 +554,7 @@ static int __devinit mma8452_probe(struct i2c_client *client,
 	mma8452_data->early_suspend.resume	= mma8452_late_resume;
 	register_early_suspend(&mma8452_data->early_suspend);
 #endif
-
+	dprintk(DEBUG_INIT, "mma8452 probe end\n");
 	return result;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 err_alloc_data_failed:
@@ -548,10 +570,15 @@ static int __devexit mma8452_remove(struct i2c_client *client)
 	result = i2c_smbus_write_byte_data(client, MMA8452_CTRL_REG1,mma_status.ctl_reg1 & 0xFE);
 	assert(result==0);
 
-	hwmon_device_unregister(hwmon_dev);
 #ifdef CONFIG_HAS_EARLYSUSPEND	
 	unregister_early_suspend(&mma8452_data->early_suspend);	
 #endif
+	sysfs_remove_group(&mma8452_idev->input->dev.kobj, &mma8452_attribute_group);
+	mma8452_idev->input->close(mma8452_idev->input);
+	input_unregister_polled_device(mma8452_idev);
+	input_free_polled_device(mma8452_idev);
+	hwmon_device_unregister(hwmon_dev);
+
 	return result;
 }
 
@@ -586,7 +613,7 @@ static int __init mma8452_init(void)
 {
 	/* register driver */
 	int res;
-	dprintk(DEBUG_BASE_LEVEL0, "======%s=========. \n", __func__);
+	dprintk(DEBUG_INIT, "======%s=========. \n", __func__);
 	if(gsensor_fetch_sysconfig_para()){
 		printk("%s: err.\n", __func__);
 		return -1;
@@ -598,14 +625,14 @@ static int __init mma8452_init(void)
 		printk(KERN_INFO "add mma8452 i2c driver failed\n");
 		return -ENODEV;
 	}
-	dprintk(DEBUG_BASE_LEVEL0, "add mma8452 i2c driver\n");
+	dprintk(DEBUG_INIT, "add mma8452 i2c driver\n");
 
 	return (res);
 }
 
 static void __exit mma8452_exit(void)
 {
-	dprintk(DEBUG_BASE_LEVEL0, "remove mma8452 i2c driver.\n");
+	dprintk(DEBUG_INIT, "remove mma8452 i2c driver.\n");
 	i2c_del_driver(&mma8452_driver);
 }
 

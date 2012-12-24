@@ -1,0 +1,630 @@
+/*
+ * SoftWinners 3G module core Linux support
+ *
+ * Copyright (C) 2012 SoftWinners Incorporated
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ */
+
+#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/err.h>
+#include <linux/kernel.h>
+#include <linux/kmemcheck.h>
+#include <linux/ctype.h>
+#include <linux/delay.h>
+#include <linux/idr.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <linux/interrupt.h>
+#include <linux/platform_device.h>
+#include <linux/signal.h>
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/pm.h>
+#include <linux/earlysuspend.h>
+#endif
+
+#include <linux/time.h>
+#include <linux/timer.h>
+#include <linux/input.h>
+#include <linux/ioport.h>
+#include <linux/io.h>
+
+#include <mach/platform.h>
+#include <mach/sys_config.h>
+#include <mach/gpio.h>
+#include <linux/clk.h>
+#include <linux/gpio.h>
+
+#include "sw_module.h"
+
+//-----------------------------------------------------------------------------
+//
+//-----------------------------------------------------------------------------
+
+void sw_module_delay(u32 time)
+{
+    spinlock_t lock;
+	unsigned long flags = 0;
+
+	spin_lock_init(&lock);
+	spin_lock_irqsave(&lock, flags);
+	mdelay(time);
+	spin_unlock_irqrestore(&lock, flags);
+}
+EXPORT_SYMBOL(sw_module_delay);
+
+s32 modem_get_config(struct sw_modem *modem)
+{
+    script_item_value_type_e type = 0;
+    script_item_u item_temp;
+
+    /* 3g_used */
+    type = script_get_item("3g_para", "3g_used", &item_temp);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+        modem->used = item_temp.val;
+    }else{
+        modem_err("ERR: get 3g_used failed\n");
+        modem->used = 0;
+    }
+
+    /* 3g_usbc_num */
+    type = script_get_item("3g_para", "3g_usbc_num", &item_temp);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+        modem->usbc_no = item_temp.val;
+    }else{
+        modem_err("ERR: get 3g_usbc_num failed\n");
+        modem->usbc_no = 0;
+    }
+
+    /* 3g_uart_num */
+    type = script_get_item("3g_para", "3g_uart_num", &item_temp);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+        modem->uart_no = item_temp.val;
+    }else{
+        modem_err("ERR: get 3g_uart_num failed\n");
+        modem->uart_no = 0;
+    }
+
+    /* bb_name */
+    type = script_get_item("3g_para", "bb_name", &item_temp);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_STR){
+        strcpy(modem->name, item_temp.str);
+        modem_dbg("%s modem support\n", modem->name);
+    }else{
+        modem_err("ERR: get bb_name failed\n");
+    }
+
+    /* bb_vbat */
+    type = script_get_item("3g_para", "bb_vbat", &modem->bb_vbat.pio);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_PIO){
+        modem->bb_vbat.valid = 1;
+    }else{
+        modem_err("ERR: get bb_vbat failed\n");
+        modem->bb_vbat.valid = 0;
+    }
+
+    /* bb_pwr_on */
+    type = script_get_item("3g_para", "bb_pwr_on", &modem->bb_pwr_on.pio);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_PIO){
+        modem->bb_pwr_on.valid = 1;
+    }else{
+        modem_err("ERR: get bb_pwr_on failed\n");
+        modem->bb_pwr_on.valid  = 0;
+    }
+
+    /* bb_rst */
+    type = script_get_item("3g_para", "bb_rst", &modem->bb_rst.pio);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_PIO){
+        modem->bb_rst.valid = 1;
+    }else{
+        modem_err("ERR: get bb_rst failed\n");
+        modem->bb_rst.valid  = 0;
+    }
+
+    /* bb_rf_dis */
+    type = script_get_item("3g_para", "bb_rf_dis", &modem->bb_rf_dis.pio);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_PIO){
+        modem->bb_rf_dis.valid = 1;
+    }else{
+        modem_err("ERR: get bb_rf_dis failed\n");
+        modem->bb_rf_dis.valid  = 0;
+    }
+
+    /* bb_host_wake */
+    type = script_get_item("3g_para", "bb_host_wake", &modem->bb_host_wake.pio);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_PIO){
+        modem->bb_host_wake.valid = 1;
+    }else{
+        modem_err("ERR: get bb_host_wake failed\n");
+        modem->bb_host_wake.valid  = 0;
+    }
+
+    /* bb_wake */
+    type = script_get_item("3g_para", "bb_wake", &modem->bb_wake.pio);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_PIO){
+        modem->bb_wake.valid = 1;
+    }else{
+        modem_err("ERR: get bb_wake failed\n");
+        modem->bb_wake.valid  = 0;
+    }
+
+    return 0;
+}
+EXPORT_SYMBOL(modem_get_config);
+
+s32 modem_pin_init(struct sw_modem *modem)
+{
+    int ret = 0;
+
+    //---------------------------------
+    //  bb_vbat
+    //---------------------------------
+    if(modem->bb_vbat.valid){
+        ret = gpio_request(modem->bb_vbat.pio.gpio.gpio, "bb_vbat");
+        if(ret != 0){
+            modem_err("gpio_request bb_vbat failed\n");
+            modem->bb_vbat.valid = 0;
+        }else{
+            /* set config, ouput */
+            sw_gpio_setcfg(modem->bb_vbat.pio.gpio.gpio, GPIO_CFG_OUTPUT);
+        }
+    }
+
+    //---------------------------------
+    //  bb_pwr_on
+    //---------------------------------
+    if(modem->bb_pwr_on.valid){
+        ret = gpio_request(modem->bb_pwr_on.pio.gpio.gpio, "bb_pwr_on");
+        if(ret != 0){
+            modem_err("gpio_request bb_pwr_on failed\n");
+            modem->bb_pwr_on.valid = 0;
+        }else{
+            /* set config, ouput */
+            sw_gpio_setcfg(modem->bb_pwr_on.pio.gpio.gpio, GPIO_CFG_OUTPUT);
+        }
+    }
+
+    //---------------------------------
+    //  bb_rst
+    //---------------------------------
+    if(modem->bb_rst.valid){
+        ret = gpio_request(modem->bb_rst.pio.gpio.gpio, "bb_rst");
+        if(ret != 0){
+            modem_err("gpio_request bb_rst failed\n");
+            modem->bb_rst.valid = 0;
+        }else{
+            /* set config, ouput */
+            sw_gpio_setcfg(modem->bb_rst.pio.gpio.gpio, GPIO_CFG_OUTPUT);
+        }
+    }
+
+    //---------------------------------
+    //  bb_wake
+    //---------------------------------
+    if(modem->bb_wake.valid){
+        ret = gpio_request(modem->bb_wake.pio.gpio.gpio, "bb_wake");
+        if(ret != 0){
+            modem_err("gpio_request bb_wake failed\n");
+            modem->bb_wake.valid = 0;
+        }else{
+            /* set config, ouput */
+            sw_gpio_setcfg(modem->bb_wake.pio.gpio.gpio, GPIO_CFG_OUTPUT);
+        }
+    }
+
+    //---------------------------------
+    //  bb_rf_dis
+    //---------------------------------
+    if(modem->bb_rf_dis.valid){
+        ret = gpio_request(modem->bb_rf_dis.pio.gpio.gpio, "bb_rf_dis");
+        if(ret != 0){
+            modem_err("gpio_request bb_rf_dis failed\n");
+            modem->bb_rf_dis.valid = 0;
+        }else{
+            /* set config, ouput */
+            sw_gpio_setcfg(modem->bb_rf_dis.pio.gpio.gpio, GPIO_CFG_OUTPUT);
+        }
+    }
+
+    return 0;
+}
+EXPORT_SYMBOL(modem_pin_init);
+
+s32 modem_pin_exit(struct sw_modem *modem)
+{
+    //---------------------------------
+    //  bb_vbat
+    //---------------------------------
+    if(modem->bb_vbat.valid){
+        gpio_free(modem->bb_vbat.pio.gpio.gpio);
+        modem->bb_vbat.valid = 0;
+    }
+
+    //---------------------------------
+    //  bb_pwr_on
+    //---------------------------------
+    if(modem->bb_pwr_on.valid){
+        gpio_free(modem->bb_pwr_on.pio.gpio.gpio);
+        modem->bb_pwr_on.valid = 0;
+    }
+
+    //---------------------------------
+    //  bb_rst
+    //---------------------------------
+    if(modem->bb_rst.valid){
+        gpio_free(modem->bb_rst.pio.gpio.gpio);
+        modem->bb_rst.valid = 0;
+    }
+
+    //---------------------------------
+    //  bb_wake
+    //---------------------------------
+    if(modem->bb_wake.valid){
+        gpio_free(modem->bb_wake.pio.gpio.gpio);
+        modem->bb_wake.valid = 0;
+    }
+
+    //---------------------------------
+    //  bb_rf_dis
+    //---------------------------------
+    if(modem->bb_rf_dis.valid){
+        gpio_free(modem->bb_rf_dis.pio.gpio.gpio);
+        modem->bb_rf_dis.valid = 0;
+    }
+
+    return 0;
+}
+EXPORT_SYMBOL(modem_pin_exit);
+
+void modem_vbat(struct sw_modem *modem, u32 value)
+{
+    u32 negated = 0;  //取反
+
+    if(!modem->bb_vbat.valid){
+        return;
+    }
+
+    if(modem->bb_vbat.pio.gpio.data == 0){
+        negated = value ? 1 : 0;
+    }else{
+        negated = value ? 0 : 1;
+    }
+
+    __gpio_set_value(modem->bb_vbat.pio.gpio.gpio, negated);
+
+    return;
+}
+EXPORT_SYMBOL(modem_vbat);
+
+/* modem reset delay is 100 */
+void modem_reset(struct sw_modem *modem, u32 value)
+{
+    u32 negated = 0;  //取反
+
+    if(!modem->bb_rst.valid){
+        return;
+    }
+
+    if(modem->bb_rst.pio.gpio.data == 0){
+        negated = value ? 1 : 0;
+    }else{
+        negated = value ? 0 : 1;
+    }
+
+    __gpio_set_value(modem->bb_rst.pio.gpio.gpio, negated);
+
+    return;
+}
+EXPORT_SYMBOL(modem_reset);
+
+void modem_sleep(struct sw_modem *modem, u32 value)
+{
+    u32 negated = 0;  //取反
+
+    if(!modem->bb_wake.valid){
+        return;
+    }
+
+    if(modem->bb_wake.pio.gpio.data == 0){
+        negated = value ? 1 : 0;
+    }else{
+        negated = value ? 0 : 1;
+    }
+
+    __gpio_set_value(modem->bb_wake.pio.gpio.gpio, negated);
+
+    return;
+}
+EXPORT_SYMBOL(modem_sleep);
+
+void modem_power_on_off(struct sw_modem *modem, u32 value)
+{
+    u32 negated = 0;  //取反
+
+    if(!modem->bb_pwr_on.valid){
+        return;
+    }
+
+    if(modem->bb_pwr_on.pio.gpio.data == 0){
+        negated = value ? 1 : 0;
+    }else{
+        negated = value ? 0 : 1;
+    }
+
+    __gpio_set_value(modem->bb_pwr_on.pio.gpio.gpio, negated);
+
+    return;
+}
+EXPORT_SYMBOL(modem_power_on_off);
+
+void modem_rf_disable(struct sw_modem *modem, u32 value)
+{
+    u32 negated = 0;  //取反
+
+    if(!modem->bb_rf_dis.valid){
+        return;
+    }
+
+    if(modem->bb_rf_dis.pio.gpio.data == 0){
+        negated = value ? 1 : 0;
+    }else{
+        negated = value ? 0 : 1;
+    }
+
+    __gpio_set_value(modem->bb_rf_dis.pio.gpio.gpio, negated);
+
+    return;
+}
+EXPORT_SYMBOL(modem_rf_disable);
+
+static int modem_create_input_device(struct sw_modem *modem)
+{
+    int ret = 0;
+
+    modem->key = input_allocate_device();
+    if (!modem->key) {
+        modem_err("err: not enough memory for input device\n");
+        return -ENOMEM;
+    }
+
+    modem->key->name          = "sw_3g_modem";
+    modem->key->phys          = "modem/input0";
+    modem->key->id.bustype    = BUS_HOST;
+    modem->key->id.vendor     = 0xf001;
+    modem->key->id.product    = 0xffff;
+    modem->key->id.version    = 0x0100;
+
+    modem->key->evbit[0] = BIT_MASK(EV_KEY);
+    set_bit(KEY_POWER, modem->key->keybit);
+
+    ret = input_register_device(modem->key);
+    if (ret) {
+        modem_err("err: input_register_device failed\n");
+        input_free_device(modem->key);
+        return -ENOMEM;
+    }
+
+    return 0;
+}
+
+static int modem_free_input_device(struct sw_modem *modem)
+{
+    if(modem->key){
+        input_unregister_device(modem->key);
+        input_free_device(modem->key);
+    }
+
+    return 0;
+}
+
+/* 通知android，唤醒系统 */
+static void modem_wakeup_system(struct sw_modem *modem)
+{
+    modem_dbg("---------%s modem wakeup system----------\n", modem->name);
+
+    input_report_key(modem->key, KEY_POWER, 1);
+    input_sync(modem->key);
+    msleep(100);
+    input_report_key(modem->key, KEY_POWER, 0);
+    input_sync(modem->key);
+
+    return ;
+}
+
+static int modem_irq_config(struct sw_modem *modem)
+{
+    struct gpio_config_eint_all pcfg;
+    u32 cfg_num = 0;
+
+    memset(&pcfg, 0, sizeof(struct gpio_config_eint_all));
+    pcfg.gpio = modem->bb_host_wake.pio.gpio.gpio;
+    pcfg.pull = 1;
+    pcfg.enabled = 0;
+    pcfg.irq_pd = 1;
+    pcfg.trig_type = TRIG_EDGE_NEGATIVE;
+    cfg_num = 1;
+
+    sw_gpio_eint_setall_range(&pcfg, cfg_num);
+
+    return 0;
+}
+
+static int modem_irq_config_clear(struct sw_modem *modem)
+{
+    struct gpio_config_eint_all pcfg;
+    u32 cfg_num = 0;
+
+    memset(&pcfg, 0, sizeof(struct gpio_config_eint_all));
+    pcfg.gpio = modem->bb_host_wake.pio.gpio.gpio;
+    pcfg.pull = 1;
+    pcfg.enabled = 0;
+    pcfg.irq_pd = 1;
+    pcfg.trig_type = TRIG_EDGE_NEGATIVE;
+    cfg_num = 1;
+
+    sw_gpio_eint_setall_range(&pcfg, cfg_num);
+
+    return 0;
+}
+
+static void modem_irq_enable(struct sw_modem *modem)
+{
+    sw_gpio_eint_set_enable(modem->bb_host_wake.pio.gpio.gpio, 1);
+
+    return;
+}
+
+static void modem_irq_disable(struct sw_modem *modem)
+{
+    sw_gpio_eint_set_enable(modem->bb_host_wake.pio.gpio.gpio, 0);
+
+    return;
+}
+
+static u32 modem_irq_is_enable(struct sw_modem *modem)
+{
+    u32 ret = 0;
+    __u32 result = 0;
+
+    ret = sw_gpio_eint_get_enable(modem->bb_host_wake.pio.gpio.gpio, &result);
+    if(ret != 0){
+        result = 0;
+    }
+
+    return result;
+}
+
+static u32 modem_irq_is_pending(struct sw_modem *modem)
+{
+	return sw_gpio_eint_get_irqpd_sta(modem->bb_host_wake.pio.gpio.gpio);
+}
+
+static void modem_irq_clear_pending(struct sw_modem *modem)
+{
+    sw_gpio_eint_clr_irqpd_sta(modem->bb_host_wake.pio.gpio.gpio);
+
+    return ;
+}
+
+static void modem_irq_work(struct work_struct *data)
+{
+	struct sw_modem *modem = container_of(data, struct sw_modem, irq_work);
+
+	modem_wakeup_system(modem);
+
+	return;
+}
+
+static u32 modem_irq_interrupt(void *para)
+{
+	struct sw_modem *modem = (struct sw_modem *)para;
+    int result = 0;
+
+    modem_dbg("\nriq1: config(0x%x), data(0x%x), driv(0x%x), pull(0x%x)\n",
+              readl(AW_VIR_R_PIO_BASE + 0x24),
+              readl(AW_VIR_R_PIO_BASE + 0x34),
+              readl(AW_VIR_R_PIO_BASE + 0x38),
+              readl(AW_VIR_R_PIO_BASE + 0x40));
+    modem_dbg("riq1: iconfig(0x%x), enable(0x%x), status(0x%x)\n\n",
+              readl(AW_VIR_R_PIO_BASE + 0x220),
+              readl(AW_VIR_R_PIO_BASE + 0x230),
+              readl(AW_VIR_R_PIO_BASE + 0x234));
+
+	if(modem_irq_is_enable(modem)){
+	    result = 1;
+	}
+
+    modem_irq_disable(modem);
+    modem_irq_config_clear(modem);
+    modem_irq_clear_pending(modem);
+
+    modem_dbg("\nriq2: config(0x%x), data(0x%x), driv(0x%x), pull(0x%x)\n",
+              readl(AW_VIR_R_PIO_BASE + 0x24),
+              readl(AW_VIR_R_PIO_BASE + 0x34),
+              readl(AW_VIR_R_PIO_BASE + 0x38),
+              readl(AW_VIR_R_PIO_BASE + 0x40));
+    modem_dbg("riq2: iconfig(0x%x), enable(0x%x), status(0x%x)\n\n",
+              readl(AW_VIR_R_PIO_BASE + 0x220),
+              readl(AW_VIR_R_PIO_BASE + 0x230),
+              readl(AW_VIR_R_PIO_BASE + 0x234));
+
+    if(result){
+        schedule_work(&modem->irq_work);
+    }
+
+	return 0;
+}
+
+int modem_irq_init(struct sw_modem *modem)
+{
+    int ret = 0;
+
+    ret = modem_create_input_device(modem);
+    if(ret != 0){
+        modem_err("err: modem_create_input_device failed\n");
+        return -1;
+    }
+
+	INIT_WORK(&modem->irq_work, modem_irq_work);
+
+    modem->irq_hd = sw_gpio_irq_request(modem->bb_host_wake.pio.gpio.gpio,
+                                        TRIG_EDGE_NEGATIVE,
+                                        modem_irq_interrupt,
+                                        modem);
+    if(modem->irq_hd == 0){
+        modem_err("err: sw_gpio_irq_request failed\n");
+        modem_free_input_device(modem);
+        return -1;
+    }
+
+    modem_irq_disable(modem);
+    modem_irq_config_clear(modem);
+    modem_irq_clear_pending(modem);
+
+    return 0;
+}
+EXPORT_SYMBOL(modem_irq_init);
+
+int modem_irq_exit(struct sw_modem *modem)
+{
+	modem_irq_disable(modem);
+    modem_irq_config_clear(modem);
+    modem_irq_clear_pending(modem);
+
+    sw_gpio_irq_free(modem->irq_hd);
+    cancel_work_sync(&modem->irq_work);
+    modem_free_input_device(modem);
+
+    return 0;
+}
+EXPORT_SYMBOL(modem_irq_exit);
+
+void modem_early_suspend(struct sw_modem *modem)
+{
+    modem_irq_config(modem);
+    modem_irq_clear_pending(modem);
+    modem_irq_enable(modem);
+
+    return;
+}
+EXPORT_SYMBOL(modem_early_suspend);
+
+void modem_early_resume(struct sw_modem *modem)
+{
+    modem_irq_disable(modem);
+    modem_irq_config_clear(modem);
+    modem_irq_clear_pending(modem);
+
+    return;
+}
+EXPORT_SYMBOL(modem_early_resume);
+
+

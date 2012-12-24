@@ -35,7 +35,7 @@ void bsp_csi_if_configure(__csi_if_conf_t *csi_if_cfg)
 							  csi_if_cfg->field_pol<< 19 | 
 							  csi_if_cfg->vref << 18 | 
 							  csi_if_cfg->href << 17 |
-							  csi_if_cfg->clock<< 16 |
+							  ((csi_if_cfg->clock==CSI_FALLING)?1:0)<< 16 |
 							  csi_if_cfg->data_width << 8  | 
 							  csi_if_cfg->csi_if << 0
       );

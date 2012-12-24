@@ -85,6 +85,7 @@ struct sw_serial_port {
 };
 
 struct sw_serial_port *sw_serial_uart[6];
+static int sw_uart_have_used =0;
 backup_reg_t sunxi_serial_reg_back[MAX_PORTS];
 
 static char	*mod_clock_name[]={
@@ -113,7 +114,7 @@ static int sw_serial_get_resource(struct sw_serial_port *sport)
     sport->mmres = platform_get_resource(sport->pdev, IORESOURCE_MEM, 0);
     if (!sport->mmres){
 		ret = -ENODEV;
-        printk("no IORESOURCE_MEM");
+        printk(KERN_WARNING "no IORESOURCE_MEM");
 		goto err_out;
 	}
 
@@ -125,7 +126,6 @@ static int sw_serial_get_resource(struct sw_serial_port *sport)
         goto iounmap;
     }
 
-	printk("sport->sclk %d %d\n",sport->sclk,__LINE__);
     sport->mod_clk_name	= mod_clock_name[sport->port_no];
     sport->mod_clk = clk_get(NULL, sport->mod_clk_name);
     if (IS_ERR(sport->mod_clk)) {
@@ -134,15 +134,16 @@ static int sw_serial_get_resource(struct sw_serial_port *sport)
     }
 
 	sport->sclk = clk_get_rate(sport->mod_clk);
-
+/*
 	clk_enable(sport->bus_clk);
     clk_enable(sport->mod_clk);
 	clk_reset(sport->mod_clk,AW_CCU_CLK_NRESET);
-    /* get irq */
+ */
+	/* get irq */
     sport->irq = platform_get_irq(sport->pdev, 0);
     if (sport->irq == 0) {
         ret = -EINVAL;
-		printk("no IORESOURCE_irq");
+		printk(KERN_WARNING "no IORESOURCE_irq");
         goto free_pclk;
     }
 
@@ -210,18 +211,18 @@ static int sw_serial_get_config(struct sw_serial_port *sport, u32 uart_id)
 
 	type = script_get_item(uart_para, "uart_port", &val);
 	if(SCIRPT_ITEM_VALUE_TYPE_INT != type){
-		printk("uart port err!\n");
+		printk(KERN_WARNING "uart port err!\n");
 		return -1;
 	}
 	sport->port_no	= val.val;
 	if (sport->port_no != uart_id){
-		printk("port_no%d uart_id %d  err!\n",sport->port_no,uart_id);
+		printk(KERN_WARNING "port_no%d uart_id %d  err!\n",sport->port_no,uart_id);
         	return -1;
 	}
 
 	type = script_get_item(uart_para, "uart_type", &val);
 	if(SCIRPT_ITEM_VALUE_TYPE_INT != type){
-		printk("uart type err!\n");
+		printk(KERN_WARNING "uart type err!\n");
 		return -1;
 	}
 	sport->pin_num	= val.val;
@@ -235,8 +236,8 @@ sw_serial_pm(struct uart_port *port, unsigned int state,
           unsigned int oldstate)
 {
 	struct sw_serial_port *up = sw_serial_uart[port->irq-32];
-	printk("irq is %d\n",port->irq);
-    if (!state){
+
+	if (!state){
         clk_enable(up->bus_clk);
 		clk_enable(up->mod_clk);
 		clk_reset(up->mod_clk,AW_CCU_CLK_NRESET);
@@ -245,7 +246,6 @@ sw_serial_pm(struct uart_port *port, unsigned int state,
 		clk_disable(up->mod_clk);
         clk_disable(up->bus_clk);
 	}
-	printk("enter sw_serial_pm!\n");
 }
 
 static void sunxi_serial_out(struct uart_port *p, int offset, int value)
@@ -292,8 +292,8 @@ sw_serial_probe(struct platform_device *dev)
     }
 
 	platform_set_drvdata(dev, sport);
-	printk("NO is %d\n",dev->id);
-    ret = sw_serial_get_resource(sport);
+
+	ret = sw_serial_get_resource(sport);
     if (ret) {
         printk(KERN_ERR "Failed to get resource\n");
         goto free_dev;
@@ -325,10 +325,14 @@ sw_serial_probe(struct platform_device *dev)
 		ret = sdata->line;
 		goto free_dev;	
 	}
-	printk("line %d port_no %d\n",sdata->line,sport->port_no);
+
 	UART_MSG("\nserial line %d probe %d, membase %p irq %d mapbase 0x%08x\n", 
              sdata->line,dev->id, sport->port.membase, sport->port.irq, sport->port.mapbase);
-		
+/*
+	clk_reset(sport->mod_clk,AW_CCU_CLK_RESET);
+	clk_disable(sport->mod_clk);
+	clk_disable(sport->bus_clk);
+*/
    	return 0;
 free_dev:
     kfree(sport);
@@ -337,7 +341,7 @@ free_dev:
 	sdata = NULL;
     return ret;
 }
-
+#define FCR_AW  0x0e1
 void sunxi_8250_backup_reg(int port_num ,struct uart_port *port)
 {
 	unsigned long port_base_addr;
@@ -347,21 +351,25 @@ void sunxi_8250_backup_reg(int port_num ,struct uart_port *port)
 	BACK_REG.mcr	= AW_UART_RD(UART_MCR);
 	BACK_REG.sch	= AW_UART_RD(UART_SCR);
 	BACK_REG.halt	= AW_UART_RD(UART_HALT);
-	BACK_REG.fcr	= AW_UART_RD(UART_FCR);
+	BACK_REG.fcr	= FCR_AW;
 
+	AW_UART_WR(BACK_REG.mcr|(1<<4),UART_MCR);
 	while(AW_UART_RD(UART_USR)&1)
-        AW_UART_WR(UART_HALT,BACK_REG.halt | UART_FORCE_CFG);
+		AW_UART_RD(UART_RX);
 	AW_UART_WR(BACK_REG.lcr & 0x7f,UART_LCR);
 
 	BACK_REG.ier	= AW_UART_RD(UART_IER);
 
+	while(AW_UART_RD(UART_USR)&1)
+		AW_UART_RD(UART_RX);
 	AW_UART_WR(BACK_REG.lcr | 0x80,UART_LCR);
 	BACK_REG.dll	= AW_UART_RD(UART_DLL);
 	BACK_REG.dlh	= AW_UART_RD(UART_DLM);
 
+	while(AW_UART_RD(UART_USR)&1)
+		AW_UART_RD(UART_RX);
 	AW_UART_WR(BACK_REG.lcr,UART_LCR);
-	if(AW_UART_RD(UART_HALT)&UART_FORCE_CFG)
-		AW_UART_WR(UART_HALT,BACK_REG.halt & (~UART_FORCE_CFG));
+	AW_UART_WR(BACK_REG.mcr,UART_MCR);
 }
 EXPORT_SYMBOL(sunxi_8250_backup_reg);
 
@@ -369,25 +377,31 @@ void sunxi_8250_comeback_reg(int port_num,struct uart_port *port)
 {
 	unsigned long port_base_addr;
 	port_base_addr = port->mapbase + OFFSET;
+
+	AW_UART_WR(BACK_REG.mcr|(1<<4),UART_MCR);
 	AW_UART_WR(BACK_REG.sch,UART_SCR);
 	AW_UART_WR(BACK_REG.halt,UART_HALT);
-	AW_UART_WR(BACK_REG.mcr,UART_MCR);
 	AW_UART_WR(BACK_REG.fcr,UART_FCR);
 
 	while(AW_UART_RD(UART_USR)&1)
-		AW_UART_WR(UART_HALT,BACK_REG.halt | UART_FORCE_CFG);
+		AW_UART_RD(UART_RX);
+
 	AW_UART_WR(BACK_REG.lcr & 0x7f,UART_LCR);
 	
 	AW_UART_WR(BACK_REG.ier,UART_IER);
+
+	while(AW_UART_RD(UART_USR)&1)
+		AW_UART_RD(UART_RX);
 
 	AW_UART_WR(BACK_REG.lcr | 0x80,UART_LCR);
 	AW_UART_WR(BACK_REG.dll,UART_DLL);
 	AW_UART_WR(BACK_REG.dlh,UART_DLM);
 
+	while(AW_UART_RD(UART_USR)&1)
+		AW_UART_RD(UART_RX);
 	AW_UART_WR(BACK_REG.lcr,UART_LCR);
 
-	if(AW_UART_RD(UART_HALT)&UART_FORCE_CFG)
-		AW_UART_WR(UART_HALT,BACK_REG.halt & (~UART_FORCE_CFG));
+	AW_UART_WR(BACK_REG.mcr,UART_MCR);
 }
 EXPORT_SYMBOL(sunxi_8250_comeback_reg);
 
@@ -415,9 +429,13 @@ static int sw_serial_suspend(struct platform_device *dev, pm_message_t state)
 	UART_MSG("&dev->dev is 0x%x\n",&dev->dev);
 
 	for (i = 1; i < MAX_PORTS; i++) {
+		if(!sw_serial_uart[i]){
+			continue;
+		}
 		up		= sw_serial_uart[i];
 		port	= &(up->port);
 		sdata	= port->private_data;
+
 		if (port->type != PORT_UNKNOWN){
 		UART_MSG("type is 0x%x  PORT_UNKNOWN is 0x%x\n",port->type,PORT_UNKNOWN);
 		UART_MSG("port.dev is 0x%x  &dev->dev is 0x%x\n",port->dev,&dev->dev);
@@ -443,9 +461,13 @@ static int sw_serial_resume(struct platform_device *dev)
 	UART_MSG("&dev->dev is 0x%x\n",&dev->dev);
 
 	for (i = 1; i < MAX_PORTS; i++) {
+		if(!sw_serial_uart[i]){
+			continue;
+		}
 		up		= sw_serial_uart[i];
 		port	= &(up->port);
 		sdata	= port->private_data;
+
 		if (port->type != PORT_UNKNOWN){
 		UART_MSG("type is 0x%x  PORT_UNKNOWN is 0x%x\n",port->type,PORT_UNKNOWN);
 		UART_MSG("port.dev is 0x%x  &dev->dev is 0x%x\n",port->dev,&dev->dev);
@@ -529,7 +551,7 @@ static int __init sw_serial_init(void)
 	uart_used = 0;
 	for (i=1; i<MAX_PORTS; i++, used=0) {
         sprintf(uart_para, "uart_para%d", i);
- 
+		sw_serial_uart[i]=NULL;
 		type = script_get_item(uart_para, "uart_used", &val);
 		if(SCIRPT_ITEM_VALUE_TYPE_INT != type){
 		    UART_MSG("failed to get uart%d's used information\n", i);
@@ -539,7 +561,8 @@ static int __init sw_serial_init(void)
 
 		if (used) {
             uart_used |= 1 << i;
-            platform_device_register(&sw_uart_dev[i]);
+            sw_uart_have_used ++;
+			platform_device_register(&sw_uart_dev[i]);
         }
     }
     if (uart_used) {
@@ -562,6 +585,7 @@ static void __exit sw_serial_exit(void)
 	}
 	if (uart_used)
 	    platform_driver_unregister(&sw_serial_driver);
+	sw_uart_have_used = 0;
 }
 
 MODULE_AUTHOR("Aaron.myeh<leafy.myeh@reuuimllatech.com>");

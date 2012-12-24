@@ -55,25 +55,25 @@
 			__FILE__, __LINE__, __func__, #expr);\
 	}
 
-#define MMA7660_DRV_NAME	"mma7660"
-#define SENSOR_NAME 			MMA7660_DRV_NAME
-#define MMA7660_XOUT			0x00
-#define MMA7660_YOUT			0x01
-#define MMA7660_ZOUT			0x02
-#define MMA7660_TILT			0x03
-#define MMA7660_SRST			0x04
-#define MMA7660_SPCNT			0x05
-#define MMA7660_INTSU			0x06
-#define MMA7660_MODE			0x07
-#define MMA7660_SR				0x08
-#define MMA7660_PDET			0x09
-#define MMA7660_PD				0x0A
-#define MMA7660ADDRESS          0x4c
+#define MMA7660_DRV_NAME         "mma7660"
+#define SENSOR_NAME              MMA7660_DRV_NAME
+#define MMA7660_XOUT             0x00
+#define MMA7660_YOUT             0x01
+#define MMA7660_ZOUT             0x02
+#define MMA7660_TILT             0x03
+#define MMA7660_SRST             0x04
+#define MMA7660_SPCNT            0x05
+#define MMA7660_INTSU            0x06
+#define MMA7660_MODE             0x07
+#define MMA7660_SR               0x08
+#define MMA7660_PDET             0x09
+#define MMA7660_PD               0x0A
+#define MMA7660ADDRESS           0x4c
 
-#define POLL_INTERVAL_MAX	500
-#define POLL_INTERVAL		50
-#define INPUT_FUZZ	2
-#define INPUT_FLAT	2
+#define POLL_INTERVAL_MAX        500
+#define POLL_INTERVAL            50
+#define INPUT_FUZZ               2
+#define INPUT_FLAT               2
 
 #define MK_MMA7660_SR(FILT, AWSR, AMSR)\
 	(FILT<<5 | AWSR<<3 | AMSR)
@@ -90,9 +90,9 @@ static struct device *hwmon_dev;
 static struct i2c_client *mma7660_i2c_client;
 
 struct mma7660_data_s {
-    struct i2c_client       *client;
-    struct input_polled_dev *pollDev; 
-    struct mutex interval_mutex; 
+	struct i2c_client       *client;
+	struct input_polled_dev *pollDev; 
+	struct mutex interval_mutex; 
     
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
@@ -105,13 +105,13 @@ struct mma7660_data_s {
 static struct input_polled_dev *mma7660_idev;
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[2] = {0x4c,I2C_CLIENT_END};
+static const unsigned short normal_i2c[2] = {MMA7660ADDRESS, I2C_CLIENT_END};
 static __u32 twi_id = 0;
 
 enum {
-	DEBUG_BASE_LEVEL0 = 1U << 0,
-	DEBUG_BASE_LEVEL1 = 1U << 1,
-	DEBUG_BASE_LEVEL2 = 1U << 2,
+	DEBUG_INIT = 1U << 0,
+	DEBUG_CONTROL_INFO = 1U << 1,
+	DEBUG_DATA_INFO = 1U << 2,
 	DEBUG_SUSPEND = 1U << 3,
 };
 static u32 debug_mask = 0;
@@ -138,7 +138,7 @@ static int gsensor_fetch_sysconfig_para(void)
 	script_item_u	val;
 	script_item_value_type_e  type;	
 			
-	dprintk(DEBUG_BASE_LEVEL0, "========%s===================\n", __func__);
+	dprintk(DEBUG_INIT, "========%s===================\n", __func__);
 		
 	type = script_get_item("gsensor_para", "gsensor_used", &val);
 	 
@@ -156,7 +156,7 @@ static int gsensor_fetch_sysconfig_para(void)
 		}
 		twi_id = val.val;
 			
-		dprintk(DEBUG_BASE_LEVEL0, "%s: twi_id is %d. \n", __func__, twi_id);
+		dprintk(DEBUG_INIT, "%s: twi_id is %d. \n", __func__, twi_id);
 	
 		ret = 0;
 			
@@ -244,6 +244,7 @@ static void mma7660_read_xyz(int idx, s8 *pf)
 	{
 		result=i2c_smbus_read_byte_data(mma7660_i2c_client, idx+MMA7660_XOUT);
 		assert(result>=0);
+		dprintk(DEBUG_DATA_INFO, "mma7660 read new data\n");
 	}while(result&(1<<6)); //read again if alert
 	*pf = (result&(1<<5)) ? (result|(~0x0000003f)) : (result&0x0000003f);
 }
@@ -270,7 +271,7 @@ static ssize_t mma7660_delay_store(struct device *dev,struct device_attribute *a
 	struct mma7660_data_s *mma7660 = NULL;
 
 
-	mma7660    = i2c_get_clientdata(client);
+	mma7660 = i2c_get_clientdata(client);
 
 
 	error = strict_strtoul(buf, 10, &data);
@@ -294,7 +295,7 @@ static ssize_t mma7660_value_show(struct device *dev,
 	s8 xyz[3]; 
 	s16 x, y, z;
 
-	for(i=0; i<3; i++)
+	for (i=0; i<3; i++)
 		mma7660_read_xyz(i, &xyz[i]);
 
 	/* convert signed 8bits to signed 16bits */
@@ -313,19 +314,21 @@ static ssize_t mma7660_enable_store(struct device *dev,struct device_attribute *
 
 	error = strict_strtoul(buf, 10, &data);
 	
-	if(error) {
+	if (error) {
 		pr_err("%s strict_strtoul error\n", __FUNCTION__);
 		goto exit;
 	}
 
-	if(data) {
+	if (data) {
 		error = i2c_smbus_write_byte_data(mma7660_i2c_client, MMA7660_MODE,
 					MK_MMA7660_MODE(0, 1, 0, 0, 0, 0, 1));
 		assert(error==0);
+		dprintk(DEBUG_CONTROL_INFO, "mma7660 enable setting active \n");
 	} else {
 		error = i2c_smbus_write_byte_data(mma7660_i2c_client, MMA7660_MODE,
 					MK_MMA7660_MODE(0, 0, 0, 0, 0, 0, 0));
 		assert(error==0);
+		dprintk(DEBUG_CONTROL_INFO, "mma7660 enable setting inactive \n");
 	}
 
 	return count;
@@ -441,7 +444,7 @@ static void report_abs(void)
 
 	input_sync(mma7660_idev->input);
 
-	dprintk(DEBUG_BASE_LEVEL1, "x= 0x%hx, y = 0x%hx, z = 0x%hx\n", x, y, z);
+	dprintk(DEBUG_DATA_INFO, "x= 0x%hx, y = 0x%hx, z = 0x%hx\n", x, y, z);
 }
 
 static void mma7660_dev_poll(struct input_polled_dev *dev)
@@ -465,9 +468,9 @@ static int __devinit mma7660_probe(struct i2c_client *client,
 	int result;
 	struct input_dev *idev;
 	struct i2c_adapter *adapter;
-    struct mma7660_data_s* data = &mma7660_data;
+	struct mma7660_data_s* data = &mma7660_data;
  
-	printk(KERN_INFO "mma7660 probe\n");
+	dprintk(DEBUG_INIT, "mma7660 probe\n");
 	mma7660_i2c_client = client;
 	adapter = to_i2c_adapter(client->dev.parent);
  	result = i2c_check_functionality(adapter,
@@ -480,7 +483,7 @@ static int __devinit mma7660_probe(struct i2c_client *client,
 	assert(result==0);
 	
 	//result = 1; // debug by lchen
-	printk("<%s> mma7660_init_client result %d\n", __func__, result);
+	dprintk(DEBUG_INIT, "<%s> mma7660_init_client result %d\n", __func__, result);
 	if(result != 0)
 	{
 		printk("<%s> init err !", __func__);
@@ -536,7 +539,7 @@ static int __devinit mma7660_probe(struct i2c_client *client,
 	register_early_suspend(&mma7660_data.early_suspend);
 	mma7660_data.suspend_indator = 0;
 #endif
-
+	dprintk(DEBUG_INIT, "mma7660 probe end\n");
 	return result;
 }
 
@@ -549,7 +552,7 @@ static int __devexit mma7660_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(hwmon_dev);
 	#ifdef CONFIG_HAS_EARLYSUSPEND	
-	  unregister_early_suspend(&mma7660_data.early_suspend);
+	unregister_early_suspend(&mma7660_data.early_suspend);
 	#endif
 	input_unregister_polled_device(mma7660_idev);
 	input_free_polled_device(mma7660_idev);
@@ -562,7 +565,10 @@ static int __devexit mma7660_remove(struct i2c_client *client)
 static void mma7660_early_suspend(struct early_suspend *h)
 {
 	int result;
-	printk(KERN_INFO "mma7660 early suspend\n");
+	dprintk(DEBUG_SUSPEND, "mma7660 early suspend\n");
+
+	mma7660_idev->input->close(mma7660_idev->input);
+	
 	mma7660_data.suspend_indator = 1;
 	result = i2c_smbus_write_byte_data(mma7660_i2c_client, 
 		MMA7660_MODE, MK_MMA7660_MODE(0, 0, 0, 0, 0, 0, 0));
@@ -573,7 +579,7 @@ static void mma7660_early_suspend(struct early_suspend *h)
 static void mma7660_late_resume(struct early_suspend *h)
 {
 	int result;
-	printk(KERN_INFO "mma7660 late resume\n");
+	dprintk(DEBUG_SUSPEND, "mma7660 late resume\n");
 	
 	if (SUPER_STANDBY == standby_type) {
 		mma7660_init_client(mma7660_i2c_client);
@@ -582,6 +588,7 @@ static void mma7660_late_resume(struct early_suspend *h)
 	result = i2c_smbus_write_byte_data(mma7660_i2c_client, 
 		MMA7660_MODE, MK_MMA7660_MODE(0, 1, 0, 0, 0, 0, 1));
 	assert(result==0);
+	mma7660_idev->input->open(mma7660_idev->input);
 	return;
 }
 #else
@@ -589,7 +596,7 @@ static void mma7660_late_resume(struct early_suspend *h)
 static int mma7660_resume(struct i2c_client *client)
 {
 	int result;
-	printk(KERN_INFO "mma7660 late resume\n");
+	dprintk(DEBUG_SUSPEND, "mma7660 resume\n");
 	
 	if (SUPER_STANDBY == standby_type) {
 		mma7660_init_client(mma7660_i2c_client);
@@ -598,13 +605,16 @@ static int mma7660_resume(struct i2c_client *client)
 	result = i2c_smbus_write_byte_data(mma7660_i2c_client, 
 		MMA7660_MODE, MK_MMA7660_MODE(0, 1, 0, 0, 0, 0, 1));
 	assert(result==0);
+	mma7660_idev->input->open(mma7660_idev->input);
 	return result;
 }
 
 static int mma7660_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	int result;
-	printk(KERN_INFO "mma7660 early suspend\n");
+	dprintk(DEBUG_SUSPEND, "mma7660 suspend\n");
+	
+	mma7660_idev->input->close(mma7660_idev->input);
 	mma7660_data.suspend_indator = 1;
 	result = i2c_smbus_write_byte_data(mma7660_i2c_client, 
 		MMA7660_MODE, MK_MMA7660_MODE(0, 0, 0, 0, 0, 0, 0));
@@ -649,7 +659,7 @@ static int __init mma7660_init(void)
 		return -1;
 	}
 
-	printk("%s: after fetch_sysconfig_para:  normal_i2c: 0x%hx. normal_i2c[1]: 0x%hx \n", \
+	dprintk(DEBUG_INIT, "%s: after fetch_sysconfig_para:  normal_i2c: 0x%hx. normal_i2c[1]: 0x%hx \n", \
 	__func__, normal_i2c[0], normal_i2c[1]);
 
 	mma7660_driver.detect = gsensor_detect;
@@ -660,7 +670,7 @@ static int __init mma7660_init(void)
 		printk(KERN_INFO "add mma7660 i2c driver failed\n");
 		return -ENODEV;
 	}
-	printk(KERN_INFO "add mma7660 i2c driver\n");
+	dprintk(DEBUG_INIT, "add mma7660 i2c driver\n");
 	
 
 

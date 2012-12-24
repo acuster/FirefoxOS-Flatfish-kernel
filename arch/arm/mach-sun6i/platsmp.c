@@ -47,7 +47,7 @@ static DEFINE_SPINLOCK(boot_lock);
  */
 static void __iomem *scu_base_addr(void)
 {
-	printk("[%s] enter\n", __FUNCTION__);
+	pr_debug("[%s] enter\n", __FUNCTION__);
 	return __io_address(AW_SCU_BASE);
 }
 
@@ -58,7 +58,7 @@ void enable_aw_cpu(int cpu)
 	u32 pwr_reg;
 
 	paddr = virt_to_phys(sun6i_secondary_startup);
-    writel(paddr, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_P_REG0);
+	writel(paddr, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_P_REG0);
 
 	/*
 	 * Clear the clamp control.
@@ -76,7 +76,7 @@ void enable_aw_cpu(int cpu)
 	 * Set the reset Control
 	 */
 	writel(3, IO_ADDRESS(AW_R_CPUCFG_BASE) + CPUX_RESET_CTL(cpu));
-	printk("[boot_secondary]: open the cpu%d\n", cpu);
+	pr_debug("[boot_secondary]: open the cpu%d\n", cpu);
 }
 
 void __init smp_init_cpus(void)
@@ -84,7 +84,7 @@ void __init smp_init_cpus(void)
 	unsigned int i, ncores;
 
 	ncores =  scu_get_core_count(NULL);
-	printk("[%s] ncores=%d\n", __FUNCTION__, ncores);
+	pr_debug("[%s] ncores=%d\n", __FUNCTION__, ncores);
 
 	for (i = 0; i < ncores; i++) {
 	    set_cpu_possible(i, true);
@@ -100,7 +100,7 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 {
 	void __iomem *scu_base;
 
-	printk("[%s] enter\n", __FUNCTION__);
+	pr_debug("[%s] enter\n", __FUNCTION__);
 	scu_base = scu_base_addr();
 	scu_enable(scu_base);
 }
@@ -111,8 +111,8 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 extern int arch_timer_common_register(void);
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
-	printk("[%s] enter, cpu:%d\n", __FUNCTION__, cpu);
-    gic_secondary_init(0);
+	pr_debug("[%s] enter, cpu:%d\n", __FUNCTION__, cpu);
+	gic_secondary_init(0);
 }
 
 /*
@@ -120,7 +120,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
  */
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	printk("[%s] enter\n", __FUNCTION__);
+	pr_debug("[%s] enter\n", __FUNCTION__);
 	spin_lock(&boot_lock);
 	enable_aw_cpu(cpu);
 	spin_unlock(&boot_lock);

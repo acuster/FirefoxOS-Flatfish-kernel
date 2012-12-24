@@ -611,7 +611,7 @@ static int sun6i_spdif_resume(struct snd_soc_dai *cpu_dai)
 	u32 reg_val;
 	printk("[SPDIF]Enter %s\n", __func__);
 
-	/*disable the module clock*/
+	/*enable the module clock*/
 	if (clk_enable(spdif_apbclk)) {
 		printk("try to enable spdif_apbclk output failed!\n");
 	}
@@ -679,12 +679,19 @@ static int __devinit sun6i_spdif_dev_probe(struct platform_device *pdev)
 	if ((!spdif_pllx8)||(IS_ERR(spdif_pllx8))) {
 		printk("try to get spdif_pllx8 failed\n");
 	}
+	if (clk_enable(spdif_pllx8)) {
+		printk("enable spdif_pll2clk failed; \n");
+	}
+
 	/*spdif pll2clk*/
 	spdif_pll2clk = clk_get(NULL, CLK_SYS_PLL2);
 	if ((!spdif_pll2clk)||(IS_ERR(spdif_pll2clk))) {
 		printk("try to get spdif_pll2clk failed\n");
 	}
-	
+	if (clk_enable(spdif_pll2clk)) {
+		printk("enable spdif_pll2clk failed; \n");
+	}
+
 	/*spdif module clk*/
 	spdif_moduleclk = clk_get(NULL, CLK_MOD_SPDIF);
 	if ((!spdif_moduleclk)||(IS_ERR(spdif_moduleclk))) {
@@ -702,12 +709,15 @@ static int __devinit sun6i_spdif_dev_probe(struct platform_device *pdev)
 	if (clk_enable(spdif_moduleclk)) {
 		printk("open spdif_moduleclk failed! line = %d\n", __LINE__);
 	}
+	if (clk_reset(spdif_moduleclk, AW_CCU_CLK_NRESET)) {
+		printk("try to NRESET spdif module clk failed!\n");
+	}
 
 	/*global enbale*/
 	reg_val = readl(sun6i_spdif.regs + SUN6I_SPDIF_CTL);
 	reg_val |= SUN6I_SPDIF_CTL_GEN;
 	writel(reg_val, sun6i_spdif.regs + SUN6I_SPDIF_CTL);
-	
+
 	ret = snd_soc_register_dai(&pdev->dev, &sun6i_spdif_dai);
 	return 0;
 }

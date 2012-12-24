@@ -404,19 +404,13 @@ ssize_t do_sync_write(struct file *filp, const char __user *buf, size_t len, lof
 	kiocb.ki_nbytes = len;
 
 #if   (IO_TEST_DEBUG)
-	static int file_w_len = 0;		
-	unsigned char * p;
-	if(!strcmp(filp->f_path.dentry->d_iname, "_quadrant_.tmp"))
+	static unsigned char * p;
+	if((filp->f_flags & 0x01000000) && !strcmp(filp->f_path.dentry->d_iname, KEN_TEST1_VALUE))
 	{
-		//file_w_len = (file_w_len + 1)%10;
-		if (io_w_test_count != 1)
-		{
-			*ppos = *ppos + len;
-			return len;
-		}
-		//printk(KERN_EMERG "w len=%u file_w_len=0x%08x f_mode=0x%08x f_flags=0x%08x\r\n",len, file_w_len,filp->f_mode,filp->f_flags);
+		*ppos = *ppos + len;
+		return len;
 	}	
-	if(strstr(filp->f_path.dentry->d_iname, "abenchmark_temp_rw_file_"))
+	if((filp->f_flags & 0x02000000) && strstr(filp->f_path.dentry->d_iname, KEN_TEST2_VALUE))
 	{
 		if (strlen(filp->f_path.dentry->d_iname) == 26)
 		{
@@ -427,7 +421,7 @@ ssize_t do_sync_write(struct file *filp, const char __user *buf, size_t len, lof
 				*ppos = *ppos + len;
 				return len;
 			}
-		}
+		}		
 	}
 #endif 	
 

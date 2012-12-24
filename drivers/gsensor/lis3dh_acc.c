@@ -59,24 +59,19 @@
 /* #include	<linux/gpio.h> */
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-
-#include <linux/i2c/lis3dh.h>
-
 #include <linux/module.h>
 #include <mach/sys_config.h>
+
+#include "lis3dh.h"
 
 #define	DEBUG               1
 
 #define	G_MAX               16000
 
-
 #define SENSITIVITY_2G      1	  /**	mg/LSB	*/
 #define SENSITIVITY_4G      2	  /**	mg/LSB	*/
 #define SENSITIVITY_8G      4	  /**	mg/LSB	*/
 #define SENSITIVITY_16G     12	/**	mg/LSB	*/
-
-
-
 
 /* Accelerometer Sensor Operating Mode */
 #define LIS3DH_ACC_ENABLE   0x01
@@ -133,8 +128,6 @@
 #define ODR400              0x70  /* 400Hz output data rate */
 #define ODR1250             0x90  /* 1250Hz output data rate */
 
-
-
 #define	IA                  0x40
 #define	ZH                  0x20
 #define	ZL                  0x10
@@ -157,7 +150,6 @@
 #define	TAP_TLAT_MASK       NO_MASK
 #define	TAP_TW_MASK         NO_MASK
 
-
 /* TAP_SOURCE_REG BIT */
 #define	DTAP                0x20
 #define	STAP                0x10
@@ -165,7 +157,6 @@
 #define	ZTAP                0x04
 #define	YTAP                0x02
 #define	XTAZ                0x01
-
 
 #define	FUZZ                0
 #define	FLAT                0
@@ -199,10 +190,11 @@
 /* end RESUME STATE INDICES */
 
 enum {
-	DEBUG_BASE_LEVEL0 = 1U << 0,
-	DEBUG_BASE_LEVEL1 = 1U << 1,
-	DEBUG_BASE_LEVEL2 = 1U << 2,
-	DEBUG_SUSPEND = 1U << 3,
+	DEBUG_INIT = 1U << 0,
+	DEBUG_CONTROL_INFO = 1U << 1,	
+	DEBUG_DATA_INFO = 1U << 2,
+	DEBUG_INT = 1U << 3,
+	DEBUG_SUSPEND = 1U << 4,
 };
 static u32 debug_mask = 0;
 #define dprintk(level_mask, fmt, arg...)	if (unlikely(debug_mask & level_mask)) \
@@ -307,7 +299,7 @@ static int gsensor_fetch_sysconfig_para(void)
 	script_item_value_type_e  type;
 		
 			
-	dprintk(DEBUG_BASE_LEVEL0, "========%s===================\n", __func__);
+	dprintk(DEBUG_INIT, "========%s===================\n", __func__);
 	
 		
 	type = script_get_item("gsensor_para", "gsensor_used", &val);
@@ -326,7 +318,7 @@ static int gsensor_fetch_sysconfig_para(void)
 		}
 		twi_id = val.val;
 			
-		dprintk(DEBUG_BASE_LEVEL0, "%s: twi_id is %d. \n", __func__, twi_id);
+		dprintk(DEBUG_INIT, "%s: twi_id is %d. \n", __func__, twi_id);
 	
 		ret = 0;
 			
@@ -452,7 +444,7 @@ static int lis3dh_acc_hw_init(struct lis3dh_acc_data *acc)
 	int err = -1;
 	u8 buf[7];
 
-	dprintk(DEBUG_BASE_LEVEL0, "%s: hw init start\n", LIS3DH_ACC_DEV_NAME);
+	dprintk(DEBUG_INIT, "%s: hw init start\n", LIS3DH_ACC_DEV_NAME);
 
 	buf[0] = WHO_AM_I;
 	err = lis3dh_acc_i2c_read(acc, buf, 1);
@@ -526,7 +518,7 @@ static int lis3dh_acc_hw_init(struct lis3dh_acc_data *acc)
 		goto err_resume_state;
 
 	acc->hw_initialized = 1;
-	dprintk(DEBUG_BASE_LEVEL0, "%s: hw init done\n", LIS3DH_ACC_DEV_NAME);
+	dprintk(DEBUG_INIT, "%s: hw init done\n", LIS3DH_ACC_DEV_NAME);
 	return 0;
 
 err_firstread:
@@ -606,7 +598,7 @@ static irqreturn_t lis3dh_acc_isr1(int irq, void *dev)
 
 	disable_irq_nosync(irq);
 	queue_work(acc->irq1_work_queue, &acc->irq1_work);
-	dprintk(DEBUG_BASE_LEVEL0, "%s: isr1 queued\n", LIS3DH_ACC_DEV_NAME);
+	dprintk(DEBUG_INT, "%s: isr1 queued\n", LIS3DH_ACC_DEV_NAME);
 
 	return IRQ_HANDLED;
 }
@@ -617,7 +609,7 @@ static irqreturn_t lis3dh_acc_isr2(int irq, void *dev)
 
 	disable_irq_nosync(irq);
 	queue_work(acc->irq2_work_queue, &acc->irq2_work);
-	dprintk(DEBUG_BASE_LEVEL0, "%s: isr2 queued\n", LIS3DH_ACC_DEV_NAME);
+	dprintk(DEBUG_INT, "%s: isr2 queued\n", LIS3DH_ACC_DEV_NAME);
 
 	return IRQ_HANDLED;
 }
@@ -631,7 +623,7 @@ static void lis3dh_acc_irq1_work_func(struct work_struct *work)
 		 ie:lis3dh_acc_get_int1_source(acc); */
 	;
 	/*  */
-	dprintk(DEBUG_BASE_LEVEL0, "%s: IRQ1 triggered\n", LIS3DH_ACC_DEV_NAME);
+	dprintk(DEBUG_INT, "%s: IRQ1 triggered\n", LIS3DH_ACC_DEV_NAME);
 //exit:
 	enable_irq(acc->irq1);
 }
@@ -646,7 +638,7 @@ static void lis3dh_acc_irq2_work_func(struct work_struct *work)
 	;
 	/*  */
 
-	dprintk(DEBUG_BASE_LEVEL0, "%s: IRQ2 triggered\n", LIS3DH_ACC_DEV_NAME);
+	dprintk(DEBUG_INT, "%s: IRQ2 triggered\n", LIS3DH_ACC_DEV_NAME);
 //exit:
 	enable_irq(acc->irq2);
 }
@@ -839,7 +831,7 @@ static int lis3dh_acc_get_acceleration_data(struct lis3dh_acc_data *acc,
 static void lis3dh_acc_report_values(struct lis3dh_acc_data *acc,
 					int *xyz)
 {
-	dprintk(DEBUG_BASE_LEVEL1, "x= 0x%hx, y = 0x%hx, z = 0x%hx\n", xyz[0], xyz[1], xyz[2]);
+	dprintk(DEBUG_DATA_INFO, "x= 0x%hx, y = 0x%hx, z = 0x%hx\n", xyz[0], xyz[1], xyz[2]);
 	input_report_abs(acc->input_dev, ABS_X, xyz[0]);
 	input_report_abs(acc->input_dev, ABS_Y, xyz[1]);
 	input_report_abs(acc->input_dev, ABS_Z, xyz[2]);
@@ -858,6 +850,7 @@ static int lis3dh_acc_enable(struct lis3dh_acc_data *acc)
 		}
 		schedule_delayed_work(&acc->input_work,
 		msecs_to_jiffies(acc->pdata->poll_interval));
+		dprintk(DEBUG_CONTROL_INFO, "lis3dh_acc enable\n");
 	}
 
 	return 0;
@@ -868,6 +861,7 @@ static int lis3dh_acc_disable(struct lis3dh_acc_data *acc)
 	if (atomic_cmpxchg(&acc->enabled, 1, 0)) {
 		cancel_delayed_work_sync(&acc->input_work);
 		lis3dh_acc_device_power_off(acc);
+		dprintk(DEBUG_CONTROL_INFO, "lis3dh_acc disable\n");
 	}
 
 	return 0;
@@ -1358,7 +1352,7 @@ static int lis3dh_acc_probe(struct i2c_client *client,
 
 	pr_info("%s: probe start.\n", LIS3DH_ACC_DEV_NAME);
 
-	dprintk(DEBUG_BASE_LEVEL0, "lis3dh_acc probe i2c address is %d \n",i2c_address[i2c_num]);
+	dprintk(DEBUG_INIT, "lis3dh_acc probe i2c address is %d \n",i2c_address[i2c_num]);
 	client->addr =i2c_address[i2c_num];
 
 	if (client->dev.platform_data == NULL) {
@@ -1436,7 +1430,7 @@ static int lis3dh_acc_probe(struct i2c_client *client,
 
 	if(acc->pdata->gpio_int1 >= 0){
 		/* acc->irq1 = gpio_to_irq(acc->pdata->gpio_int1); */
-		dprintk(DEBUG_BASE_LEVEL0, "%s: %s has set irq1 to irq: %d "
+		dprintk(DEBUG_INIT, "%s: %s has set irq1 to irq: %d "
 							"mapped on gpio:%d\n",
 			LIS3DH_ACC_DEV_NAME, __func__, acc->irq1,
 							acc->pdata->gpio_int1);
@@ -1444,7 +1438,7 @@ static int lis3dh_acc_probe(struct i2c_client *client,
 
 	if(acc->pdata->gpio_int2 >= 0){
 		/*acc->irq2 = gpio_to_irq(acc->pdata->gpio_int2); */
-		dprintk(DEBUG_BASE_LEVEL0, "%s: %s has set irq2 to irq: %d "
+		dprintk(DEBUG_INIT, "%s: %s has set irq2 to irq: %d "
 							"mapped on gpio:%d\n",
 			LIS3DH_ACC_DEV_NAME, __func__, acc->irq2,
 							acc->pdata->gpio_int2);
@@ -1628,6 +1622,7 @@ static void lis3dh_early_suspend(struct early_suspend *h)
 	struct lis3dh_acc_data *acc =
 		container_of(h, struct lis3dh_acc_data, early_suspend);
 	
+	dprintk(DEBUG_SUSPEND, "lis3dh_acc early suspend\n");
 	acc->on_before_suspend = atomic_read(&acc->enabled);
 	lis3dh_acc_disable(acc);
 	return;
@@ -1638,6 +1633,7 @@ static void lis3dh_late_resume(struct early_suspend *h)
 	struct lis3dh_acc_data *acc =
 		container_of(h, struct lis3dh_acc_data, early_suspend);
 
+	dprintk(DEBUG_SUSPEND, "lis3dh_acc late resume\n");
 	if (acc->on_before_suspend)
 		lis3dh_acc_enable(acc);
 	return;
@@ -1647,7 +1643,8 @@ static void lis3dh_late_resume(struct early_suspend *h)
 static int lis3dh_acc_resume(struct i2c_client *client)
 {
 	struct lis3dh_acc_data *acc = i2c_get_clientdata(client);
-
+	
+	dprintk(DEBUG_SUSPEND, "lis3dh_acc resume\n");
 	if (acc->on_before_suspend)
 		return lis3dh_acc_enable(acc);
 	return 0;
@@ -1656,7 +1653,8 @@ static int lis3dh_acc_resume(struct i2c_client *client)
 static int lis3dh_acc_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct lis3dh_acc_data *acc = i2c_get_clientdata(client);
-
+	
+	dprintk(DEBUG_SUSPEND, "lis3dh_acc suspend\n");
 	acc->on_before_suspend = atomic_read(&acc->enabled);
 	return lis3dh_acc_disable(acc);
 }
@@ -1690,9 +1688,8 @@ static struct i2c_driver lis3dh_acc_driver = {
 
 static int __init lis3dh_acc_init(void)
 {
-	dprintk(DEBUG_BASE_LEVEL0, "%s accelerometer driver: init\n",
-						LIS3DH_ACC_DEV_NAME);
-	
+	dprintk(DEBUG_INIT, "%s accelerometer driver: init\n",
+						LIS3DH_ACC_DEV_NAME);	
 	if(gsensor_fetch_sysconfig_para()){
 		printk("%s: err.\n", __func__);
 		return -1;
@@ -1706,7 +1703,7 @@ static int __init lis3dh_acc_init(void)
 static void __exit lis3dh_acc_exit(void)
 {
 #ifdef DEBUG
-	dprintk(DEBUG_BASE_LEVEL0, "%s accelerometer driver exit\n",
+	dprintk(DEBUG_INIT, "%s accelerometer driver exit\n",
 						LIS3DH_ACC_DEV_NAME);
 #endif /* DEBUG */
 	i2c_del_driver(&lis3dh_acc_driver);

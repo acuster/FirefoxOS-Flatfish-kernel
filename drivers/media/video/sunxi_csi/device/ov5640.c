@@ -40,7 +40,7 @@ MODULE_LICENSE("GPL");
 #define MCLK (24*1000*1000)
 #define VREF_POL	CSI_HIGH
 #define HREF_POL	CSI_HIGH
-#define CLK_POL		CSI_FALLING
+#define CLK_POL		CSI_RISING
 #define IO_CFG		0						//0 for csi0
 #define V4L2_IDENT_SENSOR 0x5640
 
@@ -459,6 +459,7 @@ static struct regval_list sensor_default_regs[] = {
 	{{0x3a,0x11},{0x70}}, 
 	{{0x3a,0x1f},{0x14}}, 
 
+	{{0x30,0x31},{0x08}}, //disable internal LDO
 //	//power down release
 //	{{0x30,0x08},{0x02}}, 
 };                                	                         
@@ -1279,8 +1280,8 @@ static struct regval_list sensor_oe_disable_regs[] = {
 };
 
 static struct regval_list sensor_oe_enable_regs[] = {
-{{0x30,0x17},{0xff}},
-{{0x30,0x18},{0xff}},
+{{0x30,0x17},{0x7f}},
+{{0x30,0x18},{0xfc}},
 };
 
 static char sensor_af_fw_regs[] = {
@@ -2860,6 +2861,7 @@ static int sensor_g_single_af(struct v4l2_subdev *sd)
 	if (ret < 0)
 	{
 		csi_dev_err("sensor get af focused status err !\n");
+		info->focus_status = 0;	//idle
 		return ret;
 	}
 
@@ -2996,7 +2998,7 @@ static int sensor_s_af_zone(struct v4l2_subdev *sd, unsigned int xc, unsigned in
 	}
 	
 	csi_dev_dbg("af zone after xc=%d,yc=%d\n",xc,yc);
-		
+	
 	//set x center
 	ret = sensor_write_im(sd, 0x3024, xc);
 	if (ret < 0)
@@ -3027,10 +3029,9 @@ static int sensor_s_af_zone(struct v4l2_subdev *sd, unsigned int xc, unsigned in
 	return 0;
 }
 
-#if 0
+#if 1
 static int sensor_s_relaunch_af_zone(struct v4l2_subdev *sd)
 {
-	struct regval_list regs;
 	int ret;
 	//relaunch defalut af zone
 	csi_dev_print("sensor_s_relaunch_af_zone\n");
@@ -3546,19 +3547,14 @@ static int sensor_s_autofocus_ctrl(struct v4l2_subdev *sd,
 	
 	switch(af_ctrl) {
 		case V4L2_AF_INIT:
-			if(info->ccm_info->stby_mode == 0) {
-				if(info->af_first_flag == 1) {
-					csi_dev_print("af first flag true\n");
-					csi_dev_print("sensor_download_af_fw start\n");
-					info->af_first_flag = 0;
-					return sensor_download_af_fw(sd);
-				} else {
-					csi_dev_print("af first flag false\n");
-					return 0;
-				}
-			} else {
+			if(info->af_first_flag == 1) {
+				csi_dev_print("af first flag true\n");
 				csi_dev_print("sensor_download_af_fw start\n");
+				info->af_first_flag = 0;
 				return sensor_download_af_fw(sd);
+			} else {
+				csi_dev_print("af first flag false\n");
+				return 0;
 			}
 		case V4L2_AF_RELEASE:
 			return sensor_s_release_af(sd);
@@ -3590,6 +3586,7 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 	struct csi_dev *dev=(struct csi_dev *)dev_get_drvdata(sd->v4l2_dev->dev);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
+	struct sensor_info *info = to_state(sd);
   
   //insure that clk_disable() and clk_enable() are called in pair 
   //when calling CSI_SUBDEV_STBY_ON/OFF and CSI_SUBDEV_PWR_ON/OFF
@@ -3645,6 +3642,8 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			break;
 		case CSI_SUBDEV_PWR_ON:
 			csi_dev_dbg("CSI_SUBDEV_PWR_ON!\n");
+			info->af_first_flag = 1;
+			info->init_first_flag=1;
 			//make sure that no device can access i2c bus during sensor initial or power down
 			//when using i2c_lock_adpater function, the following codes must not access i2c bus before calling i2c_unlock_adapter
 			i2c_lock_adapter(client->adapter);
@@ -3792,10 +3791,12 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 		return ret;
 	}
 	
-	if(info->ccm_info->stby_mode == 0 && info->init_first_flag == 0) {
-		csi_dev_print("stby_mode and init_first_flag = 0\n");
+	if(info->init_first_flag == 0) {
+		csi_dev_print("init_first_flag = 0\n");
 		return 0;
-	}	
+	} else {
+		csi_dev_print("init_first_flag = 1\n");
+	}
 	
 	info->focus_status = 0;
 	info->low_speed = 0;
@@ -3827,12 +3828,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	}
 		
 	sensor_s_band_filter(sd, V4L2_CID_POWER_LINE_FREQUENCY_50HZ);
-	
-	if(info->ccm_info->stby_mode == 0)
-	{
-		info->init_first_flag = 0;
-	}
-	
+	info->init_first_flag = 0;	
 	info->preview_first_flag = 1;
 	
 	INIT_DELAYED_WORK(&sensor_s_ae_ratio_work, sensor_s_ae_ratio);
@@ -3877,7 +3873,7 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			info->ccm_info->href 	=	ccm_info->href 	;
 			info->ccm_info->clock	=	ccm_info->clock	;
 			info->ccm_info->iocfg	=	ccm_info->iocfg	;
-			info->ccm_info->stby_mode	=	ccm_info->stby_mode	;
+			info->ccm_info->stby_mode	=	0 ;
 			
 			csi_dev_dbg("ccm_info.mclk=%d\n ",info->ccm_info->mclk);
 			csi_dev_dbg("ccm_info.vref=%x\n ",info->ccm_info->vref);
@@ -4375,7 +4371,20 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
 		}
 			
 		sensor_s_fps(sd);
-//		msleep(100);
+
+		msleep(100);
+		
+		ret = sensor_s_relaunch_af_zone(sd);
+		if (ret < 0) {
+			csi_dev_err("sensor_s_relaunch_af_zone err !\n");
+			return ret;
+		}
+		
+		ret = sensor_write_im(sd, 0x3022, 0x03);		//sensor_s_single_af
+		if (ret < 0) {
+			csi_dev_err("sensor_s_single_af err !\n");
+			return ret;
+		}
 		
 		if(info->af_mode != V4L2_AF_FIXED) {
 

@@ -18,9 +18,18 @@
 
 u32 __ar100_counter_read(void)
 {
-	u64 clock = cpu_clock(0);
-	do_div(clock, 1000);
-	return (u32)(clock);
+	volatile u32 low;
+	
+	//latch 64bit counter and wait ready for read
+    low = readl(0xF1F01E80);
+    low |= (1<<1);
+    writel(low, 0xF1F01E80);
+    while(readl(0xF1F01E80) & (1<<1));
+	
+	low  = readl(0xF1F01E84);
+	
+	do_div(low, 24);
+	return low;
 }
 
 int __ar100_dvfs_cb(void *arg)

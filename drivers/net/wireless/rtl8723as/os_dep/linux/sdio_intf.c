@@ -695,87 +695,6 @@ _func_enter_;
 _func_exit_;
 }
 
-/** BEGIN: add for 8723as must call sdio_reset when bt is on
-	wifi enter suspend in case sdio comm err when resume **/
-#define CONFIG_SDIO_SUSPEND_RESET
-#ifdef CONFIG_SDIO_SUSPEND_RESET
-#include <linux/mmc/sdio.h>
-#include <linux/mmc/host.h>
-#include <linux/mmc/card.h>
-struct mmc_card;
-struct mmc_host;
-
-static int mmc_io_rw_direct_host(struct mmc_host *host, int write, unsigned fn, unsigned addr, u8 in, u8 *out)
-{
-	struct mmc_command cmd = {0};
-	int err;
-
-	BUG_ON(!host);
-	BUG_ON(fn > 7);
-
-	/* sanity check */
-	if (addr & ~0x1FFFF)
-		return -EINVAL;
-
-	cmd.opcode = SD_IO_RW_DIRECT;
-	cmd.arg = write ? 0x80000000 : 0x00000000;
-	cmd.arg |= fn << 28;
-	cmd.arg |= (write && out) ? 0x08000000 : 0x00000000;
-	cmd.arg |= addr << 9;
-	cmd.arg |= in;
-	cmd.flags = MMC_RSP_SPI_R5 | MMC_RSP_R5 | MMC_CMD_AC;
-
-	err = mmc_wait_for_cmd(host, &cmd, 0);
-	if (err)
-		return err;
-
-	if (mmc_host_is_spi(host)) {
-	/* host driver already reported errors */
-	} else {
-		if (cmd.resp[0] & R5_ERROR)
-			return -EIO;
-		if (cmd.resp[0] & R5_FUNCTION_NUMBER)
-			return -EINVAL;
-		if (cmd.resp[0] & R5_OUT_OF_RANGE)
-			return -ERANGE;
-	}
-
-	if (out) {
-		if (mmc_host_is_spi(host))
-			*out = (cmd.resp[0] >> 8) & 0xFF;
-		else
-			*out = cmd.resp[0] & 0xFF;
-	}
-
-	return 0;
-}
-
-
-static int rtw_sdio_reset(struct sdio_func *func)
-{
-	int ret;
-	u8 abort;
-	struct mmc_host *host = func->card->host;
-		
-	sdio_claim_host(func);
-
-	/* SDIO Simplified Specification V2.0, 4.4 Reset for SDIO */
-
-	ret = mmc_io_rw_direct_host(host, 0, 0, SDIO_CCCR_ABORT, 0, &abort);
-	if (ret)
-		abort = 0x08;
-	else
-		abort |= 0x08;
-
-	ret = mmc_io_rw_direct_host(host, 1, 0, SDIO_CCCR_ABORT, abort, NULL);
-
-	sdio_release_host(func);
-	
-	return ret;
-}
-#endif //CONFIG_SDIO_SUSPEND_RESET
-/************************ END ********************************/	
-
 static int rtw_sdio_suspend(struct device *dev)
 {
 	struct sdio_func *func =dev_to_sdio_func(dev);
@@ -984,15 +903,6 @@ exit:
 
 	DBG_871X("<===  %s return %d.............. in %dms\n", __FUNCTION__
 		, ret, rtw_get_passing_time_ms(start_time));
-
-	
-/** BEGIN: add for 8723as must call sdio_reset when bt is on
-	wifi enter suspend in case sdio comm err when resume **/
-#ifdef CONFIG_SDIO_SUSPEND_RESET
-			printk("%s: call rtw_sdio_reset\n", __func__);
-			rtw_sdio_reset(func);
-#endif
-/************************ END ********************************/
 
 	_func_exit_;
 	return ret;
@@ -1237,6 +1147,7 @@ static int __init rtw_drv_entry(void)
 	if(mod_sel == SUNXI_SDIO_WIFI_NUM_RTL8723AS)
 	{
 		wifi_pm_power(1);
+		mdelay(10);
 		sw_mci_rescan_card(SDIOID, 1);
 		printk("[rtl8723as] %s: power up, rescan card.\n", __FUNCTION__);  			
 	}

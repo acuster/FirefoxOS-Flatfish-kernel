@@ -83,7 +83,6 @@ __s32 Bsp_disp_iep_resume(__u32 sel)
 //todo : csc->set_mode   or set_mode->csc?
 __s32 BSP_disp_drc_enable(__u32 sel, __u32 en)
 {
-
     if(DISP_OUTPUT_TYPE_LCD == BSP_disp_get_output_type(sel))
     {
         __iep_drc_t *drc;
@@ -227,8 +226,6 @@ __s32 BSP_disp_deu_enable(__u8 sel, __u32 hid,  __u32 enable)
 {
     __layer_man_t * layer_man;
     __scal_out_type_t out_type;
-
-    return 0;
 
     hid= HANDTOID(hid);
     HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
@@ -580,7 +577,7 @@ __s32 disp_deu_set_frame_info(__u32 sel, __u32 hid)
         out_size.width = scaler->out_size.width;
         out_size.height = scaler->out_size.height;
 
-        frame_info.b_interlace_out = Disp_get_screen_scan_mode(sel);
+        frame_info.b_interlace_out = 0;
         frame_info.b_trd_out = scaler->b_trd_out;
         frame_info.trd_out_mode = scaler->out_trd_mode;
         frame_info.csc_mode =  scaler->in_fb.cs_mode;

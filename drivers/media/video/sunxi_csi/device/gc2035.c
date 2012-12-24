@@ -43,7 +43,7 @@ MODULE_LICENSE("GPL");
 #define MCLK (24*1000*1000)
 #define VREF_POL	CSI_HIGH
 #define HREF_POL	CSI_HIGH
-#define CLK_POL		CSI_FALLING
+#define CLK_POL		CSI_RISING
 #define IO_CFG		0						//0:csi back 1:csi front
 #define V4L2_IDENT_SENSOR 0x2035
 

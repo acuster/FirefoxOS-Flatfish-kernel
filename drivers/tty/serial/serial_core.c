@@ -519,7 +519,8 @@ static int uart_write(struct tty_struct *tty,
 	if (!circ->buf)
 		return 0;
 
-	spin_lock_irqsave(&port->lock, flags);
+	if(port->lock_status != 0xaa)
+		spin_lock_irqsave(&port->lock, flags);
 	while (1) {
 		c = CIRC_SPACE_TO_END(circ->head, circ->tail, UART_XMIT_SIZE);
 		if (count < c)
@@ -532,9 +533,13 @@ static int uart_write(struct tty_struct *tty,
 		count -= c;
 		ret += c;
 	}
-	spin_unlock_irqrestore(&port->lock, flags);
 
-	uart_start(tty);
+	if(port->lock_status != 0xaa)
+		spin_unlock_irqrestore(&port->lock, flags);
+	if(port->lock_status != 0xaa)
+		uart_start(tty);
+	else
+		__uart_start(tty);
 	return ret;
 }
 

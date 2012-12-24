@@ -24,7 +24,7 @@
 #include <mach/ccmu.h>
 #include <mach/clock.h>
 
-#define CCMU_DBG_LEVEL  (2)
+#define CCMU_DBG_LEVEL  (1)
 
 #if (CCMU_DBG_LEVEL == 0 )
     #define CCU_DBG(...)

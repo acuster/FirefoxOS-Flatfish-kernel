@@ -67,7 +67,7 @@
 #define AXP20_AVER_MAX		10
 #define AXP20_RDC_COUNT		10
 
-#define AXP22_VOL_MAX		  12   // capability buffer length
+#define AXP22_VOL_MAX		  1   // capability buffer length
 #define AXP22_TIME_MAX		20
 #define AXP22_AVER_MAX		10
 #define AXP22_RDC_COUNT		10

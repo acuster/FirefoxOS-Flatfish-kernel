@@ -669,7 +669,7 @@ int axp_script_parser_fetch(char *main, char *sub, u32 *val, u32 size)
 			printk("type err!");
 		}
 		*val = script_val.val;
-		printk("axp config [%s] [%s] : %d\n", main, sub, *val);
+//		printk("axp config [%s] [%s] : %d\n", main, sub, *val);
 		return 0;
 }
 

@@ -34,7 +34,7 @@ extern bool ctp_get_int_port_deb(u32 *clk_pre_scl);
 extern bool ctp_set_int_port_deb(u32 clk_pre_scl);
 extern void ctp_free_platform_resource(void);
 extern int  ctp_init_platform_resource(void);
-extern void ctp_print_info(struct ctp_config_info info);
+extern void ctp_print_info(struct ctp_config_info info,int debug_level);
 extern int  ctp_wakeup(int status,int ms);
 extern int ctp_i2c_write_bytes(struct i2c_client *client, uint8_t *data, uint16_t len);
 int ctp_i2c_read_bytes_addr16(struct i2c_client *client, uint8_t *buf, uint16_t len);

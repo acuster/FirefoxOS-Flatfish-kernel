@@ -126,14 +126,18 @@ static ssize_t disp_script_dump_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	if(strlen(buf) == 0) {
+	char main_key[32];
+
+    if(strlen(buf) == 0) {
 		printk("Invalid para\n");
 		return -1;
 	}
 
-    script_dump_mainkey(buf);
+    memcpy(main_key, buf, strlen(buf)+1);
 
-	return 0;
+    script_dump_mainkey(main_key);
+
+	return count;
 }
 
 static DEVICE_ATTR(script_dump, S_IRUGO|S_IWUSR|S_IWGRP,
@@ -174,6 +178,39 @@ static ssize_t disp_lcd_store(struct device *dev,
 
 static DEVICE_ATTR(lcd, S_IRUGO|S_IWUSR|S_IWGRP,
 		disp_lcd_show, disp_lcd_store);
+
+static ssize_t disp_lcd_bl_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return BSP_disp_lcd_get_bright(sel);
+}
+
+static ssize_t disp_lcd_bl_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int err;
+    unsigned long val;
+    
+	err = strict_strtoul(buf, 10, &val);
+	if (err) {
+		printk("Invalid size\n");
+		return err;
+	}
+
+    if((val < 0) || (val > 255))
+    {
+        printk("Invalid value, 0~255 is expected!\n");
+    }else
+    {
+        BSP_disp_lcd_set_bright(sel, val, 0);
+	}
+    
+	return count;
+}
+
+static DEVICE_ATTR(lcd_bl, S_IRUGO|S_IWUSR|S_IWGRP,
+		disp_lcd_bl_show, disp_lcd_bl_store);
 
 
 #define ____SEPARATOR_HDMI____
@@ -1049,6 +1086,7 @@ static struct attribute *disp_attributes[] = {
     &dev_attr_layer_mode.attr,
     &dev_attr_vsync_event_enable.attr,
     &dev_attr_lcd.attr,
+    &dev_attr_lcd_bl.attr,
     &dev_attr_hdmi.attr,
     &dev_attr_script_dump.attr,
     &dev_attr_colorbar.attr,

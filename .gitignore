@@ -34,6 +34,9 @@ modules.builtin
 *.gcno
 *.bak
 *.symvers
+*.rar
+*.zip
+*.map
 
 #
 # Top-level generic files
@@ -58,7 +61,7 @@ modules.builtin
 !.gitignore
 !.mailmap
 !drivers/input/touchscreen/ft_app.i
-
+!rootfs/rootfs_dragonboard.cpio.gz
 #
 # Generated include files
 #
@@ -95,3 +98,9 @@ modules/eurasia_km/eurasiacon/binary2_sunxi_android_release/
 modules/eurasia_km/eurasiacon/binary2_sunxi_android_debug/
 samples/hidraw/hid-example
 skel/
+output/
+bImage
+
+# standby files
+arch/arm/mach-sun6i/pm/standby/standby.code
+arch/arm/mach-sun6i/pm/standby/super/resume/resume1.code

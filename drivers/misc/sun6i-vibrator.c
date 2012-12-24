@@ -42,10 +42,9 @@ static struct gpio_hdle {
 }vibe_gpio_hdle;
 
 enum {
-	DEBUG_BASE_LEVEL0 = 1U << 0,
-	DEBUG_BASE_LEVEL1 = 1U << 1,
-	DEBUG_BASE_LEVEL2 = 1U << 2,
-	DEBUG_SUSPEND = 1U << 3,
+	DEBUG_INIT = 1U << 0,
+	DEBUG_DATA_INFO = 1U << 1,
+	DEBUG_SUSPEND = 1U << 2,
 };
 static u32 debug_mask = 0;
 #define dprintk(level_mask, fmt, arg...)	if (unlikely(debug_mask & level_mask)) \
@@ -55,6 +54,7 @@ module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static void set_sun6i_vibrator(int on)
 {
+	dprintk(DEBUG_DATA_INFO, "sun6i_vibrator on %d\n", on);
 	if(on) {
 		__gpio_set_value(vibe_gpio_hdle.val.gpio.gpio, !vibe_off);
 	} else {
@@ -73,6 +73,8 @@ static void vibrator_enable(struct timed_output_dev *dev, int value)
 
 	spin_lock_irqsave(&vibe_lock, flags);
 	hrtimer_cancel(&vibe_timer);
+
+	dprintk(DEBUG_DATA_INFO, "sun6i_vibrator enable %d\n", value);
 
 	if (value <= 0)
 		vibe_state = 0;
@@ -104,6 +106,7 @@ static enum hrtimer_restart vibrator_timer_func(struct hrtimer *timer)
 {
 	vibe_state = 0;
 	schedule_work(&vibrator_work);
+	dprintk(DEBUG_DATA_INFO, "sun6i_vibrator timer expired\n");
 	return HRTIMER_NORESTART;
 }
 
@@ -119,7 +122,7 @@ static int __init sun6i_vibrator_init(void)
 	script_item_u	val;
 	script_item_value_type_e  type;
 
-	dprintk(DEBUG_BASE_LEVEL0, "hello, sun6i_vibrator init\n");
+	dprintk(DEBUG_INIT, "hello, sun6i_vibrator init\n");
 
 	type = script_get_item("motor_para", "motor_used", &val);
 	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
@@ -139,12 +142,12 @@ static int __init sun6i_vibrator_init(void)
 		printk(KERN_ERR "vibrator motor_shake type err!");
 		goto exit1;
 	}
-	dprintk(DEBUG_BASE_LEVEL0, "value is: gpio %d, mul_sel %d, pull %d, drv_level %d, data %d\n", 
+	dprintk(DEBUG_INIT, "value is: gpio %d, mul_sel %d, pull %d, drv_level %d, data %d\n", 
 	    vibe_gpio_hdle.val.gpio.gpio, vibe_gpio_hdle.val.gpio.mul_sel, vibe_gpio_hdle.val.gpio.pull, 
 	    vibe_gpio_hdle.val.gpio.drv_level, vibe_gpio_hdle.val.gpio.data);
 
 	vibe_off = vibe_gpio_hdle.val.gpio.data;
-	dprintk(DEBUG_BASE_LEVEL0, "vibe_off is %d\n", vibe_off);
+	dprintk(DEBUG_INIT, "vibe_off is %d\n", vibe_off);
 
 	if(0 != gpio_request(vibe_gpio_hdle.val.gpio.gpio, NULL)) {
 		printk(KERN_ERR "ERROR: vibe Gpio_request is failed\n");
@@ -166,6 +169,8 @@ static int __init sun6i_vibrator_init(void)
 
 	timed_output_dev_register(&sun6i_vibrator);
 
+	dprintk(DEBUG_INIT, "sun6i_vibrator init end\n");
+
 	return 0;
 exit:
 	gpio_free(vibe_gpio_hdle.val.gpio.gpio);
@@ -175,7 +180,7 @@ exit1:
 
 static void __exit sun6i_vibrator_exit(void)
 {
-	dprintk(DEBUG_BASE_LEVEL0, "bye, sun6i_vibrator_exit\n");
+	dprintk(DEBUG_INIT, "bye, sun6i_vibrator_exit\n");
 	timed_output_dev_unregister(&sun6i_vibrator);
 	gpio_free(vibe_gpio_hdle.val.gpio.gpio);	
 }

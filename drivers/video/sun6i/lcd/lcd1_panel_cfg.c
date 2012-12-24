@@ -157,17 +157,11 @@ static void LCD_panel_init(__u32 sel)
     lcd_get_panel_para(sel, info);
     if((info->lcd_if == LCD_IF_EDP) && (info->lcd_edp_tx_ic == 0))
     {
-        __inf("edp select anx9804 ic\n");
         anx9804_init(info);
     }
     else if((info->lcd_if == LCD_IF_EDP) && (info->lcd_edp_tx_ic == 1))
     {
-        __inf("edp select anx6345 ic\n");
         anx6345_init(info);
-    }
-    else
-    {
-        __inf("== panel is not edp interface ===!\n");
     }
 
     kfree(info);

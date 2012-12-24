@@ -553,7 +553,7 @@ static int nand_blktrans_thread(void *arg)
 		#endif
 
 
-		if((req->cmd_flags&REQ_SYNC)&&(req->cmd_flags&REQ_WRITE)&&(part_secur[dev->devnum]== 1)){
+		if((req->cmd_flags&REQ_SYNC)&&(req->cmd_flags&REQ_WRITE)&&((part_secur[dev->devnum]&0x2))){
 		    //printk("req sync: 0x%x form part: 0x%x \n", req->cmd_flags, dev->devnum);
 		    spin_unlock_irq(rq->queue_lock);
 			down(&nandr->nand_ops_mutex);
@@ -669,7 +669,7 @@ static int nand_blktrans_thread(void *arg)
     		#endif
 
 
-    		if((req->cmd_flags&REQ_SYNC)&&(req->cmd_flags&REQ_WRITE)&&(part_secur[dev->devnum]== 1)){
+    		if((req->cmd_flags&REQ_SYNC)&&(req->cmd_flags&REQ_WRITE)&&((part_secur[dev->devnum]&0x2))){
     		    //printk("req sync: 0x%x form part: 0x%x \n", req->cmd_flags, dev->devnum);
     		    spin_unlock_irq(rq->queue_lock);
     			down(&nandr->nand_ops_mutex);
@@ -917,7 +917,7 @@ static int nand_blktrans_thread(void *arg)
     		#endif
 
 
-    		if((req->cmd_flags&REQ_SYNC)&&(req->cmd_flags&REQ_WRITE)&&(part_secur[dev->devnum]== 1)){
+    		if((req->cmd_flags&REQ_SYNC)&&(req->cmd_flags&REQ_WRITE)&&((part_secur[dev->devnum]&0x2))){
     		    //printk("req sync: 0x%x form part: 0x%x \n", req->cmd_flags, dev->devnum);
     		    spin_unlock_irq(rq->queue_lock);
     			down(&nandr->nand_ops_mutex);
@@ -1096,7 +1096,7 @@ static int nand_blktrans_thread(void *arg)
 				#endif
 					
 				#if 1//if (iocnt>1)&&(seccnt>half_single_page), cache mode, else partial mode
-					if((io_cnt_for_page[i] > 1)&&(sec_cnt_for_page[i] >=(sector_cnt_of_logic_page>>1)))
+					if((io_cnt_for_page[i] > 1)&&(sec_cnt_for_page[i] >=(sector_cnt_of_single_page>>1)))
 					partial_flag = 0;
 				else
 					partial_flag = 1;
@@ -1649,7 +1649,7 @@ static int nand_logrelease(struct nand_blk_dev *dev)
 
 static int nand_flush_force(__u32 dev_num)
 {
-    //printk("nf \n");
+    //printk("nf dev: %d\n", dev_num);
 	#ifdef NAND_CACHE_RW
 		NAND_CacheFlushDev(dev_num);
 	#else

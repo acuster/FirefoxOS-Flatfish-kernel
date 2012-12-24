@@ -228,13 +228,11 @@ static int ctp_detect(struct i2c_client *client, struct i2c_board_info *info)
                 return -ENODEV;
         }
         if(twi_id == adapter->nr){
-                printk("%s: addr= %x\n",__func__,client->addr);
                 msleep(50);
 	        i2c_read_bytes(client,read_chip_value,3);
-                printk("chip_id_value:0x%x\n",read_chip_value[2]);
+                dprintk(DEBUG_INIT,"addr:0x%x,chip_id_value:0x%x\n",client->addr,read_chip_value[2]);
                 while(chip_id_value[i++]){
                         if(read_chip_value[2] == chip_id_value[i - 1]){
-                                printk("I2C connection sucess!\n");
             	                strlcpy(info->type, CTP_NAME, I2C_NAME_SIZE);
     		                return 0;
                         }                   
@@ -327,7 +325,7 @@ static s32 goodix_ts_version(struct goodix_ts_data *ts)
 
     i2c_read_bytes(ts->client, buf, 5);
     i2c_end_cmd(ts);
-    printk("PID:%02x, VID:%02x%02x\n", buf[2], buf[3], buf[4]);
+    dprintk(DEBUG_INIT,"PID:%02x, VID:%02x%02x\n", buf[2], buf[3], buf[4]);
     return 1;
 }
 
@@ -415,7 +413,7 @@ static void goodix_ts_work_func(struct work_struct *work)
         }
 
         if((finger & 0xC0) != 0x80){
-                printk("%s:Data not ready!",__func__);
+                dprintk(DEBUG_INIT,"%s:Data not ready!",__func__);
                 goto exit_work_func;
         }
 
@@ -611,7 +609,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 {
 	struct goodix_ts_data *ts;
 	int ret = 0;
-	printk("=============GT82x Probe==================\n");
+	dprintk(DEBUG_INIT,"=============GT82x Probe==================\n");
         
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)){
 		dev_err(&client->dev, "System need I2C function.\n");
@@ -694,10 +692,9 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	        printk("init panel fail!\n");
 		goto err_init_godix_ts;
 	}else {
-	        printk("init panel succeed!\n");	
+	        dprintk(DEBUG_INIT,"init panel succeed!\n");	
         }
 #ifdef CONFIG_HAS_EARLYSUSPEND	
-	printk("==register_early_suspend =\n");	
 	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;	
 	ts->early_suspend.suspend = goodix_ts_suspend;
 	ts->early_suspend.resume	= goodix_ts_resume;	
@@ -708,11 +705,9 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		pr_info( "goodix_probe: request irq failed\n");
 		goto exit_irq_request_failed;
 	}
-
-	printk("Read Goodix version\n");
 	goodix_ts_version(ts);
 		
-	printk("========Probe Ok================\n");
+	dprintk(DEBUG_INIT,"========Probe Ok================\n");
 	return 0;
 
 	
@@ -786,7 +781,7 @@ static struct i2c_driver goodix_ts_driver = {
 
 static int ctp_get_system_config(void)
 {   
-        ctp_print_info(config_info);
+        ctp_print_info(config_info,DEBUG_INIT);
         twi_id = config_info.twi_id;
         screen_max_x = config_info.screen_max_x;
         screen_max_y = config_info.screen_max_y;
@@ -804,8 +799,7 @@ static int __devinit goodix_ts_init(void)
 {
 	int ret = -1;
 	//int err = -1;
-        printk("****************************************************************\n");
-	printk("===========================%s=====================\n", __func__);
+        dprintk(DEBUG_INIT,"****************************************************************\n");
         if(config_info.ctp_used == 0){
 	        printk("*** ctp_used set to 0 !\n");
 	        printk("*** if use ctp,please put the sys_config.fex ctp_used set to 1. \n");
@@ -819,7 +813,7 @@ static int __devinit goodix_ts_init(void)
 	goodix_ts_driver.detect = ctp_detect;
 	ret = i2c_add_driver(&goodix_ts_driver);
 	
-        printk("****************************************************************\n");
+        dprintk(DEBUG_INIT,"****************************************************************\n");
 	return ret;
 }
 

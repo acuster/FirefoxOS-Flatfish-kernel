@@ -78,6 +78,8 @@ __u32 g_clk_status = 0x0;
 	
 #define RESET_OSAL 
 
+volatile __ccmu_mipi_pll_reg0040_t *MipiPllCtl;
+
 extern __disp_dev_t         gdisp;
 extern __panel_para_t		gpanel_info[2];
 
@@ -135,7 +137,7 @@ __disp_clk_tab clk_tab = //record tv/vga/hdmi mode clock requirement
 * output_freq:MIPI pll frequence(hz)
 * coef:       pll coefficient(n,k,m)
 */
-__s32 disp_mipipll_get_coefficient(__u32 src_freq, __u32 output_freq, __disp_ccmu_coef *coef)
+__s32 disp_mipipll_calc_coefficient(__u32 src_freq, __u32 output_freq, __disp_ccmu_coef *coef)
 {
 	int m_ok=0, k_ok=0, n_ok=0;
 	int output_curr = 0;
@@ -174,13 +176,34 @@ __s32 disp_mipipll_get_coefficient(__u32 src_freq, __u32 output_freq, __disp_ccm
 	coef->factor_n = n_ok;
 	coef->factor_k = k_ok;
 	coef->divider_m = m_ok;
-	real_freq = src_freq * n_ok * k_ok / m_ok;
-
-    *(volatile __u32*)0xf1c20040 = 0x80e00000 | ((n_ok-1) << 8) | ((k_ok-1) << 4) |  ((m_ok-1) << 0);
+	real_freq = src_freq * n_ok * k_ok / m_ok;    
 	
 	return 0;
 }
 
+__s32 disp_mipipll_set_coefficient(__disp_ccmu_coef *coef)
+{
+    MipiPllCtl->FactorN = coef->factor_n-1;
+    MipiPllCtl->FactorK = coef->factor_k-1;
+    MipiPllCtl->FactorM = coef->divider_m-1;
+
+    return 0;
+}
+
+__s32 disp_mipipll_init(void)
+{
+    MipiPllCtl = (__ccmu_mipi_pll_reg0040_t *)0xf1c20040;
+    MipiPllCtl->PLLEn = 0;
+    MipiPllCtl->Ldo1En = 0;
+    MipiPllCtl->Ldo2En = 0;
+    MipiPllCtl->Ldo1En = 1;
+    MipiPllCtl->Ldo2En = 1;
+    MipiPllCtl->PllSrc = 1; //pll7
+    msleep(200);
+    MipiPllCtl->PLLEn = 1;
+
+    return 0;
+}
 __s32 image_clk_init(__u32 sel)
 {
 	__u32 pll_freq;
@@ -751,6 +774,7 @@ __s32 disp_pll_init(void)
 	OSAL_CCMU_SetSrcFreq(SYS_CLK_PLL3, 297000000);	
 	OSAL_CCMU_SetSrcFreq(SYS_CLK_PLL7, 297000000);
     OSAL_CCMU_SetSrcFreq(SYS_CLK_PLL10,264000000);
+    disp_mipipll_init();
 
 	return DIS_SUCCESS;
 }
@@ -1060,7 +1084,8 @@ __s32 disp_clk_cfg(__u32 sel, __u32 type, __u8 mode)
 		pre_scale = 1;
         tcon0_set_dclk_div(sel,lcd_clk_div);
 
-        disp_mipipll_get_coefficient(297000000, pll_freq, &coef);
+        disp_mipipll_calc_coefficient(297000000, pll_freq, &coef);
+        disp_mipipll_set_coefficient(&coef);
 
         return DIS_SUCCESS;
 	}
@@ -1205,11 +1230,25 @@ __s32 BSP_disp_clk_on(__u32 type)
     {
     	if((g_clk_status & CLK_DEBE0_MOD_ON) == CLK_DEBE0_MOD_ON)
     	{
-    		OSAL_CCMU_SetMclkDiv(h_debe0mclk, 2);
+    		if(OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10) < 350000000)
+    		{
+    			OSAL_CCMU_SetMclkDiv(h_debe0mclk, 1);
+    		}
+    		else
+    		{
+    			OSAL_CCMU_SetMclkDiv(h_debe0mclk, 2);
+    		}
     	}
     	if((g_clk_status & CLK_DEBE1_MOD_ON) == CLK_DEBE1_MOD_ON)
     	{
-    		OSAL_CCMU_SetMclkDiv(h_debe1mclk, 2);
+            if(OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10) < 350000000)
+    		{
+    			OSAL_CCMU_SetMclkDiv(h_debe1mclk, 1);
+    		}
+    		else
+    		{
+    			OSAL_CCMU_SetMclkDiv(h_debe1mclk, 2);
+    		}
     	}
     }
 

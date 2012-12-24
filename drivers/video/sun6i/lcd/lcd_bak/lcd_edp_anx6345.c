@@ -64,16 +64,22 @@ __u8 SP_TX_Read_Reg(__u8 dev_addr, __u8 offset, __u8 *d)
 
 void anx6345_init(__panel_para_t * info)
 {
-		__u8 c;
-		int i;
-        __u32 count = 0;
-		
-	/*   
-	   lcd_reset_set_output();
-	   lcd_reset_set_value_0();
-	   LCD_delay_ms(500);
-	   lcd_reset_set_value_1();		   //reset
-*/
+    __u8 c;
+    int i;
+    __u32 count = 0;
+    __u32 lanes;
+    __u32 data_rate;
+
+    lanes = info->lcd_edp_tx_lane;
+    data_rate = 0x06;
+    if(info->lcd_edp_tx_rate== 1)
+    {
+        data_rate = 0x06;//1.62G
+    }
+    else if(info->lcd_edp_tx_rate == 2)
+    {
+        data_rate = 0x0a;//2.7G
+    }
 	
 		SP_TX_Write_Reg (0x72, 0x05, 0x00);
 
@@ -166,9 +172,9 @@ void anx6345_init(__panel_para_t * info)
 		//force HPD
 		SP_TX_Write_Reg(0x70, SP_TX_SYS_CTRL3_REG, 0x30);
 		//Select 2.7G
-		   SP_TX_Write_Reg(0x70, SP_TX_LINK_BW_SET_REG, 0x0a);		//2.7g:0x0a;1.62g:0x06
+		   SP_TX_Write_Reg(0x70, SP_TX_LINK_BW_SET_REG, data_rate);		//2.7g:0x0a;1.62g:0x06
 		//Select 2 lanes
-		SP_TX_Write_Reg(0x70, 0xa1, 0x02);
+		SP_TX_Write_Reg(0x70, 0xa1, lanes);
 	
 		 SP_TX_Write_Reg(0x70, SP_TX_LINK_TRAINING_CTRL_REG, SP_TX_LINK_TRAINING_CTRL_EN);
 		LCD_delay_ms(5);

@@ -296,7 +296,8 @@ __s32 disp_lcd_close_late(__u32 sel)
 	        __u32 timeout = close_flow->func[i].delay*HZ/1000;
 
 	        close_flow->func[i].func(sel);
-
+            
+            pr_info("disp suspend, step%d, schedule_timeout:%d\n", i, timeout);
             set_current_state(TASK_INTERRUPTIBLE);
             schedule_timeout(timeout);
 	    }
@@ -586,8 +587,6 @@ void backlight_early_suspend(struct early_suspend *h)
 {
     int i = 0;
 
-    printk("[DISP]display early suspend==\n");
-
     for(i=0; i<2; i++)
     {
         suspend_output_type[i] = BSP_disp_get_output_type(i);
@@ -613,13 +612,13 @@ void backlight_early_suspend(struct early_suspend *h)
 
     suspend_status |= 1;
     suspend_prestep = 0;
+
+    pr_info("[DISP]>>display early suspend done<<\n");
 }
 
 void backlight_late_resume(struct early_suspend *h)
 {
     int i = 0;
-
-    pr_info("[DISP]display late resume enter\n");
 
     if(suspend_prestep != 2)
     {
@@ -665,7 +664,7 @@ void backlight_late_resume(struct early_suspend *h)
     suspend_status &= (~1);
     suspend_prestep = 3;
 
-    pr_info("[DISP]display late resume done==\n");
+    pr_info("[DISP]>>display late resume done<<\n");
 }
 
 static struct early_suspend backlight_early_suspend_handler =
@@ -683,9 +682,10 @@ static __u32 image1_reg_bak,scaler1_reg_bak;
 int disp_suspend(struct platform_device *pdev, pm_message_t state)
 {
     int i = 0;
+    
 #ifndef CONFIG_HAS_EARLYSUSPEND
 
-    pr_info("[DISP]disp_suspend call==\n");
+    pr_info("[DISP]>>disp_suspend call<<\n");
 
     for(i=0; i<2; i++)
     {
@@ -721,7 +721,7 @@ int disp_suspend(struct platform_device *pdev, pm_message_t state)
 #endif
      if(SUPER_STANDBY == standby_type)
      {
-        pr_info("[DISP]==disp super standby enter==\n");
+        pr_info("[DISP]>>disp super standby enter<<\n");
 
         image0_reg_bak = (__u32)kmalloc(0xe00 - 0x800, GFP_KERNEL | __GFP_ZERO);
         scaler0_reg_bak = (__u32)kmalloc(0xa18, GFP_KERNEL | __GFP_ZERO);
@@ -747,16 +747,19 @@ int disp_suspend(struct platform_device *pdev, pm_message_t state)
     return 0;
 }
 
+extern __s32 disp_mipipll_init(void);
+
 int disp_resume(struct platform_device *pdev)
 {
     int i = 0;
 
+    disp_mipipll_init();
     BSP_disp_clk_on(1);
     BSP_disp_clk_on(2);
     if(SUPER_STANDBY == standby_type)
     {
 
-        pr_info("[DISP]==disp super standby exit==\n");
+        pr_info("[DISP]>>disp super standby exit<<\n");
 
         BSP_disp_restore_scaler_reg(0, scaler0_reg_bak);
         BSP_disp_restore_image_reg(0, image0_reg_bak);
@@ -776,7 +779,7 @@ int disp_resume(struct platform_device *pdev)
     Bsp_disp_iep_resume(1);
 #ifndef CONFIG_HAS_EARLYSUSPEND
 
-    pr_info("[DIS[]disp_resume call==\n");
+    pr_info("[DISP]==disp_resume call==\n");
 
     for(i=0; i<2; i++)
     {
@@ -799,6 +802,7 @@ int disp_resume(struct platform_device *pdev)
         }
     }
 #else
+   pr_info("[DISP]>>disp_resume call<<\n");
    for(i=0; i<2; i++)
     {
         if(suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)

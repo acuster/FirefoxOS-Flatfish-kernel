@@ -60,6 +60,7 @@ int ar100_hwspin_lock_timeout(int hwid, unsigned int timeout)
 {
 	ar100_hwspinlock_t *spinlock;
 	unsigned long       expire;
+	int                 ret;
 	
 	expire = msecs_to_jiffies(timeout) + jiffies;
 	
@@ -70,7 +71,9 @@ int ar100_hwspin_lock_timeout(int hwid, unsigned int timeout)
 	spinlock = &(ar100_hwspinlocks[hwid]);
 	
 	/* is lock already taken by another context on the local cpu ? */
-	if (spin_trylock_irqsave(&(spinlock->lock), spinlock->flags)) {
+	ret = spin_trylock_irqsave(&(spinlock->lock), spinlock->flags);
+	if (!ret) {
+		AR100_ERR("try to take spinlock fail\n");
 		return -EBUSY;
 	}
 	
@@ -81,6 +84,7 @@ int ar100_hwspin_lock_timeout(int hwid, unsigned int timeout)
 		 * us to try again
 		 */
 		if (time_is_before_eq_jiffies(expire)) {
+			AR100_ERR("try to take hwspinlock timeout\n");
 			return -ETIMEDOUT;
 		}
 	}

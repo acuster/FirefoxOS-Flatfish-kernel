@@ -115,7 +115,7 @@ static int sunxi_cpufreq_target(struct cpufreq_policy *policy, __u32 freq, __u32
     /* update the target frequency */
     freq_cfg.pll = sunxi_freq_tbl[index].frequency * 1000;
     freq_cfg.div = *(struct sunxi_clk_div_t *)&sunxi_freq_tbl[index].index;
-    CPUFREQ_DBG("target frequency find is %u, entry %u\n", freq_cfg.pll, index);
+    CPUFREQ_ERR("target frequency find is %u, entry %u\n", freq_cfg.pll, index);
 
     /* notify that cpu clock will be adjust if needed */
     if (policy) {
@@ -178,7 +178,7 @@ static int sunxi_cpufreq_target(struct cpufreq_policy *policy, __u32 freq, __u32
     }
 
     last_target = freq;
-    CPUFREQ_DBG("set cpu frequency to %uMHz ok\n", freq / 1000);
+    CPUFREQ_ERR("set cpu frequency to %uMHz ok\n", freq / 1000);
 
 out:
     mutex_unlock(&sunxi_cpu_lock);
@@ -210,13 +210,94 @@ static unsigned int sunxi_cpufreq_getavg(struct cpufreq_policy *policy, unsigned
 
 
 /*
+ * get a valid frequency from cpu frequency table;
+ * target_freq:	target frequency to be judge, based on KHz;
+ * return: cpu frequency, based on khz;
+ */
+static unsigned int __get_valid_freq(unsigned int target_freq)
+{
+    struct cpufreq_frequency_table *tmp = &sunxi_freq_tbl[0];
+
+    while(tmp->frequency != CPUFREQ_TABLE_END){
+        if((tmp+1)->frequency <= target_freq)
+            tmp++;
+        else
+            break;
+    }
+
+    return tmp->frequency;
+}
+
+
+/*
+ * init cpu max/min frequency from sysconfig;
+ * return: 0 - init cpu max/min successed, !0 - init cpu max/min failed;
+ */
+static int __init_freq_syscfg(void)
+{
+    int ret = 0;
+    script_item_u max, min;
+    script_item_value_type_e type;
+
+    type = script_get_item("dvfs_table", "max_freq", &max);
+    if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        CPUFREQ_ERR("get cpu max frequency from sysconfig failed\n");
+        ret = -1;
+        goto fail;
+    }
+    cpu_freq_max = max.val;
+
+    type = script_get_item("dvfs_table", "min_freq", &min);
+    if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        CPUFREQ_ERR("get cpu min frequency from sysconfig failed\n");
+        ret = -1;
+        goto fail;
+    }
+    cpu_freq_min = min.val;
+
+    if(cpu_freq_max > SUNXI_CPUFREQ_MAX || cpu_freq_max < SUNXI_CPUFREQ_MIN
+        || cpu_freq_min < SUNXI_CPUFREQ_MIN || cpu_freq_min > SUNXI_CPUFREQ_MAX){
+        CPUFREQ_ERR("cpu max or min frequency from sysconfig is more than range\n");
+        ret = -1;
+        goto fail;
+    }
+
+    if(cpu_freq_min > cpu_freq_max){
+        CPUFREQ_ERR("cpu min frequency can not be more than cpu max frequency\n");
+        ret = -1;
+        goto fail;
+    }
+
+    /* get valid max/min frequency from cpu frequency table */
+    cpu_freq_max = __get_valid_freq(cpu_freq_max / 1000);
+    cpu_freq_min = __get_valid_freq(cpu_freq_min / 1000);
+
+    return 0;
+
+fail:
+    /* use default cpu max/min frequency */
+    cpu_freq_max = SUNXI_CPUFREQ_MAX / 1000;
+    cpu_freq_min = SUNXI_CPUFREQ_MIN / 1000;
+
+    return ret;
+}
+
+
+/*
  * cpu frequency initialise a policy;
  * policy:  cpu frequency policy;
  * result:  return 0 if init ok, else, return -EINVAL;
  */
 static int sunxi_cpufreq_init(struct cpufreq_policy *policy)
 {
-    CPUFREQ_DBG("%s\n", __func__);
+    /* init cpu frequency from sysconfig */
+    if(__init_freq_syscfg()) {
+        CPUFREQ_ERR("%s, use default cpu max/min frequency, max freq: %uMHz, min freq: %uMHz\n",
+                    __func__, cpu_freq_max/1000, cpu_freq_min/1000);
+    }else{
+        CPUFREQ_INF("%s, get cpu frequency from sysconfig, max freq: %uMHz, min freq: %uMHz\n",
+                    __func__, cpu_freq_max/1000, cpu_freq_min/1000);
+    }
 
     policy->cur = sunxi_cpufreq_get(0);
     policy->min = policy->cpuinfo.min_freq = cpu_freq_min;

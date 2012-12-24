@@ -60,6 +60,8 @@ static unsigned int nr_uarts = CONFIG_SERIAL_8250_RUNTIME_UARTS;
 
 static struct uart_driver serial8250_reg;
 
+static u32 debug_mask = 0;
+
 static int serial_index(struct uart_port *port)
 {
 	return (serial8250_reg.minor - 64) + port->line;
@@ -566,6 +568,7 @@ static void serial_icr_write(struct uart_8250_port *up, int offset, int value)
 	serial_out(up, UART_ICR, value);
 }
 
+#ifndef CONFIG_SERIAL_8250_SUNXI
 static unsigned int serial_icr_read(struct uart_8250_port *up, int offset)
 {
 	unsigned int value;
@@ -577,6 +580,7 @@ static unsigned int serial_icr_read(struct uart_8250_port *up, int offset)
 
 	return value;
 }
+#endif
 
 /*
  * FIFO support.
@@ -722,6 +726,7 @@ static int size_fifo(struct uart_8250_port *up)
 #endif
 }
 
+#ifndef CONFIG_SERIAL_8250_SUNXI
 /*
  * Read UART ID using the divisor method - set DLL and DLM to zero
  * and the revision will be in DLL and device type in DLM.  We
@@ -749,6 +754,7 @@ static unsigned int autoconfig_read_divisor_id(struct uart_8250_port *p)
 
 	return id;
 }
+#endif
 
 /*
  * This is a helper routine to autodetect StarTech/Exar/Oxsemi UART's.
@@ -760,6 +766,8 @@ static unsigned int autoconfig_read_divisor_id(struct uart_8250_port *p)
  *
  * What evil have men's minds wrought...
  */
+
+#ifndef CONFIG_SERIAL_8250_SUNXI
 static void autoconfig_has_efr(struct uart_8250_port *up)
 {
 	unsigned int id1, id2, id3, rev;
@@ -842,7 +850,6 @@ static void autoconfig_has_efr(struct uart_8250_port *up)
 	else
 		up->port.type = PORT_16650V2;
 }
-#ifndef	CONFIG_SERIAL_8250_SUNXI
 /*
  * We detected a chip without a FIFO.  Only two fall into
  * this category - the original 8250 and the 16450.  The
@@ -865,7 +872,6 @@ static void autoconfig_8250(struct uart_8250_port *up)
 		up->port.type = PORT_16450;
 }
 
-#endif
 static int broken_efr(struct uart_8250_port *up)
 {
 	/*
@@ -878,6 +884,7 @@ static int broken_efr(struct uart_8250_port *up)
 
 	return 0;
 }
+#endif
 
 static inline int ns16550a_goto_highspeed(struct uart_8250_port *up)
 {
@@ -904,12 +911,12 @@ static inline int ns16550a_goto_highspeed(struct uart_8250_port *up)
  */
 static void autoconfig_16550a(struct uart_8250_port *up)
 {
+#ifndef CONFIG_SERIAL_8250_SUNXI
 	unsigned char status1, status2;
 	unsigned int iersave;
 
 	up->port.type = PORT_16550A;
 	up->capabilities |= UART_CAP_FIFO;
-#ifndef CONFIG_SERIAL_8250_SUNXI
 	/*
 	 * Check for presence of the EFR when DLAB is set.
 	 * Only ST16C650V1 UARTs pass this test.
@@ -1045,6 +1052,9 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 		up->port.type = PORT_XR17D15X;
 		up->capabilities |= UART_CAP_AFE | UART_CAP_EFR;
 	}
+#else
+	up->port.type = PORT_16550A;
+	up->capabilities |= UART_CAP_FIFO;
 #endif
 	/*
 	 * We distinguish between 16550A and U6 16550A by counting
@@ -1536,7 +1546,6 @@ EXPORT_SYMBOL_GPL(serial8250_modem_status);
 /*
  * This handles the interrupt from one port.
  */
-
 int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 {
 	unsigned char status;
@@ -1544,7 +1553,7 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	struct uart_8250_port *up =
 		container_of(port, struct uart_8250_port, port);
 
-       if ((iir & 0x7) == UART_IIR_BUSY) {
+	if ((iir & 0x7) == UART_IIR_BUSY) {
                unsigned int mcr_t = serial_inp(up, UART_MCR);
                AW_UART_LOG(">>> ttyS%d bus busy...", up->port.line);
                serial_outp(up, UART_MCR, mcr_t|(1<<4));
@@ -1559,20 +1568,29 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 		AW_UART_LOG("no int");
 		return 0;
 	}
-
+	if(!(debug_mask & 0x1))
+		debug_mask = 0;
 	spin_lock_irqsave(&up->port.lock, flags);
-
+	up->port.lock_status	= 0xaa;
 	status = serial_inp(up, UART_LSR);
+
+	if (status & (UART_LSR_DR | UART_LSR_BI)){
+		status = serial8250_rx_chars(up, status);
+		if(debug_mask)
+			debug_mask |= (1 << 31);
+	}
+	serial8250_modem_status(up);
+	if (status & UART_LSR_THRE){
+		serial8250_tx_chars(up);
+		if(debug_mask)
+			debug_mask |= (1 << 30);
+	}
+
+	up->port.lock_status	= 0x00;
+	spin_unlock_irqrestore(&up->port.lock, flags);
 
 	DEBUG_INTR("status = %x...", status);
 
-	if (status & (UART_LSR_DR | UART_LSR_BI))
-		status = serial8250_rx_chars(up, status);
-	serial8250_modem_status(up);
-	if (status & UART_LSR_THRE)
-		serial8250_tx_chars(up);
-
-	spin_unlock_irqrestore(&up->port.lock, flags);
 	return 1;
 }
 EXPORT_SYMBOL_GPL(serial8250_handle_irq);
@@ -3411,6 +3429,9 @@ MODULE_PARM_DESC(nr_uarts, "Maximum number of UARTs supported. (1-" __MODULE_STR
 
 module_param(skip_txen_test, uint, 0644);
 MODULE_PARM_DESC(skip_txen_test, "Skip checking for the TXEN bug at init time");
+
+module_param(debug_mask,uint,0644);
+MODULE_PARM_DESC(debug_mask,"sw debug switch");
 
 #ifdef CONFIG_SERIAL_8250_RSA
 module_param_array(probe_rsa, ulong, &probe_rsa_count, 0444);

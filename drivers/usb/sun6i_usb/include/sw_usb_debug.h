@@ -23,13 +23,13 @@
 
 #ifdef  CONFIG_USB_SW_SUN6I_USB_DEBUG
 
-#define  DMSG_PRINT(stuff...)		printk(stuff)
+#define usb_printk		pr_debug
 
-#define  DMSG_INFO_UDC(...)			(DMSG_PRINT("[sw_udc]: "), DMSG_PRINT(__VA_ARGS__))
-#define  DMSG_INFO_HCD0(...)		(DMSG_PRINT("[sw_hcd0]: "), DMSG_PRINT(__VA_ARGS__))
-#define  DMSG_INFO_HCD1(...)		(DMSG_PRINT("[sw_hcd1]: "), DMSG_PRINT(__VA_ARGS__))
-#define  DMSG_INFO_HCD2(...)		(DMSG_PRINT("[sw_hcd2]: "), DMSG_PRINT(__VA_ARGS__))
-#define  DMSG_INFO_MANAGER(...)		(DMSG_PRINT("[usb_manager]: "), DMSG_PRINT(__VA_ARGS__))
+#define  DMSG_INFO_UDC(format,args...)   			usb_printk("[sw_udc]: "format,##args)
+#define  DMSG_INFO_HCD0(format,args...)   		usb_printk("[sw_hcd0]: "format,##args)
+#define  DMSG_INFO_HCD1(format,args...)   		usb_printk("[sw_hcd1]: "format,##args)
+#define  DMSG_INFO_HCD2(format,args...)   		usb_printk("[sw_hcd2]: "format,##args)
+#define  DMSG_INFO_MANAGER(format,args...)   	usb_printk("[usb_manager]: "format,##args)
 
 #else
 
@@ -42,9 +42,8 @@
 
 #endif
 
-#define  DMSG_PRINT_EX(stuff...)		printk(stuff)
-
-#define  DMSG_ERR(...)        		(DMSG_PRINT_EX("WRN:L%d(%s):", __LINE__, __FILE__), DMSG_PRINT_EX(__VA_ARGS__))
+#define  DMSG_PRINT(format,args...)   	  pr_debug("[sun6i_usb]: "format,##args)
+#define  DMSG_ERR(format,args...)   			pr_err("[sun6i_usb]: "format,##args)
 
 
 /* ≤‚ ‘ */

@@ -29,8 +29,8 @@
 #define ADD_MISC_DRIVER		/* add misc driver, for open("/sys/class/...") call */
 
 typedef struct __dump_struct {
-	u32 	st_addr;	/* start reg physical addr */
-	u32 	ed_addr;	/* end reg physical addr */
+	u32 	st_addr;	/* start reg addr */
+	u32 	ed_addr;	/* end reg addr */
 }dump_struct;
 
 /* for sunxi_dump class */
@@ -42,6 +42,22 @@ static dump_struct misc_dump_para;
 struct compare_group *misc_cmp_group = NULL;
 struct write_group *misc_wt_group = NULL;
 
+#define VADDR(x)	((x) - PLAT_PHYS_OFFSET + PAGE_OFFSET)
+
+u32 addr_table[][2] = {
+	{AW_IO_PHYS_BASE,		AW_IO_PHYS_BASE + AW_IO_SIZE		},
+	{AW_SRAM_A1_BASE,		AW_SRAM_A1_BASE + AW_SRAM_A1_SIZE	},
+	{AW_SRAM_A2_BASE, 		AW_SRAM_A2_BASE + AW_SRAM_A2_SIZE	},
+	{AW_BROM_BASE,			AW_BROM_BASE 	+ AW_BROM_SIZE		},
+	{PLAT_PHYS_OFFSET,		PLAT_PHYS_OFFSET + SZ_1G		},
+
+	{IO_ADDRESS(AW_IO_PHYS_BASE),	IO_ADDRESS(AW_IO_PHYS_BASE) + AW_IO_SIZE	},
+	{IO_ADDRESS(AW_SRAM_A1_BASE),	IO_ADDRESS(AW_SRAM_A1_BASE) + AW_SRAM_A1_SIZE	},
+	{IO_ADDRESS(AW_SRAM_A2_BASE), 	IO_ADDRESS(AW_SRAM_A2_BASE) + AW_SRAM_A2_SIZE	},
+	{IO_ADDRESS(AW_BROM_BASE),	IO_ADDRESS(AW_BROM_BASE) + AW_BROM_SIZE		},
+	{VADDR(PLAT_PHYS_OFFSET), 	VADDR(PLAT_PHYS_OFFSET) + SZ_1G	-1	}, /* -1 to avoid overflow */
+};
+
 /**
  * __addr_valid - check if the addr is valid
  * @addr: addr to judge
@@ -50,16 +66,28 @@ struct write_group *misc_wt_group = NULL;
  */
 bool __addr_valid(u32 addr)
 {
-	if(addr >= AW_IO_PHYS_BASE && addr < AW_IO_PHYS_BASE + AW_IO_SIZE)
-		return true;
-	if(addr >= AW_SRAM_A1_BASE && addr < AW_SRAM_A1_BASE + AW_SRAM_A1_SIZE)
-		return true;
-	if(addr >= AW_SRAM_A2_BASE && addr < AW_SRAM_A2_BASE + AW_SRAM_A2_SIZE)
-		return true;
-	if(addr >= AW_BROM_BASE && addr < AW_BROM_BASE + AW_BROM_SIZE)
-		return true;
+	int i;
+	for(i = 0; i < ARRAY_SIZE(addr_table); i++)
+		if(addr >= addr_table[i][0] && addr < addr_table[i][1])
+			return true;
 	return false;
 }
+
+u32 __get_vaddr(u32 addr)
+{
+	int i, offset;
+	for(i = 0; i < ARRAY_SIZE(addr_table) / 2; i++) {
+		if(addr >= addr_table[i][0] && addr < addr_table[i][1]) {
+			offset = addr - addr_table[i][0];
+			i += (ARRAY_SIZE(addr_table) / 2);
+			return addr_table[i][0] + offset;
+		}
+	}
+	return addr;
+}
+#define VA(x) 			__get_vaddr(x)
+#define R(x) 			readl(VA(x))
+#define W(v,a) 			writel((v),VA(a))
 
 /**
  * first_str_to_int - convert substring of pstr to int, the substring is
@@ -121,8 +149,8 @@ int __parse_dump_str(const char *buf, size_t size, u32 *start, u32 *end)
 
 /**
  * __sunxi_dump_regs_ex - dump a range of registers' value, copy to buf.
- * @start_reg:   physcal address of start reg.
- * @end_reg:     physcal address of end reg.
+ * @start_reg:   address of start reg.
+ * @end_reg:     address of end reg.
  * @buf:         store the dump info.
  * 
  * return bytes written to buf, <=0 indicate err
@@ -139,8 +167,8 @@ ssize_t __sunxi_dump_regs_ex(u32 start_reg, u32 end_reg, char *buf)
 	}
 	/* only one to dump */
 	if(start_reg == end_reg)
-		//return sprintf(buf, "0x%08x: 0x%08x\n", start_reg, readl(IO_ADDRESS(start_reg)));
-		return sprintf(buf, "0x%08x\n", readl(IO_ADDRESS(start_reg))); /* for open("/sys/class/...") app call */
+		//return sprintf(buf, "0x%08x: 0x%08x\n", start_reg, R(start_reg));
+		return sprintf(buf, "0x%08x\n", R(start_reg)); /* for open("/sys/class/...") app call */
 
 	first_addr = start_reg & (~0xf);
 	end_addr   = (end_reg   & (~0xf)) + 0xf;
@@ -149,7 +177,7 @@ ssize_t __sunxi_dump_regs_ex(u32 start_reg, u32 end_reg, char *buf)
 		if(i < start_reg || i > end_reg)
 			cnt += sprintf(buf + cnt, "           "); /* "0x12345678 ", 11 space*/
 		else
-			cnt += sprintf(buf + cnt, "0x%08x ", readl(IO_ADDRESS(i)));
+			cnt += sprintf(buf + cnt, "0x%08x ", R(i));
 
 		if((i & 0xc) == 0xc) {
 			cnt += sprintf(buf + cnt, "\n");
@@ -276,6 +304,11 @@ int __compare_item_init(const char *buf, size_t size, struct compare_group **ppg
 			//printk(KERN_DEBUG "%s: reg_addr 0x%08x, val_expect 0x%08x, val_mask 0x%08x\n",
 			//	__func__, reg_addr, val_expect, val_mask);
 			if(pgroup->num < MAX_COMPARE_ITEM) {
+				if(!__addr_valid(reg_addr)) {
+					printk(KERN_ERR "%s(%d) err, addr 0x%08x invalid!\n", __func__, __LINE__, reg_addr);
+					pgroup->num = 0;
+					goto end;
+				}
 				pgroup->pitem[pgroup->num].reg_addr = reg_addr;
 				pgroup->pitem[pgroup->num].val_expect = val_expect;
 				pgroup->pitem[pgroup->num].val_mask = val_mask;
@@ -297,6 +330,11 @@ int __compare_item_init(const char *buf, size_t size, struct compare_group **ppg
 		//printk(KERN_DEBUG "%s: line %d, reg_addr 0x%08x, val_expect 0x%08x, val_mask 0x%08x\n",
 		//	__func__, __LINE__, reg_addr, val_expect, val_mask);
 		if(pgroup->num < MAX_COMPARE_ITEM) {
+			if(!__addr_valid(reg_addr)) {
+				printk(KERN_ERR "%s(%d) err, addr 0x%08x invalid!\n", __func__, __LINE__, reg_addr);
+				pgroup->num = 0;
+				goto end;
+			}
 			pgroup->pitem[pgroup->num].reg_addr = reg_addr;
 			pgroup->pitem[pgroup->num].val_expect = val_expect;
 			pgroup->pitem[pgroup->num].val_mask = val_mask;
@@ -304,6 +342,7 @@ int __compare_item_init(const char *buf, size_t size, struct compare_group **ppg
 		}
 	}
 
+end:
 	/* free buffer if no valid item */
 	if(0 == pgroup->num) {
 		kfree(pgroup->pitem);
@@ -342,7 +381,7 @@ ssize_t __sunxi_compare_regs_ex(struct compare_group *pgroup, char *buf)
 	for(i = 0; i < pgroup->num; i++) {
 		reg    = pgroup->pitem[i].reg_addr;
 		expect = pgroup->pitem[i].val_expect;
-		actual = readl(IO_ADDRESS(reg));
+		actual = R(reg);
 		mask   = pgroup->pitem[i].val_mask;
 		if((actual & mask) == (expect & mask))
 			cnt += sprintf(buf + cnt, "0x%08x  0x%08x  0x%08x  0x%08x  OK\n", reg, expect, actual, mask);
@@ -443,6 +482,11 @@ int __write_item_init(const char *buf, size_t size, struct write_group **ppgroup
 		else {
 			//printk(KERN_DEBUG "%s: reg_addr 0x%08x, val 0x%08x\n", __func__, reg_addr, val);
 			if(pgroup->num < MAX_WRITE_ITEM) {
+				if(!__addr_valid(reg_addr)) {
+					printk(KERN_ERR "%s(%d) err, addr 0x%08x invalid!\n", __func__, __LINE__, reg_addr);
+					pgroup->num = 0;
+					goto end;
+				}
 				pgroup->pitem[pgroup->num].reg_addr = reg_addr;
 				pgroup->pitem[pgroup->num].val = val;
 				pgroup->num++;
@@ -462,12 +506,18 @@ int __write_item_init(const char *buf, size_t size, struct write_group **ppgroup
 	else {
 		//printk(KERN_DEBUG "%s: line %d, reg_addr 0x%08x, val 0x%08x\n", __func__, __LINE__, reg_addr, val);
 		if(pgroup->num < MAX_WRITE_ITEM) {
+			if(!__addr_valid(reg_addr)) {
+				printk(KERN_ERR "%s(%d) err, addr 0x%08x invalid!\n", __func__, __LINE__, reg_addr);
+				pgroup->num = 0;
+				goto end;
+			}
 			pgroup->pitem[pgroup->num].reg_addr = reg_addr;
 			pgroup->pitem[pgroup->num].val = val;
 			pgroup->num++;
 		}
 	}
 
+end:
 	/* free buffer if no valid item */
 	if(0 == pgroup->num) {
 		kfree(pgroup->pitem);
@@ -506,7 +556,7 @@ ssize_t __sunxi_write_show(struct write_group *pgroup, char *buf)
 	for(i = 0; i < pgroup->num; i++) {
 		reg    	= pgroup->pitem[i].reg_addr;
 		val 	= pgroup->pitem[i].val;
-		red_addrdback = readl(IO_ADDRESS(reg));
+		red_addrdback = R(reg);
 		cnt += sprintf(buf + cnt, "0x%08x  0x%08x  0x%08x\n", reg, val, red_addrdback);
 	}
 end:
@@ -545,7 +595,7 @@ ssize_t write_store(struct class *class, struct class_attribute *attr,
 	for(i = 0; i < wt_group->num; i++) {
 		reg    	= wt_group->pitem[i].reg_addr;
 		val 	= wt_group->pitem[i].val;
-		writel(val, IO_ADDRESS(reg));
+		W(val, reg);
 	}
 
 	return size;
@@ -591,8 +641,8 @@ void sunxi_write_regs(struct write_group *pgroup)
 	for(i = 0; i < pgroup->num; i++) {
 		reg    	= pgroup->pitem[i].reg_addr;
 		val 	= pgroup->pitem[i].val;
-		writel(val, IO_ADDRESS(reg));
-		red_addrdback = readl(IO_ADDRESS(reg));
+		W(val, reg);
+		red_addrdback = R(reg);
 		printk("0x%08x  0x%08x  0x%08x\n", reg, val, red_addrdback);
 	}
 }
@@ -611,7 +661,7 @@ void sunxi_compare_regs(struct compare_group *pgroup)
 	for(i = 0; i < pgroup->num; i++) {
 		reg    = pgroup->pitem[i].reg_addr;
 		expect = pgroup->pitem[i].val_expect;
-		actual = readl(IO_ADDRESS(reg));
+		actual = R(reg);
 		mask   = pgroup->pitem[i].val_mask;
 		if((actual & mask) == (expect & mask))
 			printk("0x%08x  0x%08x  0x%08x  0x%08x  OK\n", reg, expect, actual, mask);
@@ -623,8 +673,8 @@ EXPORT_SYMBOL(sunxi_compare_regs);
 
 /**
  * sunxi_dump_regs - dump a range of registers' value.
- * @start_reg:   physcal address of start reg.
- * @end_reg:     physcal address of end reg.
+ * @start_reg:   address of start reg.
+ * @end_reg:     address of end reg.
  */
 void sunxi_dump_regs(u32 start_reg, u32 end_reg)
 {
@@ -632,7 +682,7 @@ void sunxi_dump_regs(u32 start_reg, u32 end_reg)
 	u32 	first_addr = 0, end_addr = 0;
 
 	if(start_reg == end_reg) { /* only one to dump */
-		printk("0x%08x: 0x%08x\n", start_reg, readl(IO_ADDRESS(start_reg)));
+		printk("0x%08x: 0x%08x\n", start_reg, R(start_reg));
 		return;
 	}
 
@@ -645,7 +695,7 @@ void sunxi_dump_regs(u32 start_reg, u32 end_reg)
 		if(i < start_reg || i > end_reg)
 			printk("           "); /* "0x12345678 ", 11 space*/
 		else
-			printk("0x%08x ", readl(IO_ADDRESS(i)));
+			printk("0x%08x ", R(i));
 
 		if((i & 0xc) == 0xc) {
 			printk("\n");
@@ -723,7 +773,7 @@ static ssize_t misc_write_store(struct device *dev,struct device_attribute *attr
 	for(i = 0; i < misc_wt_group->num; i++) {
 		reg    	= misc_wt_group->pitem[i].reg_addr;
 		val 	= misc_wt_group->pitem[i].val;
-		writel(val, IO_ADDRESS(reg));
+		W(val, reg);
 	}
 
 	return size;

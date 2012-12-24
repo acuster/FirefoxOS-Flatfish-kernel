@@ -33,8 +33,8 @@
 #include <linux/input-polldev.h>
 #include <linux/device.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
-        #include <linux/pm.h>
-        #include <linux/earlysuspend.h>
+#include <linux/pm.h>
+#include <linux/earlysuspend.h>
 #endif
 
 #include <mach/system.h>
@@ -51,28 +51,28 @@
 			__FILE__, __LINE__, __func__, #expr);\
 	}
 
-#define AFA750_DRV_NAME	"afa750"
-#define SENSOR_NAME 			AFA750_DRV_NAME
+#define AFA750_DRV_NAME         "afa750"
+#define SENSOR_NAME             AFA750_DRV_NAME
 
-#define POLL_INTERVAL_MAX	500
-#define POLL_INTERVAL		50
+#define POLL_INTERVAL_MAX       500
+#define POLL_INTERVAL           50
 
 
-#define AFA_FULLRES_MAX_VAL 32767 
-#define AFA_FULLRES_MIN_VAL 32768 
+#define AFA_FULLRES_MAX_VAL     32767 
+#define AFA_FULLRES_MIN_VAL     32768 
 
-#define DATAX0		0x10	/* R   X-Axis Data 0 */
-#define DATAX1		0x11	/* R   X-Axis Data 1 */
-#define DATAY0		0x12	/* R   Y-Axis Data 0 */
-#define DATAY1		0x13	/* R   Y-Axis Data 1 */
-#define DATAZ0		0x14	/* R   Z-Axis Data 0 */
-#define DATAZ1		0x15	/* R   Z-Axis Data 1 */
+#define DATAX0                  0x10	/* R   X-Axis Data 0 */
+#define DATAX1                  0x11	/* R   X-Axis Data 1 */
+#define DATAY0                  0x12	/* R   Y-Axis Data 0 */
+#define DATAY1                  0x13	/* R   Y-Axis Data 1 */
+#define DATAZ0                  0x14	/* R   Z-Axis Data 0 */
+#define DATAZ1                  0x15	/* R   Z-Axis Data 1 */
 
-#define WHO_AM_I    0x37
-#define WHO_AM_I_VALUE1    60
-#define WHO_AM_I_VALUE2    61
+#define WHO_AM_I                0x37
+#define WHO_AM_I_VALUE1         60
+#define WHO_AM_I_VALUE2         61
 
-#define MODE_CHANGE_DELAY_MS 100
+#define MODE_CHANGE_DELAY_MS    100
 
 static struct device *hwmon_dev;
 static struct i2c_client *afa750_i2c_client;
@@ -91,13 +91,14 @@ struct afa750_data_s {
 
 static struct input_polled_dev *afa750_idev;
 enum {
-	DEBUG_BASE_LEVEL0 = 1U << 0,
-	DEBUG_DATA_INFO = 1U << 1,
-	DEBUG_SUSPEND = 1U << 2,
+	DEBUG_INIT = 1U << 0,
+	DEBUG_CONTROL_INFO = 1U << 1,	
+	DEBUG_DATA_INFO = 1U << 2,
+	DEBUG_SUSPEND = 1U << 3,
 };
 static u32 debug_mask = 0;
 #define dprintk(level_mask,fmt,arg...)    if(unlikely(debug_mask & level_mask)) \
-        printk("***GSENSOR***"fmt, ## arg)
+        printk(KERN_DEBUG fmt , ## arg)
 
 /* Addresses to scan */
 
@@ -124,7 +125,7 @@ static int gsensor_fetch_sysconfig_para(void)
 	script_item_u	val;
 	script_item_value_type_e  type;
 		
-	dprintk(DEBUG_BASE_LEVEL0, "========%s===================\n", __func__);
+	dprintk(DEBUG_INIT, "========%s===================\n", __func__);
 
 	type = script_get_item("gsensor_para", "gsensor_used", &val);
 	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
@@ -141,7 +142,7 @@ static int gsensor_fetch_sysconfig_para(void)
 		}
 		twi_id = val.val;
 		
-		dprintk(DEBUG_BASE_LEVEL0, "%s: twi_id is %d. \n", __func__, twi_id);
+		dprintk(DEBUG_INIT, "%s: twi_id is %d. \n", __func__, twi_id);
 		ret = 0;
 		
 	} else {
@@ -197,6 +198,8 @@ static ssize_t afa750_enable_store(struct device *dev,struct device_attribute *a
 		goto exit;
 	}
 
+	dprintk(DEBUG_CONTROL_INFO, "enable store %ld\n", data);
+
 	if(data) {
 		afa750_data.suspended = false;
 		assert(error==0);
@@ -217,7 +220,7 @@ static ssize_t afa750_delay_store(struct device *dev,struct device_attribute *at
         unsigned long data;
 	int error;
 
-        dprintk(DEBUG_BASE_LEVEL0,"delay store %d\n", __LINE__);
+        dprintk(DEBUG_CONTROL_INFO, "delay store %d\n", __LINE__);
 
 	error = strict_strtoul(buf, 10, &data);
 	if (error)
@@ -263,7 +266,7 @@ static void report_abs(void)
 
 static void afa750_dev_poll(struct input_polled_dev *dev)
 {
-	dprintk(DEBUG_BASE_LEVEL0,"afa750_data.suspended:%d\n",afa750_data.suspended);
+	dprintk(DEBUG_DATA_INFO, "afa750_data.suspended:%d\n",afa750_data.suspended);
 	if(afa750_data.suspended == false){
 	        dprintk(DEBUG_DATA_INFO,"get sensor data!\n");
 	        report_abs();
@@ -276,6 +279,7 @@ static void afa750_early_suspend(struct early_suspend *h)
 	int result = 0;
 	dprintk(DEBUG_SUSPEND,"CONFIG_HAS_EARLYSUSPEND:afa750 early suspend\n");
 	afa750_data.suspended = true;
+	afa750_idev->input->close(afa750_idev->input);
         assert(result==0);
 
 	return;
@@ -286,6 +290,7 @@ static void afa750_late_resume(struct early_suspend *h)
 	int result = 0;
 	dprintk(DEBUG_SUSPEND,"CONFIG_HAS_EARLYSUSPEND:afa750 late resume\n");
         afa750_data.suspended = false;
+	afa750_idev->input->open(afa750_idev->input);
         assert(result==0);
 	return;
 }
@@ -294,8 +299,9 @@ static void afa750_late_resume(struct early_suspend *h)
 static int afa750_early_suspend(struct i2c_client *client,pm_message_t mesg)
 {
 	int result = 0;
-	dprintk(DEBUG_SUSPEND,"CONFIG_PM:afa750 early suspend\n");
+	dprintk(DEBUG_SUSPEND,"CONFIG_PM:afa750 suspend\n");
 	afa750_data.suspended = true;
+	afa750_idev->input->close(afa750_idev->input);
         assert(result==0);
 
 	return 0;
@@ -304,8 +310,9 @@ static int afa750_early_suspend(struct i2c_client *client,pm_message_t mesg)
 static int afa750_late_resume(struct i2c_client *client)
 {
 	int result = 0;
-	dprintk(DEBUG_SUSPEND, "CONFIG_PM:afa750 late resume\n");
+	dprintk(DEBUG_SUSPEND, "CONFIG_PM:afa750 resume\n");
         afa750_data.suspended = false;
+	afa750_idev->input->open(afa750_idev->input);
         assert(result==0);
 	return 0;
 }
@@ -317,7 +324,7 @@ static int __devinit afa750_probe(struct i2c_client *client, const struct i2c_de
 	struct input_dev *idev;
 	struct i2c_adapter *adapter;
 
-	printk("======afa750 probe=====\n");
+	dprintk(DEBUG_INIT, "======afa750 probe=====\n");
 	afa750_i2c_client = client;
 	adapter = to_i2c_adapter(client->dev.parent);
  	result = i2c_check_functionality(adapter,
@@ -375,6 +382,7 @@ static int __devinit afa750_probe(struct i2c_client *client, const struct i2c_de
 	register_early_suspend(&afa750_data.early_suspend);
 	afa750_data.suspend_indator = 0;
 #endif
+	dprintk(DEBUG_INIT, "======afa750 probe end=====\n");
 	return result;
 }
 
@@ -383,9 +391,9 @@ static int __devexit afa750_remove(struct i2c_client *client)
 	int result = 0;
 	afa750_data.suspended = true;
 	hwmon_device_unregister(hwmon_dev);
-	#ifdef CONFIG_HAS_EARLYSUSPEND	
-	  unregister_early_suspend(&afa750_data.early_suspend);
-	#endif
+#ifdef CONFIG_HAS_EARLYSUSPEND	
+	unregister_early_suspend(&afa750_data.early_suspend);
+#endif
 	input_unregister_polled_device(afa750_idev);
 	input_free_polled_device(afa750_idev);
 	
@@ -425,7 +433,7 @@ static struct i2c_driver afa750_driver = {
 static int __init afa750_init(void)
 {
 	int ret = -1;
-	printk("****************************************************************\n");
+	dprintk(DEBUG_INIT, "****************************************************************\n");
 	printk("======%s=========. \n", __func__);
 	if(gsensor_fetch_sysconfig_para()){
 		printk("%s: err.\n", __func__);
@@ -438,7 +446,7 @@ static int __init afa750_init(void)
 		printk(KERN_INFO "add afa750 i2c driver failed\n");
 		return -ENODEV;
 	}
-	printk("****************************************************************\n");
+	dprintk(DEBUG_INIT, "****************************************************************\n");
 
 	return ret;
 }

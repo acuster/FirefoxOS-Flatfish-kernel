@@ -100,7 +100,7 @@
 #define ADC_FIFO_FLUSH            (0)
 
 /*Output Mixer & PA Control Register
-* codecbase+ox24
+* codecbase+0x24
 * new function
 */
 #define HPPAEN					  (31)

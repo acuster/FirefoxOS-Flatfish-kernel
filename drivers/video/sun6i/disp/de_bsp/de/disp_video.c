@@ -360,8 +360,8 @@ __s32 BSP_disp_video_start(__u32 sel, __u32 hid)
             g_video[sel][hid].cur_maf_flag_addr = (__u32)maf_flag_mem[layer_man->scaler_index][0];
             g_video[sel][hid].pre_maf_flag_addr = (__u32)maf_flag_mem[layer_man->scaler_index][1];
         }
-        Disp_drc_start_video_mode(sel);
-        //video_enhancement_start(sel,hid);
+        //Disp_drc_start_video_mode(sel);
+        video_enhancement_start(sel,hid);
     	return DIS_SUCCESS;
     }
     else
@@ -379,8 +379,8 @@ __s32 BSP_disp_video_stop(__u32 sel, __u32 hid)
     {
         memset(&g_video[sel][hid], 0, sizeof(frame_para_t));
         
-        Disp_drc_start_ui_mode(sel);
-        //video_enhancement_stop(sel,hid);
+        //Disp_drc_start_ui_mode(sel);
+        video_enhancement_stop(sel,hid);
     	return DIS_SUCCESS;
     }
     else

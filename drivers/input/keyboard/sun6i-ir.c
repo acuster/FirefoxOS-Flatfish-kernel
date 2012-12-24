@@ -42,10 +42,12 @@
 #define SW_INT_IRQNO_IR0 (69)
 #endif
 
-#ifdef SYS_GPIO_CFG_EN
-//#include <mach/system.h>
+#ifdef SYS_CLK_CFG_EN
 static struct clk *ir_clk;
 static struct clk *ir_clk_source;
+#endif
+
+#ifdef SYS_GPIO_CFG_EN
 static struct gpio_hdle {
 	script_item_u	val;
 	script_item_value_type_e  type;		
@@ -132,9 +134,9 @@ struct dev_pm_domain ir_pm_domain;
 #endif
 
 enum {
-	DEBUG_BASE_LEVEL0 = 1U << 0,
-	DEBUG_BASE_LEVEL1 = 1U << 1,
-	DEBUG_BASE_LEVEL2 = 1U << 2,
+	DEBUG_INIT = 1U << 0,
+	DEBUG_INT = 1U << 1,
+	DEBUG_DATA_INFO = 1U << 2,
 	DEBUG_SUSPEND = 1U << 3,
 };
 static u32 debug_mask = 0;
@@ -194,7 +196,7 @@ static void ir_clk_cfg(void)
 	}
 
 	rate = clk_get_rate(ir_clk_source);
-	dprintk(DEBUG_BASE_LEVEL0, "%s: get ir_clk_source rate %dHZ\n", __func__, (__u32)rate);
+	dprintk(DEBUG_INIT, "%s: get ir_clk_source rate %dHZ\n", __func__, (__u32)rate);
 
 	ir_clk = clk_get(NULL, CLK_MOD_R_CIR);		
 	if (!ir_clk || IS_ERR(ir_clk)) {
@@ -268,7 +270,7 @@ static void ir_sys_cfg(void)
 	if(SCIRPT_ITEM_VALUE_TYPE_PIO != ir_gpio_hdle.type)
 		printk(KERN_ERR "IR gpio type err! \n");
 	
-	dprintk(DEBUG_BASE_LEVEL0, "value is: gpio %d, mul_sel %d, pull %d, drv_level %d, data %d\n", 
+	dprintk(DEBUG_INIT, "value is: gpio %d, mul_sel %d, pull %d, drv_level %d, data %d\n", 
 		ir_gpio_hdle.val.gpio.gpio, ir_gpio_hdle.val.gpio.mul_sel, ir_gpio_hdle.val.gpio.pull,  
 		ir_gpio_hdle.val.gpio.drv_level, ir_gpio_hdle.val.gpio.data);
 	 
@@ -354,7 +356,7 @@ static void ir_reg_cfg(void)
 
 static void ir_setup(void)
 {	
-	dprintk(DEBUG_BASE_LEVEL2, "ir_setup: ir setup start!!\n");
+	dprintk(DEBUG_INIT, "ir_setup: ir setup start!!\n");
 
 	ir_code = 0;
 	timer_used = 0;
@@ -362,7 +364,7 @@ static void ir_setup(void)
 	ir_sys_cfg();	
 	ir_reg_cfg();
 	
-	dprintk(DEBUG_BASE_LEVEL2, "ir_setup: ir setup end!!\n");
+	dprintk(DEBUG_INIT, "ir_setup: ir setup end!!\n");
 
 	return;
 }
@@ -397,7 +399,7 @@ static unsigned long ir_packet_handler(unsigned char *buf, unsigned long dcnt)
 	
 	//print_hex_dump_bytes("--- ", DUMP_PREFIX_NONE, buf, dcnt);
 
-	dprintk(DEBUG_BASE_LEVEL2, "dcnt = %d \n", (int)dcnt);
+	dprintk(DEBUG_DATA_INFO, "dcnt = %d \n", (int)dcnt);
 	
 	/* Find Lead '1' */
 	len = 0;
@@ -501,7 +503,7 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 {
 	unsigned long intsta = ir_get_intsta();
 	
-	dprintk(DEBUG_BASE_LEVEL2, "IR IRQ Serve\n");
+	dprintk(DEBUG_INT, "IR IRQ Serve\n");
 
 	ir_clr_intsta(intsta);
 	
@@ -516,7 +518,7 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 		for (i=0; i<dcnt; i++) {
 			if (ir_rawbuffer_full()) {
 			
-				dprintk(DEBUG_BASE_LEVEL0, "ir_irq_service: Raw Buffer Full!!\n");
+				dprintk(DEBUG_INT, "ir_irq_service: Raw Buffer Full!!\n");
 				
 				break;
 			} else {
@@ -538,7 +540,7 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 				input_report_key(ir_dev, ir_keycodes[(ir_code>>16)&0xff], 0);
 				input_sync(ir_dev);	
 				
-				dprintk(DEBUG_BASE_LEVEL1, "IR KEY UP\n");
+				dprintk(DEBUG_INT, "IR KEY UP\n");
 				
 				ir_cnt = 0;
 			}
@@ -559,29 +561,29 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 				if (code_valid)	
 					ir_code = code;  /* update saved code with a new valid code */
 				
-					dprintk(DEBUG_BASE_LEVEL0, "IR RAW CODE : %lu\n",(ir_code>>16)&0xff);
+					dprintk(DEBUG_INT, "IR RAW CODE : %lu\n",(ir_code>>16)&0xff);
 				
 					input_report_key(ir_dev, ir_keycodes[(ir_code>>16)&0xff], 1);
 			
-					dprintk(DEBUG_BASE_LEVEL0, "IR CODE : %d\n",ir_keycodes[(ir_code>>16)&0xff]);
+					dprintk(DEBUG_INT, "IR CODE : %d\n",ir_keycodes[(ir_code>>16)&0xff]);
 				
 				input_sync(ir_dev);			
 				
-				dprintk(DEBUG_BASE_LEVEL1, "IR KEY VALE %d\n",ir_keycodes[(ir_code>>16)&0xff]);
+				dprintk(DEBUG_INT, "IR KEY VALE %d\n",ir_keycodes[(ir_code>>16)&0xff]);
 				
 			}
 
 			
 		}
 		
-		dprintk(DEBUG_BASE_LEVEL1, "ir_irq_service: Rx Packet End, code=0x%x, ir_code=0x%x, timer_used=%d \n", (int)code, (int)ir_code, timer_used);
+		dprintk(DEBUG_INT, "ir_irq_service: Rx Packet End, code=0x%x, ir_code=0x%x, timer_used=%d \n", (int)code, (int)ir_code, timer_used);
 	}	
 	
 	if (intsta & IR_RXINTS_RXOF) {  /* FIFO Overflow */
 		/* flush raw buffer */
 		ir_reset_rawbuffer();		
 
-		dprintk(DEBUG_BASE_LEVEL0, "ir_irq_service: Rx FIFO Overflow!!\n");
+		dprintk(DEBUG_INT, "ir_irq_service: Rx FIFO Overflow!!\n");
 
 	}	
 	
@@ -596,11 +598,11 @@ static void ir_timer_handle(unsigned long arg)
 	input_report_key(ir_dev, ir_keycodes[(ir_code>>16)&0xff], 0);
 	input_sync(ir_dev);	
 
-	dprintk(DEBUG_BASE_LEVEL1, "IR KEY TIMER OUT UP\n");
+	dprintk(DEBUG_INT, "IR KEY TIMER OUT UP\n");
 
 	ir_cnt = 0;
 	
-	dprintk(DEBUG_BASE_LEVEL2, "ir_timer_handle: timeout \n");	
+	dprintk(DEBUG_INT, "ir_timer_handle: timeout \n");	
 }
 
 /* Í£ÓÃÉè±¸ */
@@ -742,7 +744,7 @@ static int __init ir_init(void)
 	printk("IR Initial OK\n");
 
 #ifdef CONFIG_HAS_EARLYSUSPEND	
-	dprintk(DEBUG_BASE_LEVEL2, "==register_early_suspend =\n");
+	dprintk(DEBUG_INIT, "==register_early_suspend =\n");
 	ir_data = kzalloc(sizeof(*ir_data), GFP_KERNEL);
 	if (ir_data == NULL) {
 		err = -ENOMEM;
@@ -754,6 +756,8 @@ static int __init ir_init(void)
 	ir_data->early_suspend.resume	= sun6i_ir_late_resume;	
 	register_early_suspend(&ir_data->early_suspend);
 #endif
+
+	dprintk(DEBUG_INIT, "ir_init end\n");
 
 	return 0;
 

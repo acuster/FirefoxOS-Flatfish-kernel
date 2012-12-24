@@ -53,7 +53,7 @@ static struct sunxi_mmc_host* sw_host[4] = {NULL, NULL, NULL, NULL};
 static void uart_put(char c)
 {
 	void __iomem *base = __io_address(0x01c28000);
-	while (!(readl(base + 0x7c) &  (1<<1)));
+	while (readl(base + 0x80) > 48);
 	writel(c, base);
 }
 
@@ -325,20 +325,22 @@ s32 sw_mci_oclk_onoff(struct sunxi_mmc_host* smc_host, u32 oclk_en, u32 pwr_save
 
 static void sw_mci_send_cmd(struct sunxi_mmc_host* smc_host, struct mmc_command* cmd)
 {
-	u32 imask = SDXC_CmdDone|SDXC_IntErrBit;
+	u32 imask = SDXC_IntErrBit;
 	u32 cmd_val = SDXC_Start|(cmd->opcode&0x3f);
+	unsigned long iflags;
+	u32 wait = SDC_WAIT_NONE;
 
-	smc_host->state = SDC_STATE_SENDCMD;
-	smc_host->wait = SDC_WAIT_CMD_DONE;
-	if (cmd->opcode == MMC_GO_IDLE_STATE)
+	wait = SDC_WAIT_CMD_DONE;
+	if (cmd->opcode == MMC_GO_IDLE_STATE) {
 		cmd_val |= SDXC_SendInitSeq;
+		imask |= SDXC_CmdDone;
+	}
 
 	if (cmd->opcode == SD_SWITCH_VOLTAGE) {
 		cmd_val |= SDXC_VolSwitch;
 		imask |= SDXC_VolChgDone;
 		smc_host->voltage_switching = 1;
-		smc_host->wait = SDC_WAIT_SWITCH1V8;
-		smp_wmb();
+		wait = SDC_WAIT_SWITCH1V8;
 		/* switch controller to high power mode */
 		sw_mci_oclk_onoff(smc_host, 1, 0);
 	}
@@ -352,32 +354,39 @@ static void sw_mci_send_cmd(struct sunxi_mmc_host* smc_host, struct mmc_command*
 
 		if ((cmd->flags & MMC_CMD_MASK) == MMC_CMD_ADTC) {
 			cmd_val |= SDXC_DataExp | SDXC_WaitPreOver;
-			smc_host->wait = SDC_WAIT_DATA_OVER;
-			imask |= SDXC_DataOver;
+			wait = SDC_WAIT_DATA_OVER;
 			if (cmd->data->flags & MMC_DATA_STREAM) {
 				imask |= SDXC_AutoCMDDone;
 				cmd_val |= SDXC_Seqmod | SDXC_SendAutoStop;
-				smc_host->wait = SDC_WAIT_AUTOCMD_DONE;
+				wait = SDC_WAIT_AUTOCMD_DONE;
 			}
 			if (cmd->data->stop) {
 				imask |= SDXC_AutoCMDDone;
 				cmd_val |= SDXC_SendAutoStop;
-				smc_host->wait = SDC_WAIT_AUTOCMD_DONE;
-			}
-			else
-				imask |= SDXC_WaitPreOver;
+				wait = SDC_WAIT_AUTOCMD_DONE;
+			} else
+				imask |= SDXC_DataOver;
+
 			if (cmd->data->flags & MMC_DATA_WRITE)
 				cmd_val |= SDXC_Write;
-		}
-	}
+			else
+				wait |= SDC_WAIT_DMA_DONE;
+		} else
+			imask |= SDXC_CmdDone;
 
-	smp_wmb();
-	SMC_DBG(smc_host, "smc %d send cmd %d(%08x), imask = 0x%08x, wait = %d\n",
-		smc_host->pdev->id, cmd_val&0x3f, cmd_val, imask, smc_host->wait);
+	} else
+		imask |= SDXC_CmdDone;
+	SMC_DBG(smc_host, "smc %d cmd %d(%08x) arg %x ie 0x%08x wt %x len %d\n",
+		smc_host->pdev->id, cmd_val&0x3f, cmd->arg, cmd_val, imask, wait,
+		smc_host->mrq->data ? smc_host->mrq->data->blksz * smc_host->mrq->data->blocks : 0);
+	spin_lock_irqsave(&smc_host->lock, iflags);
+	smc_host->wait = wait;
+	smc_host->state = SDC_STATE_SENDCMD;
 	mci_writew(smc_host, REG_IMASK, imask);
 	mci_writel(smc_host, REG_CARG, cmd->arg);
-
 	mci_writel(smc_host, REG_CMDR, cmd_val);
+	smp_wmb();
+	spin_unlock_irqrestore(&smc_host->lock, iflags);
 }
 
 static void sw_mci_init_idma_des(struct sunxi_mmc_host* smc_host, struct mmc_data* data)
@@ -420,7 +429,7 @@ static void sw_mci_init_idma_des(struct sunxi_mmc_host* smc_host, struct mmc_dat
 				pdes[des_idx].buf_addr_ptr2 = (u32)&pdes_pa[des_idx+1];
 			}
 			pdes[des_idx].config = config;
-		    	SMC_DBG(smc_host, "sg %d, frag %d, remain %d, des[%d](%08x): "
+			SMC_INFO(smc_host, "sg %d, frag %d, remain %d, des[%d](%08x): "
 		    		"[0] = %08x, [1] = %08x, [2] = %08x, [3] = %08x\n", i, j, remain,
 				des_idx, (u32)&pdes[des_idx],
 				(u32)((u32*)&pdes[des_idx])[0], (u32)((u32*)&pdes[des_idx])[1],
@@ -484,7 +493,7 @@ static int sw_mci_prepare_dma(struct sunxi_mmc_host* smc_host, struct mmc_data* 
 int sw_mci_send_manual_stop(struct sunxi_mmc_host* smc_host, struct mmc_request* req)
 {
 	struct mmc_data* data = req->data;
-	u32 cmd_val = SDXC_Start | SDXC_RspExp | SDXC_StopAbortCMD 
+	u32 cmd_val = SDXC_Start | SDXC_RspExp | SDXC_StopAbortCMD
 			| SDXC_CheckRspCRC | MMC_STOP_TRANSMISSION;
 	u32 iflags = 0;
 	u32 imask = 0;
@@ -509,12 +518,12 @@ int sw_mci_send_manual_stop(struct sunxi_mmc_host* smc_host, struct mmc_request*
 		SMC_ERR(smc_host, "sdc %d send stop command failed\n", smc_host->pdev->id);
 		ret = -1;
 	}
-	
+
 	if (req->stop)
 		req->stop->resp[0] = mci_readl(smc_host, REG_RESP0);
 
 	mci_writew(smc_host, REG_RINTR, iflags);
-	
+
 	/* enable interrupt */
 	mci_writew(smc_host, REG_IMASK, imask);
 
@@ -550,7 +559,7 @@ s32 sw_mci_request_done(struct sunxi_mmc_host* smc_host)
 			SMC_ERR(smc_host, "In data %s operation\n",
 				req->data->flags & MMC_DATA_WRITE ? "write" : "read");
 		ret = -1;
-		goto __out;
+		goto out;
 	}
 
 	if (req->cmd) {
@@ -564,21 +573,9 @@ s32 sw_mci_request_done(struct sunxi_mmc_host* smc_host)
 		}
 	}
 
-__out:
+out:
 	if (req->data) {
 		struct mmc_data* data = req->data;
-		if (!(req->data->flags & MMC_DATA_WRITE)
-			&& (mci_readl(smc_host, REG_STAS) & SDXC_DataFSMBusy)) {
-			if ((mci_readl(smc_host, REG_STAS) & SDXC_DataFSMBusy)
-				&& (mci_readl(smc_host, REG_STAS) & SDXC_DataFSMBusy)
-				&& (mci_readl(smc_host, REG_STAS) & SDXC_DataFSMBusy)
-				&& (mci_readl(smc_host, REG_STAS) & SDXC_DataFSMBusy)
-				&& (mci_readl(smc_host, REG_STAS) & SDXC_DataFSMBusy))
-				SMC_DBG(smc_host, "mmc %d fsm busy 0x%x len %d\n",
-					smc_host->pdev->id, mci_readl(smc_host, REG_STAS),
-					data->blksz * data->blocks);
-		}
-		smc_host->dma_done = 0;
 		mci_writel(smc_host, REG_IDST, 0x337);
 		mci_writel(smc_host, REG_IDIE, 0);
 		mci_writel(smc_host, REG_DMAC, 0);
@@ -593,11 +590,8 @@ __out:
 	}
 
 	mci_writew(smc_host, REG_IMASK, 0);
-	temp = mci_readl(smc_host, REG_STAS);
-	if ((temp & SDXC_DataFSMBusy)
-		|| (smc_host->int_sum & (SDXC_RespErr | SDXC_HardWLocked | SDXC_RespTimeout))) {
-		SMC_DBG(smc_host, "sdc %d abnormal status: %s %s\n", smc_host->pdev->id,
-			temp & SDXC_DataFSMBusy ? "DataFSMBusy" : "",
+	if (smc_host->int_sum & (SDXC_RespErr | SDXC_HardWLocked | SDXC_RespTimeout)) {
+		SMC_DBG(smc_host, "sdc %d abnormal status: %s\n", smc_host->pdev->id,
 			smc_host->int_sum & SDXC_HardWLocked ? "HardWLocked" : "RespErr");
 	}
 
@@ -908,7 +902,7 @@ static void sw_mci_update_io_driving(struct sunxi_mmc_host *smc_host, s32 drivin
 			return;
 		}
 	}
-	
+
 	SMC_DBG(smc_host, "sdc%d set mmcio driving to %d\n", smc_no, driving);
 }
 
@@ -1081,15 +1075,22 @@ static void sw_mci_restore_io(struct sunxi_mmc_host* smc_host)
 static void sw_mci_finalize_request(struct sunxi_mmc_host *smc_host)
 {
 	struct mmc_request* mrq = smc_host->mrq;
+	unsigned long iflags;
 
+	spin_lock_irqsave(&smc_host->lock, iflags);
 	if (smc_host->wait != SDC_WAIT_FINALIZE) {
-		SMC_MSG(smc_host, "nothing finalize\n");
+		spin_unlock_irqrestore(&smc_host->lock, iflags);
+		SMC_MSG(smc_host, "nothing finalize, wt %x, st %d\n",
+				smc_host->wait, smc_host->state);
 		return;
 	}
+	smc_host->wait = SDC_WAIT_NONE;
+	smc_host->state = SDC_STATE_IDLE;
+	smc_host->trans_done = 0;
+	smc_host->dma_done = 0;
+	spin_unlock_irqrestore(&smc_host->lock, iflags);
 
-	SMC_DBG(smc_host, "request finalize !!\n");
 	sw_mci_request_done(smc_host);
-
 	if (smc_host->error) {
 		mrq->cmd->error = -ETIMEDOUT;
 		if (mrq->data)
@@ -1101,14 +1102,11 @@ static void sw_mci_finalize_request(struct sunxi_mmc_host *smc_host)
 			mrq->data->bytes_xfered = (mrq->data->blocks * mrq->data->blksz);
 	}
 
-	smc_host->wait = SDC_WAIT_NONE;
-	smc_host->state = SDC_STATE_IDLE;
 	smc_host->mrq = NULL;
 	smc_host->error = 0;
 	smc_host->int_sum = 0;
 	smp_wmb();
 	mmc_request_done(smc_host->mmc, mrq);
-
 	return;
 }
 
@@ -1165,7 +1163,7 @@ static void sw_mci_cd_cb(unsigned long data)
 		smc_host->present = present;
 		smp_wmb();
 		if (smc_host->present)
-			mmc_detect_change(smc_host->mmc, msecs_to_jiffies(300));
+			mmc_detect_change(smc_host->mmc, msecs_to_jiffies(500));
 		else
 			mmc_detect_change(smc_host->mmc, msecs_to_jiffies(50));
 	}
@@ -1192,32 +1190,34 @@ static int sw_mci_card_present(struct mmc_host *mmc)
 static irqreturn_t sw_mci_irq(int irq, void *dev_id)
 {
 	struct sunxi_mmc_host *smc_host = dev_id;
-	unsigned long iflags;
 	u32 sdio_int = 0;
 	u32 raw_int;
 	u32 msk_int;
 	u32 idma_inte;
 	u32 idma_int;
 
-	spin_lock_irqsave(&smc_host->lock, iflags);
+	spin_lock(&smc_host->lock);
 
 	idma_int  = mci_readl(smc_host, REG_IDST);
 	idma_inte = mci_readl(smc_host, REG_IDIE);
 	raw_int   = mci_readl(smc_host, REG_RINTR);
 	msk_int   = mci_readl(smc_host, REG_MISTA);
 	if (!msk_int && !idma_int) {
-		spin_unlock_irqrestore(&smc_host->lock, iflags);
+		SMC_MSG(smc_host, "sdc%d nop irq: ri %08x mi %08x ie %08x idi %08x\n",
+			smc_host->pdev->id, raw_int, msk_int, idma_inte, idma_int);
+		spin_unlock(&smc_host->lock);
 		return IRQ_HANDLED;
 	}
-	
+
 	smc_host->int_sum |= raw_int;
-	SMC_DBG(smc_host, "smc %d irq, ri %08x(%08x) mi %08x ie %08x idi %08x\n",
+	SMC_INFO(smc_host, "smc %d irq, ri %08x(%08x) mi %08x ie %08x idi %08x\n",
 		smc_host->pdev->id, raw_int, smc_host->int_sum,
 		msk_int, idma_inte, idma_int);
 
 	if (msk_int & SDXC_SDIOInt) {
 		sdio_int = 1;
 		mci_writel(smc_host, REG_RINTR, SDXC_SDIOInt);
+		goto sdio_out;
 	}
 
 	if (smc_host->wait == SDC_WAIT_NONE && !sdio_int) {
@@ -1232,27 +1232,31 @@ static irqreturn_t sw_mci_irq(int irq, void *dev_id)
 		smc_host->state = SDC_STATE_CMDDONE;
 		goto irq_out;
 	}
-
-	if ((smc_host->wait == SDC_WAIT_AUTOCMD_DONE && (msk_int&SDXC_AutoCMDDone))
-			|| (smc_host->wait == SDC_WAIT_DATA_OVER && (msk_int&SDXC_DataOver))
-			|| (smc_host->wait == SDC_WAIT_CMD_DONE && (msk_int&SDXC_CmdDone)
-				&& !(smc_host->int_sum&SDXC_IntErrBit))
-			|| (smc_host->wait == SDC_WAIT_SWITCH1V8 && (msk_int&SDXC_VolChgDone))) {
+	if (idma_int & (SDXC_IDMACTransmitInt|SDXC_IDMACReceiveInt))
+		smc_host->dma_done = 1;
+	if (msk_int & (SDXC_AutoCMDDone|SDXC_DataOver|SDXC_CmdDone|SDXC_VolChgDone))
+		smc_host->trans_done = 1;
+	if ((smc_host->trans_done && (smc_host->wait == SDC_WAIT_AUTOCMD_DONE
+					|| smc_host->wait == SDC_WAIT_DATA_OVER
+					|| smc_host->wait == SDC_WAIT_CMD_DONE
+					|| smc_host->wait == SDC_WAIT_SWITCH1V8))
+		|| (smc_host->trans_done && smc_host->dma_done && (smc_host->wait & SDC_WAIT_DMA_DONE))) {
 		smc_host->wait = SDC_WAIT_FINALIZE;
 		smc_host->state = SDC_STATE_CMDDONE;
 	}
 
 irq_out:
-	smp_wmb();
 	mci_writel(smc_host, REG_RINTR, msk_int&(~SDXC_SDIOInt));
 	mci_writel(smc_host, REG_IDST, idma_int);
 
 	if (smc_host->wait == SDC_WAIT_FINALIZE) {
+		smp_wmb();
 		mci_writew(smc_host, REG_IMASK, 0);
 		tasklet_schedule(&smc_host->tasklet);
 	}
 
-	spin_unlock_irqrestore(&smc_host->lock, iflags);
+sdio_out:
+	spin_unlock(&smc_host->lock);
 
 	if (sdio_int)
 		mmc_signal_sdio_irq(smc_host->mmc);
@@ -1385,6 +1389,7 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		#endif
 		sw_mci_set_clk(smc_host, smc_host->card_clk);
 		last_clock[id] = ios->clock;
+		usleep_range(50000, 55000);
 	} else if (!ios->clock) {
 		last_clock[id] = 0;
 		sw_mci_update_clk(smc_host);
@@ -1436,12 +1441,9 @@ static void sw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		return;
 	}
 
-	SMC_DBG(smc_host, "smc %d cmd %d arg %08x\n", smc_host->pdev->id, cmd->opcode, cmd->arg);
 	smc_host->mrq = mrq;
 	if (data) {
 		byte_cnt = data->blksz * data->blocks;
-		SMC_DBG(smc_host, "-> with data %d bytes, sg_len %d\n", byte_cnt, data->sg_len);
-
 		mci_writel(smc_host, REG_BLKSZ, data->blksz);
 		mci_writel(smc_host, REG_BCNTR, byte_cnt);
 		ret = sw_mci_prepare_dma(smc_host, data);
@@ -1507,6 +1509,7 @@ static int sw_mci_do_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 		 * failed. We power cycle the card, and retry initialization
 		 * sequence by setting S18R to 0.
 		 */
+		usleep_range(5000, 5500);
 		sw_mci_set_vddio(smc_host, SDC_WOLTAGE_OFF);
 		usleep_range(1000, 1500);
 		sw_mci_set_vddio(smc_host, SDC_WOLTAGE_3V3);
@@ -1568,6 +1571,11 @@ static int sw_mci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	char* std_pattern = NULL;
 	int err = 0;
 
+	if (!rcv_pattern) {
+		SMC_ERR(smc_host, "sdc%d malloc tuning pattern buffer failed\n",
+				smc_host->pdev->id);
+		return -EIO;
+	}
 	SMC_MSG(smc_host, "sdc%d executes tuning operation\n", smc_host->pdev->id);
 	/*
 	 * The Host Controller needs tuning only in case of SDR104 mode
@@ -1618,27 +1626,27 @@ static int sw_mci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		 */
 		if (!cmd.error && !data.error) {
 			if (!memcmp(rcv_pattern, std_pattern, data.blksz)) {
-				SMC_MSG(smc_host, "sdc%d tuning ok, sclk_dly %d\n", 
+				SMC_MSG(smc_host, "sdc%d tuning ok, sclk_dly %d\n",
 					smc_host->pdev->id, sample_dly);
 				if (!sample_win)
 					sample_min = sample_dly;
 				sample_win++;
 				if (sample_dly == 7) {
-					SMC_MSG(smc_host, "sdc%d tuning reach to max sclk_dly 7\n", 
+					SMC_MSG(smc_host, "sdc%d tuning reach to max sclk_dly 7\n",
 						smc_host->pdev->id);
 					tuning_done = 1;
 					sample_max = sample_dly;
 					break;
 				}
 			} else if (sample_win) {
-				SMC_MSG(smc_host, "sdc%d tuning data failed, sclk_dly %d\n", 
+				SMC_MSG(smc_host, "sdc%d tuning data failed, sclk_dly %d\n",
 					smc_host->pdev->id, sample_dly);
 				tuning_done = 1;
 				sample_max = sample_dly-1;
 				break;
 			}
 		} else if (sample_win) {
-			SMC_MSG(smc_host, "sdc%d tuning trans fail, sclk_dly %d\n", 
+			SMC_MSG(smc_host, "sdc%d tuning trans fail, sclk_dly %d\n",
 				smc_host->pdev->id, sample_dly);
 			tuning_done = 1;
 			sample_max = sample_dly-1;
@@ -1689,10 +1697,20 @@ void sw_mci_rescan_card(unsigned id, unsigned insert)
 }
 EXPORT_SYMBOL_GPL(sw_mci_rescan_card);
 
-int sw_mci_check_r1_ready(struct mmc_host* mmc)
+int sw_mci_check_r1_ready(struct mmc_host* mmc, unsigned ms)
 {
 	struct sunxi_mmc_host *smc_host = mmc_priv(mmc);
-	return mci_readl(smc_host, REG_STAS) & SDXC_CardDataBusy ? 0 : 1;
+	unsigned expire = jiffies + msecs_to_jiffies(ms);
+	do {
+		if (!(mci_readl(smc_host, REG_STAS) & SDXC_CardDataBusy))
+			break;
+	} while (jiffies < expire);
+
+	if ((mci_readl(smc_host, REG_STAS) & SDXC_CardDataBusy)) {
+		SMC_MSG(smc_host, "wait r1 rdy %d ms timeout\n", ms);
+		return -1;
+	} else
+		return 0;
 }
 EXPORT_SYMBOL_GPL(sw_mci_check_r1_ready);
 
@@ -2225,7 +2243,8 @@ static const struct dev_pm_ops sw_mci_pm = {
 
 static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 	[0] = {
-		.ocr_avail = MMC_VDD_28_29 | MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32,
+		.ocr_avail = MMC_VDD_28_29 | MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32
+				| MMC_VDD_32_33 | MMC_VDD_33_34,
 		.caps = MMC_CAP_4_BIT_DATA | MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED
 			| MMC_CAP_SDIO_IRQ
 			| MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50
@@ -2238,7 +2257,8 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.regulator=NULL,
 	},
 	[1] = {
-		.ocr_avail = MMC_VDD_28_29 | MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32,
+		.ocr_avail = MMC_VDD_28_29 | MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32
+				| MMC_VDD_32_33 | MMC_VDD_33_34,
 		.caps = MMC_CAP_4_BIT_DATA | MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED
 			| MMC_CAP_SDIO_IRQ,
 		.f_min = 400000,
@@ -2247,7 +2267,8 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.regulator=NULL,
 	},
 	[2] = {
-		.ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_165_195,
+		.ocr_avail = MMC_VDD_28_29 | MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32
+				| MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_165_195,
 		.caps = MMC_CAP_4_BIT_DATA | MMC_CAP_NONREMOVABLE
 			| MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED
 			| MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50
@@ -2266,7 +2287,8 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.regulator=NULL,
 	},
 	[3] = {
-		.ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_165_195,
+		.ocr_avail = MMC_VDD_28_29 | MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32
+				| MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_165_195,
 		.caps = MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE
 			| MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED
 			| MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50
@@ -2385,16 +2407,20 @@ static int sw_mci_get_devinfo(void)
 			goto fail;
 		}
 		mmcinfo->isiodev = val.val;
-		
+
 		/* get regulator information */
 		type = script_get_item(mmc_para, "sdc_regulator", &val);
 		if (type != SCIRPT_ITEM_VALUE_TYPE_STR) {
 			SMC_MSG(NULL, "get mmc%d's sdc_regulator failed\n", i);
 			mmcinfo->regulator = NULL;
 		} else {
-			if (!strcmp(val.str, "none"))
+			if (!strcmp(val.str, "none")) {
 				mmcinfo->regulator = NULL;
-			else
+				/* If here found that no regulator can be used for this card,
+				   we clear all of the UHS features support */
+				mmcinfo->caps &= ~(MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25
+						| MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_DDR50);
+			} else
 				mmcinfo->regulator = val.str;
 		}
 	}

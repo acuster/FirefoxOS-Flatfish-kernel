@@ -46,10 +46,8 @@
 #include	<linux/module.h>
 #include	<linux/moduleparam.h>
 
-#include	<linux/input/lis3de.h>
-
 #include	<mach/sys_config.h>
-
+#include	"lis3de.h"
 
 /* #define	DEBUG		1 */
 
@@ -100,7 +98,7 @@
 #define PMODE_MASK		(0x08)
 #define ODR_MASK		(0XF0)
 
-#define LIS3DE_ACC_ODR1	(0x10)  /* 1Hz output data rate */
+#define LIS3DE_ACC_ODR1         (0x10)  /* 1Hz output data rate */
 #define LIS3DE_ACC_ODR10	(0x20)  /* 10Hz output data rate */
 #define LIS3DE_ACC_ODR25	(0x30)  /* 25Hz output data rate */
 #define LIS3DE_ACC_ODR50	(0x40)  /* 50Hz output data rate */
@@ -177,9 +175,9 @@
 /* end RESUME STATE INDICES */
 
 enum {
-	DEBUG_BASE_LEVEL0 = 1U << 0,
-	DEBUG_BASE_LEVEL1 = 1U << 1,
-	DEBUG_BASE_LEVEL2 = 1U << 2,
+	DEBUG_INIT = 1U << 0,
+	DEBUG_CONTROL_INFO = 1U << 1,	
+	DEBUG_DATA_INFO = 1U << 2,
 	DEBUG_SUSPEND = 1U << 3,
 };
 static u32 debug_mask = 0;
@@ -233,9 +231,9 @@ struct lis3de_acc_status {
 	struct work_struct irq2_work;
 	struct workqueue_struct *irq2_work_queue;
 
-	#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
-	#endif
+#endif
 
 #ifdef DEBUG
 	u8 reg_addr;
@@ -284,7 +282,7 @@ static int gsensor_fetch_sysconfig_para(void)
 	script_item_u	val;
 	script_item_value_type_e  type;	
 			
-	dprintk(DEBUG_BASE_LEVEL0, "========%s===================\n", __func__);
+	dprintk(DEBUG_INIT, "========%s===================\n", __func__);
 		
 	type = script_get_item("gsensor_para", "gsensor_used", &val);
 	 
@@ -302,7 +300,7 @@ static int gsensor_fetch_sysconfig_para(void)
 		}
 		twi_id = val.val;
 			
-		dprintk(DEBUG_BASE_LEVEL0, "%s: twi_id is %d. \n", __func__, twi_id);
+		dprintk(DEBUG_INIT, "%s: twi_id is %d. \n", __func__, twi_id);
 	
 		ret = 0;
 			
@@ -389,10 +387,10 @@ static int lis3de_acc_i2c_read(struct lis3de_acc_status *stat, u8 *buf,
 				ret, len, cmd);
 			unsigned int ii;
 			for (ii = 0; ii < len; ii++)
-				dprintk(DEBUG_BASE_LEVEL0, "buf[%d]=0x%02x,",
+				dprintk(DEBUG_DATA_INFO, "buf[%d]=0x%02x,",
 								ii, buf[ii]);
 
-			dprintk(DEBUG_BASE_LEVEL0, "\n");
+			dprintk(DEBUG_DATA_INFO, "\n");
 #endif
 		} else
 			ret = -1;
@@ -446,10 +444,10 @@ static int lis3de_acc_i2c_write(struct lis3de_acc_status *stat, u8 *buf,
 				ret, len, reg);
 			unsigned int ii;
 			for (ii = 0; ii < (len + 1); ii++)
-				dprintk(DEBUG_BASE_LEVEL0,  "value[%d]=0x%02x,",
+				dprintk(DEBUG_DATA_INFO,  "value[%d]=0x%02x,",
 								ii, buf[ii]);
 
-			dprintk(DEBUG_BASE_LEVEL0, "\n");
+			dprintk(DEBUG_DATA_INFO, "\n");
 #endif
 			return ret;
 		}
@@ -464,7 +462,7 @@ static int lis3de_acc_hw_init(struct lis3de_acc_status *stat)
 	int err = -1;
 	u8 buf[7];
 
-	dprintk(DEBUG_BASE_LEVEL0, "%s: hw init start\n", LIS3DE_ACC_DEV_NAME);
+	dprintk(DEBUG_INIT, "%s: hw init start\n", LIS3DE_ACC_DEV_NAME);
 
 	buf[0] = WHO_AM_I;
 	err = lis3de_acc_i2c_read(stat, buf, 1);
@@ -541,7 +539,7 @@ static int lis3de_acc_hw_init(struct lis3de_acc_status *stat)
 		goto err_resume_state;
 
 	stat->hw_initialized = 1;
-	dprintk(DEBUG_BASE_LEVEL0, "%s: hw init done\n", LIS3DE_ACC_DEV_NAME);
+	dprintk(DEBUG_INIT, "%s: hw init done\n", LIS3DE_ACC_DEV_NAME);
 	return 0;
 
 err_firstread:
@@ -849,7 +847,7 @@ static int lis3de_acc_get_acceleration_data(
 static void lis3de_acc_report_values(struct lis3de_acc_status *stat,
 					int *xyz)
 {
-	dprintk(DEBUG_BASE_LEVEL1, "x= 0x%hx, y = 0x%hx, z = 0x%hx\n", xyz[0], xyz[1], xyz[2]);
+	dprintk(DEBUG_DATA_INFO, "x= 0x%hx, y = 0x%hx, z = 0x%hx\n", xyz[0], xyz[1], xyz[2]);
 	input_report_abs(stat->input_dev, ABS_X, xyz[0]);
 	input_report_abs(stat->input_dev, ABS_Y, xyz[1]);
 	input_report_abs(stat->input_dev, ABS_Z, xyz[2]);
@@ -868,6 +866,7 @@ static int lis3de_acc_enable(struct lis3de_acc_status *stat)
 		}
 		schedule_delayed_work(&stat->input_work,
 			msecs_to_jiffies(stat->pdata->poll_interval));
+		dprintk(DEBUG_CONTROL_INFO, "lis3de_acc enable\n");
 	}
 
 	return 0;
@@ -878,6 +877,7 @@ static int lis3de_acc_disable(struct lis3de_acc_status *stat)
 	if (atomic_cmpxchg(&stat->enabled, 1, 0)) {
 		cancel_delayed_work_sync(&stat->input_work);
 		lis3de_acc_device_power_off(stat);
+		dprintk(DEBUG_CONTROL_INFO, "lis3de_acc disable\n");
 	}
 
 	return 0;
@@ -1399,7 +1399,7 @@ static int lis3de_acc_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "probe start.\n");
 
-	dprintk(DEBUG_BASE_LEVEL0, "lis3de_acc probe i2c address is %d \n",i2c_address[i2c_num]);
+	dprintk(DEBUG_INIT, "lis3de_acc probe i2c address is %d \n",i2c_address[i2c_num]);
 	client->addr =i2c_address[i2c_num];
 
 	stat = kzalloc(sizeof(struct lis3de_acc_status), GFP_KERNEL);
@@ -1668,7 +1668,8 @@ static void lis3de_early_suspend(struct early_suspend *h)
 {
 	struct lis3de_acc_status *stat =
 		container_of(h, struct lis3de_acc_status, early_suspend);
-	
+
+	dprintk(DEBUG_SUSPEND, "lis3de_acc early suspend\n");
 	stat->on_before_suspend = atomic_read(&stat->enabled);
 	lis3de_acc_disable(stat);
 	return;
@@ -1678,7 +1679,7 @@ static void lis3de_late_resume(struct early_suspend *h)
 {
 	struct lis3de_acc_status *stat =
 		container_of(h, struct lis3de_acc_status, early_suspend);
-
+	dprintk(DEBUG_SUSPEND, "lis3de_acc late resume\n");
 	if (stat->on_before_suspend)
 		lis3de_acc_enable(stat);
 	return;
@@ -1688,7 +1689,8 @@ static void lis3de_late_resume(struct early_suspend *h)
 static int lis3de_acc_resume(struct i2c_client *client)
 {
 	struct lis3de_acc_status *stat = i2c_get_clientdata(client);
-
+	
+	dprintk(DEBUG_SUSPEND, "lis3de_acc resume\n");
 	if (stat->on_before_suspend)
 		return lis3de_acc_enable(stat);
 	return 0;
@@ -1698,6 +1700,7 @@ static int lis3de_acc_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct lis3de_acc_status *stat = i2c_get_clientdata(client);
 
+	dprintk(DEBUG_SUSPEND, "lis3de_acc suspend\n");
 	stat->on_before_suspend = atomic_read(&stat->enabled);
 	return lis3de_acc_disable(stat);
 }
@@ -1732,7 +1735,7 @@ static struct i2c_driver lis3de_acc_driver = {
 
 static int __init lis3de_acc_init(void)
 {
-	dprintk(DEBUG_BASE_LEVEL0, "%s accelerometer driver: init\n",
+	dprintk(DEBUG_INIT, "%s accelerometer driver: init\n",
 						LIS3DE_ACC_DEV_NAME);
 	if(gsensor_fetch_sysconfig_para()){
 		printk("%s: err.\n", __func__);
@@ -1745,10 +1748,8 @@ static int __init lis3de_acc_init(void)
 
 static void __exit lis3de_acc_exit(void)
 {
-
-	dprintk(DEBUG_BASE_LEVEL0, "%s accelerometer driver exit\n",
+	dprintk(DEBUG_INIT, "%s accelerometer driver exit\n",
 						LIS3DE_ACC_DEV_NAME);
-
 	i2c_del_driver(&lis3de_acc_driver);
 	return;
 }

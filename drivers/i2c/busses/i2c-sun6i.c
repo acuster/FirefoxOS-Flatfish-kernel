@@ -113,6 +113,9 @@ struct sun6i_i2c {
 	unsigned long		iosize; /* for remove */
 };
 
+#ifndef CONFIG_SUN6I_I2C_PRINT_TRANSFER_INFO
+static int bus_transfer_dbg = -1;
+#endif
 /* clear the interrupt flag */
 static inline void twi_clear_irq_flag(void *base_addr)
 {
@@ -781,6 +784,15 @@ static void sun6i_i2c_addr_byte(struct sun6i_i2c *i2c)
 		}
 		I2C_DBG("[i2c%d] 7bits+r/w = 0x%x\n", i2c->bus_num, addr);
 	}
+#else
+	if (unlikely(bus_transfer_dbg != -1)) {
+		if (i2c->bus_num == bus_transfer_dbg) {
+			if (i2c->msg[i2c->msg_idx].flags & I2C_M_TEN) {
+				I2C_DBG("[i2c%d] first part of 10bits = 0x%x\n", i2c->bus_num, addr);
+			}
+			I2C_DBG("[i2c%d] 7bits+r/w = 0x%x\n", i2c->bus_num, addr);
+		}
+	}
 #endif
 	/* send 7bits+r/w or the first part of 10bits */
 	twi_put_byte(i2c->base_addr, &addr);
@@ -800,6 +812,12 @@ static int sun6i_i2c_core_process(struct sun6i_i2c *i2c)
 #ifdef CONFIG_SUN6I_I2C_PRINT_TRANSFER_INFO
 	if (i2c->bus_num == CONFIG_SUN6I_I2C_PRINT_TRANSFER_INFO_WITH_BUS_NUM) {
 		I2C_DBG("[i2c%d][slave address = (0x%x), state = (0x%x)]\n", i2c->bus_num, i2c->msg->addr, state);
+	}
+#else
+	if (unlikely(bus_transfer_dbg != -1)) {
+		if (i2c->bus_num == bus_transfer_dbg) {
+			I2C_DBG("[i2c%d][slave address = (0x%x), state = (0x%x)]\n", i2c->bus_num, i2c->msg->addr, state);
+		}
 	}
 #endif
 
@@ -943,7 +961,7 @@ static irqreturn_t sun6i_i2c_handler(int this_irq, void * dev_id)
 	struct sun6i_i2c *i2c = (struct sun6i_i2c *)dev_id;
 
 	if (!twi_query_irq_flag(i2c->base_addr)) {
-		I2C_ERR("unknown interrupt!");
+		I2C_ERR("unknown interrupt!\n");
 		return IRQ_NONE;
 	}
 
@@ -997,7 +1015,7 @@ static int sun6i_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int nu
 		return -ENODEV;
 	}
 
-	for (i = adap->retries; i >= 0; i--) {
+	for (i = 1; i <= adap->retries; i++) {
 		ret = sun6i_i2c_do_xfer(i2c, msgs, num);
 
 		if (ret != SUN6I_I2C_RETRY) {
@@ -1072,13 +1090,12 @@ static int sun6i_i2c_do_xfer(struct sun6i_i2c *i2c, struct i2c_msg *msgs, int nu
 	timeout = wait_event_timeout(i2c->wait, i2c->msg_num == 0, i2c->adap.timeout);
 	/* return code,if(msg_idx == num) succeed */
 	ret = i2c->msg_idx;
-
 	if (timeout == 0) {
-		I2C_ERR("[i2c%d] xfer timeout\n", i2c->bus_num);
+		I2C_ERR("[i2c%d] xfer timeout (dev addr:0x%x)\n", i2c->bus_num, msgs->addr);
 		ret = -ETIME;
 	}
 	else if (ret != num) {
-		I2C_ERR("[i2c%d] incomplete xfer (status: 0x%x)\n", i2c->bus_num, ret);
+		I2C_ERR("[i2c%d] incomplete xfer (status: 0x%x, dev addr: 0x%x)\n", i2c->bus_num, ret, msgs->addr);
 		ret = -ECOMM;
 	}
 out:
@@ -1126,7 +1143,6 @@ static int sun6i_i2c_clk_init(struct sun6i_i2c *i2c)
 		return -1;
 	}
 
-	I2C_DBG("[i2c%d] apb clock = %d \n",i2c->bus_num, apb_clk);
 	twi_set_clock(apb_clk, i2c->bus_freq, i2c->base_addr);
 
 	return 0;
@@ -1203,6 +1219,38 @@ static void sun6i_i2c_hw_exit(struct sun6i_i2c *i2c)
 }
 #endif
 
+#ifndef CONFIG_SUN6I_I2C_PRINT_TRANSFER_INFO
+static ssize_t transfer_debug_store(struct device *dev, struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct sun6i_i2c *i2c = platform_get_drvdata(pdev);
+	char value;
+
+    if(strlen(buf) != 2)
+        return -EINVAL;
+    if(buf[0] < '0' || buf[0] > '1')
+		return -EINVAL;
+    value = buf[0];
+    switch(value)
+    {
+        case '1':
+            bus_transfer_dbg = i2c->bus_num;
+            break;
+        case '0':
+            bus_transfer_dbg = -1;
+            break;
+        default:
+            return -EINVAL;
+    }
+	return count;
+}
+
+static struct device_attribute transfer_debug_attrs[] = {
+	__ATTR(transfer_debug, 0200, NULL, transfer_debug_store),
+};
+#endif
+
 static int sun6i_i2c_probe(struct platform_device *pdev)
 {
 	struct sun6i_i2c *i2c = NULL;
@@ -1212,8 +1260,10 @@ static int sun6i_i2c_probe(struct platform_device *pdev)
 	char *i2c_mclk[] ={CLK_MOD_TWI0, CLK_MOD_TWI1, CLK_MOD_TWI2, CLK_MOD_TWI3};
 	char *i2c_pclk[] ={CLK_APB_TWI0, CLK_APB_TWI1, CLK_APB_TWI2, CLK_APB_TWI3};
 #endif
-	int ret;
-	int irq;
+	int ret, irq;
+#ifndef CONFIG_SUN6I_I2C_PRINT_TRANSFER_INFO
+	int i;
+#endif
 
 	pdata = pdev->dev.platform_data;
 	if (pdata == NULL) {
@@ -1239,7 +1289,7 @@ static int sun6i_i2c_probe(struct platform_device *pdev)
 	strlcpy(i2c->adap.name, "sun6i-i2c", sizeof(i2c->adap.name));
 	i2c->adap.owner   = THIS_MODULE;
 	i2c->adap.nr      = pdata->bus_num;
-	i2c->adap.retries = 2;
+	i2c->adap.retries = 3;
 	i2c->adap.timeout = 5*HZ;
 	i2c->adap.class   = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	i2c->bus_freq     = pdata->frequency;
@@ -1272,7 +1322,6 @@ static int sun6i_i2c_probe(struct platform_device *pdev)
 		ret = -EIO;
 		goto eremap;
 	}
-	I2C_DBG("[i2c%d] base_Addr = 0x%x \n", i2c->bus_num, (unsigned int)i2c->base_addr);
 
 #ifndef SYS_I2C_PIN
 	gpio_addr = ioremap(_PIO_BASE_ADDRESS, 0x400);
@@ -1308,21 +1357,27 @@ static int sun6i_i2c_probe(struct platform_device *pdev)
 
 	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0) {
-		I2C_ERR( "[i2c%d] failed to add bus\n", i2c->bus_num);
+		I2C_ERR( "[i2c%d] failed to add adapter\n", i2c->bus_num);
 		goto eadapt;
 	}
 
 	platform_set_drvdata(pdev, i2c);
 
-	I2C_DBG("I2C: %s: sun6i I2C adapter\n", dev_name(&i2c->adap.dev));
-
-	I2C_DBG("**********start************\n");
-	I2C_DBG("0x%x \n",readl(i2c->base_addr + 0x0c));
-	I2C_DBG("0x%x \n",readl(i2c->base_addr + 0x10));
-	I2C_DBG("0x%x \n",readl(i2c->base_addr + 0x14));
-	I2C_DBG("0x%x \n",readl(i2c->base_addr + 0x18));
-	I2C_DBG("0x%x \n",readl(i2c->base_addr + 0x1c));
-	I2C_DBG("**********end************\n");
+#ifndef CONFIG_SUN6I_I2C_PRINT_TRANSFER_INFO
+	for (i = 0; i < ARRAY_SIZE(transfer_debug_attrs); i++) {
+		ret = device_create_file(&pdev->dev, &transfer_debug_attrs[i]);
+		if (ret)
+			goto eadapt;
+	}
+#endif
+	pr_debug("I2C: %s: sun6i I2C adapter\n", dev_name(&i2c->adap.dev));
+	pr_debug("**********start************\n");
+	pr_debug("0x%x \n",readl(i2c->base_addr + 0x0c));
+	pr_debug("0x%x \n",readl(i2c->base_addr + 0x10));
+	pr_debug("0x%x \n",readl(i2c->base_addr + 0x14));
+	pr_debug("0x%x \n",readl(i2c->base_addr + 0x18));
+	pr_debug("0x%x \n",readl(i2c->base_addr + 0x1c));
+	pr_debug("**********end************\n");
 
 	return 0;
 
@@ -1411,22 +1466,13 @@ static int sun6i_i2c_suspend(struct device *dev)
 	struct sun6i_i2c *i2c = platform_get_drvdata(pdev);
 	int count = 10;
 
-	i2c->suspended = 1;
-
-	/*
-	 * r_twi is for power, it will be accessed by axp driver
-	 * before twi resume, so, don't suspend r_twi
-	 */
-	if (4 == i2c->bus_num) {
-		i2c->suspended = 0;
-		return 0;
-	}
-
 	while ((i2c->status != I2C_XFER_IDLE) && (count-- > 0)) {
 		I2C_ERR("[i2c%d] suspend while xfer,dev addr = 0x%x\n",
 			i2c->adap.nr, i2c->msg? i2c->msg->addr : 0xff);
 		msleep(100);
 	}
+
+	i2c->suspended = 1;
 
 	if (sun6i_i2c_clk_exit(i2c)) {
 		I2C_ERR("[i2c%d] suspend failed.. \n", i2c->bus_num);
@@ -1446,10 +1492,6 @@ static int sun6i_i2c_resume(struct device *dev)
 	struct sun6i_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c->suspended = 0;
-
-	if (4 == i2c->bus_num) {
-		return 0;
-	}
 
 	if (sun6i_i2c_clk_init(i2c)) {
 		I2C_ERR("[i2c%d] resume failed.. \n", i2c->bus_num);
@@ -1691,22 +1733,8 @@ static void __exit sun6i_i2c_adap_exit(void)
 		platform_driver_unregister(&sun6i_i2c_driver);
 }
 #else
-// static struct i2c_board_info eeprom_i2c_board_info[] __initdata = {
-	// {
-		// I2C_BOARD_INFO("24c16", 0x50),
-	// },
-// };
-
 static int __init sun6i_i2c_adap_init(void)
 {
-	// int status;
-	// status = i2c_register_board_info(1, eeprom_i2c_board_info, ARRAY_SIZE(eeprom_i2c_board_info));
-	// if(status) {
-		// printk("eeprom init failed!\n");
-	// }
-	// else{
-		// printk("eeprom init successed!\n");
-	// }
 	platform_device_register(&sun6i_twi1_device);
 #ifdef SUN6I_RTWI
 	platform_device_register(&sun6i_rtwi_device);

@@ -18,8 +18,6 @@
 
 static int __init init_nand_libmodule(void)
 {
-	printk("hello:%s,%d\n", __func__, __LINE__);
-	printk("hello:%s,%d\n", __func__, __LINE__);
 	nand_init();
 	return 0;
 }

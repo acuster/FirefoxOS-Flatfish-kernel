@@ -667,6 +667,12 @@ config USB_SW_SUN6I_OHCI2
 	help
 	    SoftWinner SUN6I USB OHCI2.
 
+config SW_USB_WIFI
+	tristate "support usb wifi"
+	depends on USB
+	help
+	    support usb wifi.
+
 config SW_USB_3G
 	tristate "support usb 3G modem"
 	depends on USB

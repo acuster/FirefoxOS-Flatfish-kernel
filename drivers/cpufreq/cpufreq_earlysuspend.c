@@ -35,7 +35,7 @@ static void cpu_down_work(struct work_struct *work)
     if (!strcmp(policy.governor->name, "fantasys")) {
         cpufreq_fantasys_cpu_lock(1);
         while (num_online_cpus() != 1) {
-            mdelay(10);
+            msleep(50);
         }
         goto out;
     }

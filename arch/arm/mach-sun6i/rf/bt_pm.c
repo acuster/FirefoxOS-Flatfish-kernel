@@ -15,7 +15,7 @@ static __inline int wifi_pm_get_mod_type(void) {return 0;}
 static __inline int wifi_pm_gpio_ctrl(char* name, int level) {return -1;}
 #endif
 
-static DEFINE_SPINLOCK(bt_power_lock);
+//static DEFINE_SPINLOCK(bt_power_lock);
 static const char bt_name[] = "bcm40183";
 static struct rfkill *sw_rfkill;
 
@@ -25,7 +25,6 @@ static int rfkill_set_power(void *data, bool blocked)
     
     RF_MSG("rfkill set power %d\n", blocked);
     
-    spin_lock(&bt_power_lock);
     switch (mod_sel)
     {
         case 2: /* bcm40183 */
@@ -48,7 +47,6 @@ static int rfkill_set_power(void *data, bool blocked)
             RF_MSG("no bt module matched !!\n");
     }
     
-    spin_unlock(&bt_power_lock);
     msleep(100);
     return 0;
 }
@@ -107,7 +105,7 @@ static void __exit sw_rfkill_exit(void)
     platform_driver_unregister(&sw_rfkill_driver);
 }
 
-module_init(sw_rfkill_init);
+late_initcall(sw_rfkill_init);
 module_exit(sw_rfkill_exit);
 
 MODULE_DESCRIPTION("sunxi-rfkill driver");

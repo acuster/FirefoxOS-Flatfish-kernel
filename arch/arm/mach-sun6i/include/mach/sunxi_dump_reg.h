@@ -21,7 +21,7 @@
 
 /**
  * compare_item - reg compare item struct
- * @reg_addr:	reg physical address.
+ * @reg_addr:	reg address.
  * @val_expect: expected value, provided by caller.
  * @val_mask:   mask value, provided by caller. only mask bits will be compared.
  */
@@ -43,7 +43,7 @@ struct compare_group {
 
 /**
  * write_item - reg write item struct
- * @reg_addr:	reg physical address.
+ * @reg_addr:	reg address.
  * @val: 	value to write
  */
 struct write_item {

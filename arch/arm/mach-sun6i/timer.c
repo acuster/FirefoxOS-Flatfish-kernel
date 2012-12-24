@@ -57,7 +57,7 @@ static void timer_set_mode(enum clock_event_mode mode, struct clock_event_device
         }
         writel(ctrl, timer_cpu_base + AW_TMR0_CTRL_REG);
     } else {
-        printk("error:%s,line:%d\n", __func__, __LINE__);
+        pr_warning("error:%s,line:%d\n", __func__, __LINE__);
         BUG();
     }
 }
@@ -86,7 +86,7 @@ static int timer_set_next_clkevt(unsigned long delta, struct clock_event_device 
         writel(ctrl, timer_cpu_base + AW_TMR0_CTRL_REG);
         spin_unlock_irqrestore(&timer0_spin_lock, flags);
     } else {
-        printk("error:%s,line:%d\n", __func__, __LINE__);
+        pr_warning("error:%s,line:%d\n", __func__, __LINE__);
         BUG();
         return -EINVAL;
     }
@@ -137,7 +137,7 @@ void __init sun6i_clkevt_init(void)
     volatile u32 ctrl = 0;
 
     timer_cpu_base = ioremap_nocache(AW_TIMER_BASE, 0x1000);
-    printk("hx-tickless-hrtimer:[%s] base=%p\n", __FUNCTION__,timer_cpu_base);
+    pr_debug("hx-tickless-hrtimer:[%s] base=%p\n", __FUNCTION__,timer_cpu_base);
 
     /* Disable & clear all timers */
     writel(0x0, timer_cpu_base + AW_TMR_IRQ_EN_REG);
@@ -149,18 +149,18 @@ void __init sun6i_clkevt_init(void)
     ctrl = readl(timer_cpu_base + AW_TMR0_CTRL_REG);
 #ifdef CONFIG_AW_ASIC_EVB_PLATFORM
     /*OSC24m*/
-    printk("asic,%s,line:%d\n", __func__, __LINE__);
+    pr_debug("asic,%s,line:%d\n", __func__, __LINE__);
     ctrl |= (1<<2);
 #else
     /*internalOSC/N*/
-    printk("fpga,%s,line:%d\n", __func__, __LINE__);
+    pr_debug("fpga,%s,line:%d\n", __func__, __LINE__);
     ctrl |= (0<<2);
 #endif
     ctrl |= (1<<1);
     writel(ctrl, timer_cpu_base + AW_TMR0_CTRL_REG);
     ret = setup_irq(AW_IRQ_TIMER0, &sun6i_timer_irq);
     if (ret) {
-        early_printk("failed to setup irq %d\n", AW_IRQ_TIMER0);
+        pr_warning("failed to setup irq %d\n", AW_IRQ_TIMER0);
     }
 
     /* Enable timer0 */
@@ -276,7 +276,7 @@ static struct clocksource aw_clocksrc =
 */
 int __init sun6i_clksrc_init(void)
 {
-    printk("sun6i clock source init!\n");
+    pr_debug("sun6i clock source init!\n");
     /* calculate the mult by shift  */
     aw_clocksrc.mult = clocksource_hz2mult(24000000, aw_clocksrc.shift);
     /* register clock source */

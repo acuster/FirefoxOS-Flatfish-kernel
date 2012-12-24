@@ -36,7 +36,7 @@ struct cpufreq_frequency_table sunxi_freq_tbl[] = {
     { .frequency = 240000,  .index = SUNXI_CLK_DIV(1, 1, 2, 2), },
     { .frequency = 288000,  .index = SUNXI_CLK_DIV(1, 1, 2, 2), },
     { .frequency = 312000,  .index = SUNXI_CLK_DIV(1, 1, 2, 2), },
-    { .frequency = 336000,  .index = SUNXI_CLK_DIV(1, 1, 2, 2), },
+    //{ .frequency = 336000,  .index = SUNXI_CLK_DIV(1, 1, 2, 2), }, frequency is not stable, 2012-12-18 9:26, kevin
     { .frequency = 360000,  .index = SUNXI_CLK_DIV(1, 1, 2, 2), },
     { .frequency = 384000,  .index = SUNXI_CLK_DIV(1, 1, 2, 2), },
     { .frequency = 432000,  .index = SUNXI_CLK_DIV(1, 2, 2, 2), },

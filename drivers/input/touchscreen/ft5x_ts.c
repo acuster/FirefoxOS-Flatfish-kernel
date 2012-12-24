@@ -67,7 +67,7 @@
 
 //#define CONFIG_SUPPORT_FTS_CTP_UPG
 
-static u32 debug_mask = DEBUG_INIT;
+static u32 debug_mask = 0;
 #define dprintk(level_mask,fmt,arg...)    if(unlikely(debug_mask & level_mask)) \
         printk("***CTP***"fmt, ## arg)
         
@@ -122,13 +122,11 @@ static int ctp_detect(struct i2c_client *client, struct i2c_board_info *info)
                 return -ENODEV;
     
 	if(twi_id == adapter->nr){
-                printk("%s: addr= %x\n",__func__,client->addr);
                 msleep(200);
 	        ret = i2c_smbus_read_byte_data(client,0xA3);
-                printk("chip_id_value:0x%x\n",ret);
+                dprintk(DEBUG_INIT,"addr:0x%x,chip_id_value:0x%x\n",client->addr,ret);
                 while(chip_id_value[i++]){
                         if(ret == chip_id_value[i - 1]){
-                                printk("I2C connection sucess!\n");
             	                strlcpy(info->type, CTP_NAME, I2C_NAME_SIZE);
     		                return 0;
                         }                   
@@ -274,8 +272,8 @@ int i2c_read_interface(u8 bt_ctpm_addr, u8* pbt_buf, u16 dw_lenth)
 	ret=i2c_master_recv(this_client, pbt_buf, dw_lenth);
 
 	if(ret != dw_lenth){
-		pr_info("ret = %d. \n", ret);
-		pr_info("i2c_read_interface error\n");
+		printk("ret = %d. \n", ret);
+		printk("i2c_read_interface error\n");
 		return FTS_FALSE;
 	}
 
@@ -298,7 +296,7 @@ int i2c_write_interface(u8 bt_ctpm_addr, u8* pbt_buf, u16 dw_lenth)
 	int ret;
 	ret=i2c_master_send(this_client, pbt_buf, dw_lenth);
 	if(ret != dw_lenth){
-		pr_info("i2c_write_interface error\n");
+		printk("i2c_write_interface error\n");
 		return FTS_FALSE;
 	}
 
@@ -481,7 +479,7 @@ E_UPGRADE_ERR_TYPE  fts_ctpm_fw_upgrade(u8* pbt_buf, u16 dw_lenth)
         delay_ms(50);
         /*write 0x55 to register 0xfc*/
         fts_register_write(0xfc,0x55);
-        pr_info("Step 1: Reset CTPM test\n");
+        printk("Step 1: Reset CTPM test\n");
         
         delay_ms(30);
 
@@ -492,7 +490,7 @@ E_UPGRADE_ERR_TYPE  fts_ctpm_fw_upgrade(u8* pbt_buf, u16 dw_lenth)
         do{
                 i++;
                 i_ret = i2c_write_interface(I2C_CTPM_ADDRESS, auc_i2c_write_buf, 2);
-                pr_info("Step 2: Enter update mode. \n");
+                printk("Step 2: Enter update mode. \n");
                 delay_ms(5);
         }while((FTS_FALSE == i_ret) && i<5);
 
@@ -505,22 +503,22 @@ E_UPGRADE_ERR_TYPE  fts_ctpm_fw_upgrade(u8* pbt_buf, u16 dw_lenth)
 		        return ERR_READID; 
                 }
                 /*read out the CTPM ID*/
-                pr_info("====Step 3:check READ-ID====");
+                printk("====Step 3:check READ-ID====");
                 cmd_write(0x90,0x00,0x00,0x00,4);
                 byte_read(reg_val,2);
                 i++;
                 delay_ms(5);
-                pr_info("Step 3: CTPM ID,ID1 = 0x%x,ID2 = 0x%x\n",reg_val[0],reg_val[1]);
+                printk("Step 3: CTPM ID,ID1 = 0x%x,ID2 = 0x%x\n",reg_val[0],reg_val[1]);
          }while((reg_val[1] != 0x03)&&(reg_val[1] != 0x06));//while(reg_val[0] != 0x79 || reg_val[1] != 0x03);
 
         /*********Step 4:erase app*******************************/
         cmd_write(0x61,0x00,0x00,0x00,1);
         delay_ms(1500);
-        pr_info("Step 4: erase. \n");
+        printk("Step 4: erase. \n");
         
         /*********Step 5:write firmware(FW) to ctpm flash*********/
         bt_ecc = 0;
-        pr_info("Step 5: start upgrade. \n");
+        printk("Step 5: start upgrade. \n");
         dw_lenth = dw_lenth - 8;
         packet_number = (dw_lenth) / FTS_PACKET_LENGTH;
         packet_buf[0] = 0xbf;
@@ -541,7 +539,7 @@ E_UPGRADE_ERR_TYPE  fts_ctpm_fw_upgrade(u8* pbt_buf, u16 dw_lenth)
                 byte_write(&packet_buf[0],FTS_PACKET_LENGTH + 6);
                 delay_ms(FTS_PACKET_LENGTH/6 + 1);
                 if ((j * FTS_PACKET_LENGTH % 1024) == 0){
-                        pr_info("upgrade the 0x%x th byte.\n", ((unsigned int)j) * FTS_PACKET_LENGTH);
+                        printk("upgrade the 0x%x th byte.\n", ((unsigned int)j) * FTS_PACKET_LENGTH);
                 }
         }
 
@@ -585,7 +583,7 @@ E_UPGRADE_ERR_TYPE  fts_ctpm_fw_upgrade(u8* pbt_buf, u16 dw_lenth)
 
 	fts_register_read(0xcc, reg_val,1);
 	
-        pr_info("Step 6:  ecc read 0x%x, new firmware 0x%x. \n", reg_val[0], bt_ecc);
+        printk("Step 6:  ecc read 0x%x, new firmware 0x%x. \n", reg_val[0], bt_ecc);
         if(reg_val[0] != bt_ecc){
                 cmd_write(0x07,0x00,0x00,0x00,1);
 		return ERR_ECC;
@@ -602,7 +600,7 @@ int fts_ctpm_auto_clb(void)
         unsigned char uc_temp;
         unsigned char i ;
         
-        pr_info("[FTS] start auto CLB.\n");
+        printk("[FTS] start auto CLB.\n");
         msleep(200);
         fts_register_write(0, 0x40);  
         delay_ms(100);                       //make sure already enter factory mode
@@ -614,10 +612,10 @@ int fts_ctpm_auto_clb(void)
                         break;
                 }
                 delay_ms(200);
-                pr_info("[FTS] waiting calibration %d\n",i);
+                printk("[FTS] waiting calibration %d\n",i);
         }
         
-        pr_info("[FTS] calibration OK.\n");
+        printk("[FTS] calibration OK.\n");
         
         msleep(300);
         fts_register_write(0, 0x40);          //goto factory mode
@@ -626,7 +624,7 @@ int fts_ctpm_auto_clb(void)
         delay_ms(300);
         fts_register_write(0, 0x0);          //return to normal mode 
         msleep(300);
-        pr_info("[FTS] store CLB result OK.\n");
+        printk("[FTS] store CLB result OK.\n");
         return 0;
 }
 void getVerNo(u8* buf, int len)
@@ -638,32 +636,32 @@ void getVerNo(u8* buf, int len)
 	start_reg = 0xa6;
 
 #if 0
-	pr_info("read 0xa6 one time. \n");
+	printk("read 0xa6 one time. \n");
 	if(FTS_FALSE == fts_register_read(0xa6, buf, len)){
                 return ;
 	}
 	
 	for (i=0; i< len; i++) {
-		pr_info("=========buf[%d] = 0x%x \n", i, buf[i]);
+		printk("=========buf[%d] = 0x%x \n", i, buf[i]);
 	}
 	
-	pr_info("read 0xa8. \n");
+	printk("read 0xa8. \n");
 	if(FTS_FALSE == fts_register_read(0xa8, buf, len)){
                 return ;
 	}
 	for (i=0; i< len; i++) {
-		pr_info("=========buf[%d] = 0x%x \n", i, buf[i]);
+		printk("=========buf[%d] = 0x%x \n", i, buf[i]);
 	}
 
 	ft5x_i2c_rxdata(buf, len);
 	
         for (i=0; i< len; i++) {
-                pr_info("=========buf[%d] = 0x%x \n", i, buf[i]);
+                printk("=========buf[%d] = 0x%x \n", i, buf[i]);
         }
 
         byte_read(buf, len);
         for (i=0; i< len; i++) {
-                pr_info("=========buf[%d] = 0x%x \n", i, buf[i]);
+                printk("=========buf[%d] = 0x%x \n", i, buf[i]);
         }
           
 #endif
@@ -671,11 +669,11 @@ void getVerNo(u8* buf, int len)
 	ret =fts_register_read(0xa6, buf, len);
 	//et = ft5406_read_regs(ft5x0x_ts_data_test->client,start_reg, buf, 2);
 	if (ret < 0) {
-		pr_info("%s read_data i2c_rxdata failed: %d\n", __func__, ret);
+		printk("%s read_data i2c_rxdata failed: %d\n", __func__, ret);
 		return;
 	}
 	for (i=0; i<2; i++) {
-		pr_info("=========buf[%d] = 0x%x \n", i, buf[i]);
+		printk("=========buf[%d] = 0x%x \n", i, buf[i]);
 	}
 	return;
 }
@@ -690,7 +688,7 @@ int fts_ctpm_fw_upgrade_with_i_file(void)
 	unsigned char buf[BUFFER_LEN] = {0};
    
 	//=========FW upgrade========================*/
-	pr_info("%s. \n", __func__);
+	printk("%s. \n", __func__);
 
 	pbt_buf = CTPM_FW;
 	//msleep(200);
@@ -699,7 +697,7 @@ int fts_ctpm_fw_upgrade_with_i_file(void)
 	getVerNo(buf, BUFFER_LEN);
 	a = buf[0];
 	b = fts_ctpm_get_i_file_ver();
-	pr_info("a == %hu,  b== %hu \n",a, b);
+	printk("a == %hu,  b== %hu \n",a, b);
 
 	/*
 	  * when the firmware in touch panel maybe corrupted,
@@ -709,9 +707,9 @@ int fts_ctpm_fw_upgrade_with_i_file(void)
 		/*call the upgrade function*/
 		i_ret =  fts_ctpm_fw_upgrade(&pbt_buf[0],sizeof(CTPM_FW));
 		if (i_ret != 0){
-			pr_info("[FTS] upgrade failed i_ret = %d.\n", i_ret);
+			printk("[FTS] upgrade failed i_ret = %d.\n", i_ret);
 		} else {
-			pr_info("[FTS] upgrade successfully.\n");
+			printk("[FTS] upgrade successfully.\n");
 			fts_ctpm_auto_clb();  //start auto CLB
 		}
 	}	
@@ -751,7 +749,7 @@ static int ft5x_i2c_rxdata(char *rxdata, int length)
 	};
 	ret = i2c_transfer(this_client->adapter, msgs, 2);
 	if (ret < 0)
-		pr_info("msg %s i2c read error: %d\n", __func__, ret);
+		printk("msg %s i2c read error: %d\n", __func__, ret);
 	
 	return ret;
 }
@@ -1177,7 +1175,7 @@ ft5x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int i = 0;
 #endif
 
-	printk("====%s begin=====.  \n", __func__);
+	dprintk(DEBUG_INIT,"====%s begin=====.  \n", __func__);
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;
 		printk("check_functionality_failed\n");
@@ -1272,7 +1270,7 @@ ft5x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 #endif
 
 #ifdef CONFIG_FT5X0X_MULTITOUCH
-	printk("CONFIG_FT5X0X_MULTITOUCH is defined. \n");
+	dprintk(DEBUG_INIT,"CONFIG_FT5X0X_MULTITOUCH is defined. \n");
 #endif
         int_handle = sw_gpio_irq_request(CTP_IRQ_NUMBER,CTP_IRQ_MODE,(peint_handle)ft5x_ts_interrupt,ft5x_ts);
 	if (!int_handle) {
@@ -1293,7 +1291,7 @@ ft5x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			return err;	
 	}
 
-	printk("==%s over =\n", __func__);
+	dprintk(DEBUG_INIT,"==%s over =\n", __func__);
 	return 0;
 
 exit_irq_request_failed:
@@ -1379,7 +1377,7 @@ static int aw_open(struct inode *inode, struct file *file)
 	//lock_kernel();	
 	i2c_dev = i2c_dev_get_by_minor(2);	
 	if (!i2c_dev)	{	
-		pr_info("error i2c_dev\n");		
+		printk("error i2c_dev\n");		
 		return -ENODEV;	
 	}	
 	adapter = i2c_get_adapter(i2c_dev->adap->nr);	
@@ -1438,7 +1436,7 @@ static const struct file_operations aw_i2c_ts_fops ={
 };
 static int ctp_get_system_config(void)
 {   
-        ctp_print_info(config_info);
+        ctp_print_info(config_info,DEBUG_INIT);
         twi_id = config_info.twi_id;
         screen_max_x = config_info.screen_max_x;
         screen_max_y = config_info.screen_max_y;
@@ -1454,8 +1452,7 @@ static int ctp_get_system_config(void)
 static int __init ft5x_ts_init(void)
 { 
 	int ret = -1;      
-	printk("****************************************************************\n");
-	printk("***%s begin!***\n",__func__);
+	dprintk(DEBUG_INIT,"****************************************************************\n");
 	if(config_info.ctp_used == 0){
 	        printk("*** ctp_used set to 0 !\n");
 	        printk("*** if use ctp,please put the sys_config.fex ctp_used set to 1. \n");
@@ -1481,7 +1478,7 @@ static int __init ft5x_ts_init(void)
 		class_destroy(i2c_dev_class);	
 	}
         ret = i2c_add_driver(&ft5x_ts_driver);
-        printk("****************************************************************\n");
+        dprintk(DEBUG_INIT,"****************************************************************\n");
 	return ret;
 }
 

@@ -672,7 +672,7 @@ static int mass_storage_function_init(struct android_usb_function *f,
         config->fsg.nluns = g_android_usb_config.luns;
      }else{
 		config->fsg.nluns = FSG_MAX_LUNS;
-        printk("err: g_android_usb_config.luns is too big, (%d, 8)\n", g_android_usb_config.luns);
+        pr_debug("err: g_android_usb_config.luns is too big, (%d, 8)\n", g_android_usb_config.luns);
     }
 
     for(i = 0; i < config->fsg.nluns; i++){
@@ -709,7 +709,7 @@ static int mass_storage_function_init(struct android_usb_function *f,
             strcpy(name, "lun");
         }
 
-        printk("lun name: %s\n", name);
+        pr_debug("lun name: %s\n", name);
 
         err = sysfs_create_link(&f->dev->kobj,
                     &common->luns[i].dev.kobj,

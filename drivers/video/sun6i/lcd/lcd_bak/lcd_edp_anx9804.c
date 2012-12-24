@@ -3,11 +3,24 @@
 
 void anx9804_init(__panel_para_t * info)
 {
-	__u8 c;
-  __s32 i;
-  __u32 count = 0;
+    __u8 c;
+    __s32 i;
+    __u32 count = 0;
+    __u32 lanes;
+    __u32 data_rate;
 
-	//HW reset
+	lanes = info->lcd_edp_tx_lane;
+    data_rate = 0x06;
+    if(info->lcd_edp_tx_rate == 1)
+    {
+        data_rate = 0x06;//1.62G
+    }
+    else if(info->lcd_edp_tx_rate == 2)
+    {
+        data_rate = 0x0a;//2.7G
+    }
+
+     //HW reset
 	lcd_iic_write(0x72, DP_TX_RST_CTRL_REG, DP_TX_RST_HW_RST);
 	LCD_delay_ms(100);
 	lcd_iic_write(0x72, DP_TX_RST_CTRL_REG, 0x00);
@@ -133,10 +146,10 @@ void anx9804_init(__panel_para_t * info)
 
 	//Select 2.7G
 	//lcd_iic_write(0x70, DP_TX_LINK_BW_SET_REG, 0x0a);
-	lcd_iic_write(0x70, DP_TX_LINK_BW_SET_REG, 0x06);	//Select 1.62G
+	lcd_iic_write(0x70, DP_TX_LINK_BW_SET_REG, data_rate);	//0x06: Select 1.62G
 
 	//Select 4 lanes
-	lcd_iic_write(0x70, DP_TX_LANE_COUNT_SET_REG, 0x04);
+	lcd_iic_write(0x70, DP_TX_LANE_COUNT_SET_REG, lanes);
 	
 	//strart link traing
 	//DP_TX_LINK_TRAINING_CTRL_EN is self clear. If link training is OK, it will self cleared.

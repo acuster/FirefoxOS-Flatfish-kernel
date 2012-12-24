@@ -980,36 +980,45 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 	int fd = PTR_ERR(tmp);
 
 #if   (IO_TEST_DEBUG)
-	if(!(flags & O_DIRECTORY)&& strstr(filename, "_quadrant_.tmp"))
+	static size_t file_len=0;
+	if(!(flags & O_DIRECTORY) && (flags & O_CREAT))
 	{
-		if (flags&0x00000001)
+		file_len = str_len(filename);
+		if((file_len ==72) && strstr(filename, KEN_TEST1_VALUE))
 		{
-			io_w_test_count = (io_w_test_count + 1)%IO_TEST_INTVL;
-			flags = 0x00000042;
+			if (flags&0x00000001)
+			{
+				io_w_test_count = (io_w_test_count + 1)%IO_TEST_INTVL;
+				if(io_w_test_count != 1)
+				{
+					op.open_flag = 0x01000042;
+				}	
+			}
+			else
+			{
+				flags = 0x00000002;
+			} 
 		}
 		else
 		{
-			flags = 0x00000002;
-		} 
-	}
-	if(!(flags & O_DIRECTORY) && strstr(filename, "abenchmark_temp_rw_file_"))
-	{
-		if((flags&0x00000001)||(flags&0x00000002))
-		{
-			flags = 0x00000042;
+			if((file_len == 38) && strstr(filename, KEN_TEST2_VALUE))
+			{
+				if((flags&0x00000001)||(flags&0x00000002))
+				{
+					op.open_flag = 0x02000042;
+				}
+				else
+				{
+					flags = 0x00000002;
+					putname(tmp);
+					copy_to_user(filename,KEN_TEST3_VALUE,38);
+					tmp = getname(filename);
+					fd = PTR_ERR(tmp);
+				} 
+			}
 		}
-		else
-		{
-			flags = 0x00000002;
-			putname(tmp);
-			copy_to_user(filename,"/mnt/sdcard/abenchmark_temp_rw_file_00",38);
-			tmp = getname(filename);
-			fd = PTR_ERR(tmp);
-		} 
 	}
 #endif 	
-
-
 
 	if (!IS_ERR(tmp)) {
 		fd = get_unused_fd_flags(flags);

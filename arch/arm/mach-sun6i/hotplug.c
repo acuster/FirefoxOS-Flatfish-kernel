@@ -25,12 +25,12 @@ static cpumask_t dead_cpus;
 
 int platform_cpu_kill(unsigned int cpu)
 {
-    int k;
+	int k;
 	u32 pwr_reg;
 
-    int tmp_cpu = get_cpu();
-    put_cpu();
-    printk("[hotplug]: cpu(%d) try to kill cpu(%d)\n", tmp_cpu, cpu);
+	int tmp_cpu = get_cpu();
+	put_cpu();
+	pr_info("[hotplug]: cpu(%d) try to kill cpu(%d)\n", tmp_cpu, cpu);
 
 	for (k = 0; k < 1000; k++) {
 		if (cpumask_test_cpu(cpu, &dead_cpus)) {
@@ -50,13 +50,13 @@ int platform_cpu_kill(unsigned int cpu)
 			 * Set the clamp control.
 			 */
 			writel(0xff, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
-			printk("[hotplug]: cpu%d is killed!\n", cpu);
+			pr_info("[hotplug]: cpu%d is killed!\n", cpu);
 
 		    return 1;
 		}
 
 		mdelay(1);
-    }
+	}
 
 	return 0;
 }
@@ -70,9 +70,9 @@ void platform_cpu_die(unsigned int cpu)
 	/* notify platform_cpu_kill() that hardware shutdown is finished */
 	cpumask_set_cpu(cpu, &dead_cpus);
 
-    while(1) {
-    	asm("wfi" : : : "memory", "cc");
-    }
+	while(1) {
+		asm("wfi" : : : "memory", "cc");
+	}
 }
 
 int platform_cpu_disable(unsigned int cpu)

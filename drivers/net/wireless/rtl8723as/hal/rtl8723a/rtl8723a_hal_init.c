@@ -752,20 +752,12 @@ s32 rtl8723a_FirmwareDownload(PADAPTER padapter)
 		}
 		else if (IS_8723A_B_CUT(pHalData->VersionID))
 		{
-         	 	if(padapter->registrypriv.mp_mode == 1)
-         	 	{
-			FwImage = (u8*)Rtl8723_FwUMCBCutMPImageArray;
-			FwImageLen = Rtl8723_UMCBCutMPImgArrayLength;
-			DBG_871X(" Rtl8723_FwUMCBCutMPImageArray for RTL8723A B CUT\n");
-			}	
-			else
-			{
-			// WLAN Fw.
+            // WLAN Fw.
 			FwImage = (u8*)Rtl8723_FwUMCBCutImageArray;
 			FwImageLen = Rtl8723_UMCBCutImgArrayLength;
 			DBG_871X(" Rtl8723_FwUMCBCutImageArray for RTL8723A B CUT\n");
-			}
-	      		pFwImageFileName = R8723FwImageFileName_UMC_B;
+
+      		pFwImageFileName = R8723FwImageFileName_UMC_B;
 		}
 		else
 		{

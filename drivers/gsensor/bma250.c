@@ -39,9 +39,9 @@
 
 
 enum {
-	DEBUG_BASE_LEVEL0 = 1U << 0,
-	DEBUG_BASE_LEVEL1 = 1U << 1,
-	DEBUG_BASE_LEVEL2 = 1U << 2,
+	DEBUG_INIT = 1U << 0,
+	DEBUG_CONTROL_INFO = 1U << 1,
+	DEBUG_DATA_INFO = 1U << 2,
 	DEBUG_SUSPEND = 1U << 3,
 };
 static u32 debug_mask = 0;
@@ -271,7 +271,7 @@ static int gsensor_fetch_sysconfig_para(void)
 	script_item_u	val;
 	script_item_value_type_e  type;
 		
-	dprintk(DEBUG_BASE_LEVEL0, "========%s===================\n", __func__);
+	dprintk(DEBUG_INIT, "========%s===================\n", __func__);
 
 	type = script_get_item("gsensor_para", "gsensor_used", &val);
  
@@ -289,7 +289,7 @@ static int gsensor_fetch_sysconfig_para(void)
 		}
 		twi_id = val.val;
 		
-		dprintk(DEBUG_BASE_LEVEL0, "%s: twi_id is %d. \n", __func__, twi_id);
+		dprintk(DEBUG_INIT, "%s: twi_id is %d. \n", __func__, twi_id);
 
 		ret = 0;
 		
@@ -628,7 +628,7 @@ static void bma250_work_func(struct work_struct *work)
 	input_report_abs(bma250->input, ABS_X, acc.x);
 	input_report_abs(bma250->input, ABS_Y, acc.y);
 	input_report_abs(bma250->input, ABS_Z, acc.z);
-	dprintk(DEBUG_BASE_LEVEL1, "acc.x %d, acc.y %d, acc.z %d\n", acc.x, acc.y, acc.z);
+	dprintk(DEBUG_DATA_INFO, "acc.x %d, acc.y %d, acc.z %d\n", acc.x, acc.y, acc.z);
 	input_sync(bma250->input);
 	mutex_lock(&bma250->value_mutex);
 	bma250->value = acc;
@@ -646,7 +646,7 @@ static ssize_t bma250_range_show(struct device *dev,
 	if (bma250_get_range(bma250->bma250_client, &data) < 0)
 		return sprintf(buf, "Read error\n");
 
-	dprintk(DEBUG_BASE_LEVEL1, "%d, %s\n", data, __FUNCTION__);
+	dprintk(DEBUG_CONTROL_INFO, "%d, %s\n", data, __FUNCTION__);
 	return sprintf(buf, "%d\n", data);
 }
 
@@ -678,7 +678,7 @@ static ssize_t bma250_bandwidth_show(struct device *dev,
 	if (bma250_get_bandwidth(bma250->bma250_client, &data) < 0)
 		return sprintf(buf, "Read error\n");
 
-	dprintk(DEBUG_BASE_LEVEL1, "%d, %s\n", data, __FUNCTION__);
+	dprintk(DEBUG_CONTROL_INFO, "%d, %s\n", data, __FUNCTION__);
 	return sprintf(buf, "%d\n", data);
 
 }
@@ -712,7 +712,7 @@ static ssize_t bma250_mode_show(struct device *dev,
 	if (bma250_get_mode(bma250->bma250_client, &data) < 0)
 		return sprintf(buf, "Read error\n");
 
-	dprintk(DEBUG_BASE_LEVEL1, "%d, %s\n", data, __FUNCTION__);
+	dprintk(DEBUG_CONTROL_INFO, "%d, %s\n", data, __FUNCTION__);
 	return sprintf(buf, "%d\n", data);
 }
 
@@ -746,7 +746,7 @@ static ssize_t bma250_value_show(struct device *dev,
 	acc_value = bma250->value;
 	mutex_unlock(&bma250->value_mutex);
 
-	dprintk(DEBUG_BASE_LEVEL1, "x=%d, y=%d, z=%d ,%s\n", acc_value.x, acc_value.y, acc_value.z, __FUNCTION__);
+	dprintk(DEBUG_CONTROL_INFO, "x=%d, y=%d, z=%d ,%s\n", acc_value.x, acc_value.y, acc_value.z, __FUNCTION__);
 	return sprintf(buf, "%d %d %d\n", acc_value.x, acc_value.y,
 			acc_value.z);
 }
@@ -757,7 +757,7 @@ static ssize_t bma250_delay_show(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bma250_data *bma250 = i2c_get_clientdata(client);
 
-	dprintk(DEBUG_BASE_LEVEL1, "%d, %s\n", atomic_read(&bma250->delay), __FUNCTION__);
+	dprintk(DEBUG_CONTROL_INFO, "%d, %s\n", atomic_read(&bma250->delay), __FUNCTION__);
 	return sprintf(buf, "%d\n", atomic_read(&bma250->delay));
 
 }
@@ -788,7 +788,7 @@ static ssize_t bma250_enable_show(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bma250_data *bma250 = i2c_get_clientdata(client);
 
-	dprintk(DEBUG_BASE_LEVEL1, "%d, %s\n", atomic_read(&bma250->enable), __FUNCTION__);
+	dprintk(DEBUG_CONTROL_INFO, "%d, %s\n", atomic_read(&bma250->enable), __FUNCTION__);
 	return sprintf(buf, "%d\n", atomic_read(&bma250->enable));
 
 }
@@ -907,9 +907,9 @@ static int bma250_probe(struct i2c_client *client,
 	int tempvalue;
 	struct bma250_data *data;
 
-	dprintk(DEBUG_BASE_LEVEL1, "bma250: probe\n");
+	dprintk(DEBUG_INIT, "bma250: probe\n");
 
-	dprintk(DEBUG_BASE_LEVEL0, "bma250 probe i2c address is %d \n",i2c_address[i2c_num]);
+	dprintk(DEBUG_INIT, "bma250 probe i2c address is %d \n",i2c_address[i2c_num]);
 	client->addr =i2c_address[i2c_num];
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -926,14 +926,14 @@ static int bma250_probe(struct i2c_client *client,
 	tempvalue = i2c_smbus_read_word_data(client, BMA250_CHIP_ID_REG);
 
 	if ((tempvalue&0x00FF) == BMA250_CHIP_ID) {
-		dprintk(DEBUG_BASE_LEVEL0, "Bosch Sensortec Device detected!\n" \
+		dprintk(DEBUG_INIT, "Bosch Sensortec Device detected!\n" \
 				"BMA250 registered I2C driver!\n");
 	} else if ((tempvalue&0x00FF) == BMA150_CHIP_ID) {
-		dprintk(DEBUG_BASE_LEVEL0, "Bosch Sensortec Device detected!\n" \
+		dprintk(DEBUG_INIT, "Bosch Sensortec Device detected!\n" \
 				"BMA150 registered I2C driver!\n");
 	}
 	else {
-		printk(KERN_INFO "Bosch Sensortec Device not found, \
+		printk("Bosch Sensortec Device not found, \
 				i2c error %d \n", tempvalue);
 		err = -1;
 		goto kfree_exit;
@@ -947,20 +947,20 @@ static int bma250_probe(struct i2c_client *client,
 	bma250_set_range(client, BMA250_RANGE_SET);
 
 	INIT_DELAYED_WORK(&data->work, bma250_work_func);
-	dprintk(DEBUG_BASE_LEVEL1, "bma: INIT_DELAYED_WORK\n");
+	dprintk(DEBUG_INIT, "bma: INIT_DELAYED_WORK\n");
 	atomic_set(&data->delay, BMA250_MAX_DELAY);
 	atomic_set(&data->enable, 0);
 	err = bma250_input_init(data);
 	if (err < 0)
 	{
-		dprintk(DEBUG_BASE_LEVEL1, "bma: bma250_input_init err\n");
+		printk("bma: bma250_input_init err\n");
 		goto kfree_exit;
 	}
 	err = sysfs_create_group(&data->input->dev.kobj,
 						 &bma250_attribute_group);
 	if (err < 0)
 	{
-		dprintk(DEBUG_BASE_LEVEL1, "bma: sysfs_create_group err\n");
+		printk("bma: sysfs_create_group err\n");
 		goto error_sysfs;
 	}
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -969,6 +969,9 @@ static int bma250_probe(struct i2c_client *client,
 	data->early_suspend.resume = bma250_late_resume;
 	register_early_suspend(&data->early_suspend);
 #endif
+	
+	dprintk(DEBUG_INIT, "bma250: probe end\n");
+
 	return 0;
 
 error_sysfs:
@@ -985,6 +988,8 @@ static void bma250_early_suspend(struct early_suspend *h)
 {
 	struct bma250_data *data =
 		container_of(h, struct bma250_data, early_suspend);
+
+	dprintk(DEBUG_SUSPEND, "bma250: early suspend\n");
 	
 	if (NORMAL_STANDBY == standby_type) {
 		mutex_lock(&data->enable_mutex);
@@ -1012,6 +1017,8 @@ static void bma250_late_resume(struct early_suspend *h)
 {
 	struct bma250_data *data =
 		container_of(h, struct bma250_data, early_suspend);
+
+	dprintk(DEBUG_SUSPEND, "bma250: late resume\n");
 
 	if (NORMAL_STANDBY == standby_type) {
 		mutex_lock(&data->enable_mutex);
@@ -1043,6 +1050,8 @@ static void bma250_late_resume(struct early_suspend *h)
 static int bma250_resume(struct i2c_client *client)
 {
 	struct bma250_data *data = i2c_get_clientdata(client);
+
+	dprintk(DEBUG_SUSPEND, "bma250: resume\n");
 	
 	if (NORMAL_STANDBY == standby_type) {
 		mutex_lock(&data->enable_mutex);
@@ -1074,6 +1083,8 @@ static int bma250_resume(struct i2c_client *client)
 static int bma250_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct bma250_data *data = i2c_get_clientdata(client);
+
+	dprintk(DEBUG_SUSPEND, "bma250: suspend\n");
 	
 	if (NORMAL_STANDBY == standby_type) {
 		mutex_lock(&data->enable_mutex);
@@ -1144,7 +1155,7 @@ static struct i2c_driver bma250_driver = {
 static int __init BMA250_init(void)
 {
 	int ret = -1;
-	dprintk(DEBUG_BASE_LEVEL1, "bma250: init\n");
+	dprintk(DEBUG_INIT, "bma250: init\n");
 	
 	if(gsensor_fetch_sysconfig_para()){
 		printk("%s: err.\n", __func__);

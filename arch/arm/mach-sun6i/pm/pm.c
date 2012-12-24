@@ -49,7 +49,7 @@
 
 #ifdef RETURN_FROM_RESUME0_WITH_NOMMU
 #define PRE_DISABLE_MMU    //actually, mean ,prepare condition to disable mmu
-#endif 
+#endif
 
 #ifdef ENTER_SUPER_STANDBY
 #undef PRE_DISABLE_MMU
@@ -65,7 +65,7 @@
 
 #ifdef WATCH_DOG_RESET
 #define PRE_DISABLE_MMU    //actually, mean ,prepare condition to disable mmu
-#endif 
+#endif
 
 //#define VERIFY_RESTORE_STATUS
 
@@ -142,7 +142,7 @@ static int clk_restore_start = 0;
 static int gpio_restore_start = 0;
 static int twi_restore_start = 0;
 static int int_restore_start = 0;
-static int tmr_restore_start = 0;	
+static int tmr_restore_start = 0;
 static int sram_restore_start = 0;
 static int late_resume_end = 0;
 #endif
@@ -180,7 +180,7 @@ static int aw_pm_valid(suspend_state_t state)
 #endif
 
     PM_DBG("valid\n");
-	
+
     if(!((state > PM_SUSPEND_ON) && (state < PM_SUSPEND_MAX))){
         PM_DBG("state (%d) invalid!\n", state);
         return 0;
@@ -195,8 +195,8 @@ static int aw_pm_valid(suspend_state_t state)
 			}
 	}
 #endif
-		
-	//if 1 == standby_mode, actually, mean mem corresponding with super standby 
+
+	//if 1 == standby_mode, actually, mean mem corresponding with super standby
 	if(PM_SUSPEND_STANDBY == state){
 		if(1 == standby_mode){
 			standby_type = NORMAL_STANDBY;
@@ -210,14 +210,14 @@ static int aw_pm_valid(suspend_state_t state)
 			standby_type = NORMAL_STANDBY;
 		}
 	}
-	
+
 #ifdef GET_CYCLE_CNT
 		// init counters:
 		init_perfcounters (1, 0);
 #endif
 
     return 1;
-	
+
 }
 
 
@@ -243,7 +243,7 @@ int aw_pm_begin(suspend_state_t state)
 #ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
 	cpufreq_user_event_notify();
 #endif
-	
+
 /*must init perfcounter, because delay_us and delay_ms is depandant perf counter*/
 #ifndef GET_CYCLE_CNT
 		backup_perfcounter();
@@ -314,7 +314,7 @@ int aw_pm_prepare_late(void)
 static int aw_early_suspend(void)
 {
 #define MAX_RETRY_TIMES (5)
-	
+
 	//backup device state
 	mem_ccu_save((__ccmu_reg_list_t *)(IO_ADDRESS(AW_CCM_BASE)));
 	mem_clk_save(&(saved_clk_state));
@@ -334,7 +334,7 @@ static int aw_early_suspend(void)
 		return -1;
 	}else{
 		retry = MAX_RETRY_TIMES;
-	}	
+	}
 
 	while(-1 == (mem_para_info.suspend_dcdc3 = mem_get_voltage(POWER_VOL_DCDC3)) && --retry){
 		;
@@ -343,7 +343,7 @@ static int aw_early_suspend(void)
 		return -1;
 	}else{
 		retry = MAX_RETRY_TIMES;
-	}	
+	}
 #endif
 
 #if 1
@@ -371,9 +371,9 @@ static int aw_early_suspend(void)
 	dmac_flush_range((void *)phys_to_virt(DRAM_BACKUP_BASE_ADDR1_PA), (void *)(phys_to_virt(DRAM_BACKUP_BASE_ADDR1_PA) + (sizeof(u32)) * DRAM_BACKUP_SIZE1));
 
 	mem_arch_suspend();
-	save_processor_state(); 
+	save_processor_state();
 
-	//create 0x0000,0000 mapping table: 0x0000,0000 -> 0x0000,0000 
+	//create 0x0000,0000 mapping table: 0x0000,0000 -> 0x0000,0000
 	create_mapping();
 
 #if 1
@@ -384,7 +384,7 @@ static int aw_early_suspend(void)
 
 	__cpuc_coherent_user_range(0x00000000, 0xc0000000-1);
 	__cpuc_coherent_kern_range(0xc0000000, 0xffffffff-1);
-#endif	
+#endif
 
 #ifdef ENTER_SUPER_STANDBY
 	//print_call_info();
@@ -403,7 +403,7 @@ static int aw_early_suspend(void)
 	}
 
 	//disable int to make sure the cpu0 into wfi state.
-	mem_int_init();	
+	mem_int_init();
 	ar100_standby_super((struct super_standby_para *)(&super_standby_para_info));
 
 	if(unlikely(debug_mask&PM_STANDBY_PRINT_STANDBY)){
@@ -412,7 +412,7 @@ static int aw_early_suspend(void)
 			printk("afer assert, reset reg val: = 0x%x. \n", readl(0xf1f01c40));
 		}
 	}
-	
+
 	asm("WFI");
 	busy_waiting();
 #endif
@@ -430,7 +430,7 @@ static int aw_early_suspend(void)
 *Return     : 0: same;
 *                -1: different;
 *
-*Notes      : 
+*Notes      :
 *********************************************************************************************************
 */
 #ifdef VERIFY_RESTORE_STATUS
@@ -438,7 +438,7 @@ static int verify_restore(void *src, void *dest, int count)
 {
 	volatile char *s = (volatile char *)src;
 	volatile char *d = (volatile char *)dest;
-	
+
 	while(count--){
 		if(*(s+(count)) != *(d+(count))){
 			//busy_waiting();
@@ -458,14 +458,14 @@ static int verify_restore(void *src, void *dest, int count)
 *
 *Return     : return 0 is process successed;
 *
-*Notes      : 
+*Notes      :
 *********************************************************************************************************
 */
 static void aw_late_resume(void)
 {
 	memcpy((void *)&mem_para_info, (void *)phys_to_virt(DRAM_BACKUP_BASE_ADDR1_PA), sizeof(mem_para_info));
 	mem_para_info.mem_flag = 0;
-	
+
 	//restore device state
 	mem_clk_restore(&(saved_clk_state));
 	mem_gpio_restore(&(saved_gpio_state));
@@ -486,7 +486,7 @@ static void aw_late_resume(void)
 *
 *Return     : return 0 is process successed;
 *
-*Notes      : 
+*Notes      :
 *********************************************************************************************************
 */
 static int aw_super_standby(suspend_state_t state)
@@ -516,7 +516,7 @@ mem_enter:
 		save_mem_status(BEFORE_LATE_RESUME |0x6);
 		goto resume;
 	}
-	
+
 	save_runtime_context(mem_para_info.saved_runtime_context_svc);
 	mem_para_info.mem_flag = 1;
 	standby_level = STANDBY_WITH_POWER_OFF;
@@ -526,7 +526,7 @@ mem_enter:
 	if(unlikely(debug_mask&PM_STANDBY_PRINT_STANDBY)){
 		pr_info("resume_pointer = 0x%x. \n", (unsigned int)(mem_para_info.resume_pointer));
 	}
-	
+
 
 	/* config cpus wakeup evetn type */
 	if(PM_SUSPEND_MEM == state || PM_SUSPEND_STANDBY == state){
@@ -545,7 +545,7 @@ mem_enter:
 		suspend_status_flag = 1;
 		goto suspend_err;
 	}
-	
+
 resume:
 	aw_late_resume();
 
@@ -555,7 +555,7 @@ resume:
 		print_call_info();
 	}
 	save_mem_status(LATE_RESUME_START |0x4);
-		
+
 	//before creating mapping, build the coherent between cache and memory
 	//clean and flush
 	__cpuc_flush_kern_all();
@@ -569,7 +569,7 @@ suspend_err:
 		pr_info("suspend_status_flag = %d. \n", suspend_status_flag);
 	}
 	save_mem_status(LATE_RESUME_START |0x5);
-	
+
 	return 0;
 
 }
@@ -591,9 +591,9 @@ static int aw_pm_enter(suspend_state_t state)
 {
 	int (*standby)(struct aw_pm_info *arg);
 	int i = 0;
-	
+
 	PM_DBG("enter state %d\n", state);
-	
+
 	if(unlikely(debug_mask&PM_STANDBY_PRINT_IO_STATUS)){
 		printk(KERN_INFO "IO status as follow:");
 		for(i=0; i<(GPIO_REG_LENGTH); i++){
@@ -601,7 +601,7 @@ static int aw_pm_enter(suspend_state_t state)
 				IO_ADDRESS(AW_PIO_BASE) + i*0x04, *(volatile __u32 *)(IO_ADDRESS(AW_PIO_BASE) + i*0x04));
 		}
 	}
-	
+
 	if(NORMAL_STANDBY== standby_type){
 		standby = (int (*)(struct aw_pm_info *arg))SRAM_FUNC_START;
 		//move standby code to sram
@@ -617,7 +617,7 @@ static int aw_pm_enter(suspend_state_t state)
 
 		standby_info.standby_para.timeout = 0;
 		standby_info.standby_para.debug_mask = debug_mask;
-		
+
 		// build the coherent between cache and memory
 		//clean and flush: the data is already in cache, so can clean the data into sram;
 		//while, in dma transfer condition, the data is not in cache, so can not use this api in dma ops.
@@ -626,23 +626,23 @@ static int aw_pm_enter(suspend_state_t state)
 
 		//config int src.
 		mem_int_init();
-		
+
 		/* goto sram and run */
 		standby(&standby_info);
-		
+
 		mem_int_exit();
 
 		PM_DBG("platform wakeup, normal standby cpu0 wakesource is:0x%x\n, normal standby cpus wakesource is:0x%x. \n", \
 			standby_info.standby_para.event, standby_info.standby_para.axp_event);
-		
+
 	}else if(SUPER_STANDBY == standby_type){
 		aw_super_standby(state);
-		
+
 		ar100_cpux_ready_notify();
-		ar100_query_wakeup_source((unsigned long *)(&(mem_para_info.axp_event)));			
+		ar100_query_wakeup_source((unsigned long *)(&(mem_para_info.axp_event)));
 		PM_DBG("platform wakeup, super standby wakesource is:0x%x\n", mem_para_info.axp_event);
 	}
-	
+
 	return 0;
 }
 
@@ -770,7 +770,7 @@ static int __init aw_pm_init(void)
 {
 	script_item_u item;
 	PM_DBG("aw_pm_init!\n");
- 
+
 	if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("pm_para", "standby_mode", &item)){
 		pr_err("%s: script_parser_fetch err. \n", __func__);
 		standby_mode = 0;
@@ -783,9 +783,6 @@ static int __init aw_pm_init(void)
 			pr_err("%s: not support super standby. \n",  __func__);
 		}
 	}
-
-	pr_err("Notice: not support super standby right now, just waiting for next version....\n");
-	standby_mode = 0;
 
 	suspend_set_ops(&aw_pm_ops);
 

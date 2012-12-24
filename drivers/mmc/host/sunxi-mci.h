@@ -307,27 +307,28 @@ struct sunxi_mmc_host {
 
 	/* irq */
 	int 		irq;
-	u32 		int_sum;
+	volatile u32	int_sum;
 
-	u32 		dodma;
-	u32 		dma_done;
+	volatile u32 	trans_done:1;
+	volatile u32 	dma_done:1;
 	dma_addr_t	sg_dma;
 	void		*sg_cpu;
 
 	struct mmc_request *mrq;
-	u32 		error;
-	u32 		ferror;
-	u32 		wait;
+	volatile u32	error;
+	volatile u32	ferror;
+	volatile u32	wait;
 #define SDC_WAIT_NONE		(1<<0)
 #define SDC_WAIT_CMD_DONE	(1<<1)
 #define SDC_WAIT_DATA_OVER	(1<<2)
 #define SDC_WAIT_AUTOCMD_DONE	(1<<3)
-#define SDC_WAIT_READ_DONE	(1<<4)
-#define SDC_WAIT_DMA_ERR	(1<<5)
+#define SDC_WAIT_DMA_DONE	(1<<4)
+#define SDC_WAIT_RXDATA_OVER	(SDC_WAIT_DATA_OVER|SDC_WAIT_DMA_DONE)
+#define SDC_WAIT_RXAUTOCMD_DONE	(SDC_WAIT_AUTOCMD_DONE|SDC_WAIT_DMA_DONE)
 #define SDC_WAIT_ERROR		(1<<6)
 #define SDC_WAIT_SWITCH1V8	(1<<7)
 #define SDC_WAIT_FINALIZE	(1<<8)
-	u32 		state;
+	volatile u32	state;
 #define SDC_STATE_IDLE		(0)
 #define SDC_STATE_SENDCMD	(1)
 #define SDC_STATE_CMDDONE	(2)

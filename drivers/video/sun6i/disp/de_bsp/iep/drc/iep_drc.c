@@ -649,11 +649,11 @@ __s32 iep_drc_suspend(__u32 sel)//save register
 {
     __u32 i,reg_val;
 #if defined(__LINUX_OSAL__)
-    drc_reg_bak[sel] = (__u32)kmalloc(sizeof(__u32)*0x60,GFP_KERNEL | __GFP_ZERO);
+    drc_reg_bak[sel] = (__u32)kmalloc(sizeof(__u32)*0x3fc,GFP_KERNEL | __GFP_ZERO);
 #endif
     if(drc_reg_bak[sel])
     {
-        for(i=0; i<0x60; i+=4)
+        for(i=0; i<0x3fc; i+=4)
         {
             //save register
             reg_val = sys_get_wvalue(DRC_EBIOS_Get_Reg_Base(sel) +i);
@@ -670,7 +670,7 @@ __s32 iep_drc_resume (__u32 sel)//restore register
 
     if(drc_reg_bak[sel])
     {
-        for(i=4; i<0x60; i+=4)
+        for(i=4; i<0x3fc; i+=4)
         {
             reg_val = sys_get_wvalue(drc_reg_bak[sel] + i);
             sys_put_wvalue(DRC_EBIOS_Get_Reg_Base(sel) + i,reg_val);

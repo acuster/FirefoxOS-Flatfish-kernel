@@ -7,6 +7,7 @@
 static struct semaphore *run_sem = NULL;
 static struct task_struct * HDMI_task;
 static __bool hdmi_used;
+static __bool b_hdmi_suspend;
 __s32 Hdmi_suspend(void);
 __s32 Hdmi_resume(void);
 
@@ -234,9 +235,14 @@ __s32 Hdmi_run_thread(void *parg)
 	{
         if(kthread_should_stop())
         {
+            pr_info("Hdmi_run_thread, hdmi suspend\n");
             break;
         }
-		Hdmi_hal_main_task();
+
+		if(!b_hdmi_suspend)
+        {
+            Hdmi_hal_main_task();
+        }
 
 		if(ghdmi.bopen)
 		{		    
@@ -295,6 +301,7 @@ __s32 Hdmi_init(void)
     script_item_value_type_e  type;
 
     hdmi_used = 0;
+    b_hdmi_suspend = 0;
     
     type = script_get_item("hdmi_para", "hdmi_used", &val);
     if(SCIRPT_ITEM_VALUE_TYPE_INT == type)
@@ -366,7 +373,8 @@ __s32 Hdmi_suspend(void)
 {
     if(hdmi_used)
     {
-        Hdmi_exit();
+        b_hdmi_suspend = 1;
+        pr_info("[HDMI]hdmi suspend\n");
     }
 
     return 0;
@@ -376,7 +384,9 @@ __s32 Hdmi_resume(void)
 {
     if(hdmi_used)
     {
-        Hdmi_init();
+        b_hdmi_suspend = 0;
+        Hdmi_hal_init();
+        pr_info("[HDMI]hdmi resume\n");
     }
 
     return  0;

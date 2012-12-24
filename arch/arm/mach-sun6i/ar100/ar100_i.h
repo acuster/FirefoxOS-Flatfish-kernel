@@ -30,4 +30,7 @@
 #include <linux/sched.h>
 #include <linux/gpio.h>
 
+//local functions
+extern int ar100_config_dram_paras(void);
+
 #endif	//__AR100_I_H__

@@ -302,7 +302,7 @@ err:
 	for (i = 0; i < ARRAY_SIZE(attributes_virtual); i++)
 		device_remove_file(&pdev->dev, attributes_virtual[i]);
 	kfree(drvdata);
-	printk("axp22 regulator  virtual get drvdata->regulator = %d err\n",drvdata->regulator);
+//	printk("axp22 regulator  virtual get drvdata->regulator = %d err\n",drvdata->regulator);
 	return ret;
 }
 

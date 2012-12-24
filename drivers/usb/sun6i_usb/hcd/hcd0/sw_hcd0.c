@@ -296,15 +296,6 @@ static __s32 pin_init(sw_hcd_io_t *sw_hcd_io)
 		sw_hcd_io->host_init_state = 1;
 	}
 
-	/* get usb_restrict_flag */
-	type = script_get_item(SET_USB0, KEY_USB_USB_RESTRICT_FLAG, &item_temp);
-	if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
-		sw_hcd_io->usb_restrict_flag = item_temp.val;
-	}else{
-		DMSG_PANIC("ERR: get usb_restrict_flag failed\n");
-		sw_hcd_io->usb_restrict_flag = 0;
-	}
-
 	/* usbc drv_vbus */
 	type = script_get_item(SET_USB0, KEY_USB_DRVVBUS_GPIO, &sw_hcd_io->drv_vbus_gpio_set);
 	if(type == SCIRPT_ITEM_VALUE_TYPE_PIO){
@@ -328,28 +319,6 @@ static __s32 pin_init(sw_hcd_io_t *sw_hcd_io)
     	}
 	}
 
-	/* usbc usb_restrict */
-	type = script_get_item("usbc0", KEY_USB_RESTRICT_GPIO, &sw_hcd_io->restrict_gpio_set);
-	if(type == SCIRPT_ITEM_VALUE_TYPE_PIO){
-		sw_hcd_io->usb_restrict_valid = 1;
-	}else{
-		DMSG_PANIC("ERR: get usbc0(usb_restrict) failed\n");
-		sw_hcd_io->usb_restrict_valid = 0;
-	}
-
-	if(sw_hcd_io->usb_restrict_valid){
-		ret = gpio_request(sw_hcd_io->restrict_gpio_set.gpio.gpio, "usb_restrict");
-		if(ret != 0){
-			DMSG_PANIC("ERR: usb_restrict gpio_request failed\n");
-			sw_hcd_io->usb_restrict_valid = 0;
-		}else{
-			/* set config, ouput */
-			sw_gpio_setcfg(sw_hcd_io->restrict_gpio_set.gpio.gpio, 1);
-
-			/* reserved is pull down */
-			sw_gpio_setpull(sw_hcd_io->restrict_gpio_set.gpio.gpio, 2);
-		}
-	}
 #else
 		sw_hcd_io->host_init_state = 1;
 
@@ -566,13 +535,6 @@ static __s32 sw_hcd_io_init(__u32 usbc_no, struct platform_device *pdev, sw_hcd_
 		ret = -ENOMEM;
 		goto io_failed1;
 	}
-	if(sw_hcd_io->usb_restrict_valid){
-		if(sw_hcd_io->usb_restrict_flag){
-			__gpio_set_value(sw_hcd_io->restrict_gpio_set.gpio.gpio, 0);
-		}else{
-			__gpio_set_value(sw_hcd_io->restrict_gpio_set.gpio.gpio, 1);
-		}
-	}
 
 	DMSG_INFO("[sw_hcd0]: host_init_state = %d\n", sw_hcd_io->host_init_state);
 
@@ -678,7 +640,7 @@ static void sw_hcd_shutdown(struct platform_device *pdev)
     DMSG_INFO_HCD0("Set aside some time to AXP\n");
 
     /* Set aside some time to AXP */
-    mdelay(100);
+    mdelay(200);
 
     DMSG_INFO_HCD0("sw_hcd shutdown end\n");
 
@@ -2306,8 +2268,8 @@ static int __init sw_hcd_init(void)
 /* make us init after usbcore and i2c (transceivers, regulators, etc)
  * and before usb gadget and host-side drivers start to register
  */
-//module_init(sw_hcd_init);
-fs_initcall(sw_hcd_init);
+module_init(sw_hcd_init);
+//fs_initcall(sw_hcd_init);
 
 /*
 *******************************************************************************

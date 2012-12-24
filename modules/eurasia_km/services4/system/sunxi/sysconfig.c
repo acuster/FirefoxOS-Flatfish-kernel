@@ -289,7 +289,7 @@ PVRSRV_ERROR SysInitialise(IMG_VOID)
 #if !defined(SGX_DYNAMIC_TIMING_INFO)
 	SGX_TIMING_INFORMATION*	psTimingInfo;
 #endif
-    printk("===zchmin, rc2, module  release test to yibang, frequency = %d\n",SYS_SGX_CORE_CLOCK_SPEED);
+	pr_debug("GPU: rc2, module  release--move power off gating to cpus, move reset to system 1223 = %d\n",SYS_SGX_CORE_CLOCK_SPEED);
 	gpsSysData = &gsSysData;
 	OSMemSet(gpsSysData, 0, sizeof(SYS_DATA));
 

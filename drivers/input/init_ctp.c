@@ -18,7 +18,7 @@ EXPORT_SYMBOL_GPL(config_info);
 
 #define CTP_IRQ_NUMBER     (config_info.irq_gpio_number)
 
-static u32 debug_mask = DEBUG_INIT;
+static u32 debug_mask = 0;
 
 #define dprintk(level_mask,fmt,arg...)    if(unlikely(debug_mask & level_mask)) \
         printk("***CTP***"fmt, ## arg)
@@ -230,17 +230,21 @@ int ctp_init_platform_resource(void)
 }
 EXPORT_SYMBOL(ctp_init_platform_resource);
 
-void ctp_print_info(struct ctp_config_info info)
+void ctp_print_info(struct ctp_config_info info,int debug_level)
 {
-        dprintk(DEBUG_INIT,"info.ctp_used:%d\n",info.ctp_used);
-        dprintk(DEBUG_INIT,"info.twi_id:%d\n",info.twi_id);
-        dprintk(DEBUG_INIT,"info.screen_max_x:%d\n",info.screen_max_x);
-        dprintk(DEBUG_INIT,"info.screen_max_y:%d\n",info.screen_max_y);
-        dprintk(DEBUG_INIT,"info.revert_x_flag:%d\n",info.revert_x_flag);
-        dprintk(DEBUG_INIT,"info.revert_y_flag:%d\n",info.revert_y_flag);
-        dprintk(DEBUG_INIT,"info.exchange_x_y_flag:%d\n",info.exchange_x_y_flag); 
-        dprintk(DEBUG_INIT,"info.irq_gpio_number:%d\n",info.irq_gpio_number);
-        dprintk(DEBUG_INIT,"info.wakeup_gpio_number:%d\n",info.wakeup_gpio_number);        
+       if(debug_level == DEBUG_INIT)
+       {
+                
+                dprintk(DEBUG_INIT,"info.ctp_used:%d\n",info.ctp_used);
+                dprintk(DEBUG_INIT,"info.twi_id:%d\n",info.twi_id);
+                dprintk(DEBUG_INIT,"info.screen_max_x:%d\n",info.screen_max_x);
+                dprintk(DEBUG_INIT,"info.screen_max_y:%d\n",info.screen_max_y);
+                dprintk(DEBUG_INIT,"info.revert_x_flag:%d\n",info.revert_x_flag);
+                dprintk(DEBUG_INIT,"info.revert_y_flag:%d\n",info.revert_y_flag);
+                dprintk(DEBUG_INIT,"info.exchange_x_y_flag:%d\n",info.exchange_x_y_flag); 
+                dprintk(DEBUG_INIT,"info.irq_gpio_number:%d\n",info.irq_gpio_number);
+                dprintk(DEBUG_INIT,"info.wakeup_gpio_number:%d\n",info.wakeup_gpio_number);  
+       }      
 }
 EXPORT_SYMBOL(ctp_print_info);
 /**
@@ -319,7 +323,7 @@ script_get_item_err:
 int ctp_wakeup(int status,int ms)
 {
        u32 gpio_status;
-       printk("***CTP*** %s:status:%d,ms = %d\n",__func__,status,ms); 
+       dprintk(DEBUG_INIT,"***CTP*** %s:status:%d,ms = %d\n",__func__,status,ms); 
         
         gpio_status = sw_gpio_getcfg(config_info.wakeup_gpio_number);
         if(gpio_status != 1){
@@ -359,7 +363,7 @@ EXPORT_SYMBOL(ctp_wakeup);
 int ctp_key_light(int status,int ms)
 {
        u32 gpio_status;
-       printk("***CTP*** %s:status:%d,ms = %d\n",__func__,status,ms); 
+       dprintk(DEBUG_INIT,"***CTP*** %s:status:%d,ms = %d\n",__func__,status,ms); 
         
         gpio_status = sw_gpio_getcfg(config_info.key_light_gpio_number);
         if(gpio_status != 1){
@@ -395,9 +399,6 @@ EXPORT_SYMBOL(ctp_key_light);
 static int __init ctp_init(void)
 {
 	int err = -1;
-	
-	printk("==ctp_init==\n");
-	printk("****************************************************************\n");
 	if (ctp_fetch_sysconfig_para()){
 	        printk("%s: ctp_fetch_sysconfig_para err.\n", __func__);
 		return 0;
@@ -407,8 +408,7 @@ static int __init ctp_init(void)
         		printk("%s:ctp_ops.init_platform_resource err. \n", __func__);    
         	}
         }
-        ctp_print_info(config_info);
-        printk("****************************************************************\n");
+        ctp_print_info(config_info,DEBUG_INIT);
         return 0;
 }
 static void __exit ctp_exit(void)

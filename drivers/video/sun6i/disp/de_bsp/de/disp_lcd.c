@@ -967,15 +967,69 @@ __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
 
         hdl = OSAL_GPIO_Request(gpio_info, 1);
         OSAL_GPIO_Release(hdl, 2);
-    }
 
-#if !defined(CONFIG_AW_ASIC_EVB_PLATFORM)
-    //pwr pd29
-    if(b_en==0)
-		*(volatile __u32*)(0xf1c20800 + 0x7c) = (*(volatile __u32*)(0xf1c20800 + 0x7c)) & (~(1<<29));
-	else
-		*(volatile __u32*)(0xf1c20800 + 0x7c) = (*(volatile __u32*)(0xf1c20800 + 0x7c)) | ( (1<<29));	
+        if((gpanel_info[sel].lcd_if == LCD_IF_EDP) && (gpanel_info[sel].lcd_edp_tx_ic == 0))
+        {
+            struct regulator *regulator1;
+
+        	regulator1 = regulator_get(NULL, "axp22_dldo3");//edp1.8V
+        	if(regulator1 != NULL || (__u32)regulator1 < 0)
+        	{
+        		if(b_en)
+                {
+                    regulator_set_voltage(regulator1, 1800000, 1800000);
+        		    if(regulator_enable(regulator1) == 0)
+                    {
+                        DE_INF("axp22_dldo3 enable ok\n");
+                    }
+                    else
+                    {
+                        DE_WRN("axp22_dldo3 enable fail \n");
+                    }
+                }
+                else
+                {
+                    if(regulator_force_disable(regulator1) == 0)
+                    {
+                        DE_INF("axp22_dldo3 disable ok\n");
+                    }
+                    else
+                    {
+                        DE_WRN("axp22_dldo3 disable fail \n");
+                    }
+                }
+                regulator_put(regulator1);
+        	}
+        	else
+        	{
+        		DE_WRN("regulator_get fail\n");
+        	}
+
+#if 0
+            printk("== regulator operation2\n");
+            regulator2 = regulator_get(NULL, "axp22_dldo1"); //柯肥涑龊虸D对应表见附件） edp2.8V
+        	if(regulator2 != NULL || (__u32)regulator2 < 0)
+        	{
+            	if(b_en)
+                {
+                    printk("== regulator get, hdl=0x%x\n", (__u32)regulator2);
+                    regulator_set_voltage(regulator2, 2800000, 2800000);//min_uV是需要的最小电压，max_uV是可接受的最大电压，min_uV=<max_uV，调电压时，是调到=min_uV的最小电压。
+            	    regulator_enable(regulator2);//打开
+                }
+                else
+                {
+                    regulator_force_disable(regulator2);//强制关闭
+                }
+
+                regulator_put(regulator2);
+            }
+            else
+            {
+                DE_WRN("regulator_get fail\n");
+            }
 #endif
+            }
+    }
     return 0;
 }
 
@@ -1200,6 +1254,7 @@ __s32 Disp_lcdc_event_proc(void *parg)
 __s32 Disp_lcdc_init(__u32 sel)
 {
     LCD_get_sys_config(sel, &(gdisp.screen[sel].lcd_cfg));
+    gdisp.screen[sel].lcd_cfg.backlight_dimming = 256;
 
     if(gdisp.screen[sel].lcd_cfg.lcd_used)
     {
@@ -1688,7 +1743,7 @@ __s32 BSP_disp_lcd_open_before(__u32 sel)
     {
         dsi_cfg(sel, (__panel_para_t*)&gpanel_info[sel]);
     }
-    //BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_LCD);
+    BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_LCD);
     DE_BE_set_display_size(sel, gpanel_info[sel].lcd_x, gpanel_info[sel].lcd_y);
     DE_BE_Output_Select(sel, sel);
 
@@ -1710,7 +1765,7 @@ __s32 BSP_disp_lcd_open_after(__u32 sel)
     gdisp.screen[sel].status |= LCD_ON;
     gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_LCD;
     Lcd_Panel_Parameter_Check(sel);
-    BSP_disp_drc_enable(sel, TRUE);
+    //BSP_disp_drc_enable(sel, TRUE);
 #ifdef __LINUX_OSAL__
     Display_set_fb_timming(sel);
 #endif
@@ -1726,7 +1781,7 @@ __s32 BSP_disp_lcd_close_befor(__u32 sel)
 {    
 	close_flow[sel].func_num = 0;
 	lcd_panel_fun[sel].cfg_close_flow(sel);
-    BSP_disp_drc_enable(sel, FALSE);
+    //BSP_disp_drc_enable(sel, FALSE);
 
 	gdisp.screen[sel].status &= LCD_OFF;
 	gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_NONE;
@@ -1767,6 +1822,8 @@ __s32 BSP_disp_lcd_set_bright(__u32 sel, __u32  bright, __u32 from_iep)
 {	    
     __u32 duty_ns;
     
+    bright = (bright > 255)? 255:bright;
+
     if((gdisp.screen[sel].lcd_cfg.lcd_pwm_used==1) && (gdisp.screen[sel].lcd_cfg.lcd_used))
     {
         if(bright != 0)
@@ -1774,13 +1831,15 @@ __s32 BSP_disp_lcd_set_bright(__u32 sel, __u32  bright, __u32 from_iep)
             bright += 1;
         }
 
+        bright = bright * 200 /256;
+
         if(gpanel_info[sel].lcd_pwm_pol == 0)
         {
             duty_ns = (bright * gdisp.screen[sel].lcd_cfg.backlight_dimming * gdisp.pwm[gdisp.screen[sel].lcd_cfg.lcd_pwm_ch].period_ns /256 + 128) / 256;
         }
         else
         {
-            duty_ns = ((256 - bright * gdisp.screen[sel].lcd_cfg.backlight_dimming/256) * gdisp.pwm[gdisp.screen[sel].lcd_cfg.lcd_pwm_ch].period_ns + 128) / 256;
+            duty_ns = (((256 - bright) * gdisp.screen[sel].lcd_cfg.backlight_dimming/256) * gdisp.pwm[gdisp.screen[sel].lcd_cfg.lcd_pwm_ch].period_ns + 128) / 256;
         }
         pwm_set_duty_ns(gdisp.screen[sel].lcd_cfg.lcd_pwm_ch, duty_ns);
    }
@@ -1795,7 +1854,13 @@ __s32 BSP_disp_lcd_set_bright(__u32 sel, __u32  bright, __u32 from_iep)
 
 __s32 BSP_disp_lcd_get_bright(__u32 sel)
 {
-    return gdisp.screen[sel].lcd_cfg.backlight_bright;	
+    __u32 bright = gdisp.screen[sel].lcd_cfg.backlight_bright;
+
+    bright = bright * 256 / 200;
+
+    bright = (bright == 0)? 0:(bright -1);
+
+    return bright;	
 }
 
 __s32 BSP_disp_set_gamma_table(__u32 sel, __u32 *gamtbl_addr,__u32 gamtbl_size)
@@ -2063,6 +2128,7 @@ EXPORT_SYMBOL(pwm_set_para);
 EXPORT_SYMBOL(pwm_get_para);
 EXPORT_SYMBOL(pwm_set_duty_ns);
 EXPORT_SYMBOL(pwm_enable);
+EXPORT_SYMBOL(lcd_get_panel_para);
 
 #endif
 

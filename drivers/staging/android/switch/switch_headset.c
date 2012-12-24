@@ -30,7 +30,7 @@
 #include <mach/irqs-sun6i.h>
 
 #undef SWITCH_DBG
-#if (1)
+#if (0)
     #define SWITCH_DBG(format,args...)  printk("[SWITCH] "format,##args)    
 #else
     #define SWITCH_DBG(...)    
@@ -269,6 +269,25 @@ err_switch_dev_register:
 
 	return ret;
 }
+static int switch_suspend(struct platform_device *pdev,pm_message_t state)
+{
+	return 0;
+}
+
+static int switch_resume(struct platform_device *pdev)
+{
+	hmic_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASEN, 0x1);
+	hmic_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASADCEN, 0x1);
+	hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_M, 0xf);/*0xf should be get from hw_debug 28*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_N, 0xf);/*0xf should be get from hw_debug 24*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_OUT_IRQ_EN, 0x1); /*20*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_IN_IRQ_EN, 0x1); /*19*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0x3, HMIC_DS_SAMP, 0x3); /*14*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH2_KEY, 0x8);/*0xf should be get from hw_debug 8*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH1_EARPHONE, 0x1);/*0x1 should be get from hw_debug 0*/
+
+	return 0;
+}
 
 static int __devexit gpio_switch_remove(struct platform_device *pdev)
 {
@@ -286,6 +305,8 @@ static struct platform_driver gpio_switch_driver = {
 		.name	= "switch-gpio",
 		.owner	= THIS_MODULE,
 	},
+	.suspend	= switch_suspend,
+	.resume		= switch_resume,
 };
 
 static struct gpio_switch_platform_data headset_switch_data = { 

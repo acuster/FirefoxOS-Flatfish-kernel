@@ -44,6 +44,7 @@
 #include <asm/unaligned.h>
 #include <mach/irqs.h>
 #include <mach/platform.h>
+#include <linux/gpio.h>
 
 #include  "../include/sw_usb_config.h"
 #include  "usb_manager.h"
@@ -60,7 +61,143 @@ static __u32 thread_stopped_flag = 1;
 #endif
 
 
+#define BUFLEN 32
 
+static __s32 ctrlio_status = -1;
+
+static int get_battery_status(void)
+{
+    struct file *filep;
+    loff_t pos;
+    char buf[BUFLEN];
+
+    filep=filp_open("/sys/class/power_supply/battery/present", O_RDONLY, 0);
+    if(IS_ERR(filep)){
+        DMSG_PANIC("open present fail\n");
+        return 0;
+    }
+
+    pos = 0;
+    vfs_read(filep, (char __user *)buf, BUFLEN, &pos);
+    filp_close(filep, 0);
+
+    if(!strncmp((const char *)buf, "0", 1))
+        return 0;
+    else
+        return 1;
+}
+
+static int get_charge_status(void)
+{
+    struct file *filep;
+    loff_t pos;
+    char buf[BUFLEN];
+
+    filep=filp_open("/sys/class/power_supply/battery/status", O_RDONLY, 0);
+    if(IS_ERR(filep)){
+        DMSG_PANIC("open status fail\n");
+        return 0;
+    }
+
+    pos = 0;
+    vfs_read(filep, (char __user *)buf, BUFLEN, &pos);
+    filp_close(filep, 0);
+
+    if(!strncmp((const char *)buf, "Charging", 8) ||
+            !strncmp((const char *)buf, "Full", 4))
+        return 1;
+    else
+        return 0;
+}
+
+static int get_voltage(void)
+{
+    struct file *filep;
+    loff_t pos;
+    char buf[BUFLEN];
+    int ret, voltage;
+
+    filep=filp_open("/sys/class/power_supply/battery/voltage_now", O_RDONLY, 0);
+    if(IS_ERR(filep)){
+        DMSG_PANIC("open voltage fail\n");
+        return 0;
+    }
+
+    pos = 0;
+    vfs_read(filep, (char __user *)buf, BUFLEN, &pos);
+    filp_close(filep, 0);
+
+    ret = sscanf(buf, "%d\n", &voltage);
+    if(ret != 1)
+        return 0;
+    else
+        return voltage;
+}
+
+static int get_capacity(void)
+{
+    struct file *filep;
+    loff_t pos;
+    char buf[BUFLEN];
+    int ret, capacity;
+
+    filep=filp_open("/sys/class/power_supply/battery/capacity", O_RDONLY, 0);
+    if(IS_ERR(filep)){
+        DMSG_PANIC("open capacity fail\n");
+        return 0;
+    }
+    pos = 0;
+    vfs_read(filep, (char __user *)buf, BUFLEN, &pos);
+    filp_close(filep, 0);
+    ret = sscanf(buf, "%d\n", &capacity);
+    if(ret != 1)
+        return 0;
+    else
+        return capacity;
+}
+
+static int set_ctrl_gpio(struct usb_cfg *cfg, int is_on)
+{
+    int ret = 0;
+    if(ctrlio_status == is_on)
+        return 0;
+    if(cfg->port[0].restrict_gpio_set.valid){
+    	DMSG_PANIC("set ctrl gpio %s\n", is_on ? "on" : "off");
+	    __gpio_set_value(cfg->port[0].restrict_gpio_set.gpio_set.gpio.gpio, is_on);
+    }
+
+    ctrlio_status = is_on;
+
+    return ret;
+}
+
+static int pin_init(struct usb_cfg *cfg)
+{
+	int ret = 0;
+
+	if(cfg->port[0].restrict_gpio_set.valid){
+		ret = gpio_request(cfg->port[0].restrict_gpio_set.gpio_set.gpio.gpio, "usb_restrict");
+		if(ret != 0){
+			DMSG_PANIC("ERR: usb_restrict gpio_request failed\n");
+			cfg->port[0].restrict_gpio_set.valid = 1;
+		}else{
+			/* set config, ouput */
+			sw_gpio_setcfg(cfg->port[0].restrict_gpio_set.gpio_set.gpio.gpio, 1);
+
+			/* reserved is pull down */
+			sw_gpio_setpull(cfg->port[0].restrict_gpio_set.gpio_set.gpio.gpio, 2);
+		}
+	}
+	return 0;
+}
+
+static int pin_exit(struct usb_cfg *cfg)
+{
+	if(cfg->port[0].restrict_gpio_set.valid){
+		gpio_free(cfg->port[0].restrict_gpio_set.gpio_set.gpio.gpio);
+	}
+	return 0;
+}
 
 /*
 *******************************************************************************
@@ -85,6 +222,13 @@ static __u32 thread_stopped_flag = 1;
 static int usb_hardware_scan_thread(void * pArg)
 {
 	struct usb_cfg *cfg = pArg;
+	__u32 voltage;
+	__u32 capacity;
+
+	/* delay for udc & hcd ready */
+	msleep(3000);
+
+	pin_init(cfg);
 
 	while(thread_run_flag){
 		DMSG_DBG_MANAGER("\n\n");
@@ -95,6 +239,28 @@ static int usb_hardware_scan_thread(void * pArg)
 		DMSG_DBG_MANAGER("\n\n");
 
 		msleep(1000);  /* 1s */
+
+		if(cfg->port[0].usb_restrict_flag){
+			if(cfg->port[0].restrict_gpio_set.valid){
+		        if(!get_battery_status()){//battery not exist
+		             set_ctrl_gpio(cfg, 1);
+		            continue;
+		        }
+
+		        if(get_charge_status()){//charging or full
+		             set_ctrl_gpio(cfg, 1);
+		            continue;
+		        }
+
+				voltage = get_voltage();
+				capacity = get_capacity();
+				if((voltage > cfg->port[0].voltage) && (capacity > cfg->port[0].capacity)){
+					set_ctrl_gpio(cfg, 1);
+				}else{
+					set_ctrl_gpio(cfg, 0);
+				}
+			}
+		}
 	}
 
 	thread_stopped_flag = 1;
@@ -158,12 +324,39 @@ static __s32 usb_script_parse(struct usb_cfg *cfg)
 			cfg->port[i].port_type = 0;
 		}
 
+		/* usbc usb_restrict_flag  */
+		type = script_get_item(set_usbc, KEY_USB_USB_RESTRICT_FLAG, &item_temp);
+		if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+			cfg->port[i].usb_restrict_flag = item_temp.val;
+		}else{
+			DMSG_PANIC("ERR: get usbc(%d) usb_restrict_flag failed\n", i);
+			cfg->port[i].usb_restrict_flag = 0;
+		}
+
+		/* usbc voltage type */
+		type = script_get_item(set_usbc, KEY_USB_USB_RESTRICT_VOLTAGE, &item_temp);
+		if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+			cfg->port[i].voltage = item_temp.val;
+		}else{
+			DMSG_PANIC("ERR: get usbc(%d) voltage  failed\n", i);
+			cfg->port[i].voltage = 0;
+		}
+
+		/* usbc capacity type */
+		type = script_get_item(set_usbc, KEY_USB_USB_RESTRICT_CAPACITY, &item_temp);
+		if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+			cfg->port[i].capacity = item_temp.val;
+		}else{
+			DMSG_PANIC("ERR: get usbc(%d)voltage failed\n", i);
+			cfg->port[i].capacity = 0;
+		}
+
 		/* usbc detect type */
 		type = script_get_item(set_usbc, KEY_USB_DETECT_TYPE, &item_temp);
 		if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
 			cfg->port[i].detect_type = item_temp.val;
 		}else{
-			DMSG_PANIC("ERR: get usbc(%d) detect type failed\n", i);
+			DMSG_PANIC("ERR: get usbc(%d) detect_type  failed\n", i);
 			cfg->port[i].detect_type = 0;
 		}
 
@@ -208,6 +401,15 @@ static __s32 usb_script_parse(struct usb_cfg *cfg)
 		}else{
 			cfg->port[i].drv_vbus.valid = 0;
 			DMSG_PANIC("ERR: get usbc(%d) det_vbus failed\n", i);
+		}
+
+		/* usbc usb_restrict */
+		type = script_get_item(set_usbc, KEY_USB_RESTRICT_GPIO, &(cfg->port[i].restrict_gpio_set.gpio_set));
+		if(type == SCIRPT_ITEM_VALUE_TYPE_PIO){
+			cfg->port[i].restrict_gpio_set.valid = 1;
+		}else{
+			DMSG_PANIC("ERR: get usbc0(usb_restrict) failed\n");
+			cfg->port[i].restrict_gpio_set.valid = 0;
 		}
 	}
 
@@ -559,6 +761,7 @@ static int __init usb_manager_init(void)
 
     usbc0_platform_device_init(&g_usb_cfg.port[0]);
 
+
 #ifdef CONFIG_USB_SW_SUN6I_USB0_OTG
     if(g_usb_cfg.port[0].port_type == USB_PORT_TYPE_OTG
        && g_usb_cfg.port[0].detect_type == USB_DETECT_TYPE_VBUS_ID){
@@ -631,6 +834,7 @@ static void __exit usb_manager_exit(void)
     		DMSG_INFO("waitting for usb_hardware_scan_thread stop\n");
     		msleep(10);
     	}
+		pin_exit(&g_usb_cfg);
     	usb_hw_scan_exit(&g_usb_cfg);
     }
 #endif

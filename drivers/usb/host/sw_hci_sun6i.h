@@ -30,8 +30,8 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 
-#define  DMSG_PRINT(stuff...)		printk(stuff)
-#define  DMSG_ERR(...)        		(DMSG_PRINT("WRN:L%d(%s):", __LINE__, __FILE__), DMSG_PRINT(__VA_ARGS__))
+#define  DMSG_ERR(format,args...)   			pr_err("[sw_hci_sun6i]: "format,##args)
+#define  DMSG_PRINT(format,args...)   	  pr_debug("[sw_hci_sun6i]: "format,##args)
 
 
 #if 0
@@ -152,7 +152,7 @@ struct sw_hci_hcd{
     __u32 used;                         /* flag. 控制器是否被使用 */
 	__u32 probe;                        /* 控制器初始化 */
 	__u32 host_init_state;				/* usb 控制器的初始化状态。0 : 不工作. 1 : 工作 */
-	__u32 usb_restrict_flag;				
+	__u32 usb_restrict_flag;
 	__u32 usbc_type;                    /* usb controller type  */
 
 	int (* open_clock)(struct sw_hci_hcd *sw_hci, u32 ohci);
