@@ -2074,6 +2074,7 @@ static int sensor_write_im(struct v4l2_subdev *sd, unsigned int addr,
 	struct i2c_msg msg;
 	unsigned char data[REG_STEP];
 	int ret;
+	unsigned int retry=0;
 	
 	data[0] = (addr&0xff00)>>8;
 	data[1] = addr&0x00ff;
@@ -2084,11 +2085,15 @@ static int sensor_write_im(struct v4l2_subdev *sd, unsigned int addr,
 	msg.len = REG_STEP;
 	msg.buf = data;
 
+sensor_write_im_transfer:
 	ret = i2c_transfer(client->adapter, &msg, 1);
 	if (ret > 0) {
 		ret = 0;
 	}
 	else if (ret < 0) {
+		if(retry<3)
+			goto sensor_write_im_transfer;
+		
 		csi_dev_err("addr = 0x%4x, value = 0x%4x\n ",addr,value);
 		csi_dev_err("sensor_write error!\n");
 	}
@@ -2766,9 +2771,9 @@ static int sensor_set_preview_exposure(struct v4l2_subdev *sd)
 	sensor_write_im(sd, 0x3501, oexposuremid);
 	sensor_write_im(sd, 0x3500, oexposurehigh);
 	
-	sensor_write_im(sd, 0x3a05, 0x3f);//max aec ratio
-	csi_dev_dbg("set max aec ratio\n");
-	schedule_delayed_work(&sensor_s_ae_ratio_work, msecs_to_jiffies(500));
+//	sensor_write_im(sd, 0x3a05, 0x3f);//max aec ratio
+//	csi_dev_dbg("set max aec ratio\n");
+//	schedule_delayed_work(&sensor_s_ae_ratio_work, msecs_to_jiffies(500));
 	return 0;
 }
 

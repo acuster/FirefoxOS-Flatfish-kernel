@@ -24,10 +24,11 @@ __u32 hsv_range_par[21] =
 
 __u32 hsv_adjust_vivid_par[16] = 
 {
-	0x00000000,0x068a0080,//Hgain_G,Sgain_G,Vgain_G
+	0x00000000,0x068a0000,//Hgain_G,Sgain_G,Vgain_G
 	0xff000000,0xff000000,0xff000000,0xff000000,0xff000000,0xff000000,0xff000000,//Hgain_L
-	0x00000000,0x00000000,0x00000010,0x00000000,0x00000000,0x00000000,0x00000000 //Sgain_L,Vgain_L
+	0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000 //Sgain_L,Vgain_L
 };
+
 
 __u32 hsv_adjust_flesh_par[16] = 
 {
@@ -153,14 +154,15 @@ __s32 IEP_CMU_Set_Imgsize(__u8 sel, __u32 width, __u32 height)
 //*****************************************************************************************************************************
 __s32 IEP_CMU_Set_Par(__u8 sel, __u32 hue, __u32 saturaion, __u32 brightness, __u32 mode)
 {
-	__u32 i,j,reg_val;
+	char primary_key[20];
+	__u32 i,j,reg_val,ret;
 	__u32 hue_g,hue_l,i_hue,i_saturaion,i_brightness;
 
 	hue_l = 41*hue-0x7FF;
 	hue_l = ((__s32)hue_l>0x7FF)?0x7FF:hue_l;
 	hue_g = hue>50?hue_l:(((41*hue+0x7FF)>0xFFF)?0xFFF:(41*hue+0x7FF));
 
-	i_hue = mode == 0?hue_g:hue_l;
+	i_hue = mode == 7?hue_g:hue_l;
 	i_saturaion = 82*saturaion-0xFFF;
 	i_brightness = 5*brightness-0xFF;
 
@@ -209,6 +211,16 @@ __s32 IEP_CMU_Set_Par(__u8 sel, __u32 hue, __u32 saturaion, __u32 brightness, __
 			CMU_WUINT32(sel,IMGEHC_CMU_GLOBAL_SVGAIN_REG_OFF, hsv_adjust_vivid_par[1]&0x1FFF01FF);
 			for(i=2, j=0; i<9; i++,j+=4)CMU_WUINT32(sel,IMGEHC_CMU_VRANGE_HLGAIN_REG0_OFF + j, hsv_adjust_vivid_par[i]&0xFFFF0FFF);
 			for(i=9, j=0; i<16; i++,j+=4)CMU_WUINT32(sel,IMGEHC_CMU_LOCAL_SVGAIN_REG0_OFF + j, hsv_adjust_vivid_par[i]&0x1FFF01FF);
+			sprintf(primary_key, "lcd%d_para", sel);
+			ret = OSAL_Script_FetchParser_Data(primary_key, "florid_color", &reg_val, 1);
+
+			if(ret < 0)break;//florid_color para not exit
+			else
+			{
+				i_saturaion = 41*reg_val;
+				i_saturaion = reg_val==50 ? 0:(reg_val >50 ? (i_saturaion - 0x7FF):((i_saturaion<<1) - 0xFFF));
+				CMU_WUINT32(sel,IMGEHC_CMU_GLOBAL_SVGAIN_REG_OFF, (i_saturaion&0x1FFF)<<16);
+			}
 			break;
 
 		case 0x9://flesh mode

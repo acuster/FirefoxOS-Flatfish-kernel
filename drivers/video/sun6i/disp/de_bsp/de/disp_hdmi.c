@@ -85,6 +85,14 @@ __s32 BSP_disp_hdmi_open(__u32 sel)
 #ifdef __LINUX_OSAL__
         Display_set_fb_timming(sel);
 #endif
+//dram ctrl config
+    if(sel == 1)
+    {
+        (*((volatile __u32 *)(0xf1c62010))=(0x00400302));
+        (*((volatile __u32 *)(0xf1c62074))=(0x00400310));
+        (*((volatile __u32 *)(0xf1c62078))=(0x00400310));
+        (*((volatile __u32 *)(0xf1c62080))=(0x00000317));
+    }
     return DIS_SUCCESS;
     }
     
@@ -118,6 +126,17 @@ __s32 BSP_disp_hdmi_close(__u32 sel)
         gdisp.screen[sel].pll_use_status &= ((gdisp.screen[sel].pll_use_status == VIDEO_PLL0_USED)? VIDEO_PLL0_USED_MASK : VIDEO_PLL1_USED_MASK);
 
         Disp_set_out_interlace(sel);
+        if(sel == 1)
+        {
+        //dram ctrl config
+            (*((volatile __u32 *)(0xf1c62010))=(0x00800302));
+            (*((volatile __u32 *)(0xf1c62014))=(0x00400307));
+            (*((volatile __u32 *)(0xf1c62018))=(0x00800302));
+            (*((volatile __u32 *)(0xf1c6201c))=(0x00400307));
+            (*((volatile __u32 *)(0xf1c62074))=(0x00010310));
+            (*((volatile __u32 *)(0xf1c62078))=(0x00010310));
+            (*((volatile __u32 *)(0xf1c62080))=(0x00000310));
+       }
 
         return DIS_SUCCESS;
     }

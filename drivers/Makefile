@@ -139,3 +139,5 @@ obj-$(CONFIG_GSENSOR)	+= gsensor/
 
 # for test
 # obj-y				+= test/
+
+obj-y				+= gpu/

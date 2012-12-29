@@ -233,6 +233,7 @@ extern __s32 BSP_disp_video_get_frame_id(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_video_get_dit_info(__u32 sel, __u32 hid, __disp_dit_info_t * dit_info);
 extern __s32 BSP_disp_video_start(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_video_stop(__u32 sel, __u32 hid);
+extern __s32 BSP_disp_video_get_start(__u32 sel, __u32 hid);
 
 extern __s32 BSP_disp_lcd_open_before(__u32 sel);
 extern __s32 BSP_disp_lcd_open_after(__u32 sel);

@@ -1121,6 +1121,7 @@ static int bma250_remove(struct i2c_client *client)
 #endif
 	sysfs_remove_group(&data->input->dev.kobj, &bma250_attribute_group);
 	bma250_input_delete(data);
+	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return 0;
 }

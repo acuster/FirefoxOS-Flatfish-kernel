@@ -612,7 +612,7 @@ typedef struct
 
 	__u32   tcon_index; //not need to config for user
 	__u32	lcd_fresh_mode;//not need to config for user
-
+	__u32   lcd_dclk_freq_original; //not need to config for user
 }__panel_para_t;
 
 
@@ -736,6 +736,14 @@ typedef struct
 }__disp_init_t;
 
 
+typedef struct
+{   
+    __u32               count;
+    int                 post2_layers;
+    __bool              use_sgx;
+    __disp_layer_info_t layer_info[4];
+}setup_dispc_data_t;
+
 typedef enum tag_DISP_CMD
 {
 //----disp global----
@@ -785,6 +793,7 @@ typedef enum tag_DISP_CMD
     DISP_CMD_GET_ENHANCE_MODE = 0x2e,
     DISP_CMD_SET_ENHANCE_WINDOW = 0X2f,
     DISP_CMD_GET_ENHANCE_WINDOW = 0X30,
+    DISP_CMD_SET_OVL_MODE = 0x31,
 
 //----layer----
     DISP_CMD_LAYER_REQUEST = 0x40,

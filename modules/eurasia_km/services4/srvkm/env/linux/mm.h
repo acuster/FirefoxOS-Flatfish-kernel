@@ -572,6 +572,33 @@ NewIONLinuxMemArea(IMG_UINT32 ui32Bytes, IMG_UINT32 ui32AreaFlags,
  ******************************************************************************/
 IMG_VOID FreeIONLinuxMemArea(LinuxMemArea *psLinuxMemArea);
 
+//#elif defined(CONFIG_ION_SUNXI)
+#elif defined(CONFIG_ION)
+
+/*!
+ *******************************************************************************
+ * @brief 
+ *
+ * @param ui32Bytes  
+ * @param ui32AreaFlags  E.g Heap caching and mapping Flags
+ *
+ * @return 
+ ******************************************************************************/
+LinuxMemArea *
+NewIONLinuxMemArea(IMG_UINT32 ui32Bytes, IMG_UINT32 ui32AreaFlags,
+                   IMG_PVOID pvPrivData, IMG_UINT32 ui32PrivDataLength);
+
+
+/*!
+ *******************************************************************************
+ * @brief 
+ *
+ * @param psLinuxMemArea  
+ *
+ * @return 
+ ******************************************************************************/
+IMG_VOID FreeIONLinuxMemArea(LinuxMemArea *psLinuxMemArea);
+
 #else /* defined(CONFIG_ION_OMAP) */
 
 static inline LinuxMemArea *

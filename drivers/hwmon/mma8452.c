@@ -168,6 +168,17 @@ static struct mma8452_status mma_status = {
 static struct input_polled_dev *mma8452_idev;
 static struct device *hwmon_dev;
 static struct i2c_client *mma8452_i2c_client;
+static atomic_t mma8452_suspend_id;
+
+static struct mutex enable_mutex;
+static struct mutex init_mutex;
+
+static void mma8452_resume_events(struct work_struct *work);
+static void mma8452_init_events(struct work_struct *work);
+struct workqueue_struct *mma8452_resume_wq;
+struct workqueue_struct *mma8452_init_wq;
+static DECLARE_WORK(mma8452_resume_work, mma8452_resume_events);
+static DECLARE_WORK(mma8452_init_work, mma8452_init_events);
 
 
 static int gsensor_fetch_sysconfig_para(void)
@@ -260,13 +271,27 @@ static ssize_t mma8452_enable_store(struct device *dev,
 	dprintk(DEBUG_CONTROL_INFO, "%s data = %ld \n", __func__, data);
 
 	if(data) {
+		mutex_lock(&init_mutex);
+		mma_status.ctl_reg1 = i2c_smbus_read_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1);
 		mma_status.ctl_reg1 |= 0x01;
 		error = i2c_smbus_write_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1, mma_status.ctl_reg1);
 		assert(error==0);
+		mutex_unlock(&init_mutex);
+
+		mutex_lock(&enable_mutex);
+		if (atomic_read(&mma8452_suspend_id) == 0)
+			mma8452_idev->input->open(mma8452_idev->input);
+		mutex_unlock(&enable_mutex);
 	} else {
+		mutex_lock(&enable_mutex);
+		mma8452_idev->input->close(mma8452_idev->input);
+		mutex_unlock(&enable_mutex);
+
+		mutex_lock(&init_mutex);
 		mma_status.ctl_reg1 = i2c_smbus_read_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1);
 		error = i2c_smbus_write_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1,mma_status.ctl_reg1 & 0xFE);
 		assert(error==0);
+		mutex_unlock(&init_mutex);
 	}
 
 	return count;
@@ -314,6 +339,9 @@ static int mma8452_init_client(struct i2c_client *client)
 {
 	int result;
 
+	dprintk(DEBUG_INIT, "mma8452 device init\n");
+
+	mutex_lock(&init_mutex);
 	mma_status.ctl_reg1 = 0x20;
 	result = i2c_smbus_write_byte_data(client, MMA8452_CTRL_REG1, mma_status.ctl_reg1);
 	assert(result==0);
@@ -325,8 +353,11 @@ static int mma8452_init_client(struct i2c_client *client)
 	mma_status.ctl_reg1 |= 0x01;
 	result = i2c_smbus_write_byte_data(client, MMA8452_CTRL_REG1, mma_status.ctl_reg1);
 	assert(result==0);
+	mutex_unlock(&init_mutex);
 	
 	mdelay(MODE_CHANGE_DELAY_MS);
+
+	dprintk(DEBUG_INIT, "mma8452 device init end\n");
 
 	return result;
 }
@@ -376,7 +407,7 @@ static void report_abs(void)
 
 	result = i2c_smbus_read_byte_data(mma8452_i2c_client, MMA8452_STATUS);
 	if (!(result & 0x08)) {
-		dprintk(DEBUG_CONTROL_INFO, "mma8452 check new data\n");
+		dprintk(DEBUG_DATA_INFO, "mma8452 check new data\n");
 		return;		/* wait for new data */
 	}
 
@@ -397,20 +428,34 @@ static void mma8452_dev_poll(struct input_polled_dev *dev)
 	report_abs();
 } 
 
+static void mma8452_resume_events (struct work_struct *work)
+{
+	mma8452_init_client(mma8452_i2c_client);
+	mutex_lock(&enable_mutex);
+	atomic_set(&mma8452_suspend_id, 0);
+	mma8452_idev->input->open(mma8452_idev->input);
+	mutex_unlock(&enable_mutex);
+}
+
 #ifdef CONFIG_HAS_EARLYSUSPEND	
 static void mma8452_early_suspend(struct early_suspend *h)
 {
 	int result;
-	struct mma8452_data *mma8452_data = container_of(h, struct mma8452_data, early_suspend);
 
 	dprintk(DEBUG_SUSPEND, "mma8452 early suspend");
 
-	mma8452_idev->input->close(mma8452_idev->input);
+	flush_workqueue(mma8452_resume_wq);
 	
-	mma8452_data = i2c_get_clientdata(mma8452_i2c_client);
+	mutex_lock(&enable_mutex);
+	atomic_set(&mma8452_suspend_id, 1);
+	mma8452_idev->input->close(mma8452_idev->input);
+	mutex_unlock(&enable_mutex);
+
+	mutex_lock(&init_mutex);
 	mma_status.ctl_reg1 = i2c_smbus_read_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1);
 	result = i2c_smbus_write_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1,mma_status.ctl_reg1 & 0xFE);
 	assert(result==0);
+	mutex_unlock(&init_mutex);
 
 	dprintk(DEBUG_SUSPEND, "mma8452 early suspend end");
 	return ;
@@ -420,21 +465,23 @@ static void mma8452_late_resume(struct early_suspend *h) //(struct i2c_client *c
 {
 	int result;
 
-	struct mma8452_data *mma8452_data = container_of(h, struct mma8452_data, early_suspend);
-	mma8452_data = i2c_get_clientdata(mma8452_i2c_client);
-
 	dprintk(DEBUG_SUSPEND, "mma8452 late resume");
 
 	if (NORMAL_STANDBY == standby_type) {
-		result = mma8452_init_client(mma8452_i2c_client);
-		if(result < 0)
-			printk("mma8452 resume init failed");
+		mutex_lock(&init_mutex);
+		mma_status.ctl_reg1 = i2c_smbus_read_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1);
+		mma_status.ctl_reg1 |= 0x01;
+		result = i2c_smbus_write_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1, mma_status.ctl_reg1);
+		assert(result==0);
+		mutex_unlock(&init_mutex);
+
+		mutex_lock(&enable_mutex);
+		atomic_set(&mma8452_suspend_id, 0);
+		mma8452_idev->input->open(mma8452_idev->input);
+		mutex_unlock(&enable_mutex);
 	} else if (SUPER_STANDBY == standby_type) {
-		result = mma8452_init_client(mma8452_i2c_client);
-		if(result < 0)
-			printk("mma8452 resume init failed");
+		queue_work(mma8452_resume_wq, &mma8452_resume_work);
 	}
-	mma8452_idev->input->open(mma8452_idev->input);
 
 	dprintk(DEBUG_SUSPEND, "mma8452 late resume end");
 	return ;
@@ -448,15 +495,20 @@ static int mma8452_resume(struct i2c_client *client)
 	dprintk(DEBUG_SUSPEND, "mma8452 resume");
 	
 	if (NORMAL_STANDBY == standby_type) {
-		result = mma8452_init_client(mma8452_i2c_client);
-		if(result < 0)
-			printk("mma8452 resume init failed");
+		mutex_lock(&init_mutex);
+		mma_status.ctl_reg1 = i2c_smbus_read_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1);
+		mma_status.ctl_reg1 |= 0x01;
+		result = i2c_smbus_write_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1, mma_status.ctl_reg1);
+		assert(result==0);
+		mutex_unlock(&init_mutex);
+
+		mutex_lock(&enable_mutex);
+		atomic_set(&mma8452_suspend_id, 0);
+		mma8452_idev->input->open(mma8452_idev->input);
+		mutex_unlock(&enable_mutex);
 	} else if (SUPER_STANDBY == standby_type) {
-		result = mma8452_init_client(mma8452_i2c_client);
-		if(result < 0)
-			printk("mma8452 resume init failed");
+		queue_work(mma8452_resume_wq, &mma8452_resume_work);
 	}
-	mma8452_idev->input->open(mma8452_idev->input);
 
 	dprintk(DEBUG_SUSPEND, "mma8452 resume end");
 	return 0;
@@ -468,17 +520,29 @@ static int mma8452_suspend(struct i2c_client *client, pm_message_t mesg)
 
 	dprintk(DEBUG_SUSPEND, "mma8452 suspend");
 
+	flush_workqueue(mma8452_resume_wq);
+	
+	mutex_lock(&enable_mutex);
+	atomic_set(&mma8452_suspend_id, 1);
 	mma8452_idev->input->close(mma8452_idev->input);
-		
+	mutex_unlock(&enable_mutex);
+
+	mutex_lock(&init_mutex);
 	mma_status.ctl_reg1 = i2c_smbus_read_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1);
 	result = i2c_smbus_write_byte_data(mma8452_i2c_client, MMA8452_CTRL_REG1,mma_status.ctl_reg1 & 0xFE);
 	assert(result==0);
+	mutex_unlock(&init_mutex);
 
 	dprintk(DEBUG_SUSPEND, "mma8452 suspend end");
 	return 0;
 }
 #endif
 #endif
+
+static void mma8452_init_events (struct work_struct *work)
+{
+	mma8452_init_client(mma8452_i2c_client);
+}
 
 static int __devinit mma8452_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
@@ -507,9 +571,17 @@ static int __devinit mma8452_probe(struct i2c_client *client,
 		goto err_detach_client;
 	}
 
+	mutex_init(&init_mutex);
+	mutex_init(&enable_mutex);
+
+	mma8452_init_wq = create_singlethread_workqueue("mma8452_init");
+	if (mma8452_init_wq == NULL) {
+		printk("create mma8452_init_wq fail!\n");
+		return -ENOMEM;
+	}
+
 	/* Initialize the MMA8452 chip */
-	result = mma8452_init_client(client);
-	assert(result==0);
+	queue_work(mma8452_init_wq, &mma8452_init_work);
 
 	hwmon_dev = hwmon_device_register(&client->dev);
 	assert(!(IS_ERR(hwmon_dev)));
@@ -536,11 +608,19 @@ static int __devinit mma8452_probe(struct i2c_client *client,
 	input_set_abs_params(idev, ABS_Y, -8192, 8191, INPUT_FUZZ, INPUT_FLAT);
 	input_set_abs_params(idev, ABS_Z, -8192, 8191, INPUT_FUZZ, INPUT_FLAT);
 	result = input_register_polled_device(mma8452_idev);
+	mma8452_idev->input->close(mma8452_idev->input);
 	if (result) {
 		dev_err(&client->dev, "register poll device failed!\n");
 		return result;
 	}
 	result = sysfs_create_group(&mma8452_idev->input->dev.kobj, &mma8452_attribute_group);
+
+	mma8452_resume_wq = create_singlethread_workqueue("mma8452_resume");
+	if (mma8452_resume_wq == NULL) {
+		printk("create mma8452_resume_wq fail!\n");
+		return -ENOMEM;
+	}
+
 #ifdef CONFIG_HAS_EARLYSUSPEND	
 	dprintk(DEBUG_INIT, "==register_early_suspend =\n");
 	mma8452_data = kzalloc(sizeof(*mma8452_data), GFP_KERNEL);
@@ -554,6 +634,7 @@ static int __devinit mma8452_probe(struct i2c_client *client,
 	mma8452_data->early_suspend.resume	= mma8452_late_resume;
 	register_early_suspend(&mma8452_data->early_suspend);
 #endif
+	atomic_set(&mma8452_suspend_id, 0);
 	dprintk(DEBUG_INIT, "mma8452 probe end\n");
 	return result;
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -566,18 +647,25 @@ err_detach_client:
 static int __devexit mma8452_remove(struct i2c_client *client)
 {
 	int result;
+	mutex_lock(&init_mutex);
 	mma_status.ctl_reg1 = i2c_smbus_read_byte_data(client, MMA8452_CTRL_REG1);
 	result = i2c_smbus_write_byte_data(client, MMA8452_CTRL_REG1,mma_status.ctl_reg1 & 0xFE);
 	assert(result==0);
+	mutex_unlock(&init_mutex);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND	
 	unregister_early_suspend(&mma8452_data->early_suspend);	
 #endif
+	cancel_work_sync(&mma8452_resume_work);
+	destroy_workqueue(mma8452_resume_wq);
 	sysfs_remove_group(&mma8452_idev->input->dev.kobj, &mma8452_attribute_group);
 	mma8452_idev->input->close(mma8452_idev->input);
 	input_unregister_polled_device(mma8452_idev);
 	input_free_polled_device(mma8452_idev);
 	hwmon_device_unregister(hwmon_dev);
+	cancel_work_sync(&mma8452_init_work);
+	destroy_workqueue(mma8452_init_wq);
+	i2c_set_clientdata(client, NULL);
 
 	return result;
 }

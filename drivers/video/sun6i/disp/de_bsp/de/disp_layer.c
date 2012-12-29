@@ -420,10 +420,12 @@ __s32 BSP_disp_layer_release(__u32 sel, __u32 hid)
                 gdisp.screen[1-sel].image_output_type = 0;
             }
           
+            //pr_warn("BSP_disp_cmu_layer_enable, ====1======sel=%d,hid=%d\n",sel,hid);
             BSP_disp_cmu_layer_enable(sel, IDTOHAND(hid),FALSE);
             disp_cmu_layer_clear(sel);
 
             Scaler_Release(layer_man->scaler_index, FALSE);      /*release a scaler object */
+            //pr_warn("BSP_disp_deu_disable, ====1======sel=%d,hid=%d\n",sel,hid);
             BSP_disp_deu_enable(sel, IDTOHAND(hid), FALSE);
             disp_deu_clear(sel, IDTOHAND(hid));
         }
@@ -454,6 +456,11 @@ __s32 BSP_disp_layer_release(__u32 sel, __u32 hid)
     DE_BE_Layer_ColorKey_Enable(sel, hid, FALSE);
 
     BSP_disp_cfg_finish(sel);
+    if(BSP_disp_video_get_start(sel,IDTOHAND(hid)))
+    {
+        //pr_warn("========bsp_disp_video_stop======,sel=%d,hid=%d\n", sel, hid);
+        BSP_disp_video_stop(sel, IDTOHAND(hid));
+    }
     
     OSAL_IrqLock(&cpu_sr);
     layer_man->para.prio = IDLE_PRIO;
@@ -773,15 +780,15 @@ __s32 BSP_disp_layer_set_screen_window(__u32 sel, __u32 hid,__disp_rect_t * regn
             outsize.width = regn->width;
 
             ret = Scaler_Set_Output_Size(layer_man->scaler_index, &outsize);
-            if(BSP_disp_cmu_layer_get_enable(sel, IDTOHAND(hid)) ==1)
-            {
-                IEP_CMU_Set_Imgsize(sel, regn->width, regn->height);
-            }
             if(ret != DIS_SUCCESS)
             {
                 DE_WRN("Scaler_Set_Output_Size fail!\n");
                 BSP_disp_cfg_finish(sel);
                 return ret;
+            }
+            if(BSP_disp_cmu_layer_get_enable(sel, IDTOHAND(hid)) ==1)
+            {
+                IEP_CMU_Set_Imgsize(sel, regn->width, regn->height);
             }
         }
         if(get_fb_type(layer_man->para.fb.format) == DISP_FB_TYPE_YUV && layer_man->para.mode != DISP_LAYER_WORK_MODE_SCALER)
@@ -930,6 +937,7 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,__disp_layer_info_t *player)
             {
                 scaler->out_fb.seq= DISP_SEQ_P3210;
                 scaler->out_fb.format= DISP_FORMAT_YUV444;
+                scaler->out_fb.mode = DISP_MOD_NON_MB_PLANAR;
             }else
             {
                 scaler->out_fb.seq= DISP_SEQ_ARGB;

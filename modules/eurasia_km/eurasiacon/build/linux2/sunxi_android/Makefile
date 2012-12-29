@@ -39,14 +39,15 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ### ###########################################################################
 ############
-#ANDROID_ROOT = $(HOME)/exdroid/android4.1
-#DISCIMAGE =$(HOME)/exdroid/android4.1/out/target/product/fiber-evb
-#KERNELDIR = $(HOME)/exdroid/lichee/linux-3.3/
-#TOOLCHAIN = $(HOME)/exdroid/lichee/buildroot/output/external-toolchain/
+TARGET_PRODUCT := fiber-evb
+ANDROID_ROOT = ../../../../../../../../android
+DISCIMAGE =$(ANDROID_ROOT)/out/target/product/$(TARGET_PRODUCT)
+LICHEE_KDIR = ../../../../../../../../lichee
+KERNELDIR = $(LICHEE_KDIR)/linux-3.3/
+TOOLCHAIN = $(LICHEE_KDIR)/buildroot/output/external-toolchain/
 CROSS_COMPILE := arm-linux-gnueabi-
 KERNEL_CROSS_COMPILE :=arm-linux-gnueabi-
 ARCH=arm
-TARGET_PRODUCT := fiber-evb
 
 #
 #

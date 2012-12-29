@@ -1032,18 +1032,12 @@ static int Fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
     return 0;
 }
 
-__s32 DRV_disp_int_process(__u32 sel)
-{
-    g_fbi.wait_count[sel]++;
-    wake_up_interruptible(&g_fbi.wait[sel]);
-
-    return 0;
-}
-
 __s32 DRV_disp_vsync_event(__u32 sel)
 {
     g_fbi.vsync_timestamp[sel] = ktime_get();
+
     schedule_work(&g_fbi.vsync_work[sel]);
+
     return 0;
 }
 
@@ -1069,7 +1063,180 @@ static void send_vsync_work_1(struct work_struct *work)
 	kobject_uevent_env(&g_fbi.dev->kobj, KOBJ_CHANGE, envp);
 }
 
+static void lcd_open_work_0(struct work_struct *work)
+{
+	DRV_lcd_open(0);
+}
 
+static void lcd_open_work_1(struct work_struct *work)
+{
+	DRV_lcd_open(1);
+}
+
+__s32 DRV_disp_int_process(__u32 sel)
+{
+    g_fbi.wait_count[sel]++;
+    wake_up_interruptible(&g_fbi.wait[sel]);
+
+	if(sel == 0 && (g_fbi.cb_w_conut != g_fbi.cb_r_conut))
+	{
+		schedule_work(&g_fbi.post2_cb_work);
+	}
+
+    return 0;
+}
+
+static void post2_cb(struct work_struct *work)
+{
+    while(g_fbi.cb_r_conut != g_fbi.cb_w_conut)
+    {
+        if(g_fbi.cb_r_conut >= 9)
+        {
+           g_fbi.cb_r_conut = 0; 
+        }
+        else
+        {
+            g_fbi.cb_r_conut++;
+        }
+
+        if(g_fbi.cb_arg[g_fbi.cb_r_conut] != 0)
+        {
+            g_fbi.cb_fn(g_fbi.cb_arg[g_fbi.cb_r_conut], 1);
+            g_fbi.cb_arg[g_fbi.cb_r_conut] = 0;
+        }
+    }
+    
+    //printk(KERN_WARNING "##post2_cb cb_arg:%x r_count:%d\n", (__u32)g_fbi.cb_arg[g_fbi.cb_r_conut], g_fbi.cb_r_conut);
+}
+
+static struct mutex ovl_mtx;
+
+//mode 0: fb only; 1:(fb+)ovl; 2:fb+video
+int disp_set_ovl_mode(__u32 sel, __u32 mode, __u32 count)
+{
+    mutex_lock(&ovl_mtx);
+    
+	if(g_fbi.ovl_mode == 0)//fb only
+	{
+		if(mode == 1)//(fb+)ovl
+		{
+		    printk(KERN_WARNING "ovl mode:%d->%d", g_fbi.ovl_mode,mode);
+			g_fbi.ovl_mode = mode;
+		}
+		else if(mode == 2)
+		{
+		    printk(KERN_WARNING "ovl mode:%d->%d", g_fbi.ovl_mode,mode);
+		    g_fbi.ovl_mode = mode;
+		}
+	}
+	else if(g_fbi.ovl_mode == 1)//(fb+)ovl
+	{
+		if(mode == 0 && count>=(g_fbi.cb_count+5))//fb only
+		{
+			BSP_disp_layer_release(0, 101);
+			BSP_disp_layer_release(0, 102);
+			BSP_disp_layer_release(0, 103);
+
+	    	BSP_disp_layer_open(0, 100);
+	        BSP_disp_layer_alpha_enable(0, 100, 1);
+	        BSP_disp_layer_set_top(0, 100);
+			printk(KERN_WARNING "ovl mode:%d->%d", g_fbi.ovl_mode,mode);
+			g_fbi.ovl_mode = mode;
+			g_fbi.b_ovl_request = 0;
+		}
+		else if(mode == 2)//fb+video
+		{
+			BSP_disp_layer_release(0, 101);
+			BSP_disp_layer_release(0, 102);
+			BSP_disp_layer_release(0, 103);
+
+	    	BSP_disp_layer_open(0, 100);
+	        BSP_disp_layer_alpha_enable(0, 100, 0);
+	        BSP_disp_layer_set_top(0, 100);
+			printk(KERN_WARNING "ovl mode:%d->%d", g_fbi.ovl_mode,mode);
+			g_fbi.ovl_mode = mode;
+			g_fbi.b_ovl_request = 0;
+		}
+	}
+	else if(g_fbi.ovl_mode == 2)//fb+video
+	{
+		if(mode == 1)//(fb+)ovl
+		{
+			printk(KERN_WARNING "ovl mode:%d->%d", g_fbi.ovl_mode,mode);
+			g_fbi.ovl_mode = mode;
+		}
+		else if(mode == 0)
+		{
+		    printk(KERN_WARNING "ovl mode:%d->%d", g_fbi.ovl_mode,mode);
+		    g_fbi.ovl_mode = mode;
+		}
+	}
+	mutex_unlock(&ovl_mtx);
+	
+	return 0;
+}
+
+int dispc_gralloc_queue(setup_dispc_data_t *psDispcData, int ui32DispcDataLength, void (*cb_fn)(void *, int), void *cb_arg)
+{
+    __disp_layer_info_t         layer_info;
+    int i = 0;
+	
+    if(g_fbi.ovl_mode == 1)
+    {
+        for(i=0; i<3; i++)
+        {
+            int hdl = 101 + i;
+            
+            if(i < psDispcData->post2_layers)
+            {            
+                memcpy(&layer_info, &psDispcData->layer_info[i], sizeof(__disp_layer_info_t));
+                if(g_fbi.b_ovl_request == 0)
+                {
+                    BSP_disp_layer_request(0, DISP_LAYER_WORK_MODE_NORMAL);
+                    BSP_disp_layer_request(0, DISP_LAYER_WORK_MODE_NORMAL);
+                    BSP_disp_layer_request(0, DISP_LAYER_WORK_MODE_NORMAL);
+                    g_fbi.b_ovl_request = 1;
+                }
+
+                BSP_disp_layer_set_para(0, hdl, &layer_info);
+                BSP_disp_layer_open(0, hdl);
+                BSP_disp_layer_set_top(0, hdl);
+            }
+            else
+            {
+                BSP_disp_layer_close(0, hdl);
+            }
+        }
+    
+	    if(psDispcData->use_sgx)
+	    {
+	    	BSP_disp_layer_open(0, 100);
+	        BSP_disp_layer_set_top(0, 100);
+	        BSP_disp_layer_alpha_enable(0, 100, 0);
+	    }
+	    else
+		{
+			BSP_disp_layer_close(0, 100);
+		}
+    }
+
+	g_fbi.cb_fn = cb_fn;
+
+	if(g_fbi.cb_w_conut >= 9)
+	{
+	   g_fbi.cb_w_conut = 0; 
+	}
+	else
+	{
+	    g_fbi.cb_w_conut++;
+	}
+	g_fbi.cb_arg[g_fbi.cb_w_conut] = cb_arg;
+	g_fbi.cb_count = psDispcData->count;
+
+	//printk(KERN_WARNING "##dispc_gralloc_queue cb_arg:%x cb_w_conut:%d use_sgx:%d post2_layers:%d\n", (__u32)cb_arg, g_fbi.cb_w_conut, psDispcData->use_sgx, psDispcData->post2_layers);
+
+    return 0;
+}
 
 static int Fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 {
@@ -1389,6 +1556,14 @@ __s32 Fb_Init(__u32 from)
     __bool need_open_hdmi = 0;
 
     pr_info("[DISP]==Fb_Init==\n");
+
+    INIT_WORK(&g_fbi.vsync_work[0], send_vsync_work_0);
+    INIT_WORK(&g_fbi.vsync_work[1], send_vsync_work_1);
+    INIT_WORK(&g_fbi.post2_cb_work, post2_cb);
+    INIT_WORK(&g_fbi.lcd_open_work[0], lcd_open_work_0);
+    INIT_WORK(&g_fbi.lcd_open_work[1], lcd_open_work_1);
+    mutex_init(&ovl_mtx);
+    
     if(from == 0)//call from lcd driver
     {
 #if 0//#ifdef FB_RESERVED_MEM
@@ -1435,16 +1610,6 @@ __s32 Fb_Init(__u32 from)
             register_framebuffer(g_fbi.fbinfo[i]);
         }
         parser_disp_init_para(&(g_fbi.disp_init));
-#if 0//def __FPGA_DEBUG__
-    g_fbi.disp_init.b_init = 1;
-    g_fbi.disp_init.disp_mode = 0;
-    g_fbi.disp_init.output_type[0] = 1;
-    g_fbi.disp_init.tv_mode[0] = 2;
-    g_fbi.disp_init.scaler_mode[0] = 0;
-    g_fbi.disp_init.buffer_num[0] = 3;
-    g_fbi.disp_init.format[0] = 0xa;
-    g_fbi.disp_init.seq[0] = 0;
-#endif
     }
 
 
@@ -1483,7 +1648,8 @@ __s32 Fb_Init(__u32 from)
             {
                 if(g_fbi.disp_init.output_type[sel] == DISP_OUTPUT_TYPE_LCD)
                 {
-                    DRV_lcd_open(sel);
+                    //DRV_lcd_open(sel);
+                    schedule_work(&g_fbi.lcd_open_work[sel]);
                 }
                 else if(g_fbi.disp_init.output_type[sel] == DISP_OUTPUT_TYPE_TV)
                 {
@@ -1598,8 +1764,6 @@ __s32 Fb_Init(__u32 from)
         BSP_disp_print_reg(0, DISP_REG_PIOC); 
     }
 
-    INIT_WORK(&g_fbi.vsync_work[0], send_vsync_work_0);
-    INIT_WORK(&g_fbi.vsync_work[1], send_vsync_work_1);
 
 	return 0;
 }
@@ -1627,4 +1791,5 @@ __s32 Fb_Exit(void)
 }
 
 EXPORT_SYMBOL(Fb_Init);
+EXPORT_SYMBOL(dispc_gralloc_queue);
 

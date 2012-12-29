@@ -100,6 +100,10 @@ static void sun6i_fixup(struct tag *tags, char **from,
 	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
 	/* for standby: 0x4600,0000-0x4600,0000+1k; */
 	memblock_reserve(SUPER_STANDBY_MEM_BASE, SUPER_STANDBY_MEM_SIZE);
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+	/* for ion carveout heap */
+	memblock_reserve(ION_CARVEOUT_MEM_BASE, ION_CARVEOUT_MEM_SIZE);
+#endif
 
 	meminfo->nr_banks = 2;
 }

@@ -143,4 +143,6 @@ source "drivers/gsensor/Kconfig"
 # for test
 # source "drivers/test/Kconfig"
 
+source "drivers/gpu/Kconfig"
+
 endmenu

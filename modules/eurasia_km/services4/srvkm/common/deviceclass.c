@@ -1657,7 +1657,7 @@ PVRSRV_ERROR PVRSRVSwapToDCBufferKM(IMG_HANDLE	hDeviceKM,
 	PVRSRV_KERNEL_SYNC_INFO *apsSrcSync[2];
 	PVRSRV_COMMAND *psCommand;
 	SYS_DATA *psSysData;
-
+	    
 	if(!hDeviceKM || !hBuffer || !psClipRect)
 	{
 		PVR_DPF((PVR_DBG_ERROR,"PVRSRVSwapToDCBufferKM: Invalid parameters"));
@@ -1702,6 +1702,7 @@ PVRSRV_ERROR PVRSRVSwapToDCBufferKM(IMG_HANDLE	hDeviceKM,
 		apsSrcSync[1] = psBuffer->psSwapChain->psLastFlipBuffer->sDeviceClassBuffer.psKernelSyncInfo;
 		ui32NumSrcSyncs++;
 	}
+
 
 	/* insert the command (header) */
 	eError = PVRSRVInsertCommandKM (psQueue,
@@ -1817,12 +1818,21 @@ static IMG_VOID FreePrivateData(IMG_HANDLE hCallbackData)
 {
 	CALLBACK_DATA *psCallbackData = hCallbackData;
 
-	OSFreeMem(PVRSRV_OS_PAGEABLE_HEAP, psCallbackData->ui32PrivDataLength,
-			  psCallbackData->pvPrivData, IMG_NULL);
-	OSFreeMem(PVRSRV_OS_PAGEABLE_HEAP,
-			  sizeof(IMG_VOID *) * psCallbackData->ui32NumMemInfos,
-			  psCallbackData->ppvMemInfos, IMG_NULL);
-	OSFreeMem(PVRSRV_OS_PAGEABLE_HEAP, sizeof(CALLBACK_DATA), hCallbackData, IMG_NULL);
+    if(psCallbackData->ui32NumMemInfos && psCallbackData->ui32NumMemInfos<10)
+    {
+    	OSFreeMem(PVRSRV_OS_PAGEABLE_HEAP, psCallbackData->ui32PrivDataLength,
+    			  psCallbackData->pvPrivData, IMG_NULL);
+    	OSFreeMem(PVRSRV_OS_PAGEABLE_HEAP,
+    			  sizeof(IMG_VOID *) * psCallbackData->ui32NumMemInfos,
+    			  psCallbackData->ppvMemInfos, IMG_NULL);
+    	OSFreeMem(PVRSRV_OS_PAGEABLE_HEAP, sizeof(CALLBACK_DATA), hCallbackData, IMG_NULL);
+	}
+	else
+	{
+		printk(KERN_WARNING "###FreePrivateData %x %x %x %x %x", 
+	        (unsigned int)psCallbackData->ui32PrivDataLength,(unsigned int)psCallbackData->pvPrivData,
+	        (unsigned int)psCallbackData->ui32NumMemInfos, (unsigned int)psCallbackData->ppvMemInfos, (unsigned int)hCallbackData);
+	}
 }
 
 IMG_EXPORT
@@ -1846,6 +1856,8 @@ PVRSRV_ERROR PVRSRVSwapToDCBuffer2KM(IMG_HANDLE	hDeviceKM,
 	PVRSRV_COMMAND *psCommand;
 	IMG_PVOID *ppvMemInfos;
 	SYS_DATA *psSysData;
+	
+	//printk(KERN_WARNING "PVRSRVSwapToDCBuffer2KM %d\n", ui32NumMemSyncInfos);
 
 	if(!hDeviceKM || !hSwapChain || !ppsMemInfos || !ppsSyncInfos || ui32NumMemSyncInfos < 1)
 	{
@@ -1930,10 +1942,26 @@ PVRSRV_ERROR PVRSRVSwapToDCBuffer2KM(IMG_HANDLE	hDeviceKM,
 		OSMemCopy(ppsCompiledSyncInfos, ppsSyncInfos, sizeof(PVRSRV_KERNEL_SYNC_INFO *) * ui32NumMemSyncInfos);
 		for(j = 0, i = ui32NumMemSyncInfos; j < psSwapChain->ui32LastNumSyncInfos; j++)
 		{
-			if(psSwapChain->ppsLastSyncInfos[j])
+			if((unsigned int)psSwapChain->ppsLastSyncInfos[j] > 0xc0000000)
 			{
 				ppsCompiledSyncInfos[i] = psSwapChain->ppsLastSyncInfos[j];
-				i++;
+                if((unsigned int)ppsCompiledSyncInfos[i]->psSyncData < 0xc0000000 || 
+                    (unsigned int)ppsCompiledSyncInfos[i]->pvRefCount < 0xc0000000)
+                    //(unsigned int)ppsCompiledSyncInfos[i]->psSyncDataMemInfoKM)
+                {
+                    printk(KERN_WARNING "####ppsCompiledSyncInfos[i]->psSyncData=0x%x in %s\n", (unsigned int)ppsCompiledSyncInfos[i]->psSyncData, __FUNCTION__);
+                    printk(KERN_WARNING "####ppsCompiledSyncInfos[i]->pvRefCount=0x%x in %s\n", (unsigned int)ppsCompiledSyncInfos[i]->pvRefCount, __FUNCTION__);
+                    ui32NumCompiledSyncInfos--;
+                }
+                else
+                {
+                    i++;
+                }
+			}
+			else
+			{
+			    //printk(KERN_WARNING "####psSwapChain->ppsLastSyncInfos[j]=0x%x in %s\n", (unsigned int)psSwapChain->ppsLastSyncInfos[j], __FUNCTION__);
+			    //ui32NumCompiledSyncInfos--;
 			}
 		}
 	}

@@ -24,16 +24,16 @@
 
 //for internel driver debug
 #if(DBG_EN==1)		
-#define csi_dbg(l,x,arg...) if(l <= DBG_LEVEL) printk("[CSI_DEBUG]"x,##arg)
+#define csi_dbg(l,x,arg...) if(l <= DBG_LEVEL) printk(KERN_DEBUG"[CSI_DEBUG]"x,##arg)
 #else
 #define csi_dbg(l,x,arg...) 
 #endif
 
 //print when error happens
-#define csi_err(x,arg...) printk("[CSI_ERR]"x,##arg)
+#define csi_err(x,arg...) printk(KERN_ERR"[CSI_ERR]"x,##arg)
 
 //print unconditional, for important info
-#define csi_print(x,arg...) printk("[CSI]"x,##arg)
+#define csi_print(x,arg...) printk(KERN_INFO"[CSI]"x,##arg)
 
 #define MAX_NUM_INPUTS 2
 
@@ -389,6 +389,8 @@ struct csi_dev {
 	
 	spinlock_t              slock;
 	struct mutex						standby_lock;
+	//up when suspend,down when resume. ensure open is being called after resume has been done
+	struct semaphore        standby_seq_sema;   
 	/* various device info */
 	struct video_device     *vfd;
 
@@ -415,6 +417,7 @@ struct csi_dev {
 	
 	/* work queue */
 	struct work_struct resume_work;
+	struct delayed_work probe_work;
 	
 	/*pin,clock,irq resource*/
 	//int								csi_pin_hd;

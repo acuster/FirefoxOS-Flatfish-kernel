@@ -431,19 +431,19 @@ __s32 dsi_dphy_cfg(__u32 sel,__panel_para_t * panel)
 {
 	__disp_dsi_dphy_timing_t* dphy_timing_p;
 	__disp_dsi_dphy_timing_t dphy_timing_cfg1 = {
-			14,	//lp_clk_div
-			10,	//hs_prepare
-			5,	//hs_trail
-			4,	//clk_prepare
-			50,	//clk_zero
-			3,	//clk_pre
-			50,	//clk_post
-			20,	//clk_trail
-			0,	//hs_dly_mode
-			10,	//hs_dly
-			3,	//lptx_ulps_exit
-			3,	//hstx_ana1
-			3,	//hstx_ana0
+        14, //lp_clk_div        100ns
+        6,  //hs_prepare        70ns
+        10, //hs_trail          100ns
+        7,  //clk_prepare       70ns
+        50, //clk_zero          300ns
+        3,  //clk_pre
+        10, //clk_post          400*6.734 for nop inst  2.5us
+        30, //clk_trail         200ns
+        0,  //hs_dly_mode
+        10, //hs_dly
+        3,  //lptx_ulps_exit
+        3,  //hstx_ana1
+        3,  //hstx_ana0
 	};	
 
 	dphy_dev[sel]->dphy_gctl.bits.module_en = 0;

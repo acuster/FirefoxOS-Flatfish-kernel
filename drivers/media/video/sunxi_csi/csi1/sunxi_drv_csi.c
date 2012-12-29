@@ -1407,7 +1407,10 @@ altend:
 recover:
 	/*Power down target device*/
 	if (dev->input == -1) {
-		dev->input = (i ==0 ? 1 : 0 );
+        if(dev->dev_qty == 1)
+			goto altend;
+		else
+			dev->input = (i ==0 ? 1 : 0 );
 	}
 	ret = v4l2_subdev_call(dev->sd,core, s_power, CSI_SUBDEV_STBY_ON);
 	if(ret < 0)
@@ -1564,6 +1567,8 @@ static unsigned int csi_poll(struct file *file, struct poll_table_struct *wait)
 static int csi_open(struct file *file)
 {
 	struct csi_dev *dev = video_drvdata(file);
+
+	down(&dev->standby_seq_sema);
 	
 	csi_dbg(0,"csi_open\n");
 
@@ -1581,6 +1586,8 @@ static int csi_open(struct file *file)
 	bsp_csi_set_offset(dev->cur_ch,0,0);//h and v offset is initialed to zero
 	dev->opened = 1;
 	dev->fmt = &formats[5]; //default format
+
+	up(&dev->standby_seq_sema);
 	return 0;		
 }
 
@@ -2131,21 +2138,116 @@ static int csi_gpio_release(int cnt)
 
 static void resume_work_handle(struct work_struct *work);
 
+static void probe_work_handle(struct work_struct *work)
+{
+	struct csi_dev *dev= container_of(work, struct csi_dev, probe_work.work);
+	int ret = 0;
+	int input_num;
+	
+	csi_print("probe_work_handle start!\n");
+
+	/* power on and power off device */
+	for(input_num = 0; input_num < dev->dev_qty; input_num++)
+	{
+		/*power issue*/
+		dev->ccm_cfg[input_num]->iovdd = NULL;
+		dev->ccm_cfg[input_num]->avdd = NULL;
+		dev->ccm_cfg[input_num]->dvdd = NULL;
+		
+		if(strcmp(dev->ccm_cfg[input_num]->iovdd_str,"")) {
+			dev->ccm_cfg[input_num]->iovdd = regulator_get(NULL, dev->ccm_cfg[input_num]->iovdd_str);//"axp22_eldo3"
+			//printk("get regulator csi_iovdd = 0x%x\n",dev->ccm_cfg[input_num]->iovdd);
+			if (dev->ccm_cfg[input_num]->iovdd == NULL) {
+				csi_err("get regulator csi_iovdd error!input_num = %d\n",input_num);
+				//goto free_dev;
+			}
+			else {
+				int vret;
+				uint vol=dev->ccm_cfg[input_num]->vol_iovdd;
+				if(vol>3300) {
+					vol=3300;
+					csi_print("csi iovdd force 3V3\n");
+				} else if(vol<1800) {
+					vol=1800;
+					csi_print("csi iovdd force 1V8\n");
+				}
+				dev->ccm_cfg[input_num]->vol_iovdd=vol;
+				vret=regulator_set_voltage(dev->ccm_cfg[input_num]->iovdd, vol*1000, 3300*1000);
+				csi_dbg(0,"set regulator csi_iovdd[%d] = 0x%x\n",vol,vret);
+			}
+		}
+		
+		if(strcmp(dev->ccm_cfg[input_num]->avdd_str,"")) {
+			dev->ccm_cfg[input_num]->avdd = regulator_get(NULL, dev->ccm_cfg[input_num]->avdd_str);
+			if (dev->ccm_cfg[input_num]->avdd == NULL) {
+				csi_err("get regulator csi_avdd error!input_num = %d\n",input_num);
+				//goto free_dev;
+			}
+			else {
+				int vret;
+				uint vol=dev->ccm_cfg[input_num]->vol_avdd;
+				if(vol>3300) {
+					vol=3300;
+					csi_print("csi avdd force 3V3\n");
+				} else if(vol<2800) {
+					vol=2800;
+					csi_print("csi avdd force 2V8\n");
+				}
+				dev->ccm_cfg[input_num]->vol_avdd=vol;
+				vret=regulator_set_voltage(dev->ccm_cfg[input_num]->avdd, vol*1000, 3300*1000);
+				csi_dbg(0,"set regulator csi_avdd[%d] = 0x%x\n",vol,vret);
+			}
+		}
+		
+		if(strcmp(dev->ccm_cfg[input_num]->dvdd_str,"")) {
+			dev->ccm_cfg[input_num]->dvdd = regulator_get(NULL, dev->ccm_cfg[input_num]->dvdd_str);
+			if (dev->ccm_cfg[input_num]->dvdd == NULL) {
+				csi_err("get regulator csi_dvdd error!input_num = %d\n",input_num);
+				//goto free_dev;
+			}
+			else {
+				int vret;
+				uint vol=dev->ccm_cfg[input_num]->vol_dvdd;
+				if(vol>2000) {
+					vol=2000;
+					csi_print("csi dvdd force 2V0\n");
+				} else if(vol<1200) {
+					vol=1200;
+					csi_print("csi dvdd force 1V2\n");
+				}
+				dev->ccm_cfg[input_num]->vol_dvdd=vol;
+				vret=regulator_set_voltage(dev->ccm_cfg[input_num]->dvdd, vol*1000, 2000*1000);
+				csi_dbg(0,"set regulator csi_dvdd[%d] = 0x%x\n",vol,vret);
+			}
+		}
+
+
+	  ret = update_ccm_info(dev, dev->ccm_cfg[input_num]);
+      if(ret<0)
+        csi_err("Error when set ccm info when probe!\n");
+    
+	  csi_print("power on and standy on camera %d!\n",input_num);
+	  csi_clk_out_set(dev);
+	  v4l2_subdev_call(dev->ccm_cfg[input_num]->sd,core, s_power, CSI_SUBDEV_PWR_ON);
+	  v4l2_subdev_call(dev->ccm_cfg[input_num]->sd,core, s_power, CSI_SUBDEV_STBY_ON);
+	}
+	
+	csi_print("probe_work_handle end!\n");
+}
+
 static int csi_probe(struct platform_device *pdev)
 {
 	struct csi_dev *dev;
 	struct resource *res;
 	struct video_device *vfd;
 	struct i2c_adapter *i2c_adap;
-	
 	script_item_u   *gpio_list=NULL;
   //script_item_value_type_e  type;
 	int cnt;
 	int i;
-	
 	int ret = 0;
 	int input_num;
-
+	
 	csi_dbg(0,"csi_probe\n");
 	/*request mem for dev*/	
 	dev = kzalloc(sizeof(struct csi_dev), GFP_KERNEL);
@@ -2179,7 +2281,7 @@ static int csi_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err_req_region;
 	}
-	
+	csi_dbg(0,"csi_base = %x\n",(unsigned int)dev->regs);
 	bsp_csi_set_base_addr((unsigned int)dev->regs);
   
   /*get irq resource*/
@@ -2212,7 +2314,7 @@ static int csi_probe(struct platform_device *pdev)
 		goto err_irq;
 	} else {
 	  /* request gpio */
-	  csi_print("csi1 pin request...\n");
+	  csi_dbg(0,"csi1 pin request...\n");
   	for(i = 0; i < cnt; i++)
   	{
   	  //printk("request gpio cnt=%d, i=%d\n", cnt, i);
@@ -2254,7 +2356,6 @@ static int csi_probe(struct platform_device *pdev)
 	dev_set_drvdata(&(pdev)->dev, (dev));
 	
 	/* fetch sys_config1 */
-
 	ret = fetch_config(dev);
 	if (ret) {
 		csi_err("Error at fetch_config\n");
@@ -2333,78 +2434,6 @@ reg_sd:
 		{
 			csi_err("Error when set ccm info,input_num = %d,use default!\n",input_num);
 		}
-
-		/*power issue*/
-		dev->ccm_cfg[input_num]->iovdd = NULL;
-		dev->ccm_cfg[input_num]->avdd = NULL;
-		dev->ccm_cfg[input_num]->dvdd = NULL;
-	
-		if(strcmp(dev->ccm_cfg[input_num]->iovdd_str,"")) {
-			dev->ccm_cfg[input_num]->iovdd = regulator_get(NULL, dev->ccm_cfg[input_num]->iovdd_str);//"axp22_eldo3"
-			//printk("get regulator csi_iovdd = 0x%x\n",dev->ccm_cfg[input_num]->iovdd);
-			if (dev->ccm_cfg[input_num]->iovdd == NULL) {
-				csi_err("get regulator csi_iovdd error!input_num = %d\n",input_num);
-				goto free_dev;
-			}
-			else {
-				int vret;
-				uint vol=dev->ccm_cfg[input_num]->vol_iovdd;
-				if(vol>3300) {
-					vol=3300;
-					csi_print("csi iovdd force 3V3\n");
-				} else if(vol<1800) {
-					vol=1800;
-					csi_print("csi iovdd force 1V8\n");
-				}
-				dev->ccm_cfg[input_num]->vol_iovdd=vol;
-				vret=regulator_set_voltage(dev->ccm_cfg[input_num]->iovdd, vol*1000, 3300*1000);
-				csi_dbg(0,"set regulator csi_iovdd[%d] = 0x%x\n",vol,vret);
-			}
-		}
-
-		if(strcmp(dev->ccm_cfg[input_num]->avdd_str,"")) {
-			dev->ccm_cfg[input_num]->avdd = regulator_get(NULL, dev->ccm_cfg[input_num]->avdd_str);
-			if (dev->ccm_cfg[input_num]->avdd == NULL) {
-				csi_err("get regulator csi_avdd error!input_num = %d\n",input_num);
-				goto free_dev;
-			}
-			else {
-				int vret;
-				uint vol=dev->ccm_cfg[input_num]->vol_avdd;
-				if(vol>3300) {
-					vol=3300;
-					csi_print("csi avdd force 3V3\n");
-				} else if(vol<2800) {
-					vol=2800;
-					csi_print("csi avdd force 2V8\n");
-				}
-				dev->ccm_cfg[input_num]->vol_avdd=vol;
-				vret=regulator_set_voltage(dev->ccm_cfg[input_num]->avdd, vol*1000, 3300*1000);
-				csi_dbg(0,"set regulator csi_avdd[%d] = 0x%x\n",vol,vret);
-			}
-		}
-	
-		if(strcmp(dev->ccm_cfg[input_num]->dvdd_str,"")) {
-			dev->ccm_cfg[input_num]->dvdd = regulator_get(NULL, dev->ccm_cfg[input_num]->dvdd_str);
-			if (dev->ccm_cfg[input_num]->dvdd == NULL) {
-				csi_err("get regulator csi_dvdd error!input_num = %d\n",input_num);
-				goto free_dev;
-			}
-			else {
-				int vret;
-				uint vol=dev->ccm_cfg[input_num]->vol_dvdd;
-				if(vol>2000) {
-					vol=2000;
-					csi_print("csi dvdd force 2V0\n");
-				} else if(vol<1200) {
-					vol=1200;
-					csi_print("csi dvdd force 1V2\n");
-				}
-				dev->ccm_cfg[input_num]->vol_dvdd=vol;
-				vret=regulator_set_voltage(dev->ccm_cfg[input_num]->dvdd, vol*1000, 2000*1000);
-				csi_dbg(0,"set regulator csi_dvdd[%d] = 0x%x\n",vol,vret);
-			}
-		}	
 	}
 
 	for(input_num=0; input_num<dev->dev_qty; input_num++)
@@ -2434,30 +2463,6 @@ reg_sd:
 		csi_err("csi clock get failed!\n");
 		ret = -ENXIO;
 		goto unreg_dev;
-	}
-	
-	/* power on and power off device */
-	for(input_num = dev->dev_qty-1; input_num >= 0; input_num--)
-	{
-    ret = update_ccm_info(dev, dev->ccm_cfg[input_num]);
-    if(ret<0)
-    	csi_err("Error when set ccm info when probe!\n");
-    
-	  csi_print("power on and standy on camera %d!\n",input_num);
-	  csi_clk_out_set(dev);
-	  v4l2_subdev_call(dev->ccm_cfg[input_num]->sd,core, s_power, CSI_SUBDEV_PWR_ON);
-	  ret=v4l2_subdev_call(dev->ccm_cfg[input_num]->sd,core, ioctl, CSI_SUBDEV_CMD_DETECT,0);
-	  if(ret)
-	  {
-	  	csi_err("subdev detect fail, ret=%x\n",ret);
-	  	v4l2_subdev_call(dev->ccm_cfg[input_num]->sd,core, s_power, CSI_SUBDEV_PWR_OFF);
-	  	goto err_clk;
-	  }
-	  else
-	  {
-	  	//v4l2_subdev_call(dev->ccm_cfg[input_num]->sd,core, s_power, CSI_SUBDEV_STBY_OFF);
-	  	v4l2_subdev_call(dev->ccm_cfg[input_num]->sd,core, s_power, CSI_SUBDEV_STBY_ON);
-	  }
 	}
 	
 //	csi_dbg("%s(): csi-%d registered successfully\n",__func__, dev->id);
@@ -2500,10 +2505,15 @@ reg_sd:
 	INIT_LIST_HEAD(&dev->vidq.active);
 	//init_waitqueue_head(&dev->vidq.wq);
 	INIT_WORK(&dev->resume_work, resume_work_handle);
+	INIT_DELAYED_WORK(&dev->probe_work, probe_work_handle);
 	mutex_init(&dev->standby_lock);
+	sema_init(&dev->standby_seq_sema,1);
+	
+	schedule_delayed_work(&dev->probe_work,msecs_to_jiffies(1));
+
 	/* initial state */
 	dev->capture_mode = V4L2_MODE_VIDEO;
-	
+		
 	return 0;
 
 rel_vdev:
@@ -2549,6 +2559,7 @@ static int csi_release(void)
 		list_del(list);
 		dev = list_entry(list, struct csi_dev, csi_devlist);
 		flush_work(&dev->resume_work);
+		flush_delayed_work(&dev->probe_work);
 	  //close all the device power	
 		csi_print("close all the device power!\n");
 		for (input_num=0; input_num<dev->dev_qty; input_num++) {
@@ -2624,12 +2635,12 @@ static int csi_suspend(struct platform_device *pdev, pm_message_t state)
 	struct csi_dev *dev=(struct csi_dev *)dev_get_drvdata(&(pdev)->dev);
 	int ret = 0;
 	unsigned int input_num;
-	
+
+	mutex_lock(&dev->standby_lock);
 	csi_print("csi_suspend\n");
 //	csi_clk_disable(dev);
 	csi_print("set camera to power off!\n");
 	
-	mutex_lock(&dev->standby_lock);
 	//close all the device power	
 	for (input_num=0; input_num<dev->dev_qty; input_num++) {
     /* update target device info and select it */
@@ -2644,7 +2655,7 @@ static int csi_suspend(struct platform_device *pdev, pm_message_t state)
 	  	csi_err("sensor power off error at device number %d when csi_suspend!\n",input_num);
 	  }
 	}
-	
+	down(&dev->standby_seq_sema);
 	mutex_unlock(&dev->standby_lock);
 	return ret;
 }
@@ -2655,9 +2666,9 @@ static void resume_work_handle(struct work_struct *work)
 	int ret = 0;
 	unsigned int input_num;
 	
-	csi_print("csi resume work!\n");
-	
 	mutex_lock(&dev->standby_lock);
+	csi_print("csi resume work start!\n");
+	
 	//open all the device power
 	for (input_num=0; input_num<dev->dev_qty; input_num++) {
     /* update target device info and select it */
@@ -2686,7 +2697,8 @@ static void resume_work_handle(struct work_struct *work)
 	  	csi_err("sensor standby on error at device number %d when csi_resume!\n",input_num);
 	  }
 	}
-	
+	up(&dev->standby_seq_sema);
+	csi_print("csi resume work end!\n");
 	mutex_unlock(&dev->standby_lock);
 }
 
@@ -2744,7 +2756,7 @@ static int __init csi_init(void)
 	script_item_u   val;
   script_item_value_type_e  type;
 	csi_print("Welcome to CSI driver\n");
-	csi_print("csi_init[1]\n");
+	
 	
   #ifdef CSI_VER_FOR_FPGA
   printk("============>CSI_VER_FOR_FPGA<=========\n");

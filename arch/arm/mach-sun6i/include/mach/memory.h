@@ -31,6 +31,11 @@
 #define SUPER_STANDBY_MEM_SIZE  (SZ_1K)                                 /* 1K */
 
 #define HW_RESERVED_MEM_BASE    (PLAT_PHYS_OFFSET + SZ_64M + SZ_32M + SZ_4M)    /* +100M */
-#define HW_RESERVED_MEM_SIZE    (SZ_128M + SZ_64M + + SZ_32M + SZ_8M)   /* 232M(DE+VE(CSI)+MP) */
+#define HW_RESERVED_MEM_SIZE    (SZ_128M + SZ_64M + SZ_32M + SZ_8M)   		/* 232M(DE+VE(CSI)+MP) */
+
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+#define ION_CARVEOUT_MEM_BASE   (HW_RESERVED_MEM_BASE + HW_RESERVED_MEM_SIZE)	/* +332M */
+#define ION_CARVEOUT_MEM_SIZE   (CONFIG_ION_SUNXI_CARVEOUT_SIZE * SZ_1M)  		/* in Mbytes */
+#endif
 
 #endif

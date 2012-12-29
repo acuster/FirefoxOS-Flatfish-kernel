@@ -30,6 +30,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
+#include <linux/module.h>
 
 #include "ion_priv.h"
 #define DEBUG
@@ -350,6 +351,7 @@ void ion_free(struct ion_client *client, struct ion_handle *handle)
 	}
 	ion_handle_put(handle);
 }
+EXPORT_SYMBOL(ion_free);
 
 static void ion_client_get(struct ion_client *client);
 static int ion_client_put(struct ion_client *client);
@@ -444,6 +446,7 @@ void *ion_map_kernel(struct ion_client *client, struct ion_handle *handle)
 	mutex_unlock(&client->lock);
 	return vaddr;
 }
+EXPORT_SYMBOL(ion_map_kernel);
 
 struct scatterlist *ion_map_dma(struct ion_client *client,
 				struct ion_handle *handle)
@@ -480,6 +483,7 @@ struct scatterlist *ion_map_dma(struct ion_client *client,
 	mutex_unlock(&client->lock);
 	return sglist;
 }
+EXPORT_SYMBOL(ion_map_dma);
 
 void ion_unmap_kernel(struct ion_client *client, struct ion_handle *handle)
 {
@@ -495,6 +499,7 @@ void ion_unmap_kernel(struct ion_client *client, struct ion_handle *handle)
 	mutex_unlock(&buffer->lock);
 	mutex_unlock(&client->lock);
 }
+EXPORT_SYMBOL(ion_unmap_kernel);
 
 void ion_unmap_dma(struct ion_client *client, struct ion_handle *handle)
 {
@@ -510,7 +515,7 @@ void ion_unmap_dma(struct ion_client *client, struct ion_handle *handle)
 	mutex_unlock(&buffer->lock);
 	mutex_unlock(&client->lock);
 }
-
+EXPORT_SYMBOL(ion_unmap_dma);
 
 struct ion_buffer *ion_share(struct ion_client *client,
 				 struct ion_handle *handle)
@@ -576,6 +581,7 @@ end:
 	fput(file);
 	return handle;
 }
+EXPORT_SYMBOL(ion_import_fd);
 
 static int ion_debug_client_show(struct seq_file *s, void *unused)
 {
@@ -729,6 +735,7 @@ struct ion_client *ion_client_create(struct ion_device *dev,
 
 	return client;
 }
+EXPORT_SYMBOL(ion_client_create);
 
 static void _ion_client_destroy(struct kref *kref)
 {
@@ -1143,6 +1150,62 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 end:
 	mutex_unlock(&dev->lock);
 }
+EXPORT_SYMBOL(ion_device_add_heap);
+
+struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data)
+{
+	struct ion_heap *heap = NULL;
+
+	switch (heap_data->type) {
+	case ION_HEAP_TYPE_SYSTEM_CONTIG:
+		heap = ion_system_contig_heap_create(heap_data);
+		break;
+	case ION_HEAP_TYPE_SYSTEM:
+		heap = ion_system_heap_create(heap_data);
+		break;
+	case ION_HEAP_TYPE_CARVEOUT:
+		heap = ion_carveout_heap_create(heap_data);
+		break;
+	default:
+		pr_err("%s: Invalid heap type %d\n", __func__,
+		       heap_data->type);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (IS_ERR_OR_NULL(heap)) {
+		pr_err("%s: error creating heap %s type %d base %lu size %u\n",
+		       __func__, heap_data->name, heap_data->type,
+		       heap_data->base, heap_data->size);
+		return ERR_PTR(-EINVAL);
+	}
+
+	heap->name = heap_data->name;
+	heap->id = heap_data->id;
+	return heap;
+}
+EXPORT_SYMBOL(ion_heap_create);
+
+void ion_heap_destroy(struct ion_heap *heap)
+{
+	if (!heap)
+		return;
+
+	switch (heap->type) {
+	case ION_HEAP_TYPE_SYSTEM_CONTIG:
+		ion_system_contig_heap_destroy(heap);
+		break;
+	case ION_HEAP_TYPE_SYSTEM:
+		ion_system_heap_destroy(heap);
+		break;
+	case ION_HEAP_TYPE_CARVEOUT:
+		ion_carveout_heap_destroy(heap);
+		break;
+	default:
+		pr_err("%s: Invalid heap type %d\n", __func__,
+		       heap->type);
+	}
+}
+EXPORT_SYMBOL(ion_heap_destroy);
 
 struct ion_device *ion_device_create(long (*custom_ioctl)
 				     (struct ion_client *client,
@@ -1178,6 +1241,7 @@ struct ion_device *ion_device_create(long (*custom_ioctl)
 	idev->kernel_clients = RB_ROOT;
 	return idev;
 }
+EXPORT_SYMBOL(ion_device_create);
 
 void ion_device_destroy(struct ion_device *dev)
 {
@@ -1185,3 +1249,5 @@ void ion_device_destroy(struct ion_device *dev)
 	/* XXX need to free the heaps and clients ? */
 	kfree(dev);
 }
+EXPORT_SYMBOL(ion_device_destroy);
+

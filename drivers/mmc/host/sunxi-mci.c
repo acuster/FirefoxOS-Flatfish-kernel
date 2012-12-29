@@ -296,13 +296,14 @@ s32 sw_mci_set_clk_dly(struct sunxi_mmc_host* smc_host, u32 oclk_dly, u32 sclk_d
 	u32 smc_no = smc_host->pdev->id;
 	void __iomem *mclk_base = __io_address(0x01c20088 + 0x4 * smc_no);
 	u32 rval;
+	unsigned long iflags;
 
-	spin_lock(&smc_host->lock);
+	spin_lock_irqsave(&smc_host->lock, iflags);
 	rval = readl(mclk_base);
 	rval &= ~((0x7U << 8) | (0x7U << 20));
 	rval |= (oclk_dly << 8) | (sclk_dly << 20);
 	writel(rval, mclk_base);
-	spin_unlock(&smc_host->lock);
+	spin_unlock_irqrestore(&smc_host->lock, iflags);
 
 	smc_host->oclk_dly = oclk_dly;
 	smc_host->sclk_dly = sclk_dly;
@@ -554,6 +555,17 @@ s32 sw_mci_request_done(struct sunxi_mmc_host* smc_host)
 	s32 ret = 0;
 
 	if (smc_host->int_sum & SDXC_IntErrBit) {
+		/* if we got response timeout error information, we should check 
+		   if the command done status has been set. if there is no command
+		   done information, we should wait this bit to be set */
+		if ((smc_host->int_sum & SDXC_RespTimeout) && !(smc_host->int_sum & SDXC_CmdDone)) {
+			u32 rint;
+			u32 expire = jiffies + 1;
+			do {
+				rint = mci_readl(smc_host, REG_RINTR);
+			} while (jiffies < expire && !(rint & SDXC_CmdDone));
+		}
+			
 		sw_mci_dump_errinfo(smc_host);
 		if (req->data)
 			SMC_ERR(smc_host, "In data %s operation\n",
@@ -2112,11 +2124,11 @@ static int __devinit sw_mci_probe(struct platform_device *pdev)
 	mmc->pm_caps	= MMC_PM_KEEP_POWER;
 	mmc->f_min	= smc_host->pdata->f_min;
 	mmc->f_max      = smc_host->pdata->f_max;
-	mmc->max_blk_count	= 512;
-	mmc->max_blk_size	= 65536;
+	mmc->max_blk_count	= 8192;
+	mmc->max_blk_size	= 4096;
 	mmc->max_req_size	= mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size	= mmc->max_req_size;
-	mmc->max_segs	    	= 64;
+	mmc->max_segs	    	= 128;
 
 	ret = mmc_add_host(mmc);
 	if (ret) {
@@ -2222,6 +2234,9 @@ static int sw_mci_resume(struct device *dev)
 	int ret = 0;
 
 	if (mmc) {
+		struct sunxi_mmc_host *smc_host = mmc_priv(mmc);
+		if (smc_host->cd_mode == CARD_DETECT_BY_GPIO_IRQ)
+			sw_mci_cd_cb((unsigned long)smc_host);
 		ret = mmc_resume_host(mmc);
 		SMC_MSG(NULL, "smc %d resume\n", pdev->id);
 	}

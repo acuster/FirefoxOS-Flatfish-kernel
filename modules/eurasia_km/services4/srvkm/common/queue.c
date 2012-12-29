@@ -217,6 +217,23 @@ IMG_UINT32 PVRSRVGetWriteOpsPending(PVRSRV_KERNEL_SYNC_INFO *psSyncInfo, IMG_BOO
 {
 	IMG_UINT32 ui32WriteOpsPending;
 
+	if((unsigned int)psSyncInfo < 0xc0000000)
+	{
+	    printk(KERN_WARNING "####psSyncInfo == %x in %s\n",(unsigned int)psSyncInfo, __FUNCTION__);
+	    while(1)
+	    {
+	    }
+	    return 0;
+	}
+	if((unsigned int)(psSyncInfo->psSyncData) < 0xc0000000)
+	{
+	    printk(KERN_WARNING "####psSyncInfo->psSyncData == %x in %s\n",(unsigned int)(psSyncInfo->psSyncData), __FUNCTION__);
+	    while(1)
+	    {
+	    }
+	    return 0;
+	}
+
 	if(bIsReadOp)
 	{
 		ui32WriteOpsPending = psSyncInfo->psSyncData->ui32WriteOpsPending;
@@ -706,6 +723,8 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVInsertCommandKM(PVRSRV_QUEUE_INFO	*psQueue,
 	SYS_DATA *psSysData;
 	DEVICE_COMMAND_DATA *psDeviceCommandData;
 
+	//printk(KERN_WARNING "PVRSRVInsertCommandKM\n");
+
 	/* Check that we've got enough space in our command complete data for this command */
 	SysAcquireData(&psSysData);
 	psDeviceCommandData = psSysData->apsDeviceCommandData[ui32DevIndex];
@@ -783,20 +802,28 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVInsertCommandKM(PVRSRV_QUEUE_INFO	*psQueue,
 	/* setup src sync objects and their sync dependencies */
 	for (i=0; i<ui32SrcSyncCount; i++)
 	{
-		PVR_TTRACE_SYNC_OBJECT(PVRSRV_TRACE_GROUP_QUEUE, QUEUE_TOKEN_DST_SYNC,
-						apsSrcSync[i], PVRSRV_SYNCOP_SAMPLE);
+	    if((unsigned int)apsSrcSync[i]->psSyncData>0xc0000000 && (unsigned int)apsSrcSync[i]->pvRefCount>0xc0000000)
+	    {
+    		PVR_TTRACE_SYNC_OBJECT(PVRSRV_TRACE_GROUP_QUEUE, QUEUE_TOKEN_DST_SYNC,
+    						apsSrcSync[i], PVRSRV_SYNCOP_SAMPLE);
 
-		psCommand->psSrcSync[i].psKernelSyncInfoKM = apsSrcSync[i];
-		psCommand->psSrcSync[i].ui32WriteOpsPending = PVRSRVGetWriteOpsPending(apsSrcSync[i], IMG_TRUE);
-		psCommand->psSrcSync[i].ui32ReadOps2Pending = PVRSRVGetReadOpsPending(apsSrcSync[i], IMG_TRUE);
+    		psCommand->psSrcSync[i].psKernelSyncInfoKM = apsSrcSync[i];
+    		psCommand->psSrcSync[i].ui32WriteOpsPending = PVRSRVGetWriteOpsPending(apsSrcSync[i], IMG_TRUE);
+    		psCommand->psSrcSync[i].ui32ReadOps2Pending = PVRSRVGetReadOpsPending(apsSrcSync[i], IMG_TRUE);
 
-		PVRSRVKernelSyncInfoIncRef(apsSrcSync[i], IMG_NULL);
+    		PVRSRVKernelSyncInfoIncRef(apsSrcSync[i], IMG_NULL);
 
-		PVR_DPF((PVR_DBG_MESSAGE, "PVRSRVInsertCommandKM: Src %u RO-VA:0x%x WO-VA:0x%x ROP:0x%x WOP:0x%x",
-				i, psCommand->psSrcSync[i].psKernelSyncInfoKM->sReadOps2CompleteDevVAddr.uiAddr,
-				psCommand->psSrcSync[i].psKernelSyncInfoKM->sWriteOpsCompleteDevVAddr.uiAddr,
-				psCommand->psSrcSync[i].ui32ReadOps2Pending,
-				psCommand->psSrcSync[i].ui32WriteOpsPending));
+    		PVR_DPF((PVR_DBG_MESSAGE, "PVRSRVInsertCommandKM: Src %u RO-VA:0x%x WO-VA:0x%x ROP:0x%x WOP:0x%x",
+    				i, psCommand->psSrcSync[i].psKernelSyncInfoKM->sReadOps2CompleteDevVAddr.uiAddr,
+    				psCommand->psSrcSync[i].psKernelSyncInfoKM->sWriteOpsCompleteDevVAddr.uiAddr,
+    				psCommand->psSrcSync[i].ui32ReadOps2Pending,
+    				psCommand->psSrcSync[i].ui32WriteOpsPending));
+		}
+		else
+		{
+            printk(KERN_WARNING "####apsSrcSync[i]->psSyncData=0x%x in %s\n", (unsigned int)apsSrcSync[i]->psSyncData, __FUNCTION__);
+            printk(KERN_WARNING "####apsSrcSync[i]->pvRefCount=0x%x in %s\n", (unsigned int)apsSrcSync[i]->pvRefCount, __FUNCTION__);
+		}
 	}
 	PVR_TTRACE(PVRSRV_TRACE_GROUP_QUEUE, PVRSRV_TRACE_CLASS_CMD_END, QUEUE_TOKEN_INSERTKM);
 
@@ -1123,6 +1150,8 @@ PVRSRV_ERROR PVRSRVProcessQueues(IMG_BOOL	bFlush)
 	PVRSRV_COMMAND 		*psCommand;
 /*	PVRSRV_DEVICE_NODE	*psDeviceNode;*/
 
+    //printk(KERN_WARNING "PVRSRVProcessQueues\n");
+
 	SysAcquireData(&psSysData);
 
 	/* Ensure we don't corrupt queue list, by blocking access. This is required for OSs where
@@ -1150,12 +1179,19 @@ PVRSRV_ERROR PVRSRVProcessQueues(IMG_BOOL	bFlush)
 		while (psQueue->ui32ReadOffset != psQueue->ui32WriteOffset)
 		{
 			psCommand = (PVRSRV_COMMAND*)((IMG_UINTPTR_T)psQueue->pvLinQueueKM + psQueue->ui32ReadOffset);
-
-			if (PVRSRVProcessCommand(psSysData, psCommand, bFlush) == PVRSRV_OK)
+			if((unsigned int)psCommand->psDstSync->psKernelSyncInfoKM->psSyncData > 0xc0000000)
 			{
-				/* processed cmd so update queue */
-				UPDATE_QUEUE_ROFF(psQueue, psCommand->uCmdSize)
-				continue;
+    			if (PVRSRVProcessCommand(psSysData, psCommand, bFlush) == PVRSRV_OK)
+    			{
+    				/* processed cmd so update queue */
+    				UPDATE_QUEUE_ROFF(psQueue, psCommand->uCmdSize)
+    				continue;
+    			}
+			}
+			else
+			{
+			    printk(KERN_WARNING "####psCommand->psDstSync->psKernelSyncInfoKM->psSyncData=0x%x in %s\n", 
+			        (unsigned int)psCommand->psDstSync->psKernelSyncInfoKM->psSyncData, __FUNCTION__);
 			}
 
 			break;

@@ -37,6 +37,7 @@ extern __s32 iep_cmu_resume(__u32 sel);
 extern __s32 iep_cmu_late_resume(__u32 sel);
 
 //DRC
+extern __s32 drc_enable(__u32 sel, __u32 en);
 extern __s32 IEP_Drc_Init(__u32 sel);
 extern __s32 IEP_Drc_Exit(__u32 sel);
 extern __s32 IEP_Drc_Enable(__u32 sel, __u32 en);

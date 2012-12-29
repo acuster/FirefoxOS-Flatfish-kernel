@@ -1180,11 +1180,11 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			i2c_lock_adapter(client->adapter);
 			//standby on io
 			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_ON);
-			mdelay(100);
-			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_OFF);
-			mdelay(100);
-			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_ON);
-			mdelay(100);
+			mdelay(10);
+			//csi_gpio_write(sd,&dev->standby_io,CSI_STBY_OFF);
+			//mdelay(100);
+			//csi_gpio_write(sd,&dev->standby_io,CSI_STBY_ON);
+			//mdelay(100);
 			//remember to unlock i2c adapter, so the device can access the i2c bus again
 			i2c_unlock_adapter(client->adapter);	
 			//inactive mclk after stadby in
@@ -1249,11 +1249,11 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			mdelay(10);
 			//reset after power on
 			csi_gpio_write(sd,&dev->reset_io,CSI_RST_OFF);
-			mdelay(10);
-			csi_gpio_write(sd,&dev->reset_io,CSI_RST_ON);
-			mdelay(100);
-			csi_gpio_write(sd,&dev->reset_io,CSI_RST_OFF);
-			mdelay(100);
+			mdelay(30);
+			//csi_gpio_write(sd,&dev->reset_io,CSI_RST_ON);
+			//mdelay(100);
+			//csi_gpio_write(sd,&dev->reset_io,CSI_RST_OFF);
+			//mdelay(100);
 			//remember to unlock i2c adapter, so the device can access the i2c bus again
 			i2c_unlock_adapter(client->adapter);	
 			break;		
@@ -1264,9 +1264,9 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			i2c_lock_adapter(client->adapter);
 			//standby and reset io
 			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_ON);
-			mdelay(100);
+			mdelay(10);
 			csi_gpio_write(sd,&dev->reset_io,CSI_RST_ON);
-			mdelay(100);
+			mdelay(30);
 			//power supply off
 			if(dev->iovdd) {
 				regulator_disable(dev->iovdd);

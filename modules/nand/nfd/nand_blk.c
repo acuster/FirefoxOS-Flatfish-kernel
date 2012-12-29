@@ -1715,12 +1715,8 @@ static int __init init_blklayer(void)
 		return -1;
 	}
 
-	ret = SCN_AnalyzeNandSystem();
-	if (ret < 0)
-		return ret;
-	
-#ifdef __LINUX_NAND_SUPPORT_INT__	
-    printk("[NAND] nand driver version: 0x%x 0x%x, support int! \n", NAND_VERSION_0,NAND_VERSION_1);
+	#ifdef __LINUX_NAND_SUPPORT_INT__	
+    //printk("[NAND] nand driver version: 0x%x 0x%x, support int! \n", NAND_VERSION_0,NAND_VERSION_1);
 #ifdef __LINUX_SUPPORT_RB_INT__
     NAND_ClearRbInt();
 #endif
@@ -1739,7 +1735,7 @@ static int __init init_blklayer(void)
 	}
 	else
 	{
-	    printk("nand interrupte ch0 irqno: %d register ok\n", AW_IRQ_NAND0);
+	    //printk("nand interrupte ch0 irqno: %d register ok\n", AW_IRQ_NAND0);
 	}	
 
 	if (request_irq(AW_IRQ_NAND1, nand_interrupt_ch1, IRQF_DISABLED, mytr.name, &mytr))
@@ -1749,10 +1745,14 @@ static int __init init_blklayer(void)
 	}
 	else
 	{
-	    printk("nand interrupte ch1, irqno: %d register ok\n", AW_IRQ_NAND1);
+	    //printk("nand interrupte ch1, irqno: %d register ok\n", AW_IRQ_NAND1);
 	}
 #endif		
 
+	ret = SCN_AnalyzeNandSystem();
+	if (ret < 0)
+		return ret;
+	
 	ret = PHY_ChangeMode(1);
 	if (ret < 0)
 		return ret;
@@ -2040,11 +2040,8 @@ static int nand_resume(struct platform_device *plat_dev)
 
 static int nand_probe(struct platform_device *plat_dev)
 {
-	pr_info("benn: nand probe enter\n");
 	dbg_inf("nand_probe\n");
-
 	return 0;
-
 }
 
 static int nand_remove(struct platform_device *plat_dev)
@@ -2087,7 +2084,7 @@ int __init nand_init(void)
 	type = script_get_item("nand0_para", "nand0_used", &nand0_used_flag);
 	if(SCIRPT_ITEM_VALUE_TYPE_INT != type)
 		printk("nand type err!");
-	printk("nand0_used_flag is %d\n", nand0_used_flag.val);
+	printk("[NAND]nand init start, nand0_used_flag is %d\n", nand0_used_flag.val);
     
 
 	if(nand0_used_flag.val == 0)
@@ -2097,7 +2094,7 @@ int __init nand_init(void)
 	}
 #endif
 
-	printk("[NAND]nand driver, init 11 .\n");
+	//printk("[NAND]nand driver, init 11 .\n");
 
 	ret = init_blklayer();
 	if(ret)
@@ -2112,7 +2109,7 @@ int __init nand_init(void)
 		dbg_err("platform_driver_register fail \n");
 		return -1;
 	}
-	printk("[NAND]nand driver, ok.\n");
+	printk("[NAND]nand init end.\n");
 	return 0;
 }
 

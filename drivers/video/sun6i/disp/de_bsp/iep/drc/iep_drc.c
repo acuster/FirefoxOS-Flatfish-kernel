@@ -226,7 +226,7 @@ __s32 drc_enable(__u32 sel, __u32 en)
 		case 2:	
 			if(g_iep_status[sel] & DRC_USED)
 			{
-				drc_close_proc(sel);
+                drc_close_proc(sel);
 			}
 			else
 			{
@@ -395,7 +395,7 @@ static __inline __s32 PWRSAVE_CORE(__u32 sel)
 		//lgcaddr = (__u32)pwrsv_lgc_tab[min_adj_index-128];
 		lgcaddr = (__u32)pttab[sel] + ((min_adj_index - 128)<<9);
 
-		if(printf_cnt == 120)
+		if(printf_cnt == 600)
 		{
 			__inf("save backlight power: %d percent\n", (256 - (__u32)min_adj_index)*100 / 256);
 			printf_cnt = 0;
@@ -470,7 +470,7 @@ __s32 drc_proc(__u32 sel)
 __s32 drc_close_proc(__u32 sel)
 {	
 
-	//DRC module
+    //DRC module
 	DRC_EBIOS_Disable(sel);
 	
 	//another module

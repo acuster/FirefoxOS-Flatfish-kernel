@@ -40,13 +40,18 @@
 
 # Figure out the version of Android we're building against.
 #
+
 PLATFORM_VERSION := $(shell \
 	if [ -f $(TARGET_ROOT)/product/$(TARGET_PRODUCT)/system/build.prop ]; then \
 		cat $(TARGET_ROOT)/product/$(TARGET_PRODUCT)/system/build.prop | \
 			grep ^ro.build.version.release | cut -f2 -d'=' | cut -f1 -d'-'; \
 	else \
-		echo 2.0; \
+		echo 4.1.1; \
 	fi)
+$(info ---------------------------------------)
+$(info $(TARGET_ROOT)/product/$(TARGET_PRODUCT)/system/build.prop)
+$(info ----$(PLATFORM_VERSION))
+$(info ---------------------------------------)
 
 define version-starts-with
 $(shell echo $(PLATFORM_VERSION) | grep -q ^$(1); \

@@ -166,10 +166,19 @@ MODULE_PARM_DESC(gPVRDebugLevel, "Sets the level of debug output (default 0x7)")
 extern struct ion_device *omap_ion_device;
 struct ion_client *gpsIONClient;
 EXPORT_SYMBOL(gpsIONClient);
+//#elif defined(CONFIG_ION_SUNXI)
+#elif defined(CONFIG_ION)
+#include <linux/ion.h>
+#include <linux/sunxi_ion.h>
+extern struct ion_device *sunxi_ion_device;
+struct ion_client *gpsIONClient;
+EXPORT_SYMBOL(gpsIONClient);
+#else
+//#err "please select platform for ion. sunxi/omap"
 #endif /* defined(CONFIG_ION_OMAP) */
 
 /* PRQA S 3207 2 */ /* ignore 'not used' warning */
-EXPORT_SYMBOL(PVRGetDisplayClassJTable);
+EXPORT_SYMBOL_GPL(PVRGetDisplayClassJTable);
 EXPORT_SYMBOL(PVRGetBufferClassJTable);
 
 #if defined(PVR_LDM_DEVICE_CLASS) && !defined(SUPPORT_DRI_DRM)
@@ -364,6 +373,13 @@ static int __devinit PVRSRVDriverProbe(LDM_DEV *pDevice, const struct pci_device
 		PVR_DPF((PVR_DBG_ERROR, "PVRSRVDriverProbe: Couldn't create ion client"));
 		return PTR_ERR(gpsIONClient);
 	}
+//#elif defined(CONFIG_ION_SUNXI)
+#elif defined(CONFIG_ION)
+    printk("%s(%d): config sunxi for ion \n", __func__, __LINE__);
+    gpsIONClient = ion_client_create(sunxi_ion_device, 1 << ION_HEAP_TYPE_CARVEOUT |
+                            1 << SUNXI_ION_HEAP_TYPE_TILER, "sunxi_client_ion");
+    if(IS_ERR_OR_NULL(gpsIONClient))
+        printk("%s(%d) err: ion_client_create failed\n", __func__, __LINE__);
 #endif /* defined(CONFIG_ION_OMAP) */
 
 	return 0;
@@ -1205,6 +1221,8 @@ static void __exit PVRCore_Cleanup(void)
  * statically as well; in both cases they define the function the kernel will
  * run to start/stop the driver.
 */
+MODULE_AUTHOR("Imagination Technologies Ltd. <gpl-support@imgtec.com>");
+MODULE_LICENSE("GPL");
 #if !defined(SUPPORT_DRI_DRM)
 module_init(PVRCore_Init);
 module_exit(PVRCore_Cleanup);

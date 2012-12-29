@@ -52,6 +52,13 @@ typedef struct __CCMU_MIPI_PLL_REG0040
     __u32   PLLEn:1;            //bit31, PLL enable
 } __ccmu_mipi_pll_reg0040_t;
 
+typedef struct __CCMU_MIPI_PLL_BIAS_REG0240
+{
+    __u32  reserved0:28;           //bit0
+    __u32  pllvdd_ldo_out_ctrl:3;  //bit28, pll ldo output control
+    __u32  vco_rst:31;             //bit31, vco reset in
+}__ccmu_mipi_pll_bias_reg0240_t;
+
 __s32 image_clk_init(__u32 sel);
 __s32 image_clk_exit(__u32 sel);
 __s32 image_clk_on(__u32 sel);
@@ -90,6 +97,7 @@ __s32 dsi_clk_off(void);
 
 __s32 disp_pll_init(void);
 __s32 disp_clk_cfg(__u32 sel, __u32 type, __u8 mode);
+__s32 disp_clk_adjust(__u32 sel, __u32 type);
 
 extern __disp_clk_tab clk_tab;
 

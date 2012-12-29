@@ -31,8 +31,7 @@ __s32 DRC_EBIOS_Enable(__u32 sel)
 
 __s32 DRC_EBIOS_Disable(__u32 sel)
 {
-
-	drc_dev[sel]->gnectl.bits.en = 0;
+    drc_dev[sel]->gnectl.bits.en = 0;
 	return 0;
 
 }

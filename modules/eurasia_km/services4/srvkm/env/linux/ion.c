@@ -133,24 +133,35 @@ EXPORT_SYMBOL(PVRSRVExportFDToIONHandle);
 #include "env_data.h"
 #include "../drivers/gpu/ion/ion_priv.h"
 #include "linux/kernel.h"
+#include <linux/sunxi_ion.h>
 
 struct ion_heap **apsIonHeaps;
 struct ion_device *psIonDev;
+extern struct ion_heap *ion_heap_create(struct ion_platform_heap *);
+extern void ion_heap_destroy(struct ion_heap *);
 
-static struct ion_platform_data generic_config = {
-	.nr = 2,
+static struct ion_platform_data generic_config =
+{
+	.nr = 3,
 	.heaps = {
-				{
-					.type = ION_HEAP_TYPE_SYSTEM_CONTIG,
-					.name = "System contig",
-					.id = ION_HEAP_TYPE_SYSTEM_CONTIG,
-				},
-				{
-					.type = ION_HEAP_TYPE_SYSTEM,
-					.name = "System",
-					.id = ION_HEAP_TYPE_SYSTEM,
-				}
-			}
+		{
+			.type = ION_HEAP_TYPE_SYSTEM_CONTIG,
+			.name = "system_contig",
+			.id   = HEAP_ID_SYSTEM_CONTIG,
+		},
+		{
+			.type = ION_HEAP_TYPE_SYSTEM,
+			.name = "system",
+			.id   = HEAP_ID_SYSTEM,
+		},
+		{
+			.type = ION_HEAP_TYPE_CARVEOUT,
+			.name = "carveout",
+			.id   = HEAP_ID_CARVEOUT,
+			.base = ION_CARVEOUT_MEM_BASE,
+			.size = ION_CARVEOUT_MEM_SIZE,
+		}
+	}
 };
 
 PVRSRV_ERROR IonInit(IMG_VOID)

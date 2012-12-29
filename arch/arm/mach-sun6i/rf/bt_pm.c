@@ -15,9 +15,9 @@ static __inline int wifi_pm_get_mod_type(void) {return 0;}
 static __inline int wifi_pm_gpio_ctrl(char* name, int level) {return -1;}
 #endif
 
-//static DEFINE_SPINLOCK(bt_power_lock);
 static const char bt_name[] = "bcm40183";
 static struct rfkill *sw_rfkill;
+static script_item_u val;
 
 static int rfkill_set_power(void *data, bool blocked)
 {
@@ -47,7 +47,7 @@ static int rfkill_set_power(void *data, bool blocked)
             RF_MSG("no bt module matched !!\n");
     }
     
-    msleep(100);
+    msleep(10);
     return 0;
 }
 
@@ -95,12 +95,29 @@ static struct platform_device sw_rfkill_dev = {
 
 static int __init sw_rfkill_init(void)
 {
+	script_item_value_type_e type;
+
+	type = script_get_item("bt_para", "bt_used", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+		RF_MSG("failed to fetch bt configuration!\n");
+		return -1;
+	}
+	if (!val.val) {
+		RF_MSG("init no bt used in configuration\n");
+		return 0;
+	}
+
     platform_device_register(&sw_rfkill_dev);
     return platform_driver_register(&sw_rfkill_driver);
 }
 
 static void __exit sw_rfkill_exit(void)
 {
+	if (!val.val) {
+		RF_MSG("exit no bt used in configuration");
+		return ;
+	}
+
     platform_device_unregister(&sw_rfkill_dev);
     platform_driver_unregister(&sw_rfkill_driver);
 }

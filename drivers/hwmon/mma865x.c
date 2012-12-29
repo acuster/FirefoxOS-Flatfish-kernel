@@ -169,16 +169,17 @@ struct mma865x_data {
 	struct i2c_client * client;
 	struct input_polled_dev *poll_dev;
 	struct mutex data_lock;
-	int active;
+	atomic_t active;
 	int position;
 	u8 chip_id;
 	int mode;
+	
+	struct mutex init_mutex;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif
 #if defined(CONFIG_HAS_EARLYSUSPEND) || defined(CONFIG_PM)
 	volatile int suspend_indator;
-	volatile int local_active;
 	volatile int MMA865X_REG1;
 	volatile int MMA865X_DATA_REG;
 #endif
@@ -188,6 +189,13 @@ struct mma865x_data {
 static struct input_polled_dev *mma865x_idev;
 static const unsigned short i2c_address[2] = {0x1D,0x1D};
 static int i2c_num = 0;
+
+static void mma865x_resume_events(struct work_struct *work);
+static void mma865x_init_events(struct work_struct *work);
+struct workqueue_struct *mma865x_resume_wq;
+struct workqueue_struct *mma865x_init_wq;
+static DECLARE_WORK(mma865x_resume_work, mma865x_resume_events);
+static DECLARE_WORK(mma865x_init_work, mma865x_init_events);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void mma865x_early_suspend(struct early_suspend *h);
@@ -206,10 +214,8 @@ static int gsensor_fetch_sysconfig_para(void)
 	int device_used = -1;
 	script_item_u	val;
 	script_item_value_type_e  type;
-	
-		
+			
 	dprintk(DEBUG_INIT, "========%s===================\n", __func__);
-
 	
 	type = script_get_item("gsensor_para", "gsensor_used", &val);
 	
@@ -245,31 +251,47 @@ script_get_err:
 
 static int mma865x_device_init(struct i2c_client *client)
 {
-	int result;
+	int val = 0;
+	int result1;
+	int result2;
 	struct mma865x_data *pdata = i2c_get_clientdata(client);
-	result = i2c_smbus_write_byte_data(client, MMA865X_CTRL_REG1, 0);
-	if (result < 0)
+
+	dprintk(DEBUG_INIT, "mma865x resume init\n");
+	
+	mutex_lock(&pdata->init_mutex);
+	result1 = i2c_smbus_write_byte_data(client, MMA865X_CTRL_REG1, 0);
+	result2 = i2c_smbus_write_byte_data(client, MMA865X_XYZ_DATA_CFG,pdata->mode);	
+	mutex_unlock(&pdata->init_mutex);
+	if ((result1 < 0) || (result2 < 0))
 		goto out;
 
-	result = i2c_smbus_write_byte_data(client, MMA865X_XYZ_DATA_CFG,
-					   pdata->mode);
-	if (result < 0)
-		goto out;
-	pdata->active = MMA_STANDBY;
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	g_mma865x_data.local_active = pdata->active;
-#endif
 	msleep(MODE_CHANGE_DELAY_MS);
+
+	if ((atomic_read(&g_mma865x_data.active)) == MMA_ACTIVED) {
+		mutex_lock(&g_mma865x_data.init_mutex);
+	   	val = i2c_smbus_read_byte_data(mma865x_i2c_client,MMA865X_CTRL_REG1);
+	   	i2c_smbus_write_byte_data(mma865x_i2c_client, MMA865X_CTRL_REG1, val|0x01);
+		mutex_unlock(&g_mma865x_data.init_mutex);
+	}
+
+	dprintk(DEBUG_INIT, "mma865x resume init end\n");
 	return 0;
 out:
-	dev_err(&client->dev, "error when init mma865x:(%d)", result);
-	return result;
+	dev_err(&client->dev, "error when init mma865x:(%d)(%d)", result1, result2);
+	if (result1 < 0)
+		return result1;
+	else
+		return result2;
 }
 static int mma865x_device_stop(struct i2c_client *client)
 {
 	u8 val;
+	struct mma865x_data *pdata = i2c_get_clientdata(client);
+	
+	mutex_lock(&pdata->init_mutex);
 	val = i2c_smbus_read_byte_data(client, MMA865X_CTRL_REG1);
 	i2c_smbus_write_byte_data(client, MMA865X_CTRL_REG1,val & 0xfe);
+	mutex_unlock(&pdata->init_mutex);
 	return 0;
 }
 
@@ -356,15 +378,15 @@ static void report_abs(void)
 	
 	result=i2c_smbus_read_byte_data(mma865x_i2c_client, MMA865X_STATUS);
 	if (!(result & 0x08)) {
-		dprintk(DEBUG_CONTROL_INFO, "mma865x check new data\n");
+		dprintk(DEBUG_DATA_INFO, "mma865x check new data\n");
 		return;		/* wait for new data */
 	}
 
 	if (mma865x_read_data(&x,&y,&z) != 0) {
-		dprintk(DEBUG_CONTROL_INFO, "mma865x data read failed\n");
+		dprintk(DEBUG_DATA_INFO, "mma865x data read failed\n");
 		return;
 	}
-	dprintk(DEBUG_CONTROL_INFO, "x= 0x%hx, y = 0x%hx, z = 0x%hx\n", x, y, z);
+	dprintk(DEBUG_DATA_INFO, "x= 0x%hx, y = 0x%hx, z = 0x%hx\n", x, y, z);
 	input_report_abs(mma865x_idev->input, ABS_X, x);
 	input_report_abs(mma865x_idev->input, ABS_Y, y);
 	input_report_abs(mma865x_idev->input, ABS_Z, z);
@@ -387,7 +409,7 @@ static ssize_t mma865x_enable_show(struct device *dev,
 	
 	mutex_lock(&pdata->data_lock);
 	val = i2c_smbus_read_byte_data(client, MMA865X_CTRL_REG1);  
-	if((val & 0x01) && pdata->active == MMA_ACTIVED)
+	if((val & 0x01) && (atomic_read(&pdata->active) == MMA_ACTIVED))
 		enable = 1;
 	else
 		enable = 0;
@@ -408,27 +430,33 @@ static ssize_t mma865x_enable_store(struct device *dev,
 	enable = simple_strtoul(buf, NULL, 10);    
 	mutex_lock(&pdata->data_lock);
 	enable = (enable > 0) ? 1 : 0;
-	if (enable && pdata->active == MMA_STANDBY) {  
+	if (enable && (atomic_read(&pdata->active) == MMA_STANDBY)) {
+		mutex_lock(&pdata->init_mutex);
 		val = i2c_smbus_read_byte_data(client,MMA865X_CTRL_REG1);
-		ret = i2c_smbus_write_byte_data(client, MMA865X_CTRL_REG1, val|0x01);  
+		ret = i2c_smbus_write_byte_data(client, MMA865X_CTRL_REG1, val|0x01);
+		mutex_unlock(&pdata->init_mutex);
 		if(!ret) {
-			pdata->active = MMA_ACTIVED;
-#ifdef CONFIG_HAS_EARLYSUSPEND
-		 	g_mma865x_data.local_active = pdata->active;
-#endif
+			if (pdata->suspend_indator == 0)
+				mma865x_idev->input->open(mma865x_idev->input);
+			atomic_set(&pdata->active, MMA_ACTIVED);
+
 			dprintk(DEBUG_CONTROL_INFO, "mma enable setting active \n");
-		}
+		} else
+			dprintk(DEBUG_CONTROL_INFO, "mma enable setting active failed\n");				
+		
 	}
-	else if (enable == 0  && pdata->active == MMA_ACTIVED) {
+	else if (enable == 0  && (atomic_read(&pdata->active) == MMA_ACTIVED)) {
+		mutex_lock(&pdata->init_mutex);
 		val = i2c_smbus_read_byte_data(client,MMA865X_CTRL_REG1);
 		ret = i2c_smbus_write_byte_data(client, MMA865X_CTRL_REG1,val & 0xFE);
+		mutex_unlock(&pdata->init_mutex);
 		if (!ret) {
-			pdata->active= MMA_STANDBY;
-#ifdef CONFIG_HAS_EARLYSUSPEND
-		 	g_mma865x_data.local_active = pdata->active;
-#endif
+			mma865x_idev->input->close(mma865x_idev->input);
+			atomic_set(&pdata->active, MMA_STANDBY);
+
 			dprintk(DEBUG_CONTROL_INFO, "mma enable setting inactive \n");
-		}
+		} else
+			dprintk(DEBUG_CONTROL_INFO, "mma enable setting inactive failed\n");
 	}
 	mutex_unlock(&pdata->data_lock);
 	return count;
@@ -468,6 +496,12 @@ static const struct attribute_group mma865x_attr_group = {
 	.attrs = mma865x_attributes,
 };
 
+static void mma865x_init_events (struct work_struct *work)
+{
+	mma865x_device_init(mma865x_i2c_client);
+}
+
+
 static int __devinit mma865x_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
@@ -505,7 +539,19 @@ static int __devinit mma865x_probe(struct i2c_client *client,
 	pdata->mode = MODE_2G;
 	mutex_init(&pdata->data_lock);
 	i2c_set_clientdata(client,pdata);
-	mma865x_device_init(client);
+
+	mutex_init(&pdata->init_mutex);
+
+	mma865x_init_wq = create_singlethread_workqueue("mma865x_init");
+	if (mma865x_init_wq == NULL) {
+		printk("create mma865x_init_wq fail!\n");
+		return -ENOMEM;
+	}
+
+	/* Initialize the MMA8452 chip */
+	atomic_set(&pdata->active, MMA_STANDBY);
+	queue_work(mma865x_init_wq, &mma865x_init_work);
+	
 	mma865x_idev = input_allocate_polled_device();
 	if (!mma865x_idev) {
 		result = -ENOMEM;
@@ -540,13 +586,19 @@ static int __devinit mma865x_probe(struct i2c_client *client,
 	pdata->poll_dev = mma865x_idev;
 	i2c_set_clientdata(client, pdata);
 
+	
+	mma865x_resume_wq = create_singlethread_workqueue("mma865x_resume");
+	if (mma865x_resume_wq == NULL) {
+		printk("create mma865x_resume_wq fail!\n");
+		return -ENOMEM;
+	}
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	g_mma865x_data.early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 3;
 	g_mma865x_data.early_suspend.suspend = mma865x_early_suspend;
 	g_mma865x_data.early_suspend.resume = mma865x_late_resume;
 	register_early_suspend(&g_mma865x_data.early_suspend);
 	g_mma865x_data.suspend_indator = 0;
-	g_mma865x_data.local_active = MMA_STANDBY;
 #endif
 	
 	dprintk(DEBUG_INIT, "mma865x device driver probe successfully\n");
@@ -559,75 +611,106 @@ err_out:
 	return result;
 }
 static int __devexit mma865x_remove(struct i2c_client *client)
-{
-	
+{	
 	mma865x_device_stop(mma865x_i2c_client);
-	hwmon_device_unregister(hwmon_dev);
-	#ifdef CONFIG_HAS_EARLYSUSPEND	
+#ifdef CONFIG_HAS_EARLYSUSPEND	
 	unregister_early_suspend(&g_mma865x_data.early_suspend);
-	#endif
+#endif
+	cancel_work_sync(&mma865x_resume_work);
+	destroy_workqueue(mma865x_resume_wq);
+	sysfs_remove_group(&mma865x_idev->input->dev.kobj, &mma865x_attr_group);
+	mma865x_idev->input->close(mma865x_idev->input);
 	input_unregister_polled_device(mma865x_idev);
 	input_free_polled_device(mma865x_idev);
+	cancel_work_sync(&mma865x_init_work);
+	destroy_workqueue(mma865x_init_wq);
+	hwmon_device_unregister(hwmon_dev);
 	i2c_set_clientdata(mma865x_i2c_client, NULL);
-	
 
 	return 0;
+}
 
+static void mma865x_resume_events (struct work_struct *work)
+{
+#if defined(CONFIG_HAS_EARLYSUSPEND) || defined(CONFIG_PM)	
+	int val = 0;
+	int result1 = 0;
+	int result2 = 0;
+
+	dprintk(DEBUG_INIT, "mma865x device init\n");
+	
+	mutex_lock(&g_mma865x_data.init_mutex);
+	result1 = i2c_smbus_write_byte_data(mma865x_i2c_client, MMA865X_CTRL_REG1, 0); 
+	result2 = i2c_smbus_write_byte_data(mma865x_i2c_client, MMA865X_XYZ_DATA_CFG,					g_mma865x_data.MMA865X_DATA_REG);
+	mutex_unlock(&g_mma865x_data.init_mutex);
+	if ((result1 < 0) || (result2 < 0))
+		printk("error when resume mma865x:(%d)(%d)", result1, result2);
+		
+	msleep(MODE_CHANGE_DELAY_MS);
+
+	if ((atomic_read(&g_mma865x_data.active)) == MMA_ACTIVED) {
+		mutex_lock(&g_mma865x_data.init_mutex);
+	   	val = i2c_smbus_read_byte_data(mma865x_i2c_client,MMA865X_CTRL_REG1);
+	   	i2c_smbus_write_byte_data(mma865x_i2c_client, MMA865X_CTRL_REG1, val|0x01);
+		mutex_unlock(&g_mma865x_data.init_mutex);
+		mma865x_idev->input->open(mma865x_idev->input);
+		dprintk(DEBUG_SUSPEND, "mma865x active\n");
+	}
+	dprintk(DEBUG_INIT, "mma865x device init end\n");
+	return;
+#endif
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void mma865x_early_suspend(struct early_suspend *h)
 {
+	struct mma865x_data *pdata =
+		container_of(h, struct mma865x_data, early_suspend);
 	
 	dprintk(DEBUG_SUSPEND, "mma865x early suspend\n");
-	g_mma865x_data.suspend_indator = 1;
+	pdata->suspend_indator = 1;
 
-	mma865x_idev->input->close(mma865x_idev->input);
+	flush_workqueue(mma865x_resume_wq);
 
 	if (NORMAL_STANDBY == standby_type) {
-		if(g_mma865x_data.local_active == MMA_ACTIVED)
+		if ((atomic_read(&pdata->active)) == MMA_ACTIVED) {
+			mma865x_idev->input->close(mma865x_idev->input);
 			mma865x_device_stop(mma865x_i2c_client);
+		}
 	} else if (SUPER_STANDBY == standby_type) {
-		g_mma865x_data.MMA865X_DATA_REG = i2c_smbus_read_byte_data(mma865x_i2c_client,
+		pdata->MMA865X_DATA_REG = i2c_smbus_read_byte_data(mma865x_i2c_client,
 							MMA865X_XYZ_DATA_CFG);
-		if(g_mma865x_data.local_active == MMA_ACTIVED)
+		if ((atomic_read(&pdata->active)) == MMA_ACTIVED) {
+			mma865x_idev->input->close(mma865x_idev->input);
 			mma865x_device_stop(mma865x_i2c_client);
+		}
 	}
-	return;
+	return; 
 }
 
 static void mma865x_late_resume(struct early_suspend *h)
 {
 	int val = 0;
-	int result = 0;
-	g_mma865x_data.suspend_indator = 0;
-	dprintk(DEBUG_SUSPEND, "mma865x late resume %d\n", g_mma865x_data.local_active);
+
+	struct mma865x_data *pdata =
+		container_of(h, struct mma865x_data, early_suspend);
+	
+	dprintk(DEBUG_SUSPEND, "mma865x late resume %d\n", (atomic_read(&pdata->active)));
 	
 	if (NORMAL_STANDBY == standby_type) {
-		if (g_mma865x_data.local_active == MMA_ACTIVED) {
+		if ((atomic_read(&pdata->active)) == MMA_ACTIVED) {
+			mutex_lock(&pdata->init_mutex);
 	   		val = i2c_smbus_read_byte_data(mma865x_i2c_client,MMA865X_CTRL_REG1);
 	   		i2c_smbus_write_byte_data(mma865x_i2c_client, MMA865X_CTRL_REG1, val|0x01);
+			mutex_unlock(&pdata->init_mutex);
+			mma865x_idev->input->open(mma865x_idev->input);
 			dprintk(DEBUG_SUSPEND, "mma865x active\n");
 		}
-	} else if(SUPER_STANDBY == standby_type) {
-		result = i2c_smbus_write_byte_data(mma865x_i2c_client, MMA865X_CTRL_REG1, 0);
-		if (result < 0)
-			printk("error when resume mma865x:(%d)", result);  
+	} else if(SUPER_STANDBY == standby_type)
+		queue_work(mma865x_resume_wq, &mma865x_resume_work);
 
-		result = i2c_smbus_write_byte_data(mma865x_i2c_client, MMA865X_XYZ_DATA_CFG,
-						g_mma865x_data.MMA865X_DATA_REG);
-		if (result < 0)
-			printk("error when resume mma865x:(%d)", result);
-		
-		msleep(MODE_CHANGE_DELAY_MS);
-
-		if (g_mma865x_data.local_active == MMA_ACTIVED) {
-	   		val = i2c_smbus_read_byte_data(mma865x_i2c_client,MMA865X_CTRL_REG1);
-	   		i2c_smbus_write_byte_data(mma865x_i2c_client, MMA865X_CTRL_REG1, val|0x01);
-			dprintk(DEBUG_SUSPEND, "mma865x active\n");
-		}  
-	}
-	mma865x_idev->input->open(mma865x_idev->input);
+	pdata->suspend_indator = 0;
+	
 	return;
 	  
 }
@@ -636,54 +719,49 @@ static void mma865x_late_resume(struct early_suspend *h)
 static int mma865x_resume(struct i2c_client *client)
 {
 	int val = 0;
-	int result = 0;
-	g_mma865x_data.suspend_indator = 0;
-	dprintk(DEBUG_SUSPEND, "mma865x resume %d\n", g_mma865x_data.local_active);
+
+	struct mma865x_data *pdata = i2c_get_clientdata(client);
+	
+	dprintk(DEBUG_SUSPEND, "mma865x resume %d\n", (atomic_read(&pdata->active)));
 	
 	if (NORMAL_STANDBY == standby_type) {
-		if (g_mma865x_data.local_active == MMA_ACTIVED) {
+		if ((atomic_read(&pdata->active)) == MMA_ACTIVED) {
+			mutex_lock(&pdata->init_mutex);
 	   		val = i2c_smbus_read_byte_data(mma865x_i2c_client,MMA865X_CTRL_REG1);
 	   		i2c_smbus_write_byte_data(mma865x_i2c_client, MMA865X_CTRL_REG1, val|0x01);
+			mutex_unlock(&pdata->init_mutex);
+			mma865x_idev->input->open(mma865x_idev->input);
 			dprintk(DEBUG_SUSPEND, "mma865x active\n");
 		}
-	} else if(SUPER_STANDBY == standby_type) {
-		result = i2c_smbus_write_byte_data(mma865x_i2c_client, MMA865X_CTRL_REG1, 0);
-		if (result < 0)
-			printk("error when resume mma865x:(%d)", result);  
+	} else if(SUPER_STANDBY == standby_type)
+		queue_work(mma865x_resume_wq, &mma865x_resume_work);
 
-		result = i2c_smbus_write_byte_data(mma865x_i2c_client, MMA865X_XYZ_DATA_CFG,
-						g_mma865x_data.MMA865X_DATA_REG);
-		if (result < 0)
-			printk("error when resume mma865x:(%d)", result);
-		
-		msleep(MODE_CHANGE_DELAY_MS);
-
-		if (g_mma865x_data.local_active == MMA_ACTIVED) {
-	   		val = i2c_smbus_read_byte_data(mma865x_i2c_client,MMA865X_CTRL_REG1);
-	   		i2c_smbus_write_byte_data(mma865x_i2c_client, MMA865X_CTRL_REG1, val|0x01);
-			dprintk(DEBUG_SUSPEND, "mma865x active\n");
-		}  
-	}
-
-	mma865x_idev->input->open(mma865x_idev->input);
-	return result;
+	pdata->suspend_indator = 0;
+	
+	return 0;
 }
 
 static int mma865x_suspend(struct i2c_client *client, pm_message_t mesg)
 {
+	struct mma865x_data *pdata = i2c_get_clientdata(client);
+	
 	dprintk(DEBUG_SUSPEND, "mma865x suspend\n");
-	g_mma865x_data.suspend_indator = 1;
+	pdata->suspend_indator = 1;
 
-	mma865x_idev->input->close(mma865x_idev->input);
+	flush_workqueue(mma865x_resume_wq);
 
 	if (NORMAL_STANDBY == standby_type) {
-		if(g_mma865x_data.local_active == MMA_ACTIVED)
+		if ((atomic_read(&pdata->active)) == MMA_ACTIVED) {
+			mma865x_idev->input->close(mma865x_idev->input);
 			mma865x_device_stop(mma865x_i2c_client);
+		}
 	} else if (SUPER_STANDBY == standby_type) {
-		g_mma865x_data.MMA865X_DATA_REG = i2c_smbus_read_byte_data(mma865x_i2c_client,
+		pdata->MMA865X_DATA_REG = i2c_smbus_read_byte_data(mma865x_i2c_client,
 							MMA865X_XYZ_DATA_CFG);
-		if(g_mma865x_data.local_active == MMA_ACTIVED)
+		if ((atomic_read(&pdata->active)) == MMA_ACTIVED) {
+			mma865x_idev->input->close(mma865x_idev->input);
 			mma865x_device_stop(mma865x_i2c_client);
+		}
 	}
 	return 0;
 }
@@ -746,7 +824,6 @@ static int __init mma865x_init(void)
 static void __exit mma865x_exit(void)
 {
 	dprintk(DEBUG_INIT, "remove mma865x i2c driver.\n");
-	sysfs_remove_group(&mma865x_idev->input->dev.kobj, &mma865x_attr_group);
 	i2c_del_driver(&mma865x_driver);
 }
 

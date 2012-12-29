@@ -51,7 +51,7 @@
 #include <mach/gpio.h> 
 #include <linux/ctp.h>
 
-#include "gslX2680.h" //resolution:1024*768
+#include "gslX680.h" //resolution:1024*768
 #define FOR_TSLIB_TEST
 //#define GSL_TIMER
 //#define PRINT_POINT_INFO 
@@ -194,6 +194,7 @@ static int revert_x_flag = 0;
 static int revert_y_flag = 0;
 static int exchange_x_y_flag = 0;
 static u32 int_handle = 0;
+static  char* fwname;
 
 static __u32 twi_id = 0;
 
@@ -313,29 +314,62 @@ static __inline__ void fw2buf(u8 *buf, const u32 *fw)
 	u32 *u32_buf = (int *)buf;
 	*u32_buf = *fw;
 }
-
-static void gsl_load_fw(struct i2c_client *client)
+static void gsl_load_fw2680(struct i2c_client *client)
 {
 	u8 buf[DMA_TRANS_LEN*4 + 1] = {0};
 	u8 send_flag = 1;
 	u8 *cur = buf + 1;
 	u32 source_line = 0;
-	u32 source_len = ARRAY_SIZE(GSLX680_FW);
+	u32 source_len = ARRAY_SIZE(GSL2680_FW);
 
 	dprintk(DEBUG_INIT,"=============gsl_load_fw start==============\n");
 
 	for (source_line = 0; source_line < source_len; source_line++) {
 		/* init page trans, set the page val */
-		if (GSL_PAGE_REG == GSLX680_FW[source_line].offset){
-			fw2buf(cur, &GSLX680_FW[source_line].val);
+		if (GSL_PAGE_REG == GSL2680_FW[source_line].offset){
+			fw2buf(cur, &GSL2680_FW[source_line].val);
 			gsl_write_interface(client, GSL_PAGE_REG, buf, 4);
 			send_flag = 1;
 		}
 		else {
 			if (1 == send_flag % (DMA_TRANS_LEN < 0x20 ? DMA_TRANS_LEN : 0x20))
-	    			buf[0] = (u8)GSLX680_FW[source_line].offset;
+	    			buf[0] = (u8)GSL2680_FW[source_line].offset;
 
-			fw2buf(cur, &GSLX680_FW[source_line].val);
+			fw2buf(cur, &GSL2680_FW[source_line].val);
+			cur += 4;
+
+			if (0 == send_flag % (DMA_TRANS_LEN < 0x20 ? DMA_TRANS_LEN : 0x20)) {
+	    			gsl_write_interface(client, buf[0], buf, cur - buf - 1);
+	    			cur = buf + 1;
+			}
+			send_flag++;
+		}
+	}
+	dprintk(DEBUG_INIT,"=============gsl_load_fw end==============\n");
+
+}
+static void gsl_load_fw3680(struct i2c_client *client)
+{
+	u8 buf[DMA_TRANS_LEN*4 + 1] = {0};
+	u8 send_flag = 1;
+	u8 *cur = buf + 1;
+	u32 source_line = 0;
+	u32 source_len = ARRAY_SIZE(GSL3680_FW);
+
+	dprintk(DEBUG_INIT,"=============gsl_load_fw start==============\n");
+
+	for (source_line = 0; source_line < source_len; source_line++) {
+		/* init page trans, set the page val */
+		if (GSL_PAGE_REG == GSL3680_FW[source_line].offset){
+			fw2buf(cur, &GSL3680_FW[source_line].val);
+			gsl_write_interface(client, GSL_PAGE_REG, buf, 4);
+			send_flag = 1;
+		}
+		else {
+			if (1 == send_flag % (DMA_TRANS_LEN < 0x20 ? DMA_TRANS_LEN : 0x20))
+	    			buf[0] = (u8)GSL3680_FW[source_line].offset;
+
+			fw2buf(cur, &GSL3680_FW[source_line].val);
 			cur += 4;
 
 			if (0 == send_flag % (DMA_TRANS_LEN < 0x20 ? DMA_TRANS_LEN : 0x20)) {
@@ -416,7 +450,12 @@ static void init_chip(struct i2c_client *client)
 {
 	//test_i2c(client);
 	reset_chip(client);
-	gsl_load_fw(client);			
+	if(!strncmp(fwname,"gsl2680",strlen(fwname))){
+	        gsl_load_fw2680(client);
+        }
+        if(!strncmp(fwname,"gsl3680",strlen(fwname))){
+	        gsl_load_fw3680(client);
+        }			
 	startup_chip(client);
 	reset_chip(client);
 	gslX680_shutdown_low();	
@@ -620,12 +659,6 @@ static void gsl_ts_xy_worker(struct work_struct *work)
 
 	dprintk(DEBUG_X_Y_INFO,"---gsl_ts_xy_worker---\n");				 
 
-	if (ts->is_suspended == true) {
-		dev_dbg(&ts->client->dev, "TS is supended\n");
-		ts->int_pending = true;
-		goto schedule;
-	}
-
 	/* read data from DATA_REG */
 	rc = gsl_ts_read(ts->client, 0x80, ts->touch_data, ts->dd->data_size);
 	dprintk(DEBUG_X_Y_INFO,"---touches: %d ---\n",ts->touch_data[0]);			
@@ -659,10 +692,7 @@ schedule:
 }
 
 static u32 gsl_ts_irq(struct gsl_ts *ts)
-{	
-
-	if (ts->is_suspended == true) 
-		return 0;		
+{			
 	dprintk(DEBUG_INT_INFO,"==========GSLX680 Interrupt============\n");				 
         dprintk(DEBUG_INT_INFO,"Enter work\n");
 	queue_work(ts->wq, &ts->work);	
@@ -776,43 +806,46 @@ error_alloc_dev:
 static void glsX680_resume_events (struct work_struct *work)
 {
 	gslX680_shutdown_high();
-	msleep(10); 	
-	reset_chip(glsX680_i2c);
-	startup_chip(glsX680_i2c);	
-	check_mem_data(glsX680_i2c);
-	sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,1);
+	msleep(10); 
+        reset_chip(glsX680_i2c);
+        startup_chip(glsX680_i2c);
+        check_mem_data(glsX680_i2c);
+        sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,1);
+
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static int gsl_ts_suspend(struct device *dev)
+static int gsl_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
-	struct gsl_ts *ts = dev_get_drvdata(dev);
-	//int rc = 0;
-
-  	dprintk(DEBUG_SUSPEND,"CONFIG_HAS_EARLYSUSPEND:%s,start\n",__func__);
-	ts->is_suspended = true;
+        struct gsl_ts *ts = i2c_get_clientdata(client);
+        dprintk(DEBUG_SUSPEND,"%s,start\n",__func__);
+        
+        cancel_work_sync(&glsX680_resume_work);
+  	flush_workqueue(gslX680_resume_wq);
+  	
+#ifndef CONFIG_HAS_EARLYSUSPEND
+        ts->is_suspended = true;
+#endif
 
 #ifdef GSL_TIMER
 	dprintk(DEBUG_SUSPEND,"gsl_ts_suspend () : delete gsl_timer\n");
 	del_timer(&ts->gsl_timer);
 #endif
-
-        sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,0);
-
-	flush_workqueue(gslX680_resume_wq);
-	cancel_work_sync(&ts->work);
-	flush_workqueue(ts->wq);
-	gslX680_shutdown_low(); 
-
-	return 0;
+        if(ts->is_suspended == true ){
+                sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,0);
+        	flush_workqueue(gslX680_resume_wq);
+        	cancel_work_sync(&ts->work);
+        	flush_workqueue(ts->wq);
+        	gslX680_shutdown_low(); 
+        }
+        return 0;
+	
 }
 
-static int gsl_ts_resume(struct device *dev)
+static int gsl_ts_resume(struct i2c_client *client)
 {
-	struct gsl_ts *ts = dev_get_drvdata(dev);
+	struct gsl_ts *ts = i2c_get_clientdata(client);
 	
   	dprintk(DEBUG_SUSPEND,"CONFIG_HAS_EARLYSUSPEND:%s,start\n",__func__);
-
 	queue_work(gslX680_resume_wq, &glsX680_resume_work);
 	
 #ifdef GSL_TIMER
@@ -823,85 +856,49 @@ static int gsl_ts_resume(struct device *dev)
 	ts->gsl_timer.data = (unsigned long)ts;
 	add_timer(&ts->gsl_timer);
 #endif
-        ts->is_suspended = false;
+        ts->is_suspended = true;
 
 	return 0;
 }
-
+#ifdef CONFIG_HAS_EARLYSUSPEND
 static void gsl_ts_early_suspend(struct early_suspend *h)
 {
 	struct gsl_ts *ts = container_of(h, struct gsl_ts, early_suspend);
 	dprintk(DEBUG_SUSPEND,"CONFIG_HAS_EARLYSUSPEND:Enter %s\n", __func__);
-	gsl_ts_suspend(&ts->client->dev);
+	
+	cancel_work_sync(&glsX680_resume_work);
+	flush_workqueue(gslX680_resume_wq);
+  	
+#ifdef GSL_TIMER
+	dprintk(DEBUG_SUSPEND,"gsl_ts_suspend () : delete gsl_timer\n");
+	del_timer(&ts->gsl_timer);
+#endif
+        ts->is_suspended = false;
+        sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,0);
+
+	cancel_work_sync(&ts->work);
+	flush_workqueue(ts->wq);
+	gslX680_shutdown_low(); 
 }
 
 static void gsl_ts_late_resume(struct early_suspend *h)
 {
 	struct gsl_ts *ts = container_of(h, struct gsl_ts, early_suspend);
 	dprintk(DEBUG_SUSPEND,"CONFIG_HAS_EARLYSUSPEND: Enter %s\n", __func__);
-	gsl_ts_resume(&ts->client->dev);
-}
+#ifndef CONFIG_PM
+        gsl_ts_resume(ts->client);
 #else
-#ifdef CONFIG_PM
-static int gsl_ts_suspend(struct device *dev)
-{
-	struct gsl_ts *ts = dev_get_drvdata(dev);
-	
-  	dprintk(DEBUG_SUSPEND,"CONFIG_PM:%s,start\n",__func__);
-	ts->is_suspended = true;
-
-#ifdef GSL_TIMER
-	dprintk(DEBUG_SUSPEND,"gsl_ts_suspend () : delete gsl_timer\n");
-	del_timer(&ts->gsl_timer);
+      if(ts->is_suspended == false){
+                gslX680_shutdown_high();
+	        msleep(10);
+	        reset_chip(glsX680_i2c);
+	        startup_chip(glsX680_i2c);
+	        sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,1);
+      }
 #endif
 
-        sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,0);
-
-	flush_workqueue(gslX680_resume_wq);	   
-	cancel_work_sync(&ts->work);
-	flush_workqueue(ts->wq);
-	gslX680_shutdown_low(); 
-
-	return 0;
+	printk("ts->is_suspended:%d\n",ts->is_suspended);
 }
-
-static int gsl_ts_resume(struct device *dev)
-{
-	struct gsl_ts *ts = dev_get_drvdata(dev);
-	
-  	dprintk(DEBUG_SUSPEND,"CONFIG_PM:%s,start\n",__func__);
-
-	queue_work(gslX680_resume_wq, &glsX680_resume_work);
-	
-#ifdef GSL_TIMER
-	dprintk(DEBUG_SUSPEND, "gsl_ts_resume () : add gsl_timer\n");
-	init_timer(&ts->gsl_timer);
-	ts->gsl_timer.expires = jiffies + 3 * HZ;
-	ts->gsl_timer.function = &gsl_timer_handle;
-	ts->gsl_timer.data = (unsigned long)ts;
-	add_timer(&ts->gsl_timer);
-#endif
-        ts->is_suspended = false;
-
-	return 0;
-}
-
-static int gsl_ts_early_suspend(struct i2c_client *client, pm_message_t mesg)
-{
-	struct gsl_ts *ts = i2c_get_clientdata(client);
-	dprintk(DEBUG_SUSPEND,"CONFIG_PM:Enter %s\n", __func__);
-	gsl_ts_suspend(&ts->client->dev);
-	return 0;
-}
-
-static int gsl_ts_late_resume(struct i2c_client *client)
-{
-	struct gsl_ts *ts = i2c_get_clientdata(client);
-	dprintk(DEBUG_SUSPEND,"CONFIG_PM:Enter %s\n", __func__);
-	gsl_ts_resume(&ts->client->dev);
-	return 0;
-}
-#endif
 #endif
 
 static void glsX680_init_events (struct work_struct *work)
@@ -1041,18 +1038,21 @@ static struct i2c_driver gsl_ts_driver = {
 	.remove		= __devexit_p(gsl_ts_remove),
 	.id_table		= gsl_ts_id,
 	.address_list	= normal_i2c,
-#ifdef CONFIG_HAS_EARLYSUSPEND
-
-#else
-#ifdef CONFIG_PM
-	.suspend  =  gsl_ts_early_suspend,
-	.resume   =  gsl_ts_late_resume,
-#endif
-#endif
+	.suspend  =  gsl_ts_suspend,
+	.resume   =  gsl_ts_resume,
 };
 static int ctp_get_system_config(void)
 {   
+        script_item_u   item;
+        
+        if(SCIRPT_ITEM_VALUE_TYPE_STR != script_get_item("ctp_para", "ctp_name", &item)){
+		pr_err("%s: ctp_name script_get_item  err. \n", __func__);
+		return 0;
+	}
+	fwname = item.str;
+	dprintk(DEBUG_INIT,"%s:fwname:%s\n",__func__,fwname);
         ctp_print_info(config_info,DEBUG_INIT);
+ 
         twi_id = config_info.twi_id;
         screen_max_x = config_info.screen_max_x;
         screen_max_y = config_info.screen_max_y;

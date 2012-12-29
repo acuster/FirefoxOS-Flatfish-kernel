@@ -19,7 +19,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 
-//#include <mach/memory.h>
+#include <mach/memory.h>
 #include "sunxi_physmem_i.h"
 
 #define	BUFFER_PADDR        HW_RESERVED_MEM_BASE

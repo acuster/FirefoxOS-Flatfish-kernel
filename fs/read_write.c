@@ -16,7 +16,6 @@
 #include <linux/pagemap.h>
 #include <linux/splice.h>
 #include "read_write.h"
-#include <linux/delay.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -365,7 +364,7 @@ EXPORT_SYMBOL(do_sync_read);
 ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 {
 	ssize_t ret;
-	
+
 	if (!(file->f_mode & FMODE_READ))
 		return -EBADF;
 	if (!file->f_op || (!file->f_op->read && !file->f_op->aio_read))
@@ -402,28 +401,6 @@ ssize_t do_sync_write(struct file *filp, const char __user *buf, size_t len, lof
 	kiocb.ki_pos = *ppos;
 	kiocb.ki_left = len;
 	kiocb.ki_nbytes = len;
-
-#if   (IO_TEST_DEBUG)
-	static unsigned char * p;
-	if((filp->f_flags & 0x01000000) && !strcmp(filp->f_path.dentry->d_iname, KEN_TEST1_VALUE))
-	{
-		*ppos = *ppos + len;
-		return len;
-	}	
-	if((filp->f_flags & 0x02000000) && strstr(filp->f_path.dentry->d_iname, KEN_TEST2_VALUE))
-	{
-		if (strlen(filp->f_path.dentry->d_iname) == 26)
-		{
-			p = filp->f_path.dentry->d_iname;
-			if(simple_strtol(p+24, NULL, 0) > 24)
-			{
-				udelay(800);
-				*ppos = *ppos + len;
-				return len;
-			}
-		}		
-	}
-#endif 	
 
 	for (;;) {
 		ret = filp->f_op->aio_write(&kiocb, &iov, 1, kiocb.ki_pos);

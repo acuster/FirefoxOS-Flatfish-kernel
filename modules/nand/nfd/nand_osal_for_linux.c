@@ -740,7 +740,7 @@ void NAND_PIORequest(__u32 nand_index)
 
 	if(nand_index == 0)
 	{
-		printk("[NAND] nand0 gpio_request\n");
+		//printk("[NAND] nand0 gpio_request\n");
 	
 		/* 获取gpio list */
 		cnt = script_get_pio_list("nand0_para", &list);
@@ -758,7 +758,7 @@ void NAND_PIORequest(__u32 nand_index)
 	}
 	else if(nand_index ==1)
 	{
-		printk("[NAND] nand1 gpio_request\n");
+		//printk("[NAND] nand1 gpio_request\n");
 		
 		cnt = script_get_pio_list("nand1_para", &list);
 		if(0 == cnt) {
@@ -789,7 +789,7 @@ void NAND_PIORelease(__u32 nand_index)
 
 	if(nand_index == 0)
 	{
-		printk("[NAND] nand gpio_release\n");
+		//printk("[NAND] nand gpio_release\n");
 	
 		/* 获取gpio list */
 		cnt = script_get_pio_list("nand0_para", &list);
@@ -842,11 +842,16 @@ void NAND_Free(void *pAddr, unsigned int Size)
     kfree(pAddr);
 }
 
-int NAND_Print(const char * str, ...)
+int NAND_Print(const char *fmt, ...)
 {
-    printk(str);
-    
-    return 0;
+	va_list args;
+	int r;
+
+	va_start(args, fmt);
+	r = vprintk(fmt, args);
+	va_end(args);
+	
+	return r;
 }
 
 void *NAND_IORemap(unsigned int base_addr, unsigned int size)

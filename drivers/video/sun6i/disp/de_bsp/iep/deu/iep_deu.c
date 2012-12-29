@@ -172,12 +172,25 @@ __s32 deu_clk_close(__u32 sel)
 #define ____SEPARATOR_DEU_ALG____
 __s32 DEU_ALG(__u32 sel)
 {	
-	__disp_frame_info_t frameinfo;
+	static __disp_frame_info_t frameinfo;
 	__u32 lpmode, dctimode;
 	__u32 scalefact, filtertype = 0;
 	__u32 deuwidth, deuheight;
+    {
+        static __u32 count = 0;
+        count++;
+        if(count == 300)
+        {
+            count = 0;
+            //pr_warn("<<deu-I>>\n");
+        }
+    }
 	
-	memcpy(&frameinfo, &gdeu[sel].frameinfo, sizeof(__disp_frame_info_t));
+    if((frameinfo.disp_size.width != gdeu[sel].frameinfo.disp_size.width) || (frameinfo.disp_size.height != gdeu[sel].frameinfo.disp_size.height))
+    {
+        //pr_warn("frameinfo.disp_size: <%dx%d>\n", gdeu[sel].frameinfo.disp_size.width,  gdeu[sel].frameinfo.disp_size.height);
+    }
+    memcpy(&frameinfo, &gdeu[sel].frameinfo, sizeof(__disp_frame_info_t));
 	
 	if(frameinfo.b_trd_out == 1 && frameinfo.trd_out_mode == DISP_3D_OUT_MODE_LIRGB)
 	{
@@ -261,6 +274,7 @@ __s32 IEP_Deu_Enable(__u32 sel, __u32 enable)
 {
 	__u32 strtab_addr;
 
+    //pr_warn("BSP_disp_deu_disable, ====3======sel=%d, enable=%d\n", sel, enable);
     strtab_addr =(__u32)g_strtab_addr;
 	if(enable)
 	{
@@ -481,7 +495,12 @@ __s32 IEP_Deu_Late_Resume(__u32 sel);//open clk
 
 __s32 IEP_Deu_Set_frameinfo(__u32 sel, __disp_frame_info_t frameinfo)
 {
-   	memcpy(&gdeu[sel].frameinfo, &frameinfo, sizeof(__disp_frame_info_t));
+   	if((frameinfo.disp_size.width != gdeu[sel].frameinfo.disp_size.width) || (frameinfo.disp_size.height != gdeu[sel].frameinfo.disp_size.height))
+    {
+        //pr_warn("IEP_Deu_Set_frameinfo,   frameinfo.disp_size: <%dx%d>\n", gdeu[sel].frameinfo.disp_size.width,  gdeu[sel].frameinfo.disp_size.height);
+    }
+
+    memcpy(&gdeu[sel].frameinfo, &frameinfo, sizeof(__disp_frame_info_t));
 
     return DIS_SUCCESS;
     

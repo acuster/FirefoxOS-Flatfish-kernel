@@ -182,7 +182,7 @@ static DEVICE_ATTR(lcd, S_IRUGO|S_IWUSR|S_IWGRP,
 static ssize_t disp_lcd_bl_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return BSP_disp_lcd_get_bright(sel);
+	return sprintf(buf, "%d", BSP_disp_lcd_get_bright(sel));
 }
 
 static ssize_t disp_lcd_bl_store(struct device *dev,

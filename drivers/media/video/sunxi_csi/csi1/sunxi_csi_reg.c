@@ -14,7 +14,6 @@ unsigned int CSI_VBASE;
 void bsp_csi_set_base_addr(unsigned int addr)
 {
 	CSI_VBASE = addr ;
-	printk("csi_base = %x\n",addr);
 }
 
 /* open module */

@@ -3,6 +3,7 @@
 #include "disp_event.h"
 #include "disp_de.h"
 #include "disp_clk.h"
+#include <mach/ar100.h>
 
 static __lcd_flow_t         open_flow[2];
 static __lcd_flow_t         close_flow[2];
@@ -685,6 +686,8 @@ void LCD_CLOSE_FUNC(__u32 sel, LCD_FUNC func, __u32 delay)
 
 void TCON_open(__u32 sel)
 {    
+    Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_LCD, 1);
+
     if(gpanel_info[sel].tcon_index == 0)
     {
         tcon0_open(sel,gpanel_info+sel);
@@ -725,6 +728,8 @@ void TCON_close(__u32 sel)
         tcon1_close(sel);
         gdisp.screen[sel].lcdc_status &= LCDC_TCON1_USED_MASK;
     }
+
+    Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_LCD, 0);
 }
 
 __s32 TCON_get_cur_line(__u32 sel, __u32 tcon_index)
@@ -921,7 +926,7 @@ __s32 LCD_PWM_EN(__u32 sel, __bool b_en)
         }
         else
         {            
-            gpio_info->mul_sel = 0;
+            gpio_info->mul_sel = 7;
             hdl = OSAL_GPIO_Request(gpio_info, 1);
             OSAL_GPIO_Release(hdl, 2);
         }
@@ -942,6 +947,7 @@ __s32 LCD_BL_EN(__u32 sel, __bool b_en)
         if(!b_en)
         {
             gpio_info->data = (gpio_info->data==0)?1:0;
+            gpio_info->mul_sel = 7;
         }
 
         hdl = OSAL_GPIO_Request(gpio_info, 1);
@@ -958,77 +964,81 @@ __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
 
     if(gdisp.screen[sel].lcd_cfg.lcd_power_used)
     {
-        memcpy(gpio_info, &(gdisp.screen[sel].lcd_cfg.lcd_power), sizeof(disp_gpio_set_t));
-        
-        if(!b_en)
-        {
-            gpio_info->data = (gpio_info->data==0)?1:0;
-        }
+		if(b_en)
+		{
+			memcpy(gpio_info, &(gdisp.screen[sel].lcd_cfg.lcd_power), sizeof(disp_gpio_set_t));
+		        
+	        if(!b_en)
+	        {
+	            gpio_info->data = (gpio_info->data==0)?1:0;
+	        }
 
-        hdl = OSAL_GPIO_Request(gpio_info, 1);
-        OSAL_GPIO_Release(hdl, 2);
+	        hdl = OSAL_GPIO_Request(gpio_info, 1);
+	        OSAL_GPIO_Release(hdl, 2);
+	        udelay(200);
+	        
+	        if((gpanel_info[sel].lcd_if == LCD_IF_EDP) && (gpanel_info[sel].lcd_edp_tx_ic == 0))
+	        {
+				__u8 data;
+				__u32 ret;
+				__u8 addr;
+				
+				addr = 0x1b;
+				data = 0x0b;
+				ret = ar100_axp_write_reg(&addr, &data, 1); //set eldo3 to 1.8v
+				if(ret != 0)
+				{
+					DE_WRN("set eldo3 to 1.8v fail\n");	
+				}
+				addr = 0x12;
+				ret = ar100_axp_read_reg(&addr, &data, 1);
+				if(ret != 0)
+				{
+					DE_WRN("axp read reg fail\n");	
+				}
+				addr = 0x12;
+				data |= 0x04;
+				ar100_axp_write_reg(&addr, &data, 1); //enable eldo3
+				if(ret != 0)
+				{
+					DE_WRN("enable eldo3 fail\n");	
+				}
 
-        if((gpanel_info[sel].lcd_if == LCD_IF_EDP) && (gpanel_info[sel].lcd_edp_tx_ic == 0))
-        {
-            struct regulator *regulator1;
+	        }
+		}
+		else
+		{
+			if((gpanel_info[sel].lcd_if == LCD_IF_EDP) && (gpanel_info[sel].lcd_edp_tx_ic == 0))
+	        {
+				__u8 data;
+				__u32 ret;
+				__u8 addr;
+			
+				addr = 0x12;
+				ret = ar100_axp_read_reg(&addr, &data, 1);
+				if(ret != 0)
+				{
+					DE_WRN("axp read reg fail\n");	
+				}
+				data &= 0xfb;
+				ar100_axp_write_reg(&addr, &data, 1); //enable eldo3
+				if(ret != 0)
+				{
+					DE_WRN("disable eldo3 fail\n");	
+				}
+			
+	       }
 
-        	regulator1 = regulator_get(NULL, "axp22_dldo3");//edp1.8V
-        	if(regulator1 != NULL || (__u32)regulator1 < 0)
-        	{
-        		if(b_en)
-                {
-                    regulator_set_voltage(regulator1, 1800000, 1800000);
-        		    if(regulator_enable(regulator1) == 0)
-                    {
-                        DE_INF("axp22_dldo3 enable ok\n");
-                    }
-                    else
-                    {
-                        DE_WRN("axp22_dldo3 enable fail \n");
-                    }
-                }
-                else
-                {
-                    if(regulator_force_disable(regulator1) == 0)
-                    {
-                        DE_INF("axp22_dldo3 disable ok\n");
-                    }
-                    else
-                    {
-                        DE_WRN("axp22_dldo3 disable fail \n");
-                    }
-                }
-                regulator_put(regulator1);
-        	}
-        	else
-        	{
-        		DE_WRN("regulator_get fail\n");
-        	}
-
-#if 0
-            printk("== regulator operation2\n");
-            regulator2 = regulator_get(NULL, "axp22_dldo1"); //柯肥涑龊虸D对应表见附件） edp2.8V
-        	if(regulator2 != NULL || (__u32)regulator2 < 0)
-        	{
-            	if(b_en)
-                {
-                    printk("== regulator get, hdl=0x%x\n", (__u32)regulator2);
-                    regulator_set_voltage(regulator2, 2800000, 2800000);//min_uV是需要的最小电压，max_uV是可接受的最大电压，min_uV=<max_uV，调电压时，是调到=min_uV的最小电压。
-            	    regulator_enable(regulator2);//打开
-                }
-                else
-                {
-                    regulator_force_disable(regulator2);//强制关闭
-                }
-
-                regulator_put(regulator2);
-            }
-            else
-            {
-                DE_WRN("regulator_get fail\n");
-            }
-#endif
-            }
+			udelay(200);
+			memcpy(gpio_info, &(gdisp.screen[sel].lcd_cfg.lcd_power), sizeof(disp_gpio_set_t));
+	        
+	        if(!b_en)
+	        {
+	            gpio_info->data = (gpio_info->data==0)?1:0;
+	        }
+	        hdl = OSAL_GPIO_Request(gpio_info, 1);
+	        OSAL_GPIO_Release(hdl, 2);
+		}
     }
     return 0;
 }
@@ -1116,29 +1126,6 @@ __s32 Disp_lcdc_pin_cfg(__u32 sel, __disp_output_type_t out_type, __u32 bon)
         __hdle lcd_pin_hdl;
         int  i;
 
-#if !defined(CONFIG_AW_ASIC_EVB_PLATFORM)
-        if(!bon)
-        {        //pd28, pwm0 pin_cfg
-                //*(volatile __u32*)(0xf1c20800 + 0x78) = (*(volatile __u32*)(0xf1c20800 +  0x78)) & (~0x00020000);
-                sys_put_wvalue(gdisp.init_para.base_pioc+0x6c, 0x00000000);
-                sys_put_wvalue(gdisp.init_para.base_pioc+0x70, 0x00000000);
-                sys_put_wvalue(gdisp.init_para.base_pioc+0x74, 0x00000000);
-                sys_put_wvalue(gdisp.init_para.base_pioc+0x78, 0x00000000);
-         }else
-        {
-             //pd28, pwm0 pin_cfg
-             //*(volatile __u32*)(0xf1c20800 + 0x78) = (*(volatile __u32*)(0xf1c20800 +  0x78)) | 0x00020000;
-             sys_put_wvalue(gdisp.init_para.base_pioc+0x6c, 0x22222222);
-             sys_put_wvalue(gdisp.init_para.base_pioc+0x70, 0x22222222);
-             sys_put_wvalue(gdisp.init_para.base_pioc+0x74, 0x22222222);
-             sys_put_wvalue(gdisp.init_para.base_pioc+0x78, 0x00122222);
-             sys_put_wvalue(gdisp.init_para.base_pioc+0x7c, sys_get_wvalue(gdisp.init_para.base_pioc+0x7c) | 0xf0000000);
-
-             sys_put_wvalue(gdisp.init_para.base_pioc+0xfc,(sys_get_wvalue(gdisp.init_para.base_pioc+0xfc) & 0xfffffff0 )| 0xf0000001);
-             sys_put_wvalue(gdisp.init_para.base_pioc+0x10c, sys_get_wvalue(gdisp.init_para.base_pioc+0x10c) |  0x1);
-        }
-#endif
-
         for(i=0; i<28; i++)
         {
             if(gdisp.screen[sel].lcd_cfg.lcd_io_used[i])
@@ -1148,7 +1135,7 @@ __s32 Disp_lcdc_pin_cfg(__u32 sel, __disp_output_type_t out_type, __u32 bon)
                 memcpy(gpio_info, &(gdisp.screen[sel].lcd_cfg.lcd_io[i]), sizeof(disp_gpio_set_t));
                 if(!bon)
                 {
-                    gpio_info->mul_sel = 0;
+                    gpio_info->mul_sel = 7;
 
                 }
                 else
@@ -1730,7 +1717,7 @@ __s32 BSP_disp_lcd_open_before(__u32 sel)
     }
     image_clk_on(sel);
     Image_open(sel);//set image normal channel start bit , because every de_clk_off( )will reset this bit
-    Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_LCD, 1);
+    //Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_LCD, 1);
     if(gpanel_info[sel].tcon_index == 0)
     {
         tcon0_cfg(sel,(__panel_para_t*)&gpanel_info[sel]);
@@ -1766,6 +1753,7 @@ __s32 BSP_disp_lcd_open_after(__u32 sel)
     gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_LCD;
     Lcd_Panel_Parameter_Check(sel);
     //BSP_disp_drc_enable(sel, TRUE);
+    drc_enable(sel, 1);
 #ifdef __LINUX_OSAL__
     Display_set_fb_timming(sel);
 #endif
@@ -1779,9 +1767,10 @@ __lcd_flow_t * BSP_disp_lcd_get_open_flow(__u32 sel)
 
 __s32 BSP_disp_lcd_close_befor(__u32 sel)
 {    
-	close_flow[sel].func_num = 0;
+    close_flow[sel].func_num = 0;
 	lcd_panel_fun[sel].cfg_close_flow(sel);
     //BSP_disp_drc_enable(sel, FALSE);
+    drc_enable(sel, 2);
 
 	gdisp.screen[sel].status &= LCD_OFF;
 	gdisp.screen[sel].output_type = DISP_OUTPUT_TYPE_NONE;
@@ -1792,7 +1781,7 @@ __s32 BSP_disp_lcd_close_after(__u32 sel)
 {    
     Image_close(sel);
 
-    Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_LCD, 0);
+    //Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_LCD, 0);
 	image_clk_off(sel);
 	lcdc_clk_off(sel);
     if(gpanel_info[sel].lcd_if == LCD_IF_LVDS)

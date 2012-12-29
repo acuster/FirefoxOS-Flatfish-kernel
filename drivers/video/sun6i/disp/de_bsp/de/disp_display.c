@@ -260,6 +260,12 @@ __s32 BSP_disp_print_reg(__bool b_force_on, __u32 id)
             size = 0x300;
             sprintf(str, "drc1:\n");
             break;
+
+        case DISP_REG_DSI:
+            base = gdisp.init_para.base_dsi0;
+            size = 0xf0;
+            sprintf(str, "dsi:\n");
+            break;
             
         default:
             return DIS_FAIL;

@@ -766,7 +766,7 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
 		}
 		else
 		{	
-			DE_WRN("output mode:%d invalid in Display_Scaler_Start\n",scaler->out_fb.mode);
+			DE_WRN("output mode:%d invalid in Scaler_Set_Para\n",scaler->out_fb.mode);
 			return DIS_FAIL;
 		}
 	}
@@ -785,7 +785,7 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
 		}
 		else
 		{
-			DE_WRN("output para invalid in Display_Scaler_Start,mode:%d,format:%d\n",scaler->out_fb.mode, scaler->out_fb.format);
+			DE_WRN("output para invalid in Scaler_Set_Para,mode:%d,format:%d\n",scaler->out_fb.mode, scaler->out_fb.format);
 			return DIS_FAIL;
 		}
 	}  

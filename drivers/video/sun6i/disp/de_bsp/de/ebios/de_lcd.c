@@ -350,7 +350,7 @@ __s32 tcon0_cfg_mode_tri(__u32 sel, __panel_para_t * panel)
 	    }
 	    else
 	    {
-	        __u32 cntr_set = (panel->lcd_dclk_freq*1000*1000);//todo? panel->lcd_fps);
+	        __u32 cntr_set = (panel->lcd_dclk_freq*1000*1000/60);//todo? panel->lcd_fps);
 	        __u32 cntr_n,cntr_m;
 	        for(cntr_m=1;cntr_m<256;cntr_m++)
 	        {

@@ -79,6 +79,7 @@ __u32 g_clk_status = 0x0;
 #define RESET_OSAL 
 
 volatile __ccmu_mipi_pll_reg0040_t *MipiPllCtl;
+volatile __ccmu_mipi_pll_bias_reg0240_t *MipipllBias;
 
 extern __disp_dev_t         gdisp;
 extern __panel_para_t		gpanel_info[2];
@@ -153,7 +154,7 @@ __s32 disp_mipipll_calc_coefficient(__u32 src_freq, __u32 output_freq, __disp_cc
 	m_max = src_freq/30;
 	
 	for(m=1;m<m_max+1;m++)
-		for(k=1;k<5;k++)
+		for(k=2;k<5;k++)
 			for(n=1;n<17;n++)
 			{
 				output_curr = src_freq*n*k/m;
@@ -193,14 +194,30 @@ __s32 disp_mipipll_set_coefficient(__disp_ccmu_coef *coef)
 __s32 disp_mipipll_init(void)
 {
     MipiPllCtl = (__ccmu_mipi_pll_reg0040_t *)0xf1c20040;
+    MipipllBias = (__ccmu_mipi_pll_bias_reg0240_t *)0xf1c20240; 
     MipiPllCtl->PLLEn = 0;
     MipiPllCtl->Ldo1En = 0;
     MipiPllCtl->Ldo2En = 0;
     MipiPllCtl->Ldo1En = 1;
     MipiPllCtl->Ldo2En = 1;
     MipiPllCtl->PllSrc = 1; //pll7
-    msleep(200);
+    MipipllBias->pllvdd_ldo_out_ctrl = 0x7; //1.45v
+    msleep(2);
     MipiPllCtl->PLLEn = 1;
+
+    return 0;
+}
+
+__s32 disp_mipipll_enable(__u32 en)
+{
+    if(en)
+    {
+        MipiPllCtl->PLLEn = 1;
+    }
+    else
+    {
+        MipiPllCtl->PLLEn = 0;
+    }
 
     return 0;
 }
@@ -1113,6 +1130,35 @@ __s32 disp_clk_cfg(__u32 sel, __u32 type, __u8 mode)
 	return DIS_SUCCESS;
 }
 
+//type 0: decrease
+//type 1: resume
+__s32 disp_clk_adjust(__u32 sel, __u32 type)
+{
+    if((gpanel_info[sel].lcd_x >= 2048) || (gpanel_info[sel].lcd_y >= 1536))
+    {
+        if(type == 0)
+        {
+            gpanel_info[sel].lcd_dclk_freq_original = gpanel_info[sel].lcd_dclk_freq;
+            gpanel_info[sel].lcd_dclk_freq = gpanel_info[sel].lcd_dclk_freq * 2 /3; //40fps
+
+            if(BSP_disp_get_output_type(sel) == DISP_OUTPUT_TYPE_LCD)
+            {
+                disp_clk_cfg(sel, DISP_OUTPUT_TYPE_LCD, DIS_NULL);
+            }
+        }
+        else if(type == 1)
+        {
+            gpanel_info[sel].lcd_dclk_freq = gpanel_info[sel].lcd_dclk_freq_original;
+
+            if(BSP_disp_get_output_type(sel) == DISP_OUTPUT_TYPE_LCD)
+            {
+                disp_clk_cfg(sel, DISP_OUTPUT_TYPE_LCD, DIS_NULL);
+            }
+        }
+    }
+
+    return  DIS_SUCCESS;
+}
 //type==1: open ahb clk and image mclk
 //type==2: open all clk except ahb clk and image mclk
 //type==3: open all clk

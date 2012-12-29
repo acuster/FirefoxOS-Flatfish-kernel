@@ -43,7 +43,7 @@
 #endif
 
 #define  DMSG_PRINT(format,args...)   	  pr_debug("[sun6i_usb]: "format,##args)
-#define  DMSG_ERR(format,args...)   			pr_err("[sun6i_usb]: "format,##args)
+#define  DMSG_ERR(format,args...)   			pr_debug("[sun6i_usb]: "format,##args)
 
 
 /* ≤‚ ‘ */

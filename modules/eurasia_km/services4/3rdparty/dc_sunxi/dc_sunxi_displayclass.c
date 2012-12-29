@@ -86,7 +86,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "servicesext.h"
 #include "kerneldisplay.h"
 #include "dc_sunxi.h"
-
+#include "linux/drv_display.h"
 
 #define SUNXILFB_COMMAND_COUNT		1
 
@@ -915,6 +915,39 @@ static IMG_BOOL ProcessFlipV1(IMG_HANDLE hCmdCookie,
 }
 
 
+static void dispc_proxy_cmdcomplete(void * cookie, int i)
+{
+	/* XXX: assumes that there is only one display */
+	gapsDevInfo[0]->sPVRJTable.pfnPVRSRVCmdComplete(cookie, i);
+}
+
+
+extern int dispc_gralloc_queue(setup_dispc_data_t *psDispcData, int ui32DispcDataLength, void (*cb_fn)(void *, int), void *cb_arg);
+
+static IMG_BOOL ProcessFlipV2(IMG_HANDLE hCmdCookie,
+							  SUNXILFB_DEVINFO *psDevInfo,
+							  PDC_MEM_INFO *ppsMemInfos,
+							  IMG_UINT32 ui32NumMemInfos,
+							  setup_dispc_data_t *psDispcData,
+							  IMG_UINT32 ui32DispcDataLength)
+{
+    int i = 0;
+
+
+    for(i=0;i < psDispcData->post2_layers;i++)
+    {
+        IMG_CPU_PHYADDR phyAddr;
+        
+        psDevInfo->sPVRJTable.pfnPVRSRVDCMemInfoGetCpuPAddr(ppsMemInfos[i], 0, &phyAddr);
+
+        psDispcData->layer_info[i].fb.addr[0] = phyAddr.uiAddr;
+    }
+
+    dispc_gralloc_queue(psDispcData, ui32DispcDataLength, dispc_proxy_cmdcomplete, (void *)hCmdCookie);
+       
+    return IMG_TRUE;
+}
+
 /* Command processing flip handler function.  Called from services. */
 static IMG_BOOL ProcessFlip(IMG_HANDLE  hCmdCookie,
                             IMG_UINT32  ui32DataSize,
@@ -922,6 +955,8 @@ static IMG_BOOL ProcessFlip(IMG_HANDLE  hCmdCookie,
 {
 	DISPLAYCLASS_FLIP_COMMAND *psFlipCmd;
 	SUNXILFB_DEVINFO *psDevInfo;
+
+	//printk(KERN_WARNING "ProcessFlip\n");
 
 	/* Check parameters  */
 	if(!hCmdCookie || !pvData)
@@ -941,6 +976,7 @@ static IMG_BOOL ProcessFlip(IMG_HANDLE  hCmdCookie,
 
 	if(psFlipCmd->hExtBuffer)
 	{
+	    //printk(KERN_WARNING "ProcessFlipV1\n");
 		return ProcessFlipV1(hCmdCookie,
 							 psDevInfo,
 							 psFlipCmd->hExtSwapChain,
@@ -949,6 +985,16 @@ static IMG_BOOL ProcessFlip(IMG_HANDLE  hCmdCookie,
 	}
 	else
 	{
+		DISPLAYCLASS_FLIP_COMMAND2 *psFlipCmd2;
+		psFlipCmd2 = (DISPLAYCLASS_FLIP_COMMAND2 *)pvData;
+		//printk(KERN_WARNING "ProcessFlipV2\n");
+		return ProcessFlipV2(hCmdCookie,
+							 psDevInfo,
+							 psFlipCmd2->ppsMemInfos,
+							 psFlipCmd2->ui32NumMemInfos,
+							 psFlipCmd2->pvPrivData,
+							 psFlipCmd2->ui32PrivDataLength);
+
 	    printk(KERN_ERR DRIVER_PREFIX
 	        ": %s::%d unsupported psFlipCmd->hExtBuffer==NULL in ProcessFlip\n", __FUNCTION__, __LINE__);
 		return IMG_FALSE;
@@ -1129,6 +1175,8 @@ static SUNXILFB_ERROR SUNXILFBInitFBDev(SUNXILFB_DEVINFO *psDevInfo)
 	/* System Surface */
 	psDevInfo->sFBInfo.sSysAddr.uiAddr = psPVRFBInfo->sSysAddr.uiAddr;
 	psDevInfo->sFBInfo.sCPUVAddr = psPVRFBInfo->sCPUVAddr;
+
+	printk("####sysaddr:%x,cpuaddr:%x\n", psDevInfo->sFBInfo.sSysAddr.uiAddr, (unsigned int)psDevInfo->sFBInfo.sCPUVAddr);
 
 	eError = SUNXILFB_OK;
 	goto ErrorRelSem;

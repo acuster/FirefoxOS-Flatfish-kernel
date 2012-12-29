@@ -69,6 +69,22 @@ static struct resource disp_resource[DISP_IO_NUM] =
 	},
 };
 
+__s32 disp_dram_ctrl_init(void)
+{
+    (*((volatile __u32 *)(0xf1c6206c))=(0x00000003));
+	(*((volatile __u32 *)(0xf1c62014))=(0x00400302));
+	(*((volatile __u32 *)(0xf1c6201c))=(0x00400302));
+    
+    (*((volatile __u32 *)(0xf1c62010))=(0x00800302));
+    (*((volatile __u32 *)(0xf1c62014))=(0x00400307));
+    (*((volatile __u32 *)(0xf1c62018))=(0x00800302));
+    (*((volatile __u32 *)(0xf1c6201c))=(0x00400307));
+    (*((volatile __u32 *)(0xf1c62074))=(0x00010310));
+    (*((volatile __u32 *)(0xf1c62078))=(0x00010310));
+    (*((volatile __u32 *)(0xf1c62080))=(0x00000310));
+
+    return 0;
+}
 
 __s32 disp_create_heap(__u32 pHeapHead, __u32 pHeapHeadPhy, __u32 nHeapSize)
 {
@@ -260,7 +276,7 @@ __s32 disp_lcd_open_late(__u32 sel)
 {
     __lcd_flow_t *flow;
 
-	if(g_disp_drv.b_lcd_open[sel] == 0)
+	//if(g_disp_drv.b_lcd_open[sel] == 0)
 	{
         flow = BSP_disp_lcd_get_open_flow(sel);
         flow->func[flow->func_num-1].func(sel);
@@ -353,6 +369,57 @@ __s32 disp_set_hdmi_func(__disp_hdmi_func * func)
 
     return 0;
 }
+static void resume_work_0(struct work_struct *work)
+{
+    __u32 i = 0;
+    __lcd_flow_t *flow;
+    __u32 sel = 0;
+
+	if(BSP_disp_lcd_used(sel) && (g_disp_drv.b_lcd_open[sel] == 0))
+	{
+	    BSP_disp_lcd_open_before(sel);
+
+	    flow = BSP_disp_lcd_get_open_flow(sel);
+	    for(i=0; i<flow->func_num-1; i++)
+	    {
+	        __u32 timeout = flow->func[i].delay*HZ/1000;
+
+	        flow->func[i].func(sel);
+
+	    	set_current_state(TASK_INTERRUPTIBLE);
+	    	schedule_timeout(timeout);
+	    }
+	}
+
+    g_disp_drv.b_lcd_open[sel] = 1;
+}
+
+static void resume_work_1(struct work_struct *work)
+{
+    __lcd_flow_t *flow;
+    __u32 sel = 1;
+    __u32 i;
+
+	if(BSP_disp_lcd_used(sel) && (g_disp_drv.b_lcd_open[sel] == 0))
+	{
+	    BSP_disp_lcd_open_before(sel);
+
+	    flow = BSP_disp_lcd_get_open_flow(sel);
+	    for(i=0; i<flow->func_num-1; i++)
+	    {
+	        __u32 timeout = flow->func[i].delay*HZ/1000;
+
+	        flow->func[i].func(sel);
+
+	    	set_current_state(TASK_INTERRUPTIBLE);
+	    	schedule_timeout(timeout);
+
+	    }
+	}
+
+    g_disp_drv.b_lcd_open[sel] = 1;
+}
+
 
 __s32 DRV_DISP_Init(void)
 {
@@ -364,6 +431,8 @@ __s32 DRV_DISP_Init(void)
     init_waitqueue_head(&g_fbi.wait[1]);
     g_fbi.wait_count[0] = 0;
     g_fbi.wait_count[1] = 0;
+    INIT_WORK(&g_fbi.resume_work[0], resume_work_0);
+    INIT_WORK(&g_fbi.resume_work[1], resume_work_1);
 
     memset(&para, 0, sizeof(__disp_bsp_init_para));
     para.base_image0    = (__u32)g_fbi.base_image0;
@@ -566,7 +635,7 @@ static int __init disp_probe(struct platform_device *pdev)//called when platform
 	__inf("PIO base 0x%08x\n", info->base_pioc);
 	__inf("PWM base 0x%08x\n", info->base_pwm);
 
-	(*((volatile __u32 *)(0xf1c6206c))=(0x00000003));
+	disp_dram_ctrl_init();
 
     pr_info("[DISP]==disp_probe finish==\n");
 
@@ -632,6 +701,7 @@ void backlight_late_resume(struct early_suspend *h)
 
             if(2 == suspend_prestep)//late resume from  resume
             {
+#if 0
                 flow =BSP_disp_lcd_get_open_flow(i);
                 while(flow->cur_step < (flow->func_num))//open flow is finished  accept the last one
                 {
@@ -639,6 +709,9 @@ void backlight_late_resume(struct early_suspend *h)
                     set_current_state(TASK_INTERRUPTIBLE);
                     schedule_timeout(timeout);
                 }
+#else
+                flush_work(&g_fbi.resume_work[i]);
+#endif
                 disp_lcd_open_late(i);
             }
             else if(0 == suspend_prestep)//late resume from early  suspend
@@ -678,6 +751,7 @@ static struct early_suspend backlight_early_suspend_handler =
 
 static __u32 image0_reg_bak,scaler0_reg_bak;
 static __u32 image1_reg_bak,scaler1_reg_bak;
+extern __s32 disp_mipipll_enable(__u32 en);
 
 int disp_suspend(struct platform_device *pdev, pm_message_t state)
 {
@@ -708,6 +782,7 @@ int disp_suspend(struct platform_device *pdev, pm_message_t state)
         }
     }
 #else
+#if 0
 	if(2 == suspend_prestep)//suspend after resume,not  after early suspend
     {
         for(i=0; i<2; i++)
@@ -718,6 +793,19 @@ int disp_suspend(struct platform_device *pdev, pm_message_t state)
             }
         }
     }
+#else
+    if(2 == suspend_prestep)//suspend after resume,not  after early suspend
+    {   
+        for(i=0; i<2; i++)
+        {
+            if(suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
+            {
+                flush_work(&g_fbi.resume_work[i]);
+                DRV_lcd_close(i);
+            }
+        }
+     }
+#endif
 #endif
      if(SUPER_STANDBY == standby_type)
      {
@@ -740,6 +828,7 @@ int disp_suspend(struct platform_device *pdev, pm_message_t state)
 
     BSP_disp_clk_off(1);
     BSP_disp_clk_off(2);
+    disp_mipipll_enable(0);
 
     suspend_status |= 2;
     suspend_prestep = 1;
@@ -747,13 +836,12 @@ int disp_suspend(struct platform_device *pdev, pm_message_t state)
     return 0;
 }
 
-extern __s32 disp_mipipll_init(void);
 
 int disp_resume(struct platform_device *pdev)
 {
     int i = 0;
 
-    disp_mipipll_init();
+    disp_mipipll_enable(1);
     BSP_disp_clk_on(1);
     BSP_disp_clk_on(2);
     if(SUPER_STANDBY == standby_type)
@@ -773,6 +861,7 @@ int disp_resume(struct platform_device *pdev)
         kfree((void*)scaler1_reg_bak);
         kfree((void*)image1_reg_bak);
     }
+    disp_dram_ctrl_init();
 
     BSP_disp_hdmi_resume();
     Bsp_disp_iep_resume(0);
@@ -807,8 +896,12 @@ int disp_resume(struct platform_device *pdev)
     {
         if(suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
         {
+#if 0
             disp_lcd_open_flow_init_status(i);
             disp_lcd_open_timer(i);//start lcd open flow
+#else
+            schedule_work(&g_fbi.resume_work[i]);
+#endif
         }
     }
 #endif
@@ -867,6 +960,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     if(cmd!=DISP_CMD_TV_GET_INTERFACE && cmd!=DISP_CMD_HDMI_GET_HPD_STATUS && cmd!=DISP_CMD_GET_OUTPUT_TYPE 
     	&& cmd!=DISP_CMD_SCN_GET_WIDTH && cmd!=DISP_CMD_SCN_GET_HEIGHT
     	&& cmd!=DISP_CMD_VIDEO_SET_FB && cmd!=DISP_CMD_VIDEO_GET_FRAME_ID)
+    	&& cmd!=DISP_CMD_VSYNC_EVENT_EN)
     {
         OSAL_PRINTF("cmd:0x%x,%ld,%ld\n",cmd, ubuffer[0], ubuffer[1]);
     }
@@ -1109,7 +1203,11 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
       case DISP_CMD_VSYNC_EVENT_EN:
             ret = BSP_disp_vsync_event_enable(ubuffer[0], ubuffer[1]);
             break;
-            
+
+      case DISP_CMD_SET_OVL_MODE:
+      		ret = disp_set_ovl_mode(ubuffer[0], ubuffer[1], ubuffer[2]);
+      	    break;
+
     //----layer----
     	case DISP_CMD_LAYER_REQUEST:
     		ret = BSP_disp_layer_request(ubuffer[0], (__disp_layer_work_mode_t)ubuffer[1]);

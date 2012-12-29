@@ -1027,6 +1027,10 @@ static int do_write(struct fsg_common *common)
             if(curlun->zero_disk){
                 nwritten = amount;
             }else{
+            		/*在删除小文件时vfs_write可能会超时，引起usb reset,增加延时，速度会下降*/
+								if(amount <= 512){
+									msleep(1);
+								}
                 nwritten = vfs_write(curlun->filp,
                              (char __user *)bh->buf,
                              amount, &file_offset_tmp);

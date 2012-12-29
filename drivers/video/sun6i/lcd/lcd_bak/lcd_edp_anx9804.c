@@ -38,6 +38,7 @@ void anx9804_init(__panel_para_t * info)
 		OSAL_PRINTF("ANX9804 Chip not found\n");
 	}
 
+#if 0
 	//for clock detect
 	for(i=0;i<50;i++)
 	{
@@ -52,6 +53,8 @@ void anx9804_init(__panel_para_t * info)
 
 		LCD_delay_ms(10);
 	}
+#endif
+
        //check whether clock is stable
 	for(i=0;i<50;i++)
 	{

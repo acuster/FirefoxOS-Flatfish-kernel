@@ -51,8 +51,18 @@ typedef struct
 	unsigned long           wait_count[2];
     struct timer_list      disp_timer[2];
     struct work_struct      vsync_work[2];
-    ktime_t                 vsync_timestamp
-[2];
+    struct work_struct      post2_cb_work;
+	struct work_struct      resume_work[2];
+    struct work_struct      lcd_open_work[2];
+    ktime_t                 vsync_timestamp[2];
+
+    __u32   ovl_mode;
+    __u32	cb_w_conut;
+    __u32	cb_r_conut;
+    __u32   cb_count;
+    void    (*cb_fn)(void *, int);
+    void    *cb_arg[10];
+    __bool  b_ovl_request;
 }fb_info_t;
 
 typedef struct
@@ -106,5 +116,7 @@ extern __s32 DRV_lcd_open(__u32 sel);
 extern __s32 DRV_lcd_close(__u32 sel);
 extern __s32 Fb_Init(__u32 from);
 extern __s32 Fb_Exit(void);
+
+extern int disp_set_ovl_mode(__u32 sel, __u32 mode, __u32 count);
 
 #endif

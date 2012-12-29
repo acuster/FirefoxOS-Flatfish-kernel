@@ -134,11 +134,11 @@ static int sw_serial_get_resource(struct sw_serial_port *sport)
     }
 
 	sport->sclk = clk_get_rate(sport->mod_clk);
-/*
+
 	clk_enable(sport->bus_clk);
     clk_enable(sport->mod_clk);
 	clk_reset(sport->mod_clk,AW_CCU_CLK_NRESET);
- */
+
 	/* get irq */
     sport->irq = platform_get_irq(sport->pdev, 0);
     if (sport->irq == 0) {
@@ -328,11 +328,11 @@ sw_serial_probe(struct platform_device *dev)
 
 	UART_MSG("\nserial line %d probe %d, membase %p irq %d mapbase 0x%08x\n", 
              sdata->line,dev->id, sport->port.membase, sport->port.irq, sport->port.mapbase);
-/*
+
 	clk_reset(sport->mod_clk,AW_CCU_CLK_RESET);
 	clk_disable(sport->mod_clk);
 	clk_disable(sport->bus_clk);
-*/
+
    	return 0;
 free_dev:
     kfree(sport);
@@ -353,23 +353,28 @@ void sunxi_8250_backup_reg(int port_num ,struct uart_port *port)
 	BACK_REG.halt	= AW_UART_RD(UART_HALT);
 	BACK_REG.fcr	= FCR_AW;
 
-	AW_UART_WR(BACK_REG.mcr|(1<<4),UART_MCR);
-	while(AW_UART_RD(UART_USR)&1)
-		AW_UART_RD(UART_RX);
-	AW_UART_WR(BACK_REG.lcr & 0x7f,UART_LCR);
+		if(AW_UART_RD(UART_USR)&1){
+			AW_UART_WR(FCR_AW | 0x07,UART_FCR);
+			AW_UART_WR(BACK_REG.mcr|(1<<4),UART_MCR);
+			while(AW_UART_RD(UART_USR)&1)
+				AW_UART_RD(UART_RX);
+		}else{
+			AW_UART_WR(BACK_REG.mcr,UART_MCR);
+		}
+		AW_UART_WR(BACK_REG.lcr & 0x7f,UART_LCR);
 
-	BACK_REG.ier	= AW_UART_RD(UART_IER);
+		BACK_REG.ier	= AW_UART_RD(UART_IER);
 
-	while(AW_UART_RD(UART_USR)&1)
-		AW_UART_RD(UART_RX);
-	AW_UART_WR(BACK_REG.lcr | 0x80,UART_LCR);
-	BACK_REG.dll	= AW_UART_RD(UART_DLL);
-	BACK_REG.dlh	= AW_UART_RD(UART_DLM);
+		while(AW_UART_RD(UART_USR)&1)
+			AW_UART_RD(UART_RX);
+		AW_UART_WR(BACK_REG.lcr | 0x80,UART_LCR);
+		BACK_REG.dll	= AW_UART_RD(UART_DLL);
+		BACK_REG.dlh	= AW_UART_RD(UART_DLM);
 
-	while(AW_UART_RD(UART_USR)&1)
-		AW_UART_RD(UART_RX);
-	AW_UART_WR(BACK_REG.lcr,UART_LCR);
-	AW_UART_WR(BACK_REG.mcr,UART_MCR);
+		while(AW_UART_RD(UART_USR)&1)
+			AW_UART_RD(UART_RX);
+		AW_UART_WR(BACK_REG.lcr,UART_LCR);
+		AW_UART_WR(BACK_REG.mcr,UART_MCR);
 }
 EXPORT_SYMBOL(sunxi_8250_backup_reg);
 
@@ -378,13 +383,17 @@ void sunxi_8250_comeback_reg(int port_num,struct uart_port *port)
 	unsigned long port_base_addr;
 	port_base_addr = port->mapbase + OFFSET;
 
-	AW_UART_WR(BACK_REG.mcr|(1<<4),UART_MCR);
-	AW_UART_WR(BACK_REG.sch,UART_SCR);
-	AW_UART_WR(BACK_REG.halt,UART_HALT);
-	AW_UART_WR(BACK_REG.fcr,UART_FCR);
+	if(AW_UART_RD(UART_USR)&1){
+		AW_UART_WR(BACK_REG.fcr |0x07,UART_FCR);
+		AW_UART_WR(BACK_REG.mcr|(1<<4),UART_MCR);
+		AW_UART_WR(BACK_REG.sch,UART_SCR);
+		AW_UART_WR(BACK_REG.halt,UART_HALT);
 
-	while(AW_UART_RD(UART_USR)&1)
-		AW_UART_RD(UART_RX);
+		while(AW_UART_RD(UART_USR)&1)
+			AW_UART_RD(UART_RX);
+	}else{
+		AW_UART_WR(BACK_REG.mcr,UART_MCR);
+	}
 
 	AW_UART_WR(BACK_REG.lcr & 0x7f,UART_LCR);
 	
