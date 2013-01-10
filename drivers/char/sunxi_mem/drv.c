@@ -51,8 +51,7 @@ int sunmm_mmap(struct file *file, struct vm_area_struct * vma)
 	SXM_DBG("%s, vm_start 0x%08x, vm_end 0x%08x, vm_pgoff 0x%08x, vm_page_prot 0x%08x\n",
 		__func__, (u32)vma->vm_start, (u32)vma->vm_end, (u32)vma->vm_pgoff, (u32)vma->vm_page_prot);
 
-	SXM_DBG_FUN_LINE_TODO; /* uncach or write combine or null? need check */
-	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	//vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot); /* NOTE: lys commit, for performance, 2012-12-3 */
 	//vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	if(remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 		vma->vm_end - vma->vm_start, vma->vm_page_prot))

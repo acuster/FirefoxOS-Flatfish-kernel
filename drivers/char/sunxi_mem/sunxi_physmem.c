@@ -26,11 +26,11 @@
 #define	BUFFER_VADDR			BUFFER_PADDR
 #define	BUFFER_SIZE			SW_VE_MEM_SIZE
 
-#define	MEMORY_GAP_MIN			0x10000
+#define	MEMORY_GAP_MIN      0x10000
 
-#define IS_LIST_EMPTY(listh)		((bool)((listh)->next == listh))
-#define LIST_REACH_END(listh, entry)	((bool)(listh == entry))
-#define NEXT_PHYS_ADDR(pnode)		(pnode->phys_addr + pnode->size)
+#define IS_LIST_EMPTY(listh)            ((bool)((listh)->next == listh))
+#define LIST_REACH_END(listh, entry)    ((bool)(listh == entry))
+#define NEXT_PHYS_ADDR(pnode)           (pnode->phys_addr + pnode->size)
 
 static struct sunxi_mem_allocator	*g_allocator = NULL;
 static DEFINE_SPINLOCK(sunxi_memlock);
@@ -67,9 +67,6 @@ static u32 sunxi_init(struct sunxi_mem_allocator *this, u32 size, u32 va, u32 pa
 	struct mem_list * pnode;
 
 	this->normal_size = size;
-
-	SXM_DBG_FUN_LINE_TODO;
-	//memset((void *)va, 0x00, this->normal_size);
 
 	this->node_free_listh = this->create_new_node(this, 0, 0, 0);
 	if(NULL == this->node_free_listh) {
@@ -244,7 +241,7 @@ bool sunxi_allocate(struct sunxi_mem_allocator *this, const u32 size_to_alloc,
 		u32* const pvirt_adr, u32* const pphy_adr)
 {
 	u32 	size;
-	struct mem_list *	pnode = NULL;
+	struct mem_list *pnode = NULL;
 
 	size = (size_to_alloc + (MEMORY_GAP_MIN - 1)) & (~(MEMORY_GAP_MIN - 1));
 	pnode = this->find_free_block(this, size);
@@ -323,7 +320,7 @@ int __init sunxi_mem_allocator_init(void)
 arch_initcall(sunxi_mem_allocator_init);
 
 //bool sunxi_mem_alloc(u32 size, u32* virmem, u32* phymem)
-u32 sunxi_mem_alloc(u32 size)
+unsigned int sunxi_mem_alloc(unsigned int size)
 {
 	u32	vtemp = 0, ptemp = 0;
 	unsigned long	flags;
@@ -334,8 +331,7 @@ u32 sunxi_mem_alloc(u32 size)
 			SXM_ERR("%s err, line %d, allocate failed!\n", __func__, __LINE__);
 			ptemp = 0;
 		}
-	}
-	else
+	} else
 		SXM_ERR("%s err, line %d, g_allocator not initailized yet!\n", __func__, __LINE__);
 	spin_unlock_irqrestore(&sunxi_memlock, flags);
 
@@ -345,7 +341,7 @@ u32 sunxi_mem_alloc(u32 size)
 EXPORT_SYMBOL(sunxi_mem_alloc);
 
 //void sunxi_mem_free(u32 virmem, u32 phymem)
-void sunxi_mem_free(u32 phymem)
+void sunxi_mem_free(unsigned int phymem)
 {
 	u32	vtemp = phymem; /* to check */
 	unsigned long	flags;
