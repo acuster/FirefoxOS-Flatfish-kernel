@@ -1440,7 +1440,7 @@ static int sw_mci_proc_read_regs(char *page, char **start, off_t off,
 	for (i=0; i<0x200; i+=4) {
 		if (!(i&0xf))
 			p += sprintf(p, "\n0x%08x : ", i);
-		p += sprintf(p, "%08x ", readl(IO_ADDRESS(AW_CCM_BASE) + i));
+		p += sprintf(p, "%08x ", readl(IO_ADDRESS(SW_PA_CCM_IO_BASE) + i));
 	}
 	p += sprintf(p, "\n");
 
@@ -1448,7 +1448,7 @@ static int sw_mci_proc_read_regs(char *page, char **start, off_t off,
 	for (i=0; i<0x200; i+=4) {
 		if (!(i&0xf))
 			p += sprintf(p, "\n0x%08x : ", i);
-		p += sprintf(p, "%08x ", readl(IO_ADDRESS(AW_PIO_BASE)+ i));
+		p += sprintf(p, "%08x ", readl(IO_ADDRESS(SW_PA_PORTC_IO_BASE)+ i));
 	}
 	p += sprintf(p, "\n");
 

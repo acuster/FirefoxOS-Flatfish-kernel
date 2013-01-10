@@ -17,7 +17,7 @@ __s32 mem_tmr_save(struct tmr_state *ptmr_state)
 {
 	__mem_tmr_reg_t  *TmrReg;
 	/* set timer register base */
-	ptmr_state->TmrReg = TmrReg = (__mem_tmr_reg_t *)IO_ADDRESS(AW_TIMER_BASE);
+	ptmr_state->TmrReg = TmrReg = (__mem_tmr_reg_t *)IO_ADDRESS(SW_PA_TIMERC_IO_BASE);
 
 	/* backup timer registers */
 	ptmr_state->TmrIntCtl   = TmrReg->IntCtl;

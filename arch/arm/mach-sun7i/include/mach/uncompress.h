@@ -24,7 +24,7 @@
 
 static inline unsigned long get_uart_base(void)
 {
-	return IO_ADDRESS(AW_UART0_BASE);
+	return SW_VA_UART0_IO_BASE;
 }
 
 /*

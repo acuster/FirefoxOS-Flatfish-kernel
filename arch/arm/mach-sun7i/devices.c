@@ -38,8 +38,8 @@
 /* uart */
 static struct plat_serial8250_port debug_uart_platform_data[] = {
 	{
-		.membase        = (void __iomem *)(IO_ADDRESS(AW_UART0_BASE)),
-		.mapbase        = (resource_size_t)AW_UART0_BASE,
+		.membase        = (void __iomem *)SW_VA_UART0_IO_BASE,
+		.mapbase        = (resource_size_t)SW_PA_UART0_IO_BASE,
 		.irq            = 33,
 		.flags          = UPF_BOOT_AUTOCONF|UPF_IOREMAP,
 		.iotype         = UPIO_MEM32,
@@ -63,8 +63,8 @@ static u64 sw_dmac_dmamask = DMA_BIT_MASK(32);
 
 static struct resource sw_dmac_resources[] = {
 	[0] = {
-		.start 	= AW_DMA_BASE,
-		.end 	= AW_DMA_BASE + 0x1000, /* lead to boot_secondary->enable_aw_cpu halt? no */
+		.start 	= SW_PA_DMAC_IO_BASE,
+		.end 	= SW_PA_DMAC_IO_BASE + 0x1000,
 		.flags 	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -82,7 +82,6 @@ static struct platform_device sw_dmac_device = {
 	.dev 		= {
 				.dma_mask = &sw_dmac_dmamask,
 				.coherent_dma_mask = DMA_BIT_MASK(32),	/* validate dma_pool_alloc */
-				// .platform_data = (void *) &sw_dmac_pdata,
 			  },
 };
 

@@ -22,16 +22,9 @@
 #ifndef __ASM_ARCH_TIMERX_H
 #define __ASM_ARCH_TIMERX_H
 
-#define CHANGE_TMR_LIUGANG_20121008 /* fix timer bug, 2012-10-8 */
+#define AW_CLOCK_SRC		(24000000)	/* 32000 */
+#define AW_CLOCK_DIV		(16)		/* (1) */
 
-#ifdef CHANGE_TMR_LIUGANG_20121008
-#define AW_CLOCK_SRC (24000000)
-#define AW_CLOCK_DIV (16)
-#else
-#define AW_CLOCK_SRC (32000)
-#define AW_CLOCK_DIV (1)
-#endif /* CHANGE_TMR_LIUGANG_20121008 */
-
-#define CLOCK_TICK_RATE     (AW_CLOCK_SRC/AW_CLOCK_DIV)
+#define CLOCK_TICK_RATE		(AW_CLOCK_SRC/AW_CLOCK_DIV)
 
 #endif

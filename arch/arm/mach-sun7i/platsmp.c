@@ -38,8 +38,8 @@ static DEFINE_SPINLOCK(boot_lock);
  */
 static void __iomem *scu_base_addr(void)
 {
-	printk("[%s] enter\n", __FUNCTION__);
-	return __io_address(AW_SCU_BASE);
+	pr_info("[%s] enter\n", __func__);
+	return __io_address(SW_PA_GIC_IO_BASE);
 }
 
 
@@ -48,11 +48,11 @@ void enable_aw_cpu(int cpu)
 	long paddr;
 
 	paddr = virt_to_phys(sun7i_secondary_startup);
-        writel(paddr, IO_ADDRESS(AW_CPUCFG_BASE) + AW_CPUCFG_P_REG0);
+        writel(paddr, IO_ADDRESS(SW_PA_CPUCFG_IO_BASE) + AW_CPUCFG_P_REG0);
 
 	/* let cpus go */
 	if (cpu)
-		writel(1, IO_ADDRESS(AW_CPUCFG_BASE) + 0x80);
+		writel(1, IO_ADDRESS(SW_PA_CPUCFG_IO_BASE) + 0x80);
 }
 
 
@@ -61,7 +61,7 @@ void __init smp_init_cpus(void)
 	unsigned int i, ncores;
 
 	ncores =  scu_get_core_count(NULL);
-	printk("[%s] ncores=%d\n", __FUNCTION__, ncores);
+	pr_info("[%s] ncores=%d\n", __func__, ncores);
 
 	for (i = 0; i < ncores; i++)
                 set_cpu_possible(i, true);
@@ -76,7 +76,7 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 {
 	void __iomem *scu_base;
 
-	printk("[%s] enter\n", __FUNCTION__);
+	pr_info("[%s] enter\n", __func__);
 	scu_base = scu_base_addr();
 	scu_enable(scu_base);
 }
@@ -86,13 +86,13 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
  */
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
-	printk("[%s] enter\n", __FUNCTION__);
+	pr_info("[%s] enter\n", __func__);
 	gic_secondary_init(0);
 
         spin_lock(&boot_lock);
         spin_unlock(&boot_lock);
 
-	printk("[%s] leave\n", __FUNCTION__);
+	pr_info("[%s] leave\n", __func__);
 }
 
 /*
@@ -100,12 +100,12 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
  */
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	printk("[%s] enter\n", __FUNCTION__);
+	pr_info("[%s] enter\n", __func__);
 
 	spin_lock(&boot_lock);
 	enable_aw_cpu(cpu);
 	spin_unlock(&boot_lock);
 
-	printk("[%s] leave\n", __FUNCTION__);
+	pr_info("[%s] leave\n", __func__);
 	return 0;
 }

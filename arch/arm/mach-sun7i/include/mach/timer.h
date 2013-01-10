@@ -16,81 +16,120 @@
 #ifndef __AW_TIMER_H__
 #define __AW_TIMER_H__
 
-#ifndef __tmr_reg
-    #define __tmr_reg(x)    (*(volatile __u32 *)(x))
-#endif  /*#ifndef __tmr_reg */
+/* timer reg offset */
+#define TMR_IRQ_EN_REG_OFF               0x0000
+#define TMR_IRQ_STA_REG_OFF              0x0004
 
-/*define the timer1 irq value*/
-#define SW_INT_IRQNO_TIMER1 55
+#define TMR0_CTRL_REG_OFF                0x0010
+#define TMR0_INTV_VALUE_REG_OFF          0x0014
+#define TMR0_CUR_VALUE_REG_OFF           0x0018
+#define TMR1_CTRL_REG_OFF                0x0020
+#define TMR1_INTV_VALUE_REG_OFF          0x0024
+#define TMR1_CUR_VALUE_REG_OFF           0x0028
+#define TMR2_CTRL_REG_OFF                0x0030
+#define TMR2_INTV_VALUE_REG_OFF          0x0034
+#define TMR2_CUR_VALUE_REG_OFF           0x0038
+#define TMR3_CTRL_REG_OFF                0x0040
+#define TMR3_INTV_VALUE_REG_OFF          0x0044
+#define TMR4_CTRL_REG_OFF                0x0050
+#define TMR4_INTV_VALUE_REG_OFF          0x0054
+#define TMR4_CUR_VALUE_REG_OFF           0x0058
+#define TMR5_CTRL_REG_OFF                0x0060
+#define TMR5_INTV_VALUE_REG_OFF          0x0064
+#define TMR5_CUR_VALUE_REG_OFF           0x0068
 
-/* define timer io base on aw chips */
-#define AW_TMR_IO_BASE          0xf1c20c00
-/* define timer io register address */
-#define TMR_REG_o_IRQ_EN        (AW_TMR_IO_BASE + 0x0000)
-#define TMR_REG_o_IRQ_STAT      (AW_TMR_IO_BASE + 0x0004)
+#define AVS_CNT_CTRL_REG_OFF             0x0080
+#define AVS_CNT0_REG_OFF                 0x0084
+#define AVS_CNT1_REG_OFF                 0x0088
+#define AVS_CNT_DIV_REG_OFF              0x008c
+#define WDOG_CTRL_REG_OFF                0x0090
+#define WDOG_MODE_REG_OFF                0x0094
 
-#define TMR_REG_o_TMR0_CTL      (AW_TMR_IO_BASE + 0x0010)
-#define TMR_REG_o_TMR0_INTV     (AW_TMR_IO_BASE + 0x0014)
-#define TMR_REG_o_TMR0_CUR      (AW_TMR_IO_BASE + 0x0018)
+#define LOSC_CTRL_REG_OFF                0x0100
+#define RTC_YY_MM_DD_REG_OFF             0x0104
+#define RTC_HH_MM_SS_REG_OFF             0x0108
+#define DD_HH_MM_SS_REG_OFF              0x010c
+#define ALARM_WK_HH_MM_SS_REG_OFF        0x0110
+#define ALARM_EN_REG_OFF                 0x0114
+#define ALARM_IRQ_REG_OFF                0x0118
+#define ALARM_IRQ_STA_REG_OFF            0x011c
 
-#define TMR_REG_o_TMR1_CTL      (AW_TMR_IO_BASE + 0x0020)
-#define TMR_REG_o_TMR1_INTV     (AW_TMR_IO_BASE + 0x0024)
-#define TMR_REG_o_TMR1_CUR      (AW_TMR_IO_BASE + 0x0028)
+#define TMR_GP_DATA_REG_OFF(n)           (0x0120 + (n)<<2) /* n:0~15 */
+#define ALARM_CONFIG_REG_OFF             0x0170
 
-/*define timer counter base on aw chips*/
-//#define AW_TMR_IO_COUNT_BASE	0xf1f01c00
-#define AW_TMR_IO_COUNT_BASE	0xf1c25c00 /* liugang, 2012-10-9 */
-/*define timer counter io register address*/
-#define TMR_REG_o_CNT64_CTL     (AW_TMR_IO_COUNT_BASE + 0x0280)
-#define TMR_REG_o_CNT64_LO      (AW_TMR_IO_COUNT_BASE + 0x0284)
-#define TMR_REG_o_CNT64_HI      (AW_TMR_IO_COUNT_BASE + 0x0288)
+/* timer reg define */
+#define TMR_IRQ_EN_REG                   (SW_VA_TIMERC_IO_BASE + TMR_IRQ_EN_REG_OFF       )
+#define TMR_IRQ_STA_REG                  (SW_VA_TIMERC_IO_BASE + TMR_IRQ_STA_REG_OFF      )
 
-/* define timer io register value */
-#define TMR_REG_IRQ_EN          __tmr_reg(TMR_REG_o_IRQ_EN   )
-#define TMR_REG_IRQ_STAT        __tmr_reg(TMR_REG_o_IRQ_STAT )
+#define TMR0_CTRL_REG                    (SW_VA_TIMERC_IO_BASE + TMR0_CTRL_REG_OFF        )
+#define TMR0_INTV_VALUE_REG              (SW_VA_TIMERC_IO_BASE + TMR0_INTV_VALUE_REG_OFF  )
+#define TMR0_CUR_VALUE_REG               (SW_VA_TIMERC_IO_BASE + TMR0_CUR_VALUE_REG_OFF   )
+#define TMR1_CTRL_REG                    (SW_VA_TIMERC_IO_BASE + TMR1_CTRL_REG_OFF        )
+#define TMR1_INTV_VALUE_REG              (SW_VA_TIMERC_IO_BASE + TMR1_INTV_VALUE_REG_OFF  )
+#define TMR1_CUR_VALUE_REG               (SW_VA_TIMERC_IO_BASE + TMR1_CUR_VALUE_REG_OFF   )
+#define TMR2_CTRL_REG                    (SW_VA_TIMERC_IO_BASE + TMR2_CTRL_REG_OFF        )
+#define TMR2_INTV_VALUE_REG              (SW_VA_TIMERC_IO_BASE + TMR2_INTV_VALUE_REG_OFF  )
+#define TMR2_CUR_VALUE_REG               (SW_VA_TIMERC_IO_BASE + TMR2_CUR_VALUE_REG_OFF   )
+#define TMR3_CTRL_REG                    (SW_VA_TIMERC_IO_BASE + TMR3_CTRL_REG_OFF        )
+#define TMR3_INTV_VALUE_REG              (SW_VA_TIMERC_IO_BASE + TMR3_INTV_VALUE_REG_OFF  )
+#define TMR4_CTRL_REG                    (SW_VA_TIMERC_IO_BASE + TMR4_CTRL_REG_OFF        )
+#define TMR4_INTV_VALUE_REG              (SW_VA_TIMERC_IO_BASE + TMR4_INTV_VALUE_REG_OFF  )
+#define TMR4_CUR_VALUE_REG               (SW_VA_TIMERC_IO_BASE + TMR4_CUR_VALUE_REG_OFF   )
+#define TMR5_CTRL_REG                    (SW_VA_TIMERC_IO_BASE + TMR5_CTRL_REG_OFF        )
+#define TMR5_INTV_VALUE_REG              (SW_VA_TIMERC_IO_BASE + TMR5_INTV_VALUE_REG_OFF  )
+#define TMR5_CUR_VALUE_REG               (SW_VA_TIMERC_IO_BASE + TMR5_CUR_VALUE_REG_OFF   )
 
-#define TMR_REG_TMR1_CTL        __tmr_reg(TMR_REG_o_TMR1_CTL )
-#define TMR_REG_TMR1_INTV       __tmr_reg(TMR_REG_o_TMR1_INTV)
-#define TMR_REG_TMR1_CUR        __tmr_reg(TMR_REG_o_TMR1_CUR )
+#define AVS_CNT_CTRL_REG                 (SW_VA_TIMERC_IO_BASE + AVS_CNT_CTRL_REG_OFF     )
+#define AVS_CNT0_REG                     (SW_VA_TIMERC_IO_BASE + AVS_CNT0_REG_OFF         )
+#define AVS_CNT1_REG                     (SW_VA_TIMERC_IO_BASE + AVS_CNT1_REG_OFF         )
+#define AVS_CNT_DIV_REG                  (SW_VA_TIMERC_IO_BASE + AVS_CNT_DIV_REG_OFF      )
+#define WDOG_CTRL_REG                    (SW_VA_TIMERC_IO_BASE + WDOG_CTRL_REG_OFF        )
+#define WDOG_MODE_REG                    (SW_VA_TIMERC_IO_BASE + WDOG_MODE_REG_OFF        )
 
-#define TMR_REG_TMR0_CTL        __tmr_reg(TMR_REG_o_TMR0_CTL )
-#define TMR_REG_TMR0_INTV       __tmr_reg(TMR_REG_o_TMR0_INTV)
-#define TMR_REG_TMR0_CUR        __tmr_reg(TMR_REG_o_TMR0_CUR )
+#define LOSC_CTRL_REG                    (SW_VA_TIMERC_IO_BASE + LOSC_CTRL_REG_OFF        )
+#define RTC_YY_MM_DD_REG                 (SW_VA_TIMERC_IO_BASE + RTC_YY_MM_DD_REG_OFF     )
+#define RTC_HH_MM_SS_REG                 (SW_VA_TIMERC_IO_BASE + RTC_HH_MM_SS_REG_OFF     )
+#define DD_HH_MM_SS_REG                  (SW_VA_TIMERC_IO_BASE + DD_HH_MM_SS_REG_OFF      )
+#define ALARM_WK_HH_MM_SS_REG            (SW_VA_TIMERC_IO_BASE + ALARM_WK_HH_MM_SS_REG_OFF)
+#define ALARM_EN_REG                     (SW_VA_TIMERC_IO_BASE + ALARM_EN_REG_OFF         )
+#define ALARM_IRQ_REG                    (SW_VA_TIMERC_IO_BASE + ALARM_IRQ_REG_OFF        )
+#define ALARM_IRQ_STA_REG                (SW_VA_TIMERC_IO_BASE + ALARM_IRQ_STA_REG_OFF    )
 
-#define TMR_REG_CNT64_CTL       __tmr_reg(TMR_REG_o_CNT64_CTL)
-#define TMR_REG_CNT64_LO        __tmr_reg(TMR_REG_o_CNT64_LO )
-#define TMR_REG_CNT64_HI        __tmr_reg(TMR_REG_o_CNT64_HI )
+#define TMR_GP_DATA_REG(n)               (SW_VA_TIMERC_IO_BASE + TMR_GP_DATA_REG_OFF(n)   )
+#define ALARM_CONFIG_REG                 (SW_VA_TIMERC_IO_BASE + ALARM_CONFIG_REG_OFF     )
 
-/* define timer clock source */
-#define TMR_CLK_SRC_32KLOSC     (1)
-//#define TMR_CLK_SRC_24MHOSC     (1)
-//#define TMR_CLK_SRC_PLL         (2)
+/* 64bit timer reg off */
+#define OSC24M_CNT64_CTRL_REG_OFF       0x0280
+#define OSC24M_CNT64_LOW_REG_OFF        0x0284
+#define OSC24M_CNT64_HIGH_REG_OFF       0x0288
+#define LOSC_CNT64_CTRL_REG_OFF         0x0290
+#define LOSC_CNT64_LOW_REG_OFF          0x0294
+#define LOSC_CNT64_HIGH_REG_OFF         0x0298
 
-/* config clock frequency   */
-#define AW_HPET_CLK_SRC     TMR_CLK_SRC_24MHOSC
-#define AW_HPET_CLK_EVT     TMR_CLK_SRC_24MHOSC
+/* 64bit timer reg */
+#define OSC24M_CNT64_CTRL_REG          (SW_VA_CPUCFG_IO_BASE + OSC24M_CNT64_CTRL_REG_OFF)
+#define OSC24M_CNT64_LOW_REG           (SW_VA_CPUCFG_IO_BASE + OSC24M_CNT64_LOW_REG_OFF)
+#define OSC24M_CNT64_HIGH_REG          (SW_VA_CPUCFG_IO_BASE + OSC24M_CNT64_HIGH_REG_OFF)
+#define LOSC_CNT64_CTRL_REG            (SW_VA_CPUCFG_IO_BASE + LOSC_CNT64_CTRL_REG_OFF)
+#define LOSC_CNT64_LOW_REG             (SW_VA_CPUCFG_IO_BASE + LOSC_CNT64_LOW_REG_OFF)
+#define LOSC_CNT64_HIGH_REG            (SW_VA_CPUCFG_IO_BASE + LOSC_CNT64_HIGH_REG_OFF)
 
 /* aw HPET clock source frequency */
-#ifndef AW_HPET_CLK_SRC
-    #error "AW_HPET_CLK_SRC is not define!!"
-#endif
-//#if(AW_HPET_CLK_SRC == TMR_CLK_SRC_24MHOSC)
-    #define AW_HPET_CLOCK_SOURCE_HZ         (32000)//(24000000)
-//#else
-//    #error "AW_HPET_CLK_SRC config is invalid!!"
-//#endif
+#define AW_HPET_CLOCK_SOURCE_HZ		(24000000)
 
-/* aw HPET clock eventy frequency */
-#ifndef AW_HPET_CLK_EVT
-    #error "AW_HPET_CLK_EVT is not define!!"
+#if AW_HPET_CLOCK_SOURCE_HZ == 24000000
+#define SW_HSTMR_CTRL_REG	       OSC24M_CNT64_CTRL_REG
+#define SW_HSTMR_LOW_REG	       OSC24M_CNT64_LOW_REG
+#define SW_HSTMR_HIGH_REG	       OSC24M_CNT64_HIGH_REG
+#elif AW_HPET_CLOCK_SOURCE_HZ == 32000
+#define SW_HSTMR_CTRL_REG	       LOSC_CNT64_CTRL_REG
+#define SW_HSTMR_LOW_REG	       LOSC_CNT64_LOW_REG
+#define SW_HSTMR_HIGH_REG	       LOSC_CNT64_HIGH_REG
+#else
+#error "AW_HPET_CLOCK_SOURCE_HZ invalid! please set it!"
 #endif
-//#if(AW_HPET_CLK_EVT == TMR_CLK_SRC_32KLOSC)
-    #define AW_HPET_CLOCK_EVENT_HZ          (32768)
-//#elif(AW_HPET_CLK_EVT == TMR_CLK_SRC_24MHOSC)
-//    #define AW_HPET_CLOCK_EVENT_HZ          (24000000)
-//#else
-//    #error "AW_HPET_CLK_EVT config is invalid!!"
-//#endif
 
+void __init aw_clksrc_init(void);
+void aw_clkevt_init(void);
 
 #endif  /* #ifndef __AW_CLOCKSRC_H__ */

@@ -12,9 +12,8 @@
 #include <linux/console.h>
 #include <linux/init.h>
 #include <mach/platform.h>
+#include <mach/uart.h>
 #include <asm/io.h>
-
-extern void printch(int);
 
 #define aw_readb(addr)		(*((volatile unsigned char  *)(addr)))
 #define aw_readw(addr)		(*((volatile unsigned short *)(addr)))
@@ -23,21 +22,19 @@ extern void printch(int);
 #define aw_writew(v, addr)	(*((volatile unsigned short *)(addr)) = (unsigned short)(v))
 #define aw_writel(v, addr)	(*((volatile unsigned long  *)(addr)) = (unsigned long)(v))
 
+extern void printch(int);
 
 void aw_putc(char c)
 {
-	while (!(aw_readb(0xf0000000 + AW_UART0_BASE + AW_UART_USR) & 2));
-		aw_writeb(c, 0xf0000000 + AW_UART0_BASE + AW_UART_THR);
+	while(!(aw_readb(SW_VA_UART0_IO_BASE + AW_UART_USR) & 2));
+		aw_writeb(c, SW_VA_UART0_IO_BASE + AW_UART_THR);
 }
-
-
 
 static void early_write(const char *s, unsigned n)
 {
-	while (n-- > 0) {
-		if (*s == '\n')
+	while(n-- > 0) {
+		if(*s == '\n')
 			printch('\r');
-		//printch(*s);
 		aw_putc(*s);
 		s++;
 	}

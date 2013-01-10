@@ -11,14 +11,11 @@
  */
 
 #include <mach/platform.h>
+#include <mach/uart.h>
 
 #ifdef CONFIG_DEBUG_AW_UART0
-#define UART_PADDR	AW_UART0_BASE
-#define UART_VADDR	(0xf0000000 + AW_UART0_BASE)
-
-#elif defined (CONFIG_DEBUG_AW_R_UART)
-#define UART_PADDR	AW_R_UART_BASE
-#define UART_VADDR	(0xf0000000 + AW_R_UART_BASE)
+#define UART_PADDR	SW_PA_UART0_IO_BASE
+#define UART_VADDR	SW_VA_UART0_IO_BASE
 #else
 #error "Please select a uart port"
 #endif

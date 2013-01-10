@@ -330,8 +330,8 @@ static struct platform_driver sunxi_wdt_driver = {
 
 static struct resource sunxi_wdt_res[] = {
 	{
-		.start	= AW_TIMER_BASE+WDT_REG_OFFSET,
-		.end	= AW_TIMER_BASE+WDT_REG_OFFSET+0x10-1,
+		.start	= SW_PA_TIMERC_IO_BASE + WDT_REG_OFFSET,
+		.end	= SW_PA_TIMERC_IO_BASE + WDT_REG_OFFSET + 0x10 - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };

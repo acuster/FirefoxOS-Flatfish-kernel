@@ -45,33 +45,33 @@ standby_flush_tlb:
 standby_preload_tlb:
 	push    {r0-r3}
 	/*16k*/
-	ldr r0, =IO_ADDRESS(AW_SRAM_A1_BASE)
+	ldr r0, =IO_ADDRESS(SW_PA_SRAM_A1_BASE)
 	ldr r1, [r0]
-	ldr r0, =IO_ADDRESS(AW_SRAM_A1_BASE + 0x1000)
+	ldr r0, =IO_ADDRESS(SW_PA_SRAM_A1_BASE + 0x1000)
 	ldr r1, [r0]
-	ldr r0, =IO_ADDRESS(AW_SRAM_A1_BASE + 0x2000)
+	ldr r0, =IO_ADDRESS(SW_PA_SRAM_A1_BASE + 0x2000)
 	ldr r1, [r0]
-	ldr r0, =IO_ADDRESS(AW_SRAM_A1_BASE + 0x3000)
-	ldr r1, [r0]
-
-	/*16k*/
-	ldr r0, =IO_ADDRESS(AW_SRAM_A2_BASE)
-	ldr r1, [r0]
-	ldr r0, =IO_ADDRESS(AW_SRAM_A2_BASE + 0x1000)
-	ldr r1, [r0]
-	ldr r0, =IO_ADDRESS(AW_SRAM_A2_BASE + 0x2000)
-	ldr r1, [r0]
-	ldr r0, =IO_ADDRESS(AW_SRAM_A2_BASE + 0x3000)
+	ldr r0, =IO_ADDRESS(SW_PA_SRAM_A1_BASE + 0x3000)
 	ldr r1, [r0]
 
 	/*16k*/
-	ldr r0, =IO_ADDRESS(AW_SRAM_A3_A4_BASE)
+	ldr r0, =IO_ADDRESS(SW_PA_SRAM_A2_BASE)
 	ldr r1, [r0]
-	ldr r0, =IO_ADDRESS(AW_SRAM_A3_A4_BASE + 0x1000)
+	ldr r0, =IO_ADDRESS(SW_PA_SRAM_A2_BASE + 0x1000)
 	ldr r1, [r0]
-	ldr r0, =IO_ADDRESS(AW_SRAM_A3_A4_BASE + 0x2000)
+	ldr r0, =IO_ADDRESS(SW_PA_SRAM_A2_BASE + 0x2000)
 	ldr r1, [r0]
-	ldr r0, =IO_ADDRESS(AW_SRAM_A3_A4_BASE + 0x3000)
+	ldr r0, =IO_ADDRESS(SW_PA_SRAM_A2_BASE + 0x3000)
+	ldr r1, [r0]
+
+	/*16k*/
+	ldr r0, =IO_ADDRESS(SW_PA_SRAM_A3_BASE)
+	ldr r1, [r0]
+	ldr r0, =IO_ADDRESS(SW_PA_SRAM_A3_BASE + 0x1000)
+	ldr r1, [r0]
+	ldr r0, =IO_ADDRESS(SW_PA_SRAM_A3_BASE + 0x2000)
+	ldr r1, [r0]
+	ldr r0, =IO_ADDRESS(SW_PA_SRAM_A3_BASE + 0x3000)
 	ldr r1, [r0]
 
 	ldr r0, =IO_ADDRESS(SW_PA_PORTC_IO_BASE)

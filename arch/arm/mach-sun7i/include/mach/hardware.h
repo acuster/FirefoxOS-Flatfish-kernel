@@ -20,10 +20,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#ifndef __ASM_ARCH_HARDWARE_H
-#define __ASM_ARCH_HARDWARE_H
-
-#include <asm/sizes.h>
+#ifndef __SW_HARDWARE_H
+#define __SW_HARDWARE_H
 
 #define IO_ADDRESS(x)		((x) + 0xf0000000)
 #define __io_address(n)		__io(IO_ADDRESS(n))
