@@ -26,8 +26,8 @@
 #define PLAT_PHYS_OFFSET		UL(0x40000000)
 #define PLAT_MEM_SIZE			SZ_1G
 
-#define SW_SCRIPT_MEM_BASE		SYS_CONFIG_MEMBASE	/* 0x43000000 		*/
-#define SW_SCRIPT_MEM_SIZE		SYS_CONFIG_MEMSIZE	/* 0x00010000(SZ_64K) 	*/
+#define SYS_CONFIG_MEMBASE      (PLAT_PHYS_OFFSET + SZ_32M + SZ_16M)    /* +48M */
+#define SYS_CONFIG_MEMSIZE      (SZ_64K)                                /* 64K */
 
 #define SW_VE_MEM_BASE     		(PLAT_PHYS_OFFSET + SZ_64M)
 #define SW_VE_MEM_SIZE     		(SZ_64M + SZ_16M)

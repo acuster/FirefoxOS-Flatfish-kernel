@@ -812,7 +812,7 @@ EXPORT_SYMBOL(sw_gpio_irq_request);
  *
  * Returns 0 if sucess, the err line number if failed.
  */
-u32 sw_gpio_irq_free(u32 handle)
+void sw_gpio_irq_free(u32 handle)
 {
 	u32 	gpio = 0;
 	int 	irq_no = 0;

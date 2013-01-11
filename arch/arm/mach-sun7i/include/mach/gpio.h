@@ -17,116 +17,116 @@
 #define __SW_GPIO_H
 
 #include <linux/types.h>
-#include <mach/sys_config.h>
 
 /* pio base */
-#define PIO_VBASE(n) 		(0xf1c20800 + ((n) << 5) + ((n) << 2)) /* pio(PA ~ PI), 0xf1c20800 + n * 0x24 */
+#define PIO_VBASE(n)        (0xf1c20800 + ((n) << 5) + ((n) << 2)) /* pio(PA ~ PI), 0xf1c20800 + n * 0x24 */
 
 /* einit config reg vbase */
-#define PIO_VBASE_EINT		(PIO_VBASE(0) + 0x200                 )
+#define PIO_VBASE_EINT      (PIO_VBASE(0) + 0x200                 )
 
 /* port number for each pio */
-#define PA_NR			18
-#define PB_NR			24
-#define PC_NR			25
-#define PD_NR			28
-#define PE_NR			12
-#define PF_NR			6
-#define PG_NR			12
-#define PH_NR			28
-#define PI_NR			22
+#define PA_NR           18
+#define PB_NR           24
+#define PC_NR           25
+#define PD_NR           28
+#define PE_NR           12
+#define PF_NR           6
+#define PG_NR           12
+#define PH_NR           28
+#define PI_NR           22
 
 /*
  * base index for each pio
  */
-#define SUN7I_GPIO_SPACE	5 /* for debugging purposes so that failed if request extra gpio_nr */
-#define AW_GPIO_NEXT(gpio)	gpio##_NR_BASE + gpio##_NR + SUN7I_GPIO_SPACE + 1
+#define SUN7I_GPIO_SPACE    5 /* for debugging purposes so that failed if request extra gpio_nr */
+#define AW_GPIO_NEXT(gpio)  gpio##_NR_BASE + gpio##_NR + SUN7I_GPIO_SPACE + 1
 enum sun7i_gpio_number {
-	PA_NR_BASE = 0,
-	PB_NR_BASE = AW_GPIO_NEXT(PA),
-	PC_NR_BASE = AW_GPIO_NEXT(PB),
-	PD_NR_BASE = AW_GPIO_NEXT(PC),
-	PE_NR_BASE = AW_GPIO_NEXT(PD),
-	PF_NR_BASE = AW_GPIO_NEXT(PE),
-	PG_NR_BASE = AW_GPIO_NEXT(PF),
-	PH_NR_BASE = AW_GPIO_NEXT(PG),
-	PI_NR_BASE = AW_GPIO_NEXT(PH)
+    PA_NR_BASE = 0,
+    PB_NR_BASE = AW_GPIO_NEXT(PA),
+    PC_NR_BASE = AW_GPIO_NEXT(PB),
+    PD_NR_BASE = AW_GPIO_NEXT(PC),
+    PE_NR_BASE = AW_GPIO_NEXT(PD),
+    PF_NR_BASE = AW_GPIO_NEXT(PE),
+    PG_NR_BASE = AW_GPIO_NEXT(PF),
+    PH_NR_BASE = AW_GPIO_NEXT(PG),
+    PI_NR_BASE = AW_GPIO_NEXT(PH)
 };
 
 /* pio index definition */
-#define GPIOA(n)		(PA_NR_BASE + (n))
-#define GPIOB(n)		(PB_NR_BASE + (n))
-#define GPIOC(n)		(PC_NR_BASE + (n))
-#define GPIOD(n)		(PD_NR_BASE + (n))
-#define GPIOE(n)		(PE_NR_BASE + (n))
-#define GPIOF(n)		(PF_NR_BASE + (n))
-#define GPIOG(n)		(PG_NR_BASE + (n))
-#define GPIOH(n)		(PH_NR_BASE + (n))
-#define GPIOI(n)		(PI_NR_BASE + (n))
+#define GPIOA(n)        (PA_NR_BASE + (n))
+#define GPIOB(n)        (PB_NR_BASE + (n))
+#define GPIOC(n)        (PC_NR_BASE + (n))
+#define GPIOD(n)        (PD_NR_BASE + (n))
+#define GPIOE(n)        (PE_NR_BASE + (n))
+#define GPIOF(n)        (PF_NR_BASE + (n))
+#define GPIOG(n)        (PG_NR_BASE + (n))
+#define GPIOH(n)        (PH_NR_BASE + (n))
+#define GPIOI(n)        (PI_NR_BASE + (n))
 
 /* pio default macro */
-#define GPIO_PULL_DEFAULT	(1               )
-#define GPIO_DRVLVL_DEFAULT	(1               )
+#define GPIO_PULL_DEFAULT   (1               )
+#define GPIO_DRVLVL_DEFAULT (1               )
 
 /* pio end, invalid macro */
-#define GPIO_INDEX_END		(GPIOI(PI_NR) + 1)
-#define GPIO_INDEX_INVALID	(0xFFFFFFFF      )
-#define GPIO_CFG_INVALID	(0xFFFFFFFF      )
-#define GPIO_PULL_INVALID	(0xFFFFFFFF      )
-#define GPIO_DRVLVL_INVALID	(0xFFFFFFFF      )
-#define IRQ_NUM_INVALID		(0xFFFFFFFF      )
+#define GPIO_INDEX_END      (GPIOI(PI_NR) + 1)
+#define GPIO_INDEX_INVALID  (0xFFFFFFFF      )
+#define GPIO_CFG_INVALID    (0xFFFFFFFF      )
+#define GPIO_PULL_INVALID   (0xFFFFFFFF      )
+#define GPIO_DRVLVL_INVALID (0xFFFFFFFF      )
+#define IRQ_NUM_INVALID     (0xFFFFFFFF      )
 
 /* config value for external int */
-#define GPIO_CFG_EINT   	(0b110	)	/* config value to eint for ph/pi */
+#define GPIO_CFG_EINT       (0b110  )   /* config value to eint for ph/pi */
 
 /* port number for gpiolib */
 #ifdef ARCH_NR_GPIOS
 #undef ARCH_NR_GPIOS
 #endif
-#define ARCH_NR_GPIOS		(GPIO_INDEX_END)
+#define ARCH_NR_GPIOS       (GPIO_INDEX_END)
 
 /* gpio config info */
 struct gpio_config {
-	u32	gpio;		/* gpio global index, must be unique */
-	u32 	mul_sel;	/* multi sel val: 0 - input, 1 - output... */
-	u32 	pull;		/* pull val: 0 - pull up/down disable, 1 - pull up... */
-	u32 	drv_level;	/* driver level val: 0 - level 0, 1 - level 1... */
+    u32 gpio;       /* gpio global index, must be unique */
+    u32 mul_sel;    /* multi sel val: 0 - input, 1 - output... */
+    u32 pull;       /* pull val: 0 - pull up/down disable, 1 - pull up... */
+    u32 drv_level;  /* driver level val: 0 - level 0, 1 - level 1... */
+    u32 data;       /* data val: 0 - low, 1 - high, only vaild when mul_sel is input/output */
 };
 
 /* gpio eint trig type */
 enum gpio_eint_trigtype {
-	TRIG_EDGE_POSITIVE = 0,
-	TRIG_EDGE_NEGATIVE,
-	TRIG_LEVL_HIGH,
-	TRIG_LEVL_LOW,
-	TRIG_EDGE_DOUBLE,	/* positive/negative */
-	TRIG_INALID
+    TRIG_EDGE_POSITIVE = 0,
+    TRIG_EDGE_NEGATIVE,
+    TRIG_LEVL_HIGH,
+    TRIG_LEVL_LOW,
+    TRIG_EDGE_DOUBLE,   /* positive/negative */
+    TRIG_INALID
 };
 
 /* gpio eint debounce para */
 struct gpio_eint_debounce {
-	u32   clk_sel;		/* pio interrupt clock select, 0-LOSC, 1-HOSC */
-	u32   clk_pre_scl;	/* debounce clk pre-scale n, the select,
-				 * clock source is pre-scale by 2^n.
-				 */
+    u32   clk_sel;      /* pio interrupt clock select, 0-LOSC, 1-HOSC */
+    u32   clk_pre_scl;  /* debounce clk pre-scale n, the select,
+                         * clock source is pre-scale by 2^n.
+                         */
 };
 
 /* gpio external config info */
 struct gpio_config_eint_all {
-	u32	gpio;		/* the global gpio index */
-	u32	pull;		/* gpio pull val */
-	u32 	drvlvl;		/* gpio driver level */
-	u32	enabled;	/* in set function: used to enable/disable the eint, 1: enable, 0: disable
-				 * in get function: return the eint enabled status, 1: enabled, 0: disabled
-				 */
-	u32	irq_pd;		/* in set function: 1 means to clr irq pend status, 0 no use
-				 * in get function: return the actual irq pend stauts, eg, 1 means irq occur.
-				 */
-	enum gpio_eint_trigtype trig_type; /* trig type of the gpio */
+    u32 gpio;       /* the global gpio index */
+    u32 pull;       /* gpio pull val */
+    u32 drvlvl;     /* gpio driver level */
+    u32 enabled;    /* in set function: used to enable/disable the eint, 1: enable, 0: disable
+                     * in get function: return the eint enabled status, 1: enabled, 0: disabled
+                     */
+    u32 irq_pd;     /* in set function: 1 means to clr irq pend status, 0 no use
+                     * in get function: return the actual irq pend stauts, eg, 1 means irq occur.
+                     */
+    enum gpio_eint_trigtype trig_type; /* trig type of the gpio */
 };
 
 /* gpio eint call back function */
-typedef u32 (*peint_handle)(void *para);
+typedef u32(*peint_handle)(void *para);
 
 /*
  * exported api below
@@ -148,6 +148,9 @@ u32 sw_gpio_suspend(void);
 u32 sw_gpio_resume(void);
 
 /* api for external int */
+u32 sw_gpio_irq_request(u32 gpio, enum gpio_eint_trigtype trig_type,
+                        peint_handle handle, void *para);
+void sw_gpio_irq_free(u32 handle);
 u32 sw_gpio_eint_set_trigtype(u32 gpio, enum gpio_eint_trigtype trig_type);
 u32 sw_gpio_eint_get_trigtype(u32 gpio, enum gpio_eint_trigtype *pval);
 u32 sw_gpio_eint_get_enable(u32 gpio, u32 *penable);
@@ -159,23 +162,5 @@ u32 sw_gpio_eint_set_debounce(u32 gpio, struct gpio_eint_debounce dbc);
 u32 sw_gpio_eint_setall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num);
 u32 sw_gpio_eint_getall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num);
 void sw_gpio_eint_dumpall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num);
-u32 sw_gpio_irq_request(u32 gpio, enum gpio_eint_trigtype trig_type,
-			peint_handle handle, void *para);
-u32 sw_gpio_irq_free(u32 handle);
-
-/* old api realize in new api, we recommend use these api instead of a10-old-api(eg: gpio_request_ex) */
-u32 sw_gpio_request(user_gpio_set_t *gpio_list, u32 group_count_max);
-u32 sw_gpio_request_ex(char *main_name, const char *sub_name);
-s32 sw_gpio_release(u32 p_handler, s32 if_release_to_default_status);
-s32  sw_gpio_get_all_pin_status(u32 p_handler, user_gpio_set_t *gpio_status, u32 gpio_count_max, u32 if_get_from_hardware);
-s32  sw_gpio_get_one_pin_status(u32 p_handler, user_gpio_set_t *gpio_status, const char *gpio_name, u32 if_get_from_hardware);
-s32  sw_gpio_set_one_pin_status(u32 p_handler, user_gpio_set_t *gpio_status, const char *gpio_name, u32 if_set_to_current_input_status);
-s32  sw_gpio_set_one_pin_io_status(u32 p_handler, u32 if_set_to_output_status, const char *gpio_name);
-s32  sw_gpio_set_one_pin_pull(u32 p_handler, u32 set_pull_status, const char *gpio_name);
-s32  sw_gpio_set_one_pin_driver_level(u32 p_handler, u32 set_driver_level, const char *gpio_name);
-s32  sw_gpio_read_one_pin_value(u32 p_handler, const char *gpio_name);
-s32  sw_gpio_write_one_pin_value(u32 p_handler, u32 value_to_gpio, const char *gpio_name);
-u32  sw_gpio_get_index(u32 p_handler, const char *gpio_name);
-u32  sw_gpio_port_to_index(u32 port, u32 port_num);
 
 #endif /* __SW_GPIO_H */
