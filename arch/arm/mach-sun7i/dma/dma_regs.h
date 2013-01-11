@@ -1,10 +1,10 @@
 /*
- * arch/arm/mach-sun7i/dma/dma_regs.h
+ * arch/arm/mach-sun6i/dma/dma_regs.h
  * (C) Copyright 2010-2015
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
  * liugang <liugang@reuuimllatech.com>
  *
- * sun7i dma driver head file
+ * sun6i dma regs defination
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -13,85 +13,57 @@
  *
  */
 
-#ifndef _DMA_REGS_
-#define _DMA_REGS_
+#ifndef __DMA_REGS_H
+#define __DMA_REGS_H
 
-/* DMA */
-/* DMA Register definitions */
-#define SW_DMA_DIRQEN      		(0x0000)	//	DMA_IRQ_EN_REG(0x0000)
-#define SW_DMA_DIRQPD      		(0x0004)	//	DMA_IRQ_PEND_STA_REG(0x0004)
-#define SW_DMA_DCONF       		(0x00)		//	NDMA_CTRL_REG(0x100+N*0x20) and DDMA_CFG_REG(0x300+N*0x20) config
-#define SW_DMA_DSRC        		(0x04)		//	NDMA_SRC_ADDR_REG(0x100+N*0x20+4) and DDMA_SRC_START_ADDR_REG(0x300+N*0x20+4)
-#define SW_DMA_DDST        		(0x08)		//	NDMA_DEST_ADDR_REG(0x100+N*0x20+8) and DDMA_DEST_START_ADDR_REG(0x300+N*0x20+8)
-#define SW_DMA_DCNT        		(0x0C)		//	NDMA_BC_REG(0x100+N*0x20+C) and DDMA_BC_REG(0x300+N*0x20+C)
+/* dma reg off from DMAC_IO_BASE */
+#define DMA_IRQ_EN_REG0_OFF            		( 0x0000                        )
+#define DMA_IRQ_EN_REG1_OFF            		( 0x0004                        )
+#define DMA_IRQ_PEND_REG0_OFF            	( 0x0010                        )
+#define DMA_IRQ_PEND_REG1_OFF            	( 0x0014                        )
+#define DMA_STATE_REG_OFF            		( 0x0030                        )
 
-/* For F23: DDMA parameter register */
-#define SW_DMA_DCMBK       		(0x18)		//	DDMA_PARA_REG(0x300+N*0x20+0x18)
+#define DMA_EN_REG_OFF(chan)            	( 0x100 + ((chan) << 6)        ) /* ( 0x100 + (chan) * 0x40        ) */
+#define DMA_PAUSE_REG_OFF(chan)            	( 0x100 + ((chan) << 6) + 0x4  )
+#define DMA_START_REG_OFF(chan)            	( 0x100 + ((chan) << 6) + 0x8  )
+#define DMA_CFG_REG_OFF(chan)            	( 0x100 + ((chan) << 6) + 0xC  )
+#define DMA_CUR_SRC_REG_OFF(chan)            	( 0x100 + ((chan) << 6) + 0x10 )
+#define DMA_CUR_DST_REG_OFF(chan)            	( 0x100 + ((chan) << 6) + 0x14 )
+#define DMA_BCNT_LEFT_REG_OFF(chan)            	( 0x100 + ((chan) << 6) + 0x18 )
+#define DMA_PARA_REG_OFF(chan)            	( 0x100 + ((chan) << 6) + 0x1C )
 
-/* For F23: NDMA and DDMA */
-#define SW_DCONF_LOADING	   	(1<<31)		// 	DMA Loading 				have used
+/* reg offset from channel base */
+#define DMA_OFF_REG_EN            		( 0x0000                       )
+#define DMA_OFF_REG_PAUSE            		( 0x0004                       )
+#define DMA_OFF_REG_START            		( 0x0008                       )
+#define DMA_OFF_REG_CFG            		( 0x000C                       )
+#define DMA_OFF_REG_CUR_SRC            		( 0x0010                       )
+#define DMA_OFF_REG_CUR_DST            		( 0x0014                       )
+#define DMA_OFF_REG_BCNT_LEFT            	( 0x0018                       )
+#define DMA_OFF_REG_PARA            		( 0x001C                       )
 
-/*NDMA Configuration Register*/
-#define SW_NDMA_CONF_CONTI   		(1<<30)		// 	DMA Continuous Mode			have used
-#define SW_NDMA_CONF_WAIT  		(7<<27)		// 	DMA Wait Status				not used yet
-#define SW_NDMA_CONF_DSTDW 		(3<<25)		// 	destination data width		not used yet
-#define SW_NDMA_CONF_DWBYTE    		(0<<25)		//	8-Bit						not used yet
-#define SW_NDMA_CONF_DWHWORD   		(1<<25)		//	16-Bit						not used yet
-#define SW_NDMA_CONF_DWWORD    		(2<<25)		//	32-Bit						not used yet
-#define SW_NDMA_CONF_DSTBL 		(3<<23) 	//	destination burst lenght	not used yet
-#define SW_NDMA_CONF_DSTBL0 		(0<<23)		//	1							not used yet
-#define SW_NDMA_CONF_DSTBL1 		(1<<23)		//	4							not used yet
-#define SW_NDMA_CONF_DSTBL2 		(2<<23)		//	8							not used yet
-#define SW_NDMA_CONF_DSTSEC 		(1<<22)		//	DMA Destination Secutity	not used yet
-#define SW_NDMA_CONF_DSTAT 		(1<<21)    	// 	destination address type	not used yet
-#define SW_NDMA_CONF_DSTTP 		(31<<16)    //	destination DRQ type		not used yet
+/* bits offset */
+#define DMA_OFF_BITS_SDRQ            		( 0                            )
+#define DMA_OFF_BITS_DDRQ            		( 16                           )
 
-#define SW_NDMA_CONF_SRCDW 		(3<<9)		//	source data width			not used yet
-#define SW_NDMA_CONF_SWBYTE    		(0<<9)		//	8-Bit						not used yet
-#define SW_NDMA_CONF_SWHWORD   		(1<<9)		//	16-Bit						not used yet
-#define SW_NDMA_CONF_SWWORD    		(2<<9)		//	32-Bit						not used yet
-#define SW_NDMA_CONF_SRCBL 		(3<<7)		//	source burst lenght			not used yet
-#define SW_NDMA_CONF_SRCBL0 		(0<<7)		//	1							not used yet
-#define SW_NDMA_CONF_SRCBL1 		(1<<7)		//	4							not used yet
-#define SW_NDMA_CONF_SRCBL2 		(2<<7)		//	8							not used yet
-#define SW_NDMA_CONF_SRCSEC 		(1<<6)		//	DMA Source Secutity			not used yet
-#define SW_NDMA_CONF_SRCAT 		(1<<5)		//	source address type			not used yet
-#define SW_NDMA_CONF_SRCTP 		(31<<0)		//	normal source DRQ type		not used yet
+/* dma reg addr */
+#define DMA_IRQ_EN_REG0            		( AW_VIR_DMA_BASE + DMA_IRQ_EN_REG0_OFF 	)
+#define DMA_IRQ_EN_REG1            		( AW_VIR_DMA_BASE + DMA_IRQ_EN_REG1_OFF 	)
+#define DMA_IRQ_PEND_REG0            		( AW_VIR_DMA_BASE + DMA_IRQ_PEND_REG0_OFF 	)
+#define DMA_IRQ_PEND_REG1            		( AW_VIR_DMA_BASE + DMA_IRQ_PEND_REG1_OFF 	)
+#define DMA_STATE_REG            		( AW_VIR_DMA_BASE + DMA_STATE_REG_OFF		)
+#define DMA_EN_REG(chan)            		( AW_VIR_DMA_BASE + DMA_EN_REG_OFF(chan)	)
+#define DMA_PAUSE_REG(chan)            		( AW_VIR_DMA_BASE + DMA_PAUSE_REG_OFF(chan)	)
+#define DMA_START_REG(chan)            		( AW_VIR_DMA_BASE + DMA_START_REG_OFF(chan)	)
+#define DMA_CFG_REG(chan)            		( AW_VIR_DMA_BASE + DMA_CFG_REG_OFF(chan)	)
+#define DMA_CUR_SRC_REG(chan)            	( AW_VIR_DMA_BASE + DMA_CUR_SRC_REG_OFF(chan)	)
+#define DMA_CUR_DST_REG(chan)            	( AW_VIR_DMA_BASE + DMA_CUR_DST_REG_OFF(chan)	)
+#define DMA_BCNT_LEFT_REG(chan)            	( AW_VIR_DMA_BASE + DMA_BCNT_LEFT_REG_OFF(chan))
+#define DMA_PARA_REG(chan)            		( AW_VIR_DMA_BASE + DMA_PARA_REG_OFF(chan)	)
 
-/*DDMA Configuration Register*/
-#define SW_DDMA_CONF_BUSY   		(1<<30)		// 	DMA BUSY Mode				not used yet
-#define SW_DDMA_CONF_CONTI   		(1<<29)		// 	DMA Continuous Mode			have used
-#define SW_DDMA_CONF_DSEC  		(1<<28)		// 	DMA Destination Security	not used yet
-#define SW_DDMA_CONF_DSTDW 		(3<<25)		// 	destination data width		not used yet
-#define SW_DDMA_CONF_DWBYTE    		(0<<25)		//	8-Bit						not used yet
-#define SW_DDMA_CONF_DWHWORD   		(1<<25)		//	16-Bit						not used yet
-#define SW_DDMA_CONF_DWWORD    		(2<<25)		//	32-Bit						not used yet
-#define SW_DDMA_CONF_DSTBL 		(3<<23) 	//	destination burst lenght	not used yet
-#define SW_DDMA_CONF_DSTBL0 		(0<<23)		//	1							not used yet
-#define SW_DDMA_CONF_DSTBL1 		(1<<23)		//	4							not used yet
-#define SW_DDMA_CONF_DSTBL2 		(2<<23)		//	8							not used yet
-#define SW_DDMA_CONF_DSTADDR		(3<<21)    	// 	destination address type	not used yet
-#define SW_DDMA_CONF_DSTADDR0		(0<<21)		//	Linear Mode					not used yet
-#define SW_DDMA_CONF_DSTADDR1		(1<<21)		//	IO Mode						not used yet
-#define SW_DDMA_CONF_DSTADDR2		(2<<21)		//	Horizontal Page Mode		not used yet
-#define SW_DDMA_CONF_DSTADDR3		(3<<21)		//	Vertical Page Mode			not used yet
-#define SW_DDMA_CONF_DSTTP 		(31<<16)    //	destination DRQ type		not used yet
+/* dma reg rw */
+#define DMA_READ_REG(reg)			readl(reg)
+#define DMA_WRITE_REG(val, reg)			writel(val, reg)
 
-#define SW_DDMA_CONF_BC			(1<<15)		//	BC mode select				not used yet
-#define SW_DDMA_CONF_SSEC		(1<<12)		//	DMA Source Security			not used yet
-#define SW_NDMA_CONF_SRCDW 		(3<<9)		//	source data width			not used yet
-#define SW_NDMA_CONF_SWBYTE    		(0<<9)		//	8-Bit						not used yet
-#define SW_NDMA_CONF_SWHWORD   		(1<<9)		//	16-Bit						not used yet
-#define SW_NDMA_CONF_SWWORD    		(2<<9)		//	32-Bit						not used yet
-#define SW_NDMA_CONF_SRCBL 		(3<<7)		//	source burst lenght			not used yet
-#define SW_NDMA_CONF_SRCBL0 		(0<<7)		//	1							not used yet
-#define SW_NDMA_CONF_SRCBL1 		(1<<7)		//	4							not used yet
-#define SW_NDMA_CONF_SRCBL2 		(2<<7)		//	8							not used yet
-#define SW_NDMA_CONF_SRCADDR 		(3<<5)		//	DMA Source Address Mode		not used yet
-#define SW_NDMA_CONF_SRCADDR0 		(0<<5)		//	Linear Mode					not used yet
-#define SW_NDMA_CONF_SRCADDR1 		(1<<5)		//	IO Mode						not used yet
-#define SW_NDMA_CONF_SRCADDR2 		(2<<5)		//	Horizontal Page Mode		not used yet
-#define SW_NDMA_CONF_SRCADDR3 		(3<<5)		//	Vertical Page Mode			not used yet
-#define SW_NDMA_CONF_SRCTP 		(31<<0)		//	normal source DRQ type		not used yet
+#endif  /* __DMA_REGS_H */
 
-#endif    // #ifndef _DMA_REGS_

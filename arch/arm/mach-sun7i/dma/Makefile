@@ -1,2 +1,2 @@
 
-obj-y		+= dma.o dma_15.o
+obj-y += dma_interface.o

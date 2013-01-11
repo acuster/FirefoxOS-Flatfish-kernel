@@ -16,6 +16,7 @@
 #ifndef __SW_DMA_H
 #define __SW_DMA_H
 
+#if 0
 #include <linux/spinlock.h>
 
 #define USE_SPINLOCK_20120802	/* use spin_lock_irqsave instead of local_irq_save */
@@ -695,5 +696,497 @@ extern int sw_dma_set_buffdone_fn(unsigned int, sw_dma_cbfn_t rtn);
 extern int sw_dma_set_halfdone_fn(unsigned int, sw_dma_cbfn_t rtn);
 extern int sw_dma_getcurposition(unsigned int channel,
 				dma_addr_t *src, dma_addr_t *dest);
+#elif 0
+#include <mach/hardware.h>
+
+/* burst length */
+#define X_SIGLE   0
+#define X_BURST   1
+#define X_TIPPL	  2
+
+/* data width */
+#define X_BYTE    0
+#define X_HALF    1
+#define X_WORD    2
+
+/* address mode */
+#define A_LN      0x0
+#define A_IO      0x1
+
+/*
+ * data width and burst length combination
+ * index for xfer_arr[]
+ */
+enum xferunit_e {
+	/* des:X_SIGLE  src:X_SIGLE */
+	DMAXFER_D_SBYTE_S_SBYTE,
+	DMAXFER_D_SBYTE_S_SHALF,
+	DMAXFER_D_SBYTE_S_SWORD,
+	DMAXFER_D_SHALF_S_SBYTE,
+	DMAXFER_D_SHALF_S_SHALF,
+	DMAXFER_D_SHALF_S_SWORD,
+	DMAXFER_D_SWORD_S_SBYTE,
+	DMAXFER_D_SWORD_S_SHALF,
+	DMAXFER_D_SWORD_S_SWORD,
+
+	/* des:X_SIGLE  src:X_BURST */
+	DMAXFER_D_SBYTE_S_BBYTE,
+	DMAXFER_D_SBYTE_S_BHALF,
+	DMAXFER_D_SBYTE_S_BWORD,
+	DMAXFER_D_SHALF_S_BBYTE,
+	DMAXFER_D_SHALF_S_BHALF,
+	DMAXFER_D_SHALF_S_BWORD,
+	DMAXFER_D_SWORD_S_BBYTE,
+	DMAXFER_D_SWORD_S_BHALF,
+	DMAXFER_D_SWORD_S_BWORD,
+
+	/* des:X_SIGLE   src:X_TIPPL */
+	DMAXFER_D_SBYTE_S_TBYTE,
+	DMAXFER_D_SBYTE_S_THALF,
+	DMAXFER_D_SBYTE_S_TWORD,
+	DMAXFER_D_SHALF_S_TBYTE,
+	DMAXFER_D_SHALF_S_THALF,
+	DMAXFER_D_SHALF_S_TWORD,
+	DMAXFER_D_SWORD_S_TBYTE,
+	DMAXFER_D_SWORD_S_THALF,
+	DMAXFER_D_SWORD_S_TWORD,
+
+	/* des:X_BURST  src:X_BURST */
+	DMAXFER_D_BBYTE_S_BBYTE,
+	DMAXFER_D_BBYTE_S_BHALF,
+	DMAXFER_D_BBYTE_S_BWORD,
+	DMAXFER_D_BHALF_S_BBYTE,
+	DMAXFER_D_BHALF_S_BHALF,
+	DMAXFER_D_BHALF_S_BWORD,
+	DMAXFER_D_BWORD_S_BBYTE,
+	DMAXFER_D_BWORD_S_BHALF,
+	DMAXFER_D_BWORD_S_BWORD,
+
+	/* des:X_BURST   src:X_SIGLE */
+	DMAXFER_D_BBYTE_S_SBYTE,
+	DMAXFER_D_BBYTE_S_SHALF,
+	DMAXFER_D_BBYTE_S_SWORD,
+	DMAXFER_D_BHALF_S_SBYTE,
+	DMAXFER_D_BHALF_S_SHALF,
+	DMAXFER_D_BHALF_S_SWORD,
+	DMAXFER_D_BWORD_S_SBYTE,
+	DMAXFER_D_BWORD_S_SHALF,
+	DMAXFER_D_BWORD_S_SWORD,
+
+	/* des:X_BURST   src:X_TIPPL */
+	DMAXFER_D_BBYTE_S_TBYTE,
+	DMAXFER_D_BBYTE_S_THALF,
+	DMAXFER_D_BBYTE_S_TWORD,
+	DMAXFER_D_BHALF_S_TBYTE,
+	DMAXFER_D_BHALF_S_THALF,
+	DMAXFER_D_BHALF_S_TWORD,
+	DMAXFER_D_BWORD_S_TBYTE,
+	DMAXFER_D_BWORD_S_THALF,
+	DMAXFER_D_BWORD_S_TWORD,
+
+	/* des:X_TIPPL   src:X_TIPPL */
+	DMAXFER_D_TBYTE_S_TBYTE,
+	DMAXFER_D_TBYTE_S_THALF,
+	DMAXFER_D_TBYTE_S_TWORD,
+	DMAXFER_D_THALF_S_TBYTE,
+	DMAXFER_D_THALF_S_THALF,
+	DMAXFER_D_THALF_S_TWORD,
+	DMAXFER_D_TWORD_S_TBYTE,
+	DMAXFER_D_TWORD_S_THALF,
+	DMAXFER_D_TWORD_S_TWORD,
+
+	/* des:X_TIPPL   src:X_SIGLE */
+	DMAXFER_D_TBYTE_S_SBYTE,
+	DMAXFER_D_TBYTE_S_SHALF,
+	DMAXFER_D_TBYTE_S_SWORD,
+	DMAXFER_D_THALF_S_SBYTE,
+	DMAXFER_D_THALF_S_SHALF,
+	DMAXFER_D_THALF_S_SWORD,
+	DMAXFER_D_TWORD_S_SBYTE,
+	DMAXFER_D_TWORD_S_SHALF,
+	DMAXFER_D_TWORD_S_SWORD,
+
+	/* des:X_TIPPL   src:X_BURST */
+	DMAXFER_D_TBYTE_S_BBYTE,
+	DMAXFER_D_TBYTE_S_BHALF,
+	DMAXFER_D_TBYTE_S_BWORD,
+	DMAXFER_D_THALF_S_BBYTE,
+	DMAXFER_D_THALF_S_BHALF,
+	DMAXFER_D_THALF_S_BWORD,
+	DMAXFER_D_TWORD_S_BBYTE,
+	DMAXFER_D_TWORD_S_BHALF,
+	DMAXFER_D_TWORD_S_BWORD,
+	DMAXFER_MAX
+};
+
+/*
+ * src/dst address type
+ * index for addrtype_arr[]
+ */
+enum addrt_e {
+	DMAADDRT_D_LN_S_LN,
+	DMAADDRT_D_LN_S_IO,
+	DMAADDRT_D_IO_S_LN,
+	DMAADDRT_D_IO_S_IO,
+	DMAADDRT_MAX
+};
+
+/* dma channel irq type */
+enum dma_chan_irq_type {
+	CHAN_IRQ_NO 	= 0,			/* none */
+	CHAN_IRQ_HD	= (0b001	),	/* package half done irq */
+	CHAN_IRQ_FD	= (0b010	),	/* package full done irq */
+	CHAN_IRQ_QD	= (0b100	)	/* queue end irq */
+};
+
+/*
+ * dma config information
+ */
+typedef struct tag_dma_config {
+	/*
+	 * data length and burst length combination in DDMA and NDMA
+	 * eg: DMAXFER_D_SWORD_S_SWORD, DMAXFER_D_SBYTE_S_BBYTE
+	 */
+	enum xferunit_e	xfer_type;
+	/*
+	 * NDMA/DDMA src/dst address type
+	 * eg: DMAADDRT_D_INC_S_INC(NDMA addr type),
+	 *     DMAADDRT_D_LN_S_LN / DMAADDRT_D_LN_S_IO(DDMA addr type)
+	 */
+	enum addrt_e	address_type;
+	u32		para;		/* dma para reg */
+	u32 		irq_spt;	/* channel irq supported, eg: CHAN_IRQ_HD | CHAN_IRQ_FD */
+//	u32		src_addr;	/* src phys addr */
+	//u32		dst_addr;	/* dst phys addr */
+	//u32		byte_cnt;	/* byte cnt for src_addr/dst_addr transfer */
+	bool		bconti_mode;	/* continue mode */
+	u8		src_drq_type;	/* src drq type */
+	u8		dst_drq_type;	/* dst drq type */
+}dma_config_t;
+
+/* normal channel src drq type */
+enum n_drqsrc_e {
+	N_SRC_IR0_RX		= 0b00000,
+	N_SRC_IR1_RX		= 0b00001,
+	N_SRC_SPDIF_RX		= 0b00010,
+	N_SRC_IIS0_RX		= 0b00011,
+	N_SRC_IIS1_RX		= 0b00100,
+	N_SRC_AC97_RX		= 0b00101,
+	N_SRC_IIS2_RX		= 0b00110,
+	N_SRC_RSV0		= 0b00111,
+	N_SRC_UART0_RX		= 0b01000,
+	N_SRC_UART1_RX		= 0b01001,
+	N_SRC_UART2_RX		= 0b01010,
+	N_SRC_UART3_RX		= 0b01011,
+	N_SRC_UART4_RX		= 0b01100,
+	N_SRC_UART5_RX		= 0b01101,
+	N_SRC_UART6_RX		= 0b01110,
+	N_SRC_UART7_RX		= 0b01111,
+	N_SRC_HDMI_DDC_RX	= 0b10000,
+	N_SRC_USB_EP1		= 0b10001,
+	N_SRC_RSV1		= 0b10010,
+	N_SRC_AUDIO_CODEC_AD	= 0b10011,
+	N_SRC_RSV2		= 0b10100,
+	N_SRC_SRAM		= 0b10101,
+	N_SRC_SDRAM		= 0b10110,
+	N_SRC_TP_AD		= 0b10111,
+	N_SRC_SPI0_RX		= 0b11000,
+	N_SRC_SPI1_RX		= 0b11001,
+	N_SRC_SPI2_RX		= 0b11010,
+	N_SRC_SPI3_RX		= 0b11011,
+	N_SRC_USB_EP2		= 0b11100,
+	N_SRC_USB_EP3		= 0b11101,
+	N_SRC_USB_EP4		= 0b11110,
+	N_SRC_USB_EP5		= 0b11111,
+};
+
+/* normal channel dst drq type */
+enum n_drqdst_e {
+	N_DST_IR0_TX		= 0b00000,
+	N_DST_IR1_TX		= 0b00001,
+	N_DST_SPDIF_TX		= 0b00010,
+	N_DST_IIS0_TX		= 0b00011,
+	N_DST_IIS1_TX		= 0b00100,
+	N_DST_AC97_TX		= 0b00101,
+	N_DST_IIS2_TX		= 0b00110,
+	N_DST_RSV0		= 0b00111,
+	N_DST_UART0_TX		= 0b01000,
+	N_DST_UART1_TX		= 0b01001,
+	N_DST_UART2_TX		= 0b01010,
+	N_DST_UART3_TX		= 0b01011,
+	N_DST_UART4_TX		= 0b01100,
+	N_DST_UART5_TX		= 0b01101,
+	N_DST_UART6_TX		= 0b01110,
+	N_DST_UART7_TX		= 0b01111,
+	N_DST_HDMI_DDC_TX	= 0b10000,
+	N_DST_USB_EP1		= 0b10001,
+	N_DST_RSV1		= 0b10010,
+	N_DST_AUDIO_CODEC_DA	= 0b10011,
+	N_DST_RSV2		= 0b10100,
+	N_DST_SRAM		= 0b10101,
+	N_DST_SDRAM		= 0b10110,
+	N_DST_TP_AD		= 0b10111,
+	N_DST_SPI0_TX		= 0b11000,
+	N_DST_SPI1_TX		= 0b11001,
+	N_DST_SPI2_TX		= 0b11010,
+	N_DST_SPI3_TX		= 0b11011,
+	N_DST_USB_EP2		= 0b11100,
+	N_DST_USB_EP3		= 0b11101,
+	N_DST_USB_EP4		= 0b11110,
+	N_DST_USB_EP5		= 0b11111,
+};
+
+/* dedicate channel src drq type */
+enum d_drqsrc_e {
+	D_SRC_SRAM		= 0b00000,
+	D_SRC_SDRAM		= 0b00001,
+	D_SRC_RSV		= 0b00010,
+	D_SRC_NAND		= 0b00011,
+	D_SRC_USB0		= 0b00100,
+	D_SRC_RSV		= 0b00101,
+	D_SRC_RSV		= 0b00110,
+	D_SRC_EMAC_RX		= 0b00111,
+	D_SRC_RSV		= 0b01000,
+	D_SRC_SPI1_RX		= 0b01001,
+	D_SRC_RSV		= 0b01010,
+	D_SRC_SS_RX		= 0b01011, /* security system rx */
+	D_SRC_RSV		= 0b01100,
+	D_SRC_RSV		= 0b01101,
+	D_SRC_RSV		= 0b01110,
+	D_SRC_RSV		= 0b01111,
+	D_SRC_RSV		= 0b10000,
+	D_SRC_RSV		= 0b10001,
+	D_SRC_RSV		= 0b10010,
+	D_SRC_RSV		= 0b10011,
+	D_SRC_RSV		= 0b10100,
+	D_SRC_RSV		= 0b10101,
+	D_SRC_RSV		= 0b10110,
+	D_SRC_MSC		= 0b10111,
+	D_SRC_RSV		= 0b11000,
+	D_SRC_RSV		= 0b11001,
+	D_SRC_RSV		= 0b11010,
+	D_SRC_SPI0_RX		= 0b11011,
+	D_SRC_RSV		= 0b11100,
+	D_SRC_SPI2_RX		= 0b11101,
+	D_SRC_RSV		= 0b11110,
+	D_SRC_SPI3_RX		= 0b11111,
+};
+
+/* dedicate channel dst drq type */
+enum d_drqdst_e {
+	D_DST_SRAM		= 0b00000,
+	D_DST_SDRAM		= 0b00001,
+	D_DST_RSV		= 0b00010,
+	D_DST_NAND		= 0b00011,
+	D_DST_USB0		= 0b00100,
+	D_DST_RSV		= 0b00101,
+	D_DST_EMAC_TX		= 0b00110,
+	D_DST_RSV		= 0b00111,
+	D_DST_SPI1_TX		= 0b01000,
+	D_DST_RSV		= 0b01001,
+	D_DST_SS_TX		= 0b01010, /* security system tx */
+	D_DST_RSV		= 0b01011,
+	D_DST_RSV		= 0b01100,
+	D_DST_RSV		= 0b01101,
+	D_DST_TCON0		= 0b01110,
+	D_DST_TCON1		= 0b01111,
+	D_DST_RSV		= 0b10000,
+	D_DST_RSV		= 0b10001,
+	D_DST_RSV		= 0b10010,
+	D_DST_RSV		= 0b10011,
+	D_DST_RSV		= 0b10100,
+	D_DST_RSV		= 0b10101,
+	D_DST_RSV		= 0b10110,
+	D_DST_MSC		= 0b10111,
+	D_DST_HDMI_AUD		= 0b11000,
+	D_DST_RSV		= 0b11001,
+	D_DST_SPI0_TX		= 0b11010,
+	D_DST_RSV		= 0b11011,
+	D_DST_SPI2_TX		= 0b11100,
+	D_DST_RSV		= 0b11101,
+	D_DST_SPI3_TX		= 0b11110,
+	D_DST_RSV		= 0b11111,
+};
+#endif /* 0 */
+
+/* dma operation type */
+typedef enum {
+	DMA_OP_START,  			/* start dma */
+	DMA_OP_STOP,  			/* stop dma */
+
+	DMA_OP_GET_STATUS,  		/* get channel status: idle/busy */
+	DMA_OP_GET_CUR_SRC_ADDR,  	/* get current src address */
+	DMA_OP_GET_CUR_DST_ADDR,  	/* get current dst address */
+	DMA_OP_GET_BYTECNT_LEFT,  	/* get byte cnt left */
+
+	DMA_OP_SET_HD_CB,		/* set half done callback */
+	DMA_OP_SET_FD_CB,		/* set full done callback */
+}dma_op_type_e;
+
+/* dma handle type defination */
+typedef void * dma_hdl_t;
+
+/* dma callback func */
+typedef void (* dma_cb)(dma_hdl_t dma_hdl, void *parg);
+typedef void (* dma_op_cb)(dma_hdl_t dma_hdl, void *parg, enum dma_op_type_e op);
+
+/* dma callback struct */
+typedef struct {
+	dma_cb 		func;	/* dma callback fuction */
+	void 		*parg;	/* args of func */
+}dma_cb_t;
+
+/* dma operation callback struct */
+typedef struct {
+	dma_op_cb 	func;	/* dma operation callback fuction */
+	void 		*parg;	/* args of func */
+}dma_op_cb_t;
+
+typedef enum {
+	CHAN_NORAML,
+	CHAN_DEDICATE,
+}dma_chan_type_e;
+
+enum xferunit_e {
+	/* des:X_SIGLE  src:X_SIGLE */
+	DMAXFER_D_SBYTE_S_SBYTE,
+	DMAXFER_D_SBYTE_S_SHALF,
+	DMAXFER_D_SBYTE_S_SWORD,
+	DMAXFER_D_SHALF_S_SBYTE,
+	DMAXFER_D_SHALF_S_SHALF,
+	DMAXFER_D_SHALF_S_SWORD,
+	DMAXFER_D_SWORD_S_SBYTE,
+	DMAXFER_D_SWORD_S_SHALF,
+	DMAXFER_D_SWORD_S_SWORD,
+
+	/* des:X_SIGLE  src:X_BURST */
+	DMAXFER_D_SBYTE_S_BBYTE,
+	DMAXFER_D_SBYTE_S_BHALF,
+	DMAXFER_D_SBYTE_S_BWORD,
+	DMAXFER_D_SHALF_S_BBYTE,
+	DMAXFER_D_SHALF_S_BHALF,
+	DMAXFER_D_SHALF_S_BWORD,
+	DMAXFER_D_SWORD_S_BBYTE,
+	DMAXFER_D_SWORD_S_BHALF,
+	DMAXFER_D_SWORD_S_BWORD,
+
+	/* des:X_SIGLE   src:X_TIPPL */
+	DMAXFER_D_SBYTE_S_TBYTE,
+	DMAXFER_D_SBYTE_S_THALF,
+	DMAXFER_D_SBYTE_S_TWORD,
+	DMAXFER_D_SHALF_S_TBYTE,
+	DMAXFER_D_SHALF_S_THALF,
+	DMAXFER_D_SHALF_S_TWORD,
+	DMAXFER_D_SWORD_S_TBYTE,
+	DMAXFER_D_SWORD_S_THALF,
+	DMAXFER_D_SWORD_S_TWORD,
+
+	/* des:X_BURST  src:X_BURST */
+	DMAXFER_D_BBYTE_S_BBYTE,
+	DMAXFER_D_BBYTE_S_BHALF,
+	DMAXFER_D_BBYTE_S_BWORD,
+	DMAXFER_D_BHALF_S_BBYTE,
+	DMAXFER_D_BHALF_S_BHALF,
+	DMAXFER_D_BHALF_S_BWORD,
+	DMAXFER_D_BWORD_S_BBYTE,
+	DMAXFER_D_BWORD_S_BHALF,
+	DMAXFER_D_BWORD_S_BWORD,
+
+	/* des:X_BURST   src:X_SIGLE */
+	DMAXFER_D_BBYTE_S_SBYTE,
+	DMAXFER_D_BBYTE_S_SHALF,
+	DMAXFER_D_BBYTE_S_SWORD,
+	DMAXFER_D_BHALF_S_SBYTE,
+	DMAXFER_D_BHALF_S_SHALF,
+	DMAXFER_D_BHALF_S_SWORD,
+	DMAXFER_D_BWORD_S_SBYTE,
+	DMAXFER_D_BWORD_S_SHALF,
+	DMAXFER_D_BWORD_S_SWORD,
+
+	/* des:X_BURST   src:X_TIPPL */
+	DMAXFER_D_BBYTE_S_TBYTE,
+	DMAXFER_D_BBYTE_S_THALF,
+	DMAXFER_D_BBYTE_S_TWORD,
+	DMAXFER_D_BHALF_S_TBYTE,
+	DMAXFER_D_BHALF_S_THALF,
+	DMAXFER_D_BHALF_S_TWORD,
+	DMAXFER_D_BWORD_S_TBYTE,
+	DMAXFER_D_BWORD_S_THALF,
+	DMAXFER_D_BWORD_S_TWORD,
+
+	/* des:X_TIPPL   src:X_TIPPL */
+	DMAXFER_D_TBYTE_S_TBYTE,
+	DMAXFER_D_TBYTE_S_THALF,
+	DMAXFER_D_TBYTE_S_TWORD,
+	DMAXFER_D_THALF_S_TBYTE,
+	DMAXFER_D_THALF_S_THALF,
+	DMAXFER_D_THALF_S_TWORD,
+	DMAXFER_D_TWORD_S_TBYTE,
+	DMAXFER_D_TWORD_S_THALF,
+	DMAXFER_D_TWORD_S_TWORD,
+
+	/* des:X_TIPPL   src:X_SIGLE */
+	DMAXFER_D_TBYTE_S_SBYTE,
+	DMAXFER_D_TBYTE_S_SHALF,
+	DMAXFER_D_TBYTE_S_SWORD,
+	DMAXFER_D_THALF_S_SBYTE,
+	DMAXFER_D_THALF_S_SHALF,
+	DMAXFER_D_THALF_S_SWORD,
+	DMAXFER_D_TWORD_S_SBYTE,
+	DMAXFER_D_TWORD_S_SHALF,
+	DMAXFER_D_TWORD_S_SWORD,
+
+	/* des:X_TIPPL   src:X_BURST */
+	DMAXFER_D_TBYTE_S_BBYTE,
+	DMAXFER_D_TBYTE_S_BHALF,
+	DMAXFER_D_TBYTE_S_BWORD,
+	DMAXFER_D_THALF_S_BBYTE,
+	DMAXFER_D_THALF_S_BHALF,
+	DMAXFER_D_THALF_S_BWORD,
+	DMAXFER_D_TWORD_S_BBYTE,
+	DMAXFER_D_TWORD_S_BHALF,
+	DMAXFER_D_TWORD_S_BWORD,
+	DMAXFER_MAX
+};
+
+/*
+ * src/dst address type
+ * index for addrtype_arr[]
+ */
+enum addrt_e {
+	DMAADDRT_D_LN_S_LN,
+	DMAADDRT_D_LN_S_IO,
+	DMAADDRT_D_IO_S_LN,
+	DMAADDRT_D_IO_S_IO,
+	DMAADDRT_MAX
+};
+
+typedef struct tag_dma_config {
+	/*
+	 * data length and burst length combination in DDMA and NDMA
+	 * eg: DMAXFER_D_SWORD_S_SWORD, DMAXFER_D_SBYTE_S_BBYTE
+	 */
+	enum xferunit_e	xfer_type;
+	/*
+	 * NDMA/DDMA src/dst address type
+	 * eg: DMAADDRT_D_INC_S_INC(NDMA addr type),
+	 *     DMAADDRT_D_LN_S_LN / DMAADDRT_D_LN_S_IO(DDMA addr type)
+	 */
+	enum addrt_e	address_type;
+	u32		para;		/* dma para reg */
+	u32 		irq_spt;	/* channel irq supported, eg: CHAN_IRQ_HD | CHAN_IRQ_FD */
+	bool		bconti_mode;	/* continue mode */
+	u8		src_drq_type;	/* src drq type */
+	u8		dst_drq_type;	/* dst drq type */
+}dma_config_t;
+
+/* dma export symbol */
+dma_hdl_t sw_dma_request(char * name, dma_chan_type_e type);
+u32 sw_dma_release(dma_hdl_t dma_hdl);
+u32 sw_dma_enqueue(dma_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt);
+u32 sw_dma_config(dma_hdl_t dma_hdl, dma_config_t *pcfg);
+u32 sw_dma_ctl(dma_hdl_t dma_hdl, dma_op_type_e op, void *parg);
+int sw_dma_getposition(dma_hdl_t dma_hdl, u32 *pSrc, u32 *pDst);
+void sw_dma_dump_chan(dma_hdl_t dma_hdl);
 
 #endif /* __SW_DMA_H */
