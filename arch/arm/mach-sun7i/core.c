@@ -94,7 +94,7 @@ static void sun7i_fixup(struct tag *tags, char **from,
 }
 
 u32 g_mem_resv[][2] = {
-	//{SW_SCRIPT_MEM_BASE, 	SW_SCRIPT_MEM_SIZE	},
+	{SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE},
 	//{SW_FB_MEM_BASE, 	SW_FB_MEM_SIZE		},
 	//{SW_GPU_MEM_BASE, 	SW_GPU_MEM_SIZE		},
 	//{SW_G2D_MEM_BASE, 	SW_G2D_MEM_SIZE		},
