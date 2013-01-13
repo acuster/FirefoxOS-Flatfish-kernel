@@ -2,6 +2,7 @@
  * arch/arch/mach-sun6i/sys_config.c
  * (C) Copyright 2010-2015
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * James Deng <csjamesdeng@allwinnertech.com>
  *
  * sys_config utils (porting from 2.6.36)
  *
@@ -18,6 +19,9 @@
 #include <mach/sys_config.h>
 #include <mach/gpio.h>
 #include <linux/slab.h>
+
+#include <linux/debugfs.h>
+#include <asm/uaccess.h>
 
 #define SCRIPT_MALLOC(x)    kzalloc((x), GFP_KERNEL)
 #define SCRIPT_FREE(x)      kfree(x)
@@ -282,7 +286,7 @@ void dump_mainkey(script_main_key_t *pmainkey)
     if (NULL == pmainkey || NULL == pmainkey->subkey || NULL == pmainkey->subkey_val)
         return;
 
-    printk("++++++++++++++++++++++++++%s++++++++++++++++++++++++++\n", __func__);
+    printk("=========================================================\n");
     printk("    name:      %s\n", pmainkey->name);
     printk("    sub_key:   name           type      value\n");
     psubkey = pmainkey->subkey;
@@ -302,13 +306,13 @@ void dump_mainkey(script_main_key_t *pmainkey)
                        psubkey->value->gpio.pull, psubkey->value->gpio.drv_level, psubkey->value->gpio.data);
                 break;
             default:
-                printk("               %-15sinvalid type!\n", psubkey->name);
+                printk("               %-15sINVALID TYPE\n", psubkey->name);
                 break;
         }
 
         psubkey = psubkey->next;
     }
-    printk("--------------------------%s--------------------------\n", __func__);
+    printk("=========================================================\n");
 }
 
 int script_dump_mainkey(char *main_key)
@@ -317,7 +321,7 @@ int script_dump_mainkey(char *main_key)
     script_main_key_t *pmainkey = g_script;
 
     if (NULL != main_key) {
-        printk("%s: dump main_key %s\n", __func__, main_key);
+        printk("%s: dump %s\n", __func__, main_key);
         main_hash = hash(main_key);
         while (pmainkey) {
             if ((pmainkey->hash == main_hash) && !strcmp(pmainkey->name, main_key)) {
@@ -326,16 +330,15 @@ int script_dump_mainkey(char *main_key)
             }
             pmainkey = pmainkey->next;
         }
-        printk(KERN_ERR "%s err: main key %s not found!\n", __func__, main_key);
+        printk(KERN_ERR "%s: mainkey %s not found\n", __func__, main_key);
     } else {
-        printk("%s: dump all the mainkey, \n", __func__);
+        printk("%s: dump all the mainkey\n", __func__);
         while (pmainkey) {
-            printk("%s: dump main key %s\n", __func__, pmainkey->name);
             dump_mainkey(pmainkey);
             pmainkey = pmainkey->next;
         }
     }
-    printk("%s exit\n", __func__);
+    printk("%s: exit\n", __func__);
     return 0;
 }
 EXPORT_SYMBOL(script_dump_mainkey);
@@ -553,3 +556,53 @@ err_out:
 }
 core_initcall(script_init);
 
+static struct dentry *script_debugfs;
+
+static int dump_mainkey_open(struct inode *inode, struct file *filp)
+{
+    return 0;
+}
+
+static ssize_t dump_mainkey_write(struct file *filp, const char __user *buffer,
+    size_t count, loff_t *ppos)
+{
+    char mainkey[SCRIPT_NAME_SIZE_MAX] = {0};
+
+    if (!buffer) {
+        printk(KERN_ERR "Usage: echo {mainkey} > dump_mainkey\n");
+        return 0;
+    }
+
+    if (copy_from_user(mainkey, buffer, count)) {
+        return -EFAULT;
+    }
+
+    /* omit '\n' */
+    mainkey[count-1] = '\0';
+    script_dump_mainkey(mainkey);
+
+    return count;
+}
+
+static struct file_operations dump_mainkey_fops = {
+    .open = dump_mainkey_open,
+    .write = dump_mainkey_write
+};
+
+static int script_debugfs_init(void)
+{
+    script_debugfs = debugfs_create_dir("sys_config", NULL);
+    if (!script_debugfs) {
+        printk(KERN_ERR "create debugfs/sys_config/ failed\n");
+        return -1;
+    }
+
+    if (!debugfs_create_file("dump_mainkey", 0222, script_debugfs,
+            NULL, &dump_mainkey_fops)) {
+        printk(KERN_ERR "create file dump_mainkey failed\n");
+        return -1;
+    }
+
+    return 0;
+}
+core_initcall(script_debugfs_init);
