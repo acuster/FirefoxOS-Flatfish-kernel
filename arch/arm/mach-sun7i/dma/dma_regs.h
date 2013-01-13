@@ -1,10 +1,10 @@
 /*
- * arch/arm/mach-sun6i/dma/dma_regs.h
+ * arch/arm/mach-sun7i/dma/dma_regs.h
  * (C) Copyright 2010-2015
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
  * liugang <liugang@reuuimllatech.com>
  *
- * sun6i dma regs defination
+ * sun7i dma regs defination
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as

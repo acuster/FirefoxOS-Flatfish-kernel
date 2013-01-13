@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-sun6i/dma/dma_core.c
+ * arch/arm/mach-sun7i/dma/dma_core.c
  * (C) Copyright 2010-2015
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
  * liugang <liugang@reuuimllatech.com>

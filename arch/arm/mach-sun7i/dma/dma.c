@@ -1,10 +1,10 @@
 /*
- * arch/arm/mach-sun6i/dma/dma.c
+ * arch/arm/mach-sun7i/dma/dma.c
  * (C) Copyright 2010-2015
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
  * liugang <liugang@reuuimllatech.com>
  *
- * sun6i dma driver interface
+ * sun7i dma driver interface
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
