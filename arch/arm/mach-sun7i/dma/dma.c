@@ -19,7 +19,7 @@
 struct kmem_cache *g_buf_cache;
 
 /**
- * handle_dma_irq - dma irq handle, for single mode only
+ * handle_dma_irq - dma irq handle
  * @pchan:	dma channel handle
  * @upend_bits:	irq pending for the channel
  *
@@ -50,11 +50,11 @@ void handle_dma_irq(dma_channel_t *pchan, u32 upend_bits)
  * @irq:	dma physical irq num
  * @dev:	para passed in request_irq function
  *
- * Returns 0 if sucess, the err line number if failed.
- *
  * we cannot lock __dma_irq_hdl through,
  * because sw_dma_enqueue maybe called in cb,
  * which will result in deadlock
+ *
+ * Returns 0 if sucess, the err line number if failed.
  */
 irqreturn_t __dma_irq_hdl(int irq, void *dev)
 {

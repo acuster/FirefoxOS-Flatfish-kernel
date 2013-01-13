@@ -20,9 +20,9 @@
 
 /* dma channel irq type */
 typedef enum {
-	CHAN_IRQ_NO 	= (0b000	),	/* none */
-	CHAN_IRQ_HD	= (0b001	),	/* package half done irq */
-	CHAN_IRQ_FD	= (0b010	),	/* package full done irq */
+	CHAN_IRQ_NO 	= (0b000	),	/* none irq */
+	CHAN_IRQ_HD	= (0b001	),	/* buf half done irq */
+	CHAN_IRQ_FD	= (0b010	),	/* buf full done irq */
 }dma_chan_irq_type;
 
 /* wait clock cycles and data block size */
@@ -41,10 +41,10 @@ typedef struct {
 #define DATA_BRST_4		1
 #define DATA_BRST_8		2
 typedef struct {
-	u8 src_data_width;	/* XXX */
-	u8 src_bst_len;		/* XXX */
-	u8 dst_data_width;	/* XXX */
-	u8 dst_bst_len;		/* XXX */
+	u8 src_data_width;	/* src data width */
+	u8 src_bst_len;		/* src burst length */
+	u8 dst_data_width;	/* dst data width */
+	u8 dst_bst_len;		/* dst burst length */
 }xferunit_t;
 
 /* address mode */
@@ -55,8 +55,8 @@ typedef struct {
 #define DDMA_ADDR_HORI_PAGE	2
 #define DDMA_ADDR_VERT_PAGE	3
 typedef struct {
-	u16 src_addr_mode;	/* XXX */
-	u16 dst_addr_mode;	/* XXX */
+	u16 src_addr_mode;	/* src address mode */
+	u16 dst_addr_mode;	/* dst address mode */
 }addrtype_t;
 
 /* normal channel src drq type */
@@ -183,9 +183,9 @@ typedef struct {
 	/*
 	 * paras for dma ctrl reg
 	 */
-	xferunit_t	xfer_type;	/* XXX */
-	addrtype_t	address_type;	/* XXX */
-	bool		bconti_mode;	/* continue mode */
+	xferunit_t	xfer_type;	/* dsta width and burst length */
+	addrtype_t	address_type;	/* address type */
+	bool		bconti_mode;	/* continue mode, true is continue mode, false not */
 	u8		src_drq_type;	/* src drq type */
 	u8		dst_drq_type;	/* dst drq type */
 	/*
@@ -193,7 +193,7 @@ typedef struct {
 	 */
 	u32 		irq_spt;	/* channel irq supported, eg: CHAN_IRQ_HD | CHAN_IRQ_FD */
 	/*
-	 * these remove to sw_dma_ctl, not always need set
+	 * these not always need set, so move to sw_dma_ctl
 	 */
 	//u8 		src_secu;	/* dma src security, 0: secure, 1: non-secure */
 	//u8 		dst_secu;	/* dma dst security, 0: secure, 1: non-secure */
@@ -205,36 +205,40 @@ typedef struct {
 typedef enum {
 	DMA_OP_START,  			/* start dma */
 	DMA_OP_STOP,  			/* stop dma */
-
-	DMA_OP_GET_STATUS,  		/* get channel status: idle/busy */
 	DMA_OP_GET_BYTECNT_LEFT,  	/* get byte cnt left */
-
+	DMA_OP_SET_SECURITY,  		/* set security */
 	DMA_OP_SET_HD_CB,		/* set half done callback */
 	DMA_OP_SET_FD_CB,		/* set full done callback */
-
-	DMA_OP_SET_PARA_REG,  		/* set para reg, for ddma */
-	DMA_OP_SET_WAIT_STATE,  	/* set wait state status, for ndma, para is 0~7 */
-	DMA_OP_SET_SECURITY,  		/* set security */
+	/*
+	 * only for dedicate dma below
+	 */
+	DMA_OP_GET_STATUS,  		/* get channel status: idle/busy */
+	DMA_OP_SET_PARA_REG,  		/* set para reg */
+	/*
+	 * only for normal dma below
+	 */
+	DMA_OP_SET_WAIT_STATE,  	/* set wait state status, 0~7 */
 }dma_op_type_e;
 
 /* dma handle type defination */
 typedef void * dma_hdl_t;
 
-/* dma callback func */
+/* irq callback func defination */
 typedef void (* dma_cb)(dma_hdl_t dma_hdl, void *parg);
 
 /* dma callback struct */
 typedef struct {
-	dma_cb 		func;	/* dma callback fuction */
+	dma_cb 		func;	/* callback fuction */
 	void 		*parg;	/* args of func */
 }dma_cb_t;
 
+/* dma channel type */
 typedef enum {
-	CHAN_NORAML,
-	CHAN_DEDICATE,
+	CHAN_NORAML,		/* normal channel, id 0~7 */
+	CHAN_DEDICATE,		/* dedicate channel, id 8~15 */
 }dma_chan_type_e;
 
-/* dma export symbol */
+/* dma export fuction */
 dma_hdl_t sw_dma_request(char * name, dma_chan_type_e type);
 u32 sw_dma_release(dma_hdl_t dma_hdl);
 u32 sw_dma_enqueue(dma_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt);

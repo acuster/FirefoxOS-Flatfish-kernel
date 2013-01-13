@@ -17,9 +17,9 @@
 #define __DMA_SINGLE_H
 
 u32 dma_enqueue(dma_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt);
-u32 dma_config(dma_hdl_t dma_hdl, dma_config_t *pcfg);
+void dma_config(dma_hdl_t dma_hdl, dma_config_t *pcfg);
 u32 dma_ctrl(dma_hdl_t dma_hdl, dma_op_type_e op, void *parg);
-u32 dma_release(dma_hdl_t dma_hdl);
+void dma_release(dma_hdl_t dma_hdl);
 void dma_request_init(dma_channel_t *pchan);
 void dma_dump_chain(dma_channel_t *pchan);
 u32 dma_hdl_irq_fd(dma_channel_t *pchan);

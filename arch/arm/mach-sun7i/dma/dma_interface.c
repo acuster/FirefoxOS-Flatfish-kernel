@@ -18,35 +18,8 @@
 /* dma manager */
 struct dma_mgr_t g_dma_mgr; /* compile warning if "g_dma_mgr = {0}" */
 
-/* lock for request */
+/* dma channel request lock */
 static DEFINE_MUTEX(dma_mutex);
-
-#if 0 /* remove warning: defined but not used */
-/**
- * __dma_dump_config_para - dump dma_config_t struct
- * @para:	dma_config_t struct to dump
- */
-static void __dma_dump_config_para(dma_config_t *para)
-{
-	if(NULL == para) {
-		DMA_ERR("%s err, line %d\n", __func__, __LINE__);
-		return;
-	}
-
-	DMA_DBG("+++++++++++%s+++++++++++\n", __func__);
-	DMA_DBG("  xfer_type:         %d\n", para->xfer_type);
-	DMA_DBG("  address_type:      %d\n", para->address_type);
-	DMA_DBG("  para:              0x%08x\n", para->para);
-	DMA_DBG("  irq_spt:           %d\n", para->irq_spt);
-	DMA_DBG("  src_addr:          0x%08x\n", para->src_addr);
-	DMA_DBG("  dst_addr:          0x%08x\n", para->dst_addr);
-	DMA_DBG("  byte_cnt:          0x%08x\n", para->byte_cnt);
-	DMA_DBG("  bconti_mode:       %d\n", para->bconti_mode);
-	DMA_DBG("  src_drq_type:      %d\n", para->src_drq_type);
-	DMA_DBG("  dst_drq_type:      %d\n", para->dst_drq_type);
-	DMA_DBG("-----------%s-----------\n", __func__);
-}
-#endif
 
 /**
  * dma_handle_is_valid - check if dma handle is valid
@@ -107,6 +80,7 @@ bool __dma_channel_already_exist(char *name)
 /**
  * sw_dma_request - request a dma channel
  * @name:	dma channel name
+ * @type:	channel type, normal or dedicate
  *
  * Returns handle to the channel if success, NULL if failed.
  */
@@ -166,12 +140,13 @@ EXPORT_SYMBOL(sw_dma_request);
  * sw_dma_release - free a dma channel
  * @dma_hdl:	dma handle
  *
- * Returns 0 if sucess, other value if failed.
+ * Returns 0 if sucess, otherwise failed
  */
 u32 sw_dma_release(dma_hdl_t dma_hdl)
 {
 	BUG_ON(unlikely(!dma_handle_is_valid(dma_hdl)));
-	return dma_release(dma_hdl);
+	dma_release(dma_hdl);
+	return 0;
 }
 EXPORT_SYMBOL(sw_dma_release);
 
@@ -181,7 +156,7 @@ EXPORT_SYMBOL(sw_dma_release);
  * @op:		dma operation type
  * @parg:	arg for the op
  *
- * Returns 0 if sucess, the err line number if failed.
+ * Returns 0 if sucess, otherwise failed
  */
 u32 sw_dma_ctl(dma_hdl_t dma_hdl, dma_op_type_e op, void *parg)
 {
@@ -191,29 +166,28 @@ u32 sw_dma_ctl(dma_hdl_t dma_hdl, dma_op_type_e op, void *parg)
 EXPORT_SYMBOL(sw_dma_ctl);
 
 /**
- * sw_dma_config - config dma channel, enqueue the buffer
+ * sw_dma_config - config dma hardware paras
  * @dma_hdl:	dma handle
  * @pcfg:	dma cofig para
- * @phase:	dma enqueue phase
  *
- * Returns 0 if sucess, the err line number if failed.
+ * Returns 0 if sucess, otherwise failed
  */
 u32 sw_dma_config(dma_hdl_t dma_hdl, dma_config_t *pcfg)
 {
 	BUG_ON(unlikely(!dma_handle_is_valid(dma_hdl)));
-	return dma_config(dma_hdl, pcfg);
+	dma_config(dma_hdl, pcfg);
+	return 0;
 }
 EXPORT_SYMBOL(sw_dma_config);
 
 /**
- * sw_dma_enqueue - enqueue the buffer to des chain
+ * sw_dma_enqueue - add buf to list
  * @dma_hdl:	dma handle
  * @src_addr:	buffer src phys addr
  * @dst_addr:	buffer dst phys addr
  * @byte_cnt:	buffer byte cnt
- * @phase:	enqueue phase
  *
- * Returns 0 if sucess, the err line number if failed.
+ * Returns 0 if sucess, otherwise failed
  */
 u32 sw_dma_enqueue(dma_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt)
 {
@@ -223,12 +197,12 @@ u32 sw_dma_enqueue(dma_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt)
 EXPORT_SYMBOL(sw_dma_enqueue);
 
 /**
- * sw_dma_getposition - get the src and dst address from the reg
+ * sw_dma_getposition - get src and dst position
  * @dma_hdl:	dma handle
- * @psrc:	pointed to src addr that will be got
- * @pdst:	pointed to dst addr that will be got
+ * @psrc:	stored the src addr got
+ * @pdst:	stored the dst addr got
  *
- * Returns 0 if sucess, the err line number if failed.
+ * Returns 0 if sucess, otherwise failed
  */
 int sw_dma_getposition(dma_hdl_t dma_hdl, u32 *psrc, u32 *pdst)
 {

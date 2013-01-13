@@ -18,6 +18,11 @@
 struct clk 	*g_dma_ahb_clk = NULL;
 struct clk 	*g_dma_mod_clk = NULL;
 
+/**
+ * dma_clk_init - init dma clock
+ *
+ * Returns 0 if sucess, otherwise failed.
+ */
 u32 dma_clk_init(void)
 {
 	WARN_ON(NULL != g_dma_mod_clk || NULL != g_dma_ahb_clk);
@@ -60,6 +65,11 @@ u32 dma_clk_init(void)
 	return 0;
 }
 
+/**
+ * dma_clk_deinit - deinit dma clock
+ *
+ * Returns 0 if sucess, otherwise failed.
+ */
 u32 dma_clk_deinit(void)
 {
 	DMA_DBG("%s: g_dma_mod_clk 0x%08x, g_dma_ahb_clk 0x%08x\n",
@@ -94,7 +104,7 @@ u32 dma_clk_deinit(void)
 }
 
 /**
- * csp_dma_init - init dmac
+ * csp_dma_init - dma reg init, clear irq pending, disable irq
  */
 void csp_dma_init(void)
 {
@@ -113,7 +123,7 @@ void csp_dma_init(void)
 }
 
 /**
- * csp_dma_start - start the dma channel
+ * csp_dma_start - start dma channel
  * @pchan:	dma channel handle
  */
 void inline csp_dma_start(dma_channel_t * pchan)
@@ -124,7 +134,7 @@ void inline csp_dma_start(dma_channel_t * pchan)
 }
 
 /**
- * csp_dma_stop - stop the dma channel
+ * csp_dma_stop - stop dma channel
  * @pchan:	dma channel handle
  */
 void inline csp_dma_stop(dma_channel_t * pchan)
@@ -162,6 +172,7 @@ void inline csp_ndma_set_wait_state(dma_channel_t * pchan, u32 state)
 	DMA_WRITE_REG(*(u32 *)&ctrl, pchan->reg_base + DMA_OFF_REG_CTRL);
 }
 
+/* set security, both for ndma and ddma */
 void inline csp_dma_set_security(dma_channel_t * pchan, u32 para)
 {
 	dma_ctrl_u ctrl;
@@ -208,6 +219,7 @@ void inline csp_dma_set_bcnt(dma_channel_t * pchan, u32 byte_cnt)
 	DMA_WRITE_REG(byte_cnt, pchan->reg_base + DMA_OFF_REG_BC);
 }
 
+/* set para reg, for ddma only */
 void inline csp_dma_set_para(dma_channel_t * pchan, dma_para_t para)
 {
 	BUG_ON(pchan->id < 8);
@@ -220,7 +232,7 @@ void inline csp_dma_set_ctrl(dma_channel_t * pchan, u32 val)
 }
 
 /**
- * csp_dma_get_status - get dma channel status
+ * csp_dma_get_status - get dma channel status, for ddma only
  * @pchan:	dma channel handle
  *
  * Returns 1 indicate channel is busy, 0 idle
@@ -233,9 +245,10 @@ u32 inline csp_dma_get_status(dma_channel_t * pchan)
 }
 
 /**
- * XXX - get dma channel's cur src addr reg value
+ * csp_dma_get_saddr - get start src addr reg
+ * @pchan:	dma channel handle
  *
- * Returns the channel's cur src addr reg value
+ * Returns the channel's start src addr reg
  */
 u32 inline csp_dma_get_saddr(dma_channel_t * pchan)
 {
@@ -243,10 +256,10 @@ u32 inline csp_dma_get_saddr(dma_channel_t * pchan)
 }
 
 /**
- * XXX - get dma channel's cur dst addr reg value
+ * csp_dma_get_daddr - get start dst addr reg
  * @pchan:	dma channel handle
  *
- * Returns the channel's cur dst addr reg value
+ * Returns the channel's start dst addr reg
  */
 u32 inline csp_dma_get_daddr(dma_channel_t * pchan)
 {
@@ -254,7 +267,7 @@ u32 inline csp_dma_get_daddr(dma_channel_t * pchan)
 }
 
 /**
- * XXX - get dma channel's left byte cnt
+ * csp_dma_get_bcnt - get left byte cnt
  * @pchan:	dma channel handle
  *
  * Returns the channel's left byte cnt
@@ -265,10 +278,10 @@ u32 inline csp_dma_get_bcnt(dma_channel_t * pchan)
 }
 
 /**
- * XXX - get dma channel's start address reg value
+ * csp_dma_get_para - get para reg value, for ddma only
  * @pchan:	dma channel handle
  *
- * Returns the dma channel's start address reg value
+ * Returns the dma channel's para reg value
  */
 dma_para_t inline csp_dma_get_para(dma_channel_t *pchan)
 {
@@ -280,10 +293,10 @@ dma_para_t inline csp_dma_get_para(dma_channel_t *pchan)
 }
 
 /**
- * XXX - get dma channel's start address reg value
+ * csp_dma_get_ctrl - get ctrl reg value
  * @pchan:	dma channel handle
  *
- * Returns the dma channel's start address reg value
+ * Returns the dma channel's ctrl reg value
  */
 dma_ctrl_u inline csp_dma_get_ctrl(dma_channel_t * pchan)
 {

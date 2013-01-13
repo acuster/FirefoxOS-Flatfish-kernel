@@ -35,47 +35,47 @@
 	#define DMA_ERR(format,args...)   printk("[dma-err] "format,##args)
 #endif
 
-/* dma channel total */
+/* dma channel number */
 #define NR_CHAN_NORMAL		(8)
 #define NR_CHAN_DEDICATE	(8)
 #define DMA_CHAN_TOTAL		(NR_CHAN_NORMAL + NR_CHAN_DEDICATE)
 
 typedef struct {
-	u32 src_drq 		: 5; /* XXXX */
-	u32 src_addr_type 	: 1; /* XXXX */
-	u32 src_sec 		: 1; /* XXXX */
-	u32 src_bst_len 	: 2; /* XXXX */
-	u32 src_data_width 	: 2; /* XXXX */
-	u32 rsv0 		: 4; /* XXXX */
-	u32 bc_mod 		: 1; /* XXXX */
-	u32 dst_drq 		: 5; /* XXXX */
-	u32 dst_addr_type 	: 1; /* XXXX */
-	u32 dst_sec 		: 1; /* XXXX */
-	u32 dst_bst_len 	: 2; /* XXXX */
-	u32 dst_data_width 	: 2; /* XXXX */
-	u32 wait_state 		: 3; /* XXXX */
-	u32 conti 		: 1; /* XXXX */
-	u32 loading 		: 1; /* XXXX */
+	u32 src_drq 		: 5; /* ndma src drq type */
+	u32 src_addr_type 	: 1; /* ndma src address type */
+	u32 src_sec 		: 1; /* dma src security */
+	u32 src_bst_len 	: 2; /* dma src burst length */
+	u32 src_data_width 	: 2; /* ndma src data width */
+	u32 rsv0 		: 4; /* reserve */
+	u32 bc_mod 		: 1; /* bc mode select */
+	u32 dst_drq 		: 5; /* ndma dst drq type */
+	u32 dst_addr_type 	: 1; /* ndma dst address type */
+	u32 dst_sec 		: 1; /* dma dst security */
+	u32 dst_bst_len 	: 2; /* dma dst burst length */
+	u32 dst_data_width 	: 2; /* ndma dst data width */
+	u32 wait_state 		: 3; /* dma wait state */
+	u32 conti 		: 1; /* dma continuous mode enable */
+	u32 loading 		: 1; /* dma loading */
 }ndma_ctrl_t;
 
 typedef struct {
-	u32 src_drq 		: 5; /* XXXX */
-	u32 src_addr_mode 	: 2; /* XXXX */
-	u32 src_bst_len 	: 2; /* XXXX */
-	u32 src_data_width 	: 2; /* XXXX */
-	u32 rsv0 		: 1; /* XXXX */
-	u32 src_sec 		: 1; /* XXXX */
-	u32 rsv1 		: 2; /* XXXX */
-	u32 bc_mod 		: 1; /* XXXX */
-	u32 dst_drq 		: 5; /* XXXX */
-	u32 dst_addr_mode 	: 2; /* XXXX */
-	u32 dst_bst_len 	: 2; /* XXXX */
-	u32 dst_data_width 	: 2; /* XXXX */
-	u32 rsv2 		: 1; /* XXXX */
-	u32 dst_sec 		: 1; /* XXXX */
-	u32 conti 		: 1; /* XXXX */
-	u32 busy 		: 1; /* XXXX */
-	u32 loading 		: 1; /* XXXX */
+	u32 src_drq 		: 5; /* ddma src drq type */
+	u32 src_addr_mode 	: 2; /* dma src address mode */
+	u32 src_bst_len 	: 2; /* dma src burst length */
+	u32 src_data_width 	: 2; /* dma src data width */
+	u32 rsv0 		: 1; /* reserve */
+	u32 src_sec 		: 1; /* dma src security */
+	u32 rsv1 		: 2; /* reserve */
+	u32 bc_mod 		: 1; /* bc mode select */
+	u32 dst_drq 		: 5; /* ddma dst drq type */
+	u32 dst_addr_mode 	: 2; /* dma dst address mode */
+	u32 dst_bst_len 	: 2; /* dma dst burst length */
+	u32 dst_data_width 	: 2; /* dma dst data width */
+	u32 rsv2 		: 1; /* reserve */
+	u32 dst_sec 		: 1; /* dma dst security */
+	u32 conti 		: 1; /* dma continuous mode enable */
+	u32 busy 		: 1; /* dma busy status */
+	u32 loading 		: 1; /* dma loading */
 }ddma_ctrl_t;
 
 typedef union {
@@ -87,14 +87,14 @@ typedef union {
 typedef enum {
 	CHAN_STA_IDLE,  	/* maybe before start or after stop */
 	CHAN_STA_RUNING,	/* transferring */
-	CHAN_STA_LAST_DONE	/* the last buffer has done, in this state, any enqueueing will start dma */
+	CHAN_STA_LAST_DONE	/* the last buffer has done, in this state, sw_dma_enqueue will start dma */
 }chan_state_e;
 
 /* buf item define */
 typedef struct {
-	u32	saddr;		/* XXXX */
-	u32	daddr;		/* XXXX */
-	u32	bcnt;		/* XXXX */
+	u32	saddr;		/* src phys address */
+	u32	daddr;		/* dst phys address */
+	u32	bcnt;		/* bytes cnt to transfer */
 	struct list_head list;	/* list node */
 }buf_item;
 
@@ -106,17 +106,17 @@ typedef struct {
 	u32		used;     	/* 1 used, 0 unuse */
 	u32		id;     	/* channel id, 0~15 */
 	char 		owner[MAX_NAME_LEN]; /* dma chnnnel owner name */
-	u32		reg_base;	/* regs base addr */
+	u32		reg_base;	/* ctrl reg virtual addr */
 	dma_ctrl_u 	ctrl;		/* ctrl reg setting */
 	dma_cb_t	hd_cb;		/* half done call back func */
 	dma_cb_t	fd_cb;		/* full done call back func */
-	chan_state_e	state;		/* channel state for chain/single mode */
-	u32 		irq_spt;	/* channel irq supprot type, used for irq handler, only enabled
+	chan_state_e	state;		/* channel state, in software */
+	u32 		irq_spt;	/* channel irq support, used for irq handler, only enabled
 					 * then can call irq callback
 					 */
-	u32		bconti_mode;	/* cotinue mode, same as ctrl, add here in order easy to use */
-	spinlock_t 	lock;		/* dma channel lock */
-	buf_item	*pcur_buf;	/* cur transferring buf */
+	u32		bconti_mode;	/* cotinue mode, same in ctrl, add here in order easy to use */
+	spinlock_t 	lock;		/* channel lock for buf list and reg ops */
+	buf_item	*pcur_buf;	/* cur buf in transferring */
 	struct list_head buf_list;	/* buf list head */
 }dma_channel_t;
 

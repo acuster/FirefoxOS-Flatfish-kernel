@@ -15,21 +15,27 @@
 
 #include "dma_include.h"
 
-/* 找到链上第一个buffer, 移出队列, start它 */
+/**
+ * __dma_start - start dma
+ * @dma_hdl:	dma handle
+ *
+ * find the first buf in list, remove it, and start it.
+ *
+ * Returns 0 if sucess, otherwise failed.
+ */
 u32 __dma_start(dma_hdl_t dma_hdl)
 {
-	u32 uret = 0;
 	buf_item *pbuf = NULL;
 	dma_channel_t *pchan = (dma_channel_t *)dma_hdl;
 
 	if(unlikely(list_empty(&pchan->buf_list))) {
-		uret = __LINE__;
-		goto end;
+		BUG();
+		return -EPERM;
 	}
 
 	/* remove from list */
 	pbuf = list_entry(pchan->buf_list.next, buf_item, list);
-	list_del(&pbuf->list); /* 只是从链表移除, 未释放空间 */
+	list_del(&pbuf->list); /* only remove from list, not free it */
 	/* set src addr */
 	csp_dma_set_saddr(pchan, pbuf->saddr);
 	/* set dst addr */
@@ -45,14 +51,14 @@ u32 __dma_start(dma_hdl_t dma_hdl)
 	pchan->state = CHAN_STA_RUNING;
 	pchan->pcur_buf = pbuf;
 
-end:
-	if(0 != uret)
-		DMA_ERR("%s err, line %d, dma_hdl 0x%08x\n", __func__, uret, (u32)dma_hdl);
-	return uret;
+	return 0;
 }
 
-/* not include cur buf */
-u32 __dma_free_buflist(dma_channel_t *pchan)
+/**
+ * __dma_free_buflist - free buf in list, not include cur buf
+ * @pchan:	dma handle
+ */
+void __dma_free_buflist(dma_channel_t *pchan)
 {
 	buf_item *pbuf = NULL;
 
@@ -61,28 +67,32 @@ u32 __dma_free_buflist(dma_channel_t *pchan)
 		list_del(&pbuf->list);
 		kmem_cache_free(g_buf_cache, pbuf);
 	}
-	return 0;
 }
 
-/* include cur buf */
-u32 __dma_free_allbuf(dma_channel_t *pchan)
+/**
+ * __dma_free_buflist - free all buf, include cur buf
+ * @pchan:	dma handle
+ */
+void __dma_free_allbuf(dma_channel_t *pchan)
 {
 	if(NULL != pchan->pcur_buf) {
 		kmem_cache_free(g_buf_cache, pchan->pcur_buf);
 		pchan->pcur_buf = NULL;
 	}
 	__dma_free_buflist(pchan);
-	return 0;
 }
 
-/* stop dma hw, and free buf */
-u32 __dma_stop(dma_hdl_t dma_hdl)
+/**
+ * __dma_stop - stop dma and free all buf
+ * @dma_hdl:	dma handle
+ *
+ */
+void __dma_stop(dma_hdl_t dma_hdl)
 {
-	u32 	uret = 0;
 	dma_channel_t *pchan = (dma_channel_t *)dma_hdl;
 
 	DMA_INF("%s: state %d, buf chain: \n", __func__, (u32)pchan->state);
-	dma_dump_chain(pchan);
+	//dma_dump_chain(pchan); /* for debug */
 
 	/* check state, for debug */
 	switch(pchan->state) {
@@ -99,8 +109,8 @@ u32 __dma_stop(dma_hdl_t dma_hdl)
 		WARN_ON(NULL != pchan->pcur_buf || !list_empty(&pchan->buf_list));
 		break;
 	default:
-		uret = __LINE__;
-		goto end;
+		BUG();
+		break;
 	}
 
 	/* stop dma channle and clear irq pending */
@@ -108,35 +118,38 @@ u32 __dma_stop(dma_hdl_t dma_hdl)
 	csp_dma_clear_irqpend(pchan, CHAN_IRQ_HD | CHAN_IRQ_FD);
 	/* free buffer list */
 	__dma_free_allbuf(pchan);
+
 	/* change channel state to idle */
 	pchan->state = CHAN_STA_IDLE;
-
-end:
-	if(0 != uret)
-		DMA_ERR("%s err, line %d\n", __func__, uret);
-	return uret;
 }
 
-u32 __dma_set_hd_cb(dma_hdl_t dma_hdl, dma_cb_t *pcb)
+void __dma_set_hd_cb(dma_hdl_t dma_hdl, dma_cb_t *pcb)
 {
 	dma_channel_t *pchan = (dma_channel_t *)dma_hdl;
 
 	WARN_ON(CHAN_STA_IDLE != pchan->state);
 	pchan->hd_cb.func = pcb->func;
 	pchan->hd_cb.parg = pcb->parg;
-	return 0;
 }
 
-u32 __dma_set_fd_cb(dma_hdl_t dma_hdl, dma_cb_t *pcb)
+void __dma_set_fd_cb(dma_hdl_t dma_hdl, dma_cb_t *pcb)
 {
 	dma_channel_t *pchan = (dma_channel_t *)dma_hdl;
 
 	WARN_ON(CHAN_STA_IDLE != pchan->state);
 	pchan->fd_cb.func = pcb->func;
 	pchan->fd_cb.parg = pcb->parg;
-	return 0;
 }
 
+/**
+ * __dma_enqueue - add buf to channel buf list
+ * @dma_hdl:	dma handle
+ * @src_addr:	src phys addr
+ * @dst_addr:	dst phys addr
+ * @byte_cnt:	buffer length
+ *
+ * Returns 0 if sucess, otherwise failed.
+ */
 u32 __dma_enqueue(dma_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt)
 {
 	dma_channel_t *pchan = (dma_channel_t *)dma_hdl;
@@ -171,6 +184,15 @@ end:
 	return uret;
 }
 
+/**
+ * dma_hdl_irq_fd - full done irq handler
+ * @pchan:	dma handle
+ *
+ * firstly, call full done callback; then, if state running, start the next buf in list,
+ * or change state to CHAN_STA_LAST_DONE if have no buffer to transfer.
+ *
+ * Returns 0 if sucess, otherwise failed.
+ */
 u32 dma_hdl_irq_fd(dma_channel_t *pchan)
 {
 	chan_state_e cur_state = 0;
@@ -219,6 +241,10 @@ end:
 	return uret;
 }
 
+/**
+ * dma_dump_chain - dump channel struct
+ * @pchan:	dma handle
+ */
 void dma_dump_chain(dma_channel_t *pchan)
 {
 	buf_item *pitem = NULL;
@@ -246,6 +272,10 @@ void dma_dump_chain(dma_channel_t *pchan)
 	printk("-----------%s-----------\n", __func__);
 }
 
+/**
+ * dma_request_init - init some member after requested
+ * @pchan:	dma handle
+ */
 void dma_request_init(dma_channel_t *pchan)
 {
 	INIT_LIST_HEAD(&pchan->buf_list);
@@ -259,7 +289,7 @@ void dma_request_init(dma_channel_t *pchan)
  *
  * return 0 if success, the err line number if not
  */
-u32 dma_release(dma_hdl_t dma_hdl)
+void dma_release(dma_hdl_t dma_hdl)
 {
 	unsigned long 	flags = 0;
 	dma_channel_t *pchan = (dma_channel_t *)dma_hdl;
@@ -269,7 +299,7 @@ u32 dma_release(dma_hdl_t dma_hdl)
 	/* if not idle, call stop first */
 	if(CHAN_STA_IDLE != pchan->state) {
 		DMA_INF("%s(%d) maybe err: state(%d) not idle, call stop dma first!\n", __func__, __LINE__, pchan->state);
-		WARN_ON(0 != __dma_stop(dma_hdl));
+		__dma_stop(dma_hdl);
 	}
 
 	//memset(pchan, 0, sizeof(*pchan)); /* donot do that, because id...should not be cleared */
@@ -285,7 +315,6 @@ u32 dma_release(dma_hdl_t dma_hdl)
 	__dma_free_buflist(pchan);
 
 	DMA_CHAN_UNLOCK(&pchan->lock, flags);
-	return 0;
 }
 
 /**
@@ -309,7 +338,7 @@ u32 dma_ctrl(dma_hdl_t dma_hdl, dma_op_type_e op, void *parg)
 		uret = __dma_start(dma_hdl);
 		break;
 	case DMA_OP_STOP:
-		uret = __dma_stop(dma_hdl);
+		__dma_stop(dma_hdl);
 		break;
 	case DMA_OP_GET_STATUS: /* only for dedicate dma */
 		*(u32 *)parg = csp_dma_get_status(pchan);
@@ -319,11 +348,11 @@ u32 dma_ctrl(dma_hdl_t dma_hdl, dma_op_type_e op, void *parg)
 		break;
 	case DMA_OP_SET_HD_CB:
 		BUG_ON(NULL == parg);
-		uret = __dma_set_hd_cb(dma_hdl, (dma_cb_t *)parg);
+		__dma_set_hd_cb(dma_hdl, (dma_cb_t *)parg);
 		break;
 	case DMA_OP_SET_FD_CB:
 		BUG_ON(NULL == parg);
-		uret = __dma_set_fd_cb(dma_hdl, (dma_cb_t *)parg);
+		__dma_set_fd_cb(dma_hdl, (dma_cb_t *)parg);
 		break;
 	case DMA_OP_SET_PARA_REG:
 		BUG_ON(NULL == parg);
@@ -350,13 +379,12 @@ end:
 }
 
 /**
- * dma_config - config dma channel, enqueue the buffer, for single mode only
+ * dma_config - config dma hardware paras
  * @dma_hdl:	dma handle
  * @pcfg:	dma cofig para
  *
- * Returns 0 if sucess, the err line number if failed.
  */
-u32 dma_config(dma_hdl_t dma_hdl, dma_config_t *pcfg)
+void dma_config(dma_hdl_t dma_hdl, dma_config_t *pcfg)
 {
 	dma_channel_t *pchan = (dma_channel_t *)dma_hdl;
 	bool dedicate;
@@ -408,16 +436,14 @@ u32 dma_config(dma_hdl_t dma_hdl, dma_config_t *pcfg)
 	pchan->ctrl = ctrl;
 	pchan->bconti_mode = pcfg->bconti_mode;
 	pchan->irq_spt = pcfg->irq_spt;
-	return 0;
 }
 
 /**
- * sw_dma_enqueue - enqueue the buffer, for single mode only
+ * sw_dma_enqueue - add buf to list
  * @dma_hdl:	dma handle
  * @src_addr:	buffer src phys addr
  * @dst_addr:	buffer dst phys addr
  * @byte_cnt:	buffer byte cnt
- * @phase:	enqueue phase
  *
  * Returns 0 if sucess, the err line number if failed.
  */

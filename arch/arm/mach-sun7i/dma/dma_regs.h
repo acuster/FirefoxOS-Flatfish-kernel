@@ -16,8 +16,6 @@
 #ifndef __DMA_REGS_H
 #define __DMA_REGS_H
 
-#define IS_DEDICATE(chan)	((chan) >= 8)
-
 /* dma reg offset */
 #define DMA_IRQ_EN_REG_OFF            		( 0x0000                        )
 #define DMA_IRQ_PEND_REG_OFF            	( 0x0004                        )
@@ -38,6 +36,8 @@
 #define DMA_OFF_REG_DADR            		( 0x0008                       )
 #define DMA_OFF_REG_BC            		( 0x000C                       )
 #define DMA_OFF_REG_PARA            		( 0x0018                       )
+
+#define IS_DEDICATE(chan)			((chan) >= 8)
 
 /* dma reg addr */
 #define DMA_IRQ_EN_REG            		( SW_VA_DMAC_IO_BASE + DMA_IRQ_EN_REG_OFF  	)

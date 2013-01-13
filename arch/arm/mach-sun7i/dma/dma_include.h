@@ -22,8 +22,6 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <mach/platform.h>
-
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
@@ -34,6 +32,8 @@
 
 #include <mach/dma.h>
 #include <mach/clock.h>
+#include <mach/platform.h>
+
 #include "dma_regs.h"
 #include "dma_common.h"
 #include "dma_csp.h"
