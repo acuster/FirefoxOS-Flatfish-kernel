@@ -57,9 +57,9 @@ build_kernel()
 	fi
 
 	build_standby
-make ARCH=arm CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage modules
+	make ARCH=arm CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage modules
 
-${OBJCOPY} -R .note.gnu.build-id -S -O binary vmlinux bImage
+	${OBJCOPY} -R .note.gnu.build-id -S -O binary vmlinux bImage
 
 	update_kern_ver
 
@@ -112,12 +112,12 @@ build_modules()
 	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
 		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
 
-	(
-	export LANG=en_US.UTF-8
-	unset LANGUAGE
-	make -C modules/mali LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
-		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
-	)
+#	(
+#	export LANG=en_US.UTF-8
+#	unset LANGUAGE
+#	make -C modules/mali LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
+#		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
+#	)
 
 #	#build ar6302 sdio wifi module
 #	make -C modules/wifi/ar6302/AR6K_SDK_ISC.build_3.1_RC.329/host CROSS_COMPILE=${CROSS_COMPILE} \
@@ -158,11 +158,11 @@ clean_modules()
 	echo "Cleaning modules"
 	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
 
-        (
-	export LANG=en_US.UTF-8
-	unset LANGUAGE
-	make -C modules/mali LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
-	)
+#	(
+#	export LANG=en_US.UTF-8
+#	unset LANGUAGE
+#	make -C modules/mali LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
+#	)
 
 #	#build ar6302 sdio wifi module
 #	make -C modules/wifi/ar6302/AR6K_SDK_ISC.build_3.1_RC.329/host CROSS_COMPILE=${CROSS_COMPILE} \
