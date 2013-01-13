@@ -3,6 +3,7 @@
  * (C) Copyright 2010-2015
  * Allwinner Technology Co., Ltd. <www.reuuimllatech.com>
  * liugang <liugang@reuuimllatech.com>
+ * James Deng <csjamesdeng@reuuimllatech.com>
  *
  * sun7i gpio driver header file
  *
@@ -126,7 +127,7 @@ struct gpio_config_eint_all {
 };
 
 /* gpio eint call back function */
-typedef u32(*peint_handle)(void *para);
+typedef u32 (*peint_handle)(void *para);
 
 /*
  * exported api below

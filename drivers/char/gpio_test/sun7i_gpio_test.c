@@ -537,7 +537,7 @@ static int __gpio_test_thread(void * arg)
  */
 static int __init sw_gpio_test_init(void)
 {
-	pr_info("%s enter\n", __FUNCTION__);
+	pr_info("%s: enter\n", __FUNCTION__);
 
 	/*
 	 * create the test thread
@@ -551,7 +551,7 @@ static int __init sw_gpio_test_init(void)
  */
 static void __exit sw_gpio_test_exit(void)
 {
-	pr_info("sw_gpio_test_exit: enter\n");
+	pr_info("%s: enter\n", __FUNCTION__);
 }
 
 #ifdef MODULE
@@ -559,7 +559,7 @@ module_init(sw_gpio_test_init);
 module_exit(sw_gpio_test_exit);
 MODULE_LICENSE ("GPL");
 MODULE_AUTHOR ("liugang");
-MODULE_DESCRIPTION ("sun7i gpio Test driver code");
+MODULE_DESCRIPTION ("sun7i gpio test driver code");
 #else
 __initcall(sw_gpio_test_init);
 #endif /* MODULE */

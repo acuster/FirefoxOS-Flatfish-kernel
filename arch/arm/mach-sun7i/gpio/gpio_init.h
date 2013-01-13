@@ -3,6 +3,7 @@
  * (C) Copyright 2010-2015
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
  * liugang <liugang@reuuimllatech.com>
+ * James Deng <csjamesdeng@reuuimllatech.com>
  *
  * sun7i gpio header file
  *
