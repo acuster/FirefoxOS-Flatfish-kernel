@@ -13,136 +13,20 @@
  *
  */
 
-//#include "dma_include.h"
+#include "dma_include.h"
 
-#if 0
 /* dma manager */
 struct dma_mgr_t g_dma_mgr; /* compile warning if "g_dma_mgr = {0}" */
 
 /* lock for request */
 static DEFINE_MUTEX(dma_mutex);
 
-/* dma descriptor buf pool */
-struct dma_pool	*g_des_pool = NULL;
-
-/* data length and burst length value in config reg */
-unsigned long xfer_arr[DMAXFER_MAX] =
-{
-	/* des:X_SIGLE  src:X_SIGLE */
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_WORD << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_WORD << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_WORD << 9),
-
-	/* des:X_SIGLE   src:X_BURST */
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_WORD << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_WORD << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_WORD << 9),
-
-	/* des:X_SIGLE   src:X_TIPPL */
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-
-	/* des:X_BURST  src:X_BURST */
-	(X_BURST << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_WORD << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_WORD << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_WORD << 9),
-
-	/* des:X_BURST   src:X_SIGLE */
-	(X_BURST << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_WORD << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_WORD << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_WORD << 9),
-
-	/* des:X_BURST   src:X_TIPPL */
-	(X_BURST << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-
-	/* des:X_TIPPL   src:X_TIPPL */
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-
-	/* des:X_TIPPL   src:X_SIGLE */
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_WORD << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_WORD << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_WORD << 9),
-
-	/* des:X_TIPPL   src:X_BURST */
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_WORD << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_WORD << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_WORD << 9),
-};
-
-/* src/dst address type value in config reg */
-unsigned long addrtype_arr[DMAADDRT_MAX] =
-{
-	(A_LN  << 21) | (A_LN  << 5),
-	(A_LN  << 21) | (A_IO  << 5),
-	(A_IO  << 21) | (A_LN  << 5),
-	(A_IO  << 21) | (A_IO  << 5),
-};
-
 #if 0 /* remove warning: defined but not used */
 /**
  * __dma_dump_config_para - dump dma_config_t struct
  * @para:	dma_config_t struct to dump
  */
-static void __dma_dump_config_para(struct dma_config_t *para)
+static void __dma_dump_config_para(dma_config_t *para)
 {
 	if(NULL == para) {
 		DMA_ERR("%s err, line %d\n", __func__, __LINE__);
@@ -165,38 +49,19 @@ static void __dma_dump_config_para(struct dma_config_t *para)
 #endif
 
 /**
- * dma_check_handle - check if dma handle is valid
+ * dma_handle_is_valid - check if dma handle is valid
  * @dma_hdl:	dma handle
  *
- * return 0 if vaild, the err line number if not vaild
+ * return true if vaild, false otherwise
  */
-u32 dma_check_handle(dm_hdl_t dma_hdl)
+bool inline dma_handle_is_valid(dma_hdl_t dma_hdl)
 {
-	u32	uret = 0;
-	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
-
-	if(NULL == pchan) {
-		uret = __LINE__;
-		goto end;
-	}
-	if(0 == pchan->used) { /* already released? */
-		uret = __LINE__;
-		goto end;
-	}
-	if(DMA_WORK_MODE_CHAIN != pchan->work_mode && DMA_WORK_MODE_SINGLE != pchan->work_mode) {
-		uret = __LINE__;
-		goto end;
-	}
-
-end:
-	if(0 != uret)
-		DMA_ERR("%s err, line %d\n", __func__, uret);
-	return uret;
+	dma_channel_t *pchan = (dma_channel_t *)dma_hdl;
+	return pchan && pchan->used && pchan->id < DMA_CHAN_TOTAL;
 }
 
-#ifdef DBG_DMA
 /**
- * __dma_check_channel_free - check if channel is free
+ * __chan_is_free - check if channel is free
  * @pchan:	dma handle
  *
  * return true if channel is free, false if not
@@ -204,17 +69,14 @@ end:
  * NOTE: can only be called in sw_dma_request recently, becase
  * should be locked
  */
-static u32 __dma_check_channel_free(struct dma_channel_t *pchan)
+static bool __chan_is_free(dma_channel_t *pchan)
 {
 	if(0 == pchan->used
 		&& 0 == pchan->owner[0]
 		//&& CHAN_IRQ_NO == pchan->irq_spt /* maybe not use dma irq? */
 		&& NULL == pchan->hd_cb.func
 		&& NULL == pchan->fd_cb.func
-		&& NULL == pchan->qd_cb.func
-		&& NULL == pchan->op_cb.func
-		&& DMA_CHAN_STA_IDLE == STATE_CHAIN(pchan)
-		&& DMA_WORK_MODE_INVALID == pchan->work_mode
+		&& CHAN_STA_IDLE == pchan->state
 		)
 		return true;
 	else {
@@ -222,7 +84,6 @@ static u32 __dma_check_channel_free(struct dma_channel_t *pchan)
 		return false;
 	}
 }
-#endif /* DBG_DMA */
 
 /**
  * __dma_channel_already_exist - check if channel already requested by others
@@ -249,68 +110,55 @@ bool __dma_channel_already_exist(char *name)
  *
  * Returns handle to the channel if success, NULL if failed.
  */
-dm_hdl_t sw_dma_request(char *name, enum dma_work_mode_e work_mode)
+dma_hdl_t sw_dma_request(char * name, dma_chan_type_e type)
 {
-	u32	i = 0;
-	u32	usign = 0;
-	struct dma_channel_t	*pchan = NULL;
+	u32 i, num;
+	u32 usign = 0;
+	dma_channel_t *pchan = NULL;
 
-	DMA_DBG("%s: name %s, work_mode %d\n", __func__, name, (u32)work_mode);
-	if(strlen(name) >= MAX_OWNER_NAME_LEN || (work_mode != DMA_WORK_MODE_CHAIN && work_mode != DMA_WORK_MODE_SINGLE)) {
-		DMA_ERR("%s: para err, name %s, work mode %d\n", __func__, name, (u32)work_mode);
+	DMA_DBG("%s: name %s, chan type %d\n", __func__, name, (u32)type);
+	if(strlen(name) >= MAX_NAME_LEN || (type != CHAN_NORAML && type != CHAN_DEDICATE)) {
+		DMA_ERR("%s: para err, name %s, type %d\n", __func__, name, (u32)type);
 		return NULL;
 	}
 
 	mutex_lock(&dma_mutex);
-
 	/* check if already exist */
 	if(NULL != name && __dma_channel_already_exist(name)) {
 		usign = __LINE__;
 		goto end;
 	}
 	/* get a free channel */
-	for(i = 0; i < DMA_CHAN_TOTAL; i++) {
-		pchan = &g_dma_mgr.chnl[i];
-		if(0 == pchan->used) {
-#ifdef DBG_DMA
-			if(true != __dma_check_channel_free(pchan))
-				DMA_ERR("%s(%d) err, channel is not free\n", __func__, __LINE__);
-#endif /* DBG_DMA */
+	if(CHAN_NORAML == type)
+		i = 0;
+	else
+		i = 8;
+	num = i + 8;
+	for(; i < num ; i++) {
+		if(0 == g_dma_mgr.chnl[i].used) {
+			WARN_ON(!__chan_is_free(&g_dma_mgr.chnl[i]));
 			break;
 		}
 	}
-	/* cannot get a free channel */
-	if(DMA_CHAN_TOTAL == i) {
+	if(num == i) {
 		usign = __LINE__;
 		goto end;
 	}
 
 	/* init channel */
-	if(DMA_WORK_MODE_CHAIN == work_mode) {
-		if(0 != dma_request_init_chain(pchan)) {
-			usign = __LINE__;
-			goto end;
-		}
-	} else if(DMA_WORK_MODE_SINGLE == work_mode) {
-		if(0 != dma_request_init_single(pchan)) {
-			usign = __LINE__;
-			goto end;
-		}
-	}
+	pchan = &g_dma_mgr.chnl[i];
 	pchan->used = 1;
+	dma_request_init(pchan);
 	if(NULL != name)
 		strcpy(pchan->owner, name);
-	pchan->work_mode = work_mode;
 
 end:
 	mutex_unlock(&dma_mutex);
-	if(0 != usign) {
+	if(0 != usign)
 		DMA_ERR("%s err, line %d\n", __func__, usign);
-		return (dm_hdl_t)NULL;
-	} else {
+	else
 		DMA_DBG("%s: success, channel id %d\n", __func__, i);
-		return (dm_hdl_t)pchan;
-	}
+	return (dma_hdl_t)pchan;
 }
 EXPORT_SYMBOL(sw_dma_request);
 
@@ -320,15 +168,10 @@ EXPORT_SYMBOL(sw_dma_request);
  *
  * Returns 0 if sucess, other value if failed.
  */
-u32 sw_dma_release(dm_hdl_t dma_hdl)
+u32 sw_dma_release(dma_hdl_t dma_hdl)
 {
-	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
-
-	BUG_ON(unlikely(NULL == pchan));
-	if(DMA_WORK_MODE_SINGLE == pchan->work_mode)
-		return dma_release_single(dma_hdl);
-	else
-		return dma_release_chain(dma_hdl);
+	BUG_ON(unlikely(!dma_handle_is_valid(dma_hdl)));
+	return dma_release(dma_hdl);
 }
 EXPORT_SYMBOL(sw_dma_release);
 
@@ -340,15 +183,10 @@ EXPORT_SYMBOL(sw_dma_release);
  *
  * Returns 0 if sucess, the err line number if failed.
  */
-u32 sw_dma_ctl(dm_hdl_t dma_hdl, enum dma_op_type_e op, void *parg)
+u32 sw_dma_ctl(dma_hdl_t dma_hdl, dma_op_type_e op, void *parg)
 {
-	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
-
-	BUG_ON(unlikely(NULL == pchan));
-	if(DMA_WORK_MODE_SINGLE == pchan->work_mode)
-		return dma_ctrl_single(dma_hdl, op, parg);
-	else
-		return dma_ctrl_chain(dma_hdl, op, parg);
+	BUG_ON(unlikely(!dma_handle_is_valid(dma_hdl)));
+	return dma_ctrl(dma_hdl, op, parg);
 }
 EXPORT_SYMBOL(sw_dma_ctl);
 
@@ -360,15 +198,10 @@ EXPORT_SYMBOL(sw_dma_ctl);
  *
  * Returns 0 if sucess, the err line number if failed.
  */
-u32 sw_dma_config(dm_hdl_t dma_hdl, struct dma_config_t *pcfg, enum dma_enque_phase_e phase)
+u32 sw_dma_config(dma_hdl_t dma_hdl, dma_config_t *pcfg)
 {
-	struct dma_channel_t	*pchan = (struct dma_channel_t *)dma_hdl;
-
-	BUG_ON(unlikely(NULL == pchan));
-	if(DMA_WORK_MODE_SINGLE == pchan->work_mode)
-		return dma_config_single(dma_hdl, pcfg, phase);
-	else
-		return dma_config_chain(dma_hdl, pcfg);
+	BUG_ON(unlikely(!dma_handle_is_valid(dma_hdl)));
+	return dma_config(dma_hdl, pcfg);
 }
 EXPORT_SYMBOL(sw_dma_config);
 
@@ -382,16 +215,10 @@ EXPORT_SYMBOL(sw_dma_config);
  *
  * Returns 0 if sucess, the err line number if failed.
  */
-u32 sw_dma_enqueue(dm_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt,
-				enum dma_enque_phase_e phase)
+u32 sw_dma_enqueue(dma_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt)
 {
-	struct dma_channel_t 	*pchan = (struct dma_channel_t *)dma_hdl;
-
-	BUG_ON(unlikely(NULL == pchan));
-	if(DMA_WORK_MODE_SINGLE == pchan->work_mode)
-		return dma_enqueue_single(dma_hdl, src_addr, dst_addr, byte_cnt, phase);
-	else
-		return dma_enqueue_chain(dma_hdl, src_addr, dst_addr, byte_cnt);
+	BUG_ON(unlikely(!dma_handle_is_valid(dma_hdl)));
+	return dma_enqueue(dma_hdl, src_addr, dst_addr, byte_cnt);
 }
 EXPORT_SYMBOL(sw_dma_enqueue);
 
@@ -403,21 +230,25 @@ EXPORT_SYMBOL(sw_dma_enqueue);
  *
  * Returns 0 if sucess, the err line number if failed.
  */
-int sw_dma_getposition(dm_hdl_t dma_hdl, u32 *psrc, u32 *pdst)
+int sw_dma_getposition(dma_hdl_t dma_hdl, u32 *psrc, u32 *pdst)
 {
-	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
+	dma_channel_t *pchan = (dma_channel_t *)dma_hdl;
+	unsigned long flags;
+	u32 saddr, daddr, reamin;
 
-	if(NULL == dma_hdl || NULL == psrc || NULL == pdst) {
-		DMA_ERR("%s err, line %d\n", __func__, __LINE__);
-		return __LINE__;
-	}
-	if(0 == pchan->used) {
-		DMA_ERR("%s err, line %d\n", __func__, __LINE__);
-		return __LINE__;
-	}
+	BUG_ON(unlikely(!dma_handle_is_valid(dma_hdl)));
+	BUG_ON(unlikely(NULL == psrc || NULL == pdst));
 
-	*psrc = csp_dma_chan_get_cur_srcaddr(pchan);
-	*pdst = csp_dma_chan_get_cur_dstaddr(pchan);
+	DMA_CHAN_LOCK(&pchan->lock, flags);
+	/* get src/dst start addr */
+	saddr = csp_dma_get_saddr(pchan);
+	daddr = csp_dma_get_daddr(pchan);
+	/* get remain bytes */
+	reamin = csp_dma_get_bcnt(pchan);
+	/* note: tha caller use "period - reamin" to get transferred bytes */
+	*psrc = saddr - reamin;
+	*pdst = daddr - reamin;
+	DMA_CHAN_UNLOCK(&pchan->lock, flags);
 	DMA_DBG("%s: get *psrc 0x%08x, *pdst 0x%08x\n", __func__, *psrc, *pdst);
 	return 0;
 }
@@ -427,63 +258,16 @@ EXPORT_SYMBOL(sw_dma_getposition);
  * sw_dma_dump_chan - dump dma chain
  * @dma_hdl:	dma handle
  */
-void sw_dma_dump_chan(dm_hdl_t dma_hdl)
+void sw_dma_dump_chan(dma_hdl_t dma_hdl)
 {
-	struct dma_channel_t *pchan = (struct dma_channel_t *)dma_hdl;
+	dma_channel_t *pchan = (dma_channel_t *)dma_hdl;
 	unsigned long	flags = 0;
 
-	BUG_ON(unlikely(NULL == pchan));
+	BUG_ON(unlikely(!dma_handle_is_valid(dma_hdl)));
 
 	DMA_CHAN_LOCK(&pchan->lock, flags);
 	dma_dump_chain(pchan);
 	DMA_CHAN_UNLOCK(&pchan->lock, flags);
 }
 EXPORT_SYMBOL(sw_dma_dump_chan);
-#endif /* 0 */
 
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/serial_core.h>
-#include <linux/platform_device.h>
-#include <linux/io.h>
-#include <mach/platform.h>
-
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/dma-mapping.h>
-#include <linux/dmapool.h>
-#include <linux/types.h>
-#include <linux/clk.h>
-#include <linux/pm.h>
-
-#include <mach/dma.h>
-#include <mach/clock.h>
-
-dma_hdl_t sw_dma_request(char * name, dma_chan_type_e type)
-{
-}
-
-u32 sw_dma_release(dma_hdl_t dma_hdl)
-{
-}
-
-u32 sw_dma_enqueue(dma_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt)
-{
-}
-
-u32 sw_dma_config(dma_hdl_t dma_hdl, dma_config_t *pcfg)
-{
-}
-
-u32 sw_dma_ctl(dma_hdl_t dma_hdl, dma_op_type_e op, void *parg)
-{
-}
-
-int sw_dma_getposition(dma_hdl_t dma_hdl, u32 *pSrc, u32 *pDst)
-{
-}
-
-void sw_dma_dump_chan(dma_hdl_t dma_hdl)
-{
-}

@@ -16,9 +16,18 @@
 #ifndef __TEST_CASE_OTHER_H
 #define __TEST_CASE_OTHER_H
 
-u32 __dtc_stop_cmd(void);
-u32 __dtc_many_enq(void);
-u32 __dtc_conti_mod(void);
+/* total length and one buf length */
+#define TOTAL_LEN_EAD		SZ_256K
+#define ONE_LEN_EAD		SZ_32K
 
+#define TOTAL_LEN_MANY_ENQ	SZ_256K
+#define ONE_LEN_MANY_ENQ	SZ_4K
+
+#define TOTAL_LEN_STOP		SZ_512K
+#define ONE_LEN_STOP		SZ_4K
+
+u32 __dtc_enq_aftdone(void);
+u32 __dtc_many_enq(void);
+u32 __dtc_stop(void);
 
 #endif /* __TEST_CASE_OTHER_H */

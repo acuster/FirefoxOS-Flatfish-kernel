@@ -191,8 +191,6 @@ static struct clock_event_device sun7i_timer0_clockevent = {
 
 static irqreturn_t sun7i_timer_interrupt(int irq, void *dev_id)
 {
-	struct clock_event_device *evt;
-
 	if (dev_id) {
 		struct clock_event_device *evt = (struct clock_event_device *)dev_id;
 

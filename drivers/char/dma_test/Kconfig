@@ -2,18 +2,8 @@
 # sun7i dma test configuration.
 #
 
-menuconfig SUN7I_DMA_TEST
-	tristate "sun7i dma test drivers"
-	---help---
-	This module is to test dma module, which builted in lichee kernel,
-	source is in "arch\arm\mach-sun7i\dma" directory.
-
-if SUN7I_DMA_TEST
-
 config DMA_TEST_DRIVER
 	tristate "sun7i dma test driver"
-	default m
+	default y
 	help
-	Nothing help.
-
-endif # SUN7I_DMA_TEST
+	This is sun7i dma test driver.

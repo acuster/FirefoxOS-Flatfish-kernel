@@ -1,5 +1,5 @@
 /*
- * drivers/char/dma_test/test_case_2t_mem_2_mem.h
+ * drivers/char/dma_test/test_case_dedicate.h
  * (C) Copyright 2010-2015
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
  * liugang <liugang@reuuimllatech.com>
@@ -13,10 +13,17 @@
  *
  */
 
-#ifndef __TEST_CASE_2T_MEM_2_MEM_H
-#define __TEST_CASE_2T_MEM_2_MEM_H
+#ifndef __TEST_CASE_DEDICATE
+#define __TEST_CASE_DEDICATE
 
-u32 __dtc_2t_mem_2_mem(void);
+/* total length and one buf length */
+#define TOTAL_LEN_DEDICATE	SZ_256K
+#define ONE_LEN_DEDICATE	SZ_16K
+
+u32 __dtc_dedicate(void);
+u32 __dtc_dedicate_conti(void);
+u32 __dtc_app_cb_eque(void);
+u32 __dtc_case_enq_aftdone(void);
 
 
-#endif /* __TEST_CASE_2T_MEM_2_MEM_H */
+#endif /* __TEST_CASE_DEDICATE */

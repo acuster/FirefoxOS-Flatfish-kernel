@@ -1,5 +1,5 @@
 /*
- * drivers/char/dma_test/test_case_1t_mem_2_mem.h
+ * drivers/char/dma_test/test_case_two_thread.h
  * (C) Copyright 2010-2015
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
  * liugang <liugang@reuuimllatech.com>
@@ -13,11 +13,16 @@
  *
  */
 
-#ifndef __TEST_CASE_1T_MEM_2_MEM_H
-#define __TEST_CASE_1T_MEM_2_MEM_H
+#ifndef __TEST_CASE_TWO_THREAD_H
+#define __TEST_CASE_TWO_THREAD_H
 
-u32 __dtc_1t_mem_2_mem(void);
-u32 __dtc_case_enq_aftdone(void);
+/* total length and one buf length */
+#define TOTAL_LEN_2		SZ_512K
+#define ONE_LEN_2		SZ_16K
 
+#define TOTAL_LEN_1		SZ_512K
+#define ONE_LEN_1		SZ_64K
 
-#endif /* __TEST_CASE_1T_MEM_2_MEM_H */
+u32 __dtc_two_thread(void);
+
+#endif /* __TEST_CASE_TWO_THREAD_H */

@@ -1,10 +1,10 @@
 /*
- * arch/arm/mach-sun6i/dma/dma_interface.h
+ * drivers/char/dma_test/test_case_normal.h
  * (C) Copyright 2010-2015
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
  * liugang <liugang@reuuimllatech.com>
  *
- * sun6i dma header file
+ * sun7i dma test head file
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -13,9 +13,17 @@
  *
  */
 
-#ifndef __DMA_INTERFACE_H
-#define __DMA_INTERFACE_H
+#ifndef __TEST_CASE_NORMAL
+#define __TEST_CASE_NORMAL
 
-bool dma_handle_is_valid(dma_hdl_t dma_hdl);
+/* total length and one buf length */
+#define TOTAL_LEN_NORMAL	SZ_128K
+#define ONE_LEN_NORMAL		SZ_8K
 
-#endif  /* __DMA_INTERFACE_H */
+u32 __dtc_normal(void);
+u32 __dtc_normal_conti(void);
+u32 __dtc_app_cb_eque(void);
+u32 __dtc_case_enq_aftdone(void);
+
+
+#endif /* __TEST_CASE_NORMAL */

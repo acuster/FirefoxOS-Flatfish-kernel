@@ -4,13 +4,15 @@
 
 PWD=$(shell pwd)
 
-obj-$(CONFIG_DMA_TEST_DRIVER)+=test_case_1t_mem_2_mem.o	\
-			test_case_2t_mem_2_mem.o	\
-			test_case_other.o		\
-			sun7i_dma_test.o 		\
+obj-$(CONFIG_DMA_TEST_DRIVER) += sunxi_dma_test.o
+sunxi_dma_test-objs :=  test_case_normal.o	\
+			test_case_dedicate.o	\
+			test_case_other.o	\
+			test_case_two_thread.o	\
+			sun7i_dma_test.o 	\
 
 install: build
-	cp sun7i_dma_test.ko $(LICHEE_MOD_DIR)/
+	cp sunxi_dma_test.ko $(LICHEE_MOD_DIR)/
 
 build:
 	@echo $(LICHEE_KDIR)

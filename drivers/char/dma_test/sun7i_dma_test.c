@@ -15,129 +15,146 @@
 
 #include "sun7i_dma_test.h"
 
-#include "test_case_1t_mem_2_mem.h"
-#include "test_case_2t_mem_2_mem.h"
-#include "test_case_other.h"
-
-/*
- * cur test case
- */
-static enum dma_test_case_e g_cur_test_case = DTC_2T_MEM_2_MEM;
-//static enum dma_test_case_e g_cur_test_case = DTC_MAX;
-
-/*
- * wait dma done queue, used for wait dma done
- */
+/* wait dma done queue, used for wait dma done */
 wait_queue_head_t	g_dtc_queue[DTC_MAX];
 atomic_t 		g_adma_done = ATOMIC_INIT(0);	/* dma done flag */
 
-/* dma handle, returned by sw_dma_request */
-int 			g_dma_hle = -1;
-
-struct sw_dma_client 	g_client = {
-	.name = "sun7i_dma_test",
+const char *case_name[] = {
+	"DTC_NORMAL",
+	"DTC_NORMAL_CONT_MODE",
+	"DTC_DEDICATE",
+	"DTC_DEDICATE_CONT_MODE",
+	"DTC_ENQ_AFT_DONE",
+	"DTC_MANY_ENQ",
+	"DTC_CMD_STOP",
+	"DTC_M2M_TWO_THREAD",
 };
-struct dma_hw_conf 	g_confs[1];
 
 /**
  * __dma_test_init_waitqueue - init dma wait queue
  */
 static void __dma_test_init_waitqueue(void)
 {
-	u32 	i = 0;
+	u32 i = (u32)DTC_MAX;
 
-	for(i = 0; i < DTC_MAX; i++)
+	while(i--)
 		init_waitqueue_head(&g_dtc_queue[i]);
 }
 
-/**
- * __dma_test_thread - dma test main thread
- * @arg:	thread arg, not used
- *
- * Returns 0 if success, the err line number if failed.
- */
-static int __dma_test_thread(void * arg)
+static int dma_test_main(int id)
 {
-	u32 	uResult = 0;
+	enum dma_test_case_e cur_test = (enum dma_test_case_e)id;
+	u32 ret = 0;
 
-	/*
-	 * init dma wait queue
-	 */
-	__dma_test_init_waitqueue();
-
-	switch(g_cur_test_case) {
-	case DTC_1T_MEM_2_MEM:
-		uResult = __dtc_1t_mem_2_mem();
+	switch(cur_test) {
+	case DTC_NORMAL:
+		ret = __dtc_normal();
 		break;
-	case DTC_1T_ENQ_AFT_DONE:
-		uResult = __dtc_case_enq_aftdone();
+	case DTC_NORMAL_CONT_MODE:
+		ret = __dtc_normal_conti();
 		break;
-	case DTC_1TM2M_MANY_ENQ:
-		uResult = __dtc_many_enq();
+	case DTC_DEDICATE:
+		ret = __dtc_dedicate();
 		break;
-	case DTC_1TM2M_CONTI_MOD:
-		uResult = __dtc_conti_mod();
+	case DTC_DEDICATE_CONT_MODE:
+		ret = __dtc_dedicate_conti();
 		break;
-	case DTC_1T_CMD_STOP:
-		uResult = __dtc_stop_cmd();
+	case DTC_ENQ_AFT_DONE:
+		ret = __dtc_enq_aftdone();
 		break;
-	case DTC_1T_NAND_DMA_RW:
-		pr_err("%s err, cannot test, because open(/dev/nande... linked failed, \
-			please use nand_init -> __dma_rw_thread instead!\n", __FUNCTION__);
+	case DTC_MANY_ENQ:
+		ret = __dtc_many_enq();
 		break;
-	case DTC_2T_MEM_2_MEM:
-		uResult = __dtc_2t_mem_2_mem();
+	case DTC_CMD_STOP:
+		ret = __dtc_stop();
 		break;
-
-	case DTC_2T_USB_COPY_MANUAL:
-		/*
-		 * dma test case two-thread usb read/write nand
-		 * eg: one thread copy files from PC to nand-udisk, the other thread
-		 * copy files from nand to PC, use beyond compare to check if transfer correct.
-		 *
-		 * Returns 0 if success, the err line number if failed.
-		 */
-		printk("%s: please test manually, make sure that usb and nand driver is ok!\n", __FUNCTION__);
-		break;
-	case DTC_2T_M2M_N2M_LOOP:
-		/*
-		 * dma test case two-thread loop, eg: one
-		 * thread memory to memory, the other thread nand to memory,
-		 * and loop the operation.
-		 *
-		 * Returns 0 if success, the err line number if failed.
-		 */
-		DBG_FUN_LINE_TODO;
-		break;
-	case DTC_1T_APP_CB_ENQUE:
-		printk("%s err: DTC_1T_APP_CB_ENQUE, not support yet!\n", __FUNCTION__);
-		uResult = __LINE__;
+	case DTC_M2M_TWO_THREAD:
+		ret = __dtc_two_thread();
 		break;
 	default:
-		uResult = __LINE__;
+		ret = __LINE__;
 		break;
 	}
 
-	if(0 == uResult)
-		printk("%s: test success!\n", __FUNCTION__);
+	if(0 == ret)
+		printk("%s: test success!\n", __func__);
 	else
-		printk("%s: test failed!\n", __FUNCTION__);
-
-	return uResult;
+		printk("%s: test failed!\n", __func__);
+	return ret;
 }
 
-/**
- * sw_dma_test_init - enter the dma test module
- */
+ssize_t test_store(struct class *class, struct class_attribute *attr,
+			const char *buf, size_t size)
+{
+	int id = 0;
+
+	/* get test id */
+	if(strict_strtoul(buf, 10, (long unsigned int *)&id)) {
+		pr_err("%s: invalid string %s\n", __func__, buf);
+		return -EINVAL;
+	}
+	pr_info("%s: string %s, test case %s\n", __func__, buf, case_name[id]);
+
+	if(0 != dma_test_main(id))
+		pr_err("%s: dma_test_main failed! id %d\n", __func__, id);
+	else
+		pr_info("%s: dma_test_main success! id %d\n", __func__, id);
+	return size;
+}
+
+ssize_t help_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+	ssize_t cnt = 0;
+
+	cnt += sprintf(buf + cnt, "usage: echo id > test\n");
+	cnt += sprintf(buf + cnt, "     id for case DTC_NORMAL             is %d\n", (int)DTC_NORMAL);
+	cnt += sprintf(buf + cnt, "     id for case DTC_NORMAL_CONT_MODE   is %d\n", (int)DTC_NORMAL_CONT_MODE);
+	cnt += sprintf(buf + cnt, "     id for case DTC_DEDICATE           is %d\n", (int)DTC_DEDICATE);
+	cnt += sprintf(buf + cnt, "     id for case DTC_DEDICATE_CONT_MODE is %d\n", (int)DTC_DEDICATE_CONT_MODE);
+	cnt += sprintf(buf + cnt, "     id for case DTC_ENQ_AFT_DONE       is %d\n", (int)DTC_ENQ_AFT_DONE);
+	cnt += sprintf(buf + cnt, "     id for case DTC_MANY_ENQ           is %d\n", (int)DTC_MANY_ENQ);
+	cnt += sprintf(buf + cnt, "     id for case DTC_CMD_STOP           is %d\n", (int)DTC_CMD_STOP);
+	cnt += sprintf(buf + cnt, "     id for case DTC_M2M_TWO_THREAD     is %d\n", (int)DTC_M2M_TWO_THREAD);
+	cnt += sprintf(buf + cnt, "case description:\n");
+	cnt += sprintf(buf + cnt, "     DTC_NORMAL:             case for normal channel\n");
+	cnt += sprintf(buf + cnt, "     DTC_NORMAL_CONT_MODE:   case for normal channel continue mode\n");
+	cnt += sprintf(buf + cnt, "     DTC_DEDICATE:           case for dedicate channel\n");
+	cnt += sprintf(buf + cnt, "     DTC_DEDICATE_CONT_MODE: case for dedicate channel continue mode\n");
+	cnt += sprintf(buf + cnt, "   below is for dedicate:\n");
+	cnt += sprintf(buf + cnt, "     DTC_ENQ_AFT_DONE:       enqueued buffer after dma last done, to see if can cotinue auto start\n");
+	cnt += sprintf(buf + cnt, "     DTC_MANY_ENQ:           many buffer enqueued, function test\n");
+	cnt += sprintf(buf + cnt, "     DTC_CMD_STOP:           stop when dma running\n");
+	cnt += sprintf(buf + cnt, "     DTC_M2M_TWO_THREAD:     two-thread run simutalously, pressure test and memory leak test\n");
+	return cnt;
+}
+
+static struct class_attribute dma_test_class_attrs[] = {
+	__ATTR(test, 0220, NULL, test_store), /* not 222, for CTS, other group cannot have write permission, 2013-1-11 */
+	__ATTR(help, 0444, help_show, NULL),
+	__ATTR_NULL,
+};
+
+static struct class dma_test_class = {
+	.name		= "sunxi_dma_test",
+	.owner		= THIS_MODULE,
+	.class_attrs	= dma_test_class_attrs,
+};
+
 static int __init sw_dma_test_init(void)
 {
-	pr_info("%s enter\n", __FUNCTION__);
+	int	status;
 
-	/*
-	 * create the test thread
-	 */
-	kernel_thread(__dma_test_thread, NULL, CLONE_FS | CLONE_SIGHAND);
+	pr_info("%s enter\n", __func__);
 
+	/* init dma wait queue */
+	__dma_test_init_waitqueue();
+
+	/* register sys class */
+	status = class_register(&dma_test_class);
+	if(status < 0)
+		pr_info("%s err, status %d\n", __func__, status);
+	else
+		pr_info("%s success\n", __func__);
 	return 0;
 }
 
