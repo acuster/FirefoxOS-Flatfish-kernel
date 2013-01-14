@@ -351,7 +351,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if (max_cpus > ncores)
 		max_cpus = ncores;
 	if (ncores > 1 && max_cpus) {
-		arch_timer_common_register(); /* to fix, 2013-1-14 */
+		//arch_timer_common_register(); /* to fix, 2013-1-14 */
 		/*
 		 * Enable the local timer or broadcast device for the
 		 * boot CPU, but only if we have more than one CPU.

@@ -33,7 +33,7 @@ static DEFINE_SPINLOCK(clksrc_lock);
 static cycle_t aw_clksrc_read(struct clocksource *cs)
 {
 	unsigned long flags;
-	u32 lower, upper, temp;
+	u32 lower, upper, temp, cnt = 0x0fffff;
 
 	pr_info("%s(%d)\n", __func__, __LINE__);
 	spin_lock_irqsave(&clksrc_lock, flags);
@@ -42,7 +42,9 @@ static cycle_t aw_clksrc_read(struct clocksource *cs)
 	temp = readl(SW_HSTMR_CTRL_REG);
 	temp |= (1<<1);
 	writel(temp, SW_HSTMR_CTRL_REG);
-	while(readl(SW_HSTMR_CTRL_REG) & (1<<1));
+	while(cnt-- && (readl(SW_HSTMR_CTRL_REG) & (1<<1)));
+	if(unlikely(0 == cnt))
+		pr_err("%s(%d): wait read latched timeout\n", __func__, __LINE__);
 
 	/* read the 64bits counter */
 	lower = readl(SW_HSTMR_LOW_REG);
@@ -55,7 +57,7 @@ static cycle_t aw_clksrc_read(struct clocksource *cs)
 
 static struct clocksource aw_clocksrc =
 {
-	.name = "sun7i 64bits couter",
+	.name = "sun7i high-res couter",
 	.list = {NULL, NULL},
 	.rating = 300,                  /* perfect clock source             */
 	.read = aw_clksrc_read,         /* read clock counter               */
@@ -68,9 +70,9 @@ static struct clocksource aw_clocksrc =
 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-__u32 sched_clock_read(void)
+u32 sched_clock_read(void)
 {
-	__u32   reg, lower;
+	u32   reg, lower, cnt = 0x0fffff;
 	unsigned long   flags;
 
 	spin_lock_irqsave(&clksrc_lock, flags);
@@ -78,7 +80,9 @@ __u32 sched_clock_read(void)
 	reg = readl(SW_HSTMR_CTRL_REG);
 	reg |= (1<<1);
 	writel(reg, SW_HSTMR_CTRL_REG);
-	while(readl(SW_HSTMR_CTRL_REG) & (1<<1));
+	while(cnt-- && (readl(SW_HSTMR_CTRL_REG) & (1<<1)));
+	if(unlikely(0 == cnt))
+		pr_err("%s(%d): wait latched timeout\n", __func__, __LINE__);
 
 	/* read the low 32bits counter */
 	lower = readl(SW_HSTMR_LOW_REG);
@@ -89,20 +93,24 @@ __u32 sched_clock_read(void)
 
 void __init aw_clksrc_init(void)
 {
-	u32 temp;
+	u32 temp, cnt = 0x0fffff;
 
 	pr_info("%s(%d)\n", __func__, __LINE__);
 
+#if 0	/* start counting on booting, so cannot clear it, otherwise systime will be err */
 	/* we use 64bits counter as HPET(High Precision Event Timer) */
 	writel(0, SW_HSTMR_CTRL_REG);
 	/* config clock source for 64bits counter */
 	temp = readl(SW_HSTMR_CTRL_REG);
-	temp |= (0<<2);
-	writel(temp, SW_HSTMR_CTRL_REG);
+	temp &= ~(1<<2);
 	/* clear 64bits counter */
-	temp = readl(SW_HSTMR_CTRL_REG);
 	temp |= (1<<0);
 	writel(temp, SW_HSTMR_CTRL_REG);
+	/* wait clear complete */
+	while(cnt-- && (readl(SW_HSTMR_CTRL_REG) & (1<<0)));
+	if(unlikely(0 == cnt))
+		pr_err("%s(%d): wait cleared timeout\n", __func__, __LINE__);
+#endif
 
 	/* calculate the mult by shift  */
 	aw_clocksrc.mult = clocksource_hz2mult(AW_HPET_CLOCK_SOURCE_HZ, aw_clocksrc.shift);
@@ -111,6 +119,7 @@ void __init aw_clksrc_init(void)
 	clocksource_register(&aw_clocksrc);
 	/* set sched clock */
 	setup_sched_clock(sched_clock_read, 32, AW_HPET_CLOCK_SOURCE_HZ);
+	pr_info("%s(%d)\n", __func__, __LINE__);
 }
 
 static void timer_set_mode(enum clock_event_mode mode, struct clock_event_device *clk)
