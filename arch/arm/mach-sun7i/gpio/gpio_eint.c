@@ -589,8 +589,9 @@ u32 sw_gpio_eint_setall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
     unsigned long flags = 0;
     struct aw_gpio_chip *pchip = NULL;
 
-    if (!pcfg) {
-        PIO_ERR("%s: NULL pointer\n", __func__);
+    PIO_POINTER_CHECK_NULL(pcfg, "pcfg", (u32)-1);
+    if (0 == cfg_num) {
+        PIO_ERR("%s: cfg_num is zero, not allowed\n", __func__);
         return (u32)-1;
     }
 
@@ -657,7 +658,7 @@ EXPORT_SYMBOL(sw_gpio_eint_setall_range);
  * @pcfg:   config info got.
  * @cfg_num:    member cnt of pcfg
  *
- * Returns 0 if sucess, the err line number if failed.
+ * Returns 0 if sucess, (u32)-1 if failed.
  */
 u32 sw_gpio_eint_getall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
 {
@@ -669,6 +670,10 @@ u32 sw_gpio_eint_getall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
     struct aw_gpio_chip *pchip = NULL;
 
     PIO_POINTER_CHECK_NULL(pcfg, "pcfg", (u32)-1);
+    if (0 == cfg_num) {
+        PIO_ERR("%s: cfg_num is zero, not allowed\n", __func__);
+        return (u32)-1;
+    }
 
     for (i = 0; i < cfg_num; i++, pcfg++) {
         if (false == is_gpio_canbe_eint(pcfg->gpio)) {

@@ -379,7 +379,7 @@ EXPORT_SYMBOL(sw_gpio_getdrvlevel);
  * @pcfg:   the config value group
  * @cfg_num:    gpio number to config, also pcfg's member number
  *
- * Returns 0 if sucess, the err line number if failed.
+ * Returns 0 if sucess, (u32)-1 if failed.
  */
 u32 sw_gpio_setall_range(struct gpio_config *pcfg, u32 cfg_num)
 {
@@ -388,6 +388,12 @@ u32 sw_gpio_setall_range(struct gpio_config *pcfg, u32 cfg_num)
     bool req_success = 0;
     unsigned long flags = 0;
     struct aw_gpio_chip *pchip = NULL;
+
+    PIO_POINTER_CHECK_NULL(pcfg, "pcfg", (u32)-1);
+    if (0 == cfg_num) {
+        PIO_ERR("%s: cfg_num is zero, not allowed\n", __func__);
+        return (u32)-1;
+    }
 
     for (i = 0; i < cfg_num; i++, pcfg++) {
         pchip = gpio_to_aw_gpiochip(pcfg->gpio);
@@ -424,7 +430,7 @@ EXPORT_SYMBOL(sw_gpio_setall_range);
  * @pcfg:   store the config information for pins
  * @cfg_num:    number of the pins
  *
- * Returns 0 if sucess, the err line number if failed.
+ * Returns 0 if sucess, (u32)-1 if failed.
  */
 u32 sw_gpio_getall_range(struct gpio_config *pcfg, u32 cfg_num)
 {
@@ -433,6 +439,12 @@ u32 sw_gpio_getall_range(struct gpio_config *pcfg, u32 cfg_num)
     bool req_success = 0;
     unsigned long flags = 0;
     struct aw_gpio_chip *pchip = NULL;
+
+    PIO_POINTER_CHECK_NULL(pcfg, "pcfg", (u32)-1);
+    if (0 == cfg_num) {
+        PIO_ERR("%s: cfg_num is zero, not allowed\n", __func__);
+        return (u32)-1;
+    }
 
     for (i = 0; i < cfg_num; i++, pcfg++) {
         pchip = gpio_to_aw_gpiochip(pcfg->gpio);
@@ -450,7 +462,8 @@ u32 sw_gpio_getall_range(struct gpio_config *pcfg, u32 cfg_num)
         pcfg->drv_level = pchip->cfg->get_drvlevel(pchip, offset);
         PIO_CHIP_UNLOCK(&pchip->lock, flags);
 
-        if (GPIO_CFG_OUTPUT == pcfg->mul_sel) {
+        if (GPIO_CFG_OUTPUT == pcfg->mul_sel ||
+            GPIO_CFG_INPUT == pcfg->mul_sel) {
             pcfg->data = __gpio_get_value(pcfg->gpio);
         }
 
@@ -484,7 +497,7 @@ EXPORT_SYMBOL(sw_gpio_dump_config);
 /**
  * sw_gpio_suspend - save somethig for gpio before enter sleep
  *
- * Returns 0 if sucess, the err line number if failed.
+ * Returns 0 if sucess, (u32)-1 if failed.
  */
 u32 sw_gpio_suspend(void)
 {
@@ -499,7 +512,7 @@ EXPORT_SYMBOL(sw_gpio_suspend);
 /**
  * sw_gpio_suspend - restore somethig for gpio after wake up
  *
- * Returns 0 if sucess, the err line number if failed.
+ * Returns 0 if sucess, (u32)-1 if failed.
  */
 u32 sw_gpio_resume(void)
 {
