@@ -22,8 +22,8 @@
 #define PIO_EINT_OFF_REG_STATUS     0x14
 #define PIO_EINT_OFF_REG_DEBOUNCE   0x18
 
-#define PI_EINT_START_INDEX     22  /* PI10 canbe eint22 */
-#define PI_EINT_OFFSET          10
+#define PI_EINT_START_INDEX         22  /* PI10 canbe eint22 */
+#define PI_EINT_OFFSET              10
 
 struct gpio_irq_handle {
     u32     gpio;
@@ -40,6 +40,6 @@ u32 gpio_eint_clr_irqpd_sta(struct aw_gpio_chip *pchip, u32 offset);
 u32 gpio_eint_set_debounce(struct aw_gpio_chip *pchip, struct gpio_eint_debounce val);
 u32 gpio_eint_get_debounce(struct aw_gpio_chip *pchip, struct gpio_eint_debounce *pval);
 
-bool gpio_canbe_eint(u32 gpio);
+bool is_gpio_canbe_eint(u32 gpio);
 
 #endif /* __GPIO_EINT_H */

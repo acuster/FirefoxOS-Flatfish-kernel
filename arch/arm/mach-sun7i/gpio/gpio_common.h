@@ -22,30 +22,29 @@
 /*
  * gpio print macro
  */
-#define PIO_DBG_LEVEL 3
+#define PIO_DBG_LEVEL 2
 
 #if (PIO_DBG_LEVEL == 1)
 #define PIO_DBG(format,args...)         printk("[gpio-dbg] "format,##args)
 #define PIO_INF(format,args...)         printk("[gpio-inf] "format,##args)
 #define PIO_ERR(format,args...)         printk("[gpio-err] "format,##args)
 #elif (PIO_DBG_LEVEL == 2)
-#define PIO_DBG(format,args...)
+#define PIO_DBG(format,args...)         do {} while (0)
 #define PIO_INF(format,args...)         printk("[gpio-inf] "format,##args)
 #define PIO_ERR(format,args...)         printk("[gpio-err] "format,##args)
 #elif (PIO_DBG_LEVEL == 3)
-#define PIO_DBG(format,args...)
-#define PIO_INF(format,args...)
+#define PIO_DBG(format,args...)         do {} while (0)
+#define PIO_INF(format,args...)         do {} while (0)
 #define PIO_ERR(format,args...)         printk("[gpio-err] "format,##args)
 #endif
 
-#define PIO_DBG_FUN_LINE                PIO_DBG("%s(%d)\n", __FUNCTION__, __LINE__)
-#define PIO_ERR_FUN_LINE                PIO_ERR("%s(%d)\n", __FUNCTION__, __LINE__)
-#define PIO_DBG_FUN_LINE_TODO           PIO_DBG("%s(%d) - TODO ...\n", __FUNCTION__, __LINE__)
-#define PIO_DBG_FUN_LINE_TOCHECK        PIO_DBG("%s(%d) - TOCHECK ...\n", __FUNCTION__, __LINE__)
-#define PIO_ASSERT(x) \
-    if (!(x)) { \
-        PIO_ERR("%s err, line %d\n", __FUNCTION__, __LINE__); \
-    }
+#define PIO_POINTER_CHECK_NULL(p, name, retval) \
+    do { \
+        if (!p) { \
+            PIO_ERR("%s: %s is NULL\n", __func__, name); \
+            return retval; \
+        } \
+    } while (0)
 
 /*
  * pull state
@@ -110,11 +109,11 @@ enum driver_level_e {
 /*
  * read/write bits value from pos of reg
  */
-#define PIO_READ_REG_BITS(reg, pos, width)          ((PIO_READ_REG(reg) >> (pos)) & ((1 << (width)) - 1))
-#define PIO_WRITE_REG_BITS(reg, pos, width, val)    PIO_WRITE_REG(reg, (readl(reg) & (u32)(~(((1 << (width)) - 1) << (pos)))) \
+#define PIO_READ_BITS(reg, pos, width)          ((PIO_READ_REG(reg) >> (pos)) & ((1 << (width)) - 1))
+#define PIO_WRITE_BITS(reg, pos, width, val)    PIO_WRITE_REG(reg, (readl(reg) & (u32)(~(((1 << (width)) - 1) << (pos)))) \
                                 | (u32)(((val) & ((1 << (width)) - 1)) << (pos)))
-#define PIO_SET_BIT(reg, offset)    PIO_WRITE_REG_BITS(reg, offset, 1, 1)
-#define PIO_CLR_BIT(reg, offset)    PIO_WRITE_REG_BITS(reg, offset, 1, 0)
+#define PIO_SET_BIT(reg, offset)    PIO_WRITE_BITS(reg, offset, 1, 1)
+#define PIO_CLR_BIT(reg, offset)    PIO_WRITE_BITS(reg, offset, 1, 0)
 
 /*
  * gpio struct define below

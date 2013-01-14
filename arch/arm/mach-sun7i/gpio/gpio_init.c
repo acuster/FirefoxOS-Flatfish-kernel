@@ -25,7 +25,6 @@
 u32 gpio_save(struct aw_gpio_chip *pchip)
 {
     /* save something before suspend */
-    PIO_DBG_FUN_LINE_TODO;
 
     return 0;
 }
@@ -39,7 +38,6 @@ u32 gpio_save(struct aw_gpio_chip *pchip)
 u32 gpio_resume(struct aw_gpio_chip *pchip)
 {
     /* restore something after wakeup */
-    PIO_DBG_FUN_LINE_TODO;
 
     return 0;
 }
@@ -179,15 +177,15 @@ struct aw_gpio_chip gpio_chips[] = {
 /**
  * aw_gpio_init - gpio driver init function
  *
- * Returns 0 if sucess, the err line number if failed.
+ * Returns 0 if sucess, -1 if failed.
  */
 static __init int aw_gpio_init(void)
 {
-    u32 uret = 0;
     u32 i = 0;
 
+    PIO_INF("aw gpio init start\n");
+
     /* TODO: add gpio clock init code here if needed */
-    PIO_DBG_FUN_LINE_TODO;
 
     for (i = 0; i < ARRAY_SIZE(gpio_chips); i++) {
         /* lock init */
@@ -195,17 +193,11 @@ static __init int aw_gpio_init(void)
 
         /* register gpio_chip */
         if (0 != aw_gpiochip_add(&gpio_chips[i].chip)) {
-            uret = __LINE__;
-            goto End;
+            return -1;
         }
     }
 
-End:
-    if (0 != uret) {
-        PIO_ERR("%s err, line %d\n", __FUNCTION__, uret);
-    }
-
-    return uret;
+    PIO_INF("aw gpio init done\n");
+    return 0;
 }
-
 core_initcall(aw_gpio_init);

@@ -28,12 +28,9 @@ static inline int gpiochip_match(struct gpio_chip *chip, void *data)
 {
     u32     num = 0;
 
-#ifdef DBG_GPIO
-    if (NULL == data) {
-        PIO_ERR_FUN_LINE;
+    if (!chip || !data) {
         return 0;
     }
-#endif /* DBG_GPIO */
 
     num = *(u32 *)data;
     if (num >= chip->base && num < chip->base + chip->ngpio) {
@@ -49,13 +46,13 @@ static inline int gpiochip_match(struct gpio_chip *chip, void *data)
  *
  * Returns gpio_chip pointer if success, NULL otherwise.
  */
-static inline struct gpio_chip *to_gpiochip(u32 gpio) {
+static inline struct gpio_chip *to_gpiochip(u32 gpio)
+{
     u32     num = gpio;
     struct gpio_chip *pchip = NULL;
 
     pchip = gpiochip_find((void *)&num, gpiochip_match);
-    if (NULL == pchip) {
-        PIO_ERR_FUN_LINE;
+    if (!pchip) {
         return NULL;
     }
 
@@ -68,7 +65,8 @@ static inline struct gpio_chip *to_gpiochip(u32 gpio) {
  *
  * Returns aw_gpio_chip pointer for the gpio_chip
  */
-static inline struct aw_gpio_chip *to_aw_gpiochip(struct gpio_chip *gpc) {
+static inline struct aw_gpio_chip *to_aw_gpiochip(struct gpio_chip *gpc)
+{
     return container_of(gpc, struct aw_gpio_chip, chip);
 }
 
@@ -78,12 +76,16 @@ static inline struct aw_gpio_chip *to_aw_gpiochip(struct gpio_chip *gpc) {
  *
  * Returns aw_gpio_chip pointer for the gpio if success, NULL ttherwise.
  */
-static inline struct aw_gpio_chip *gpio_to_aw_gpiochip(u32 gpio) {
+static inline struct aw_gpio_chip *gpio_to_aw_gpiochip(u32 gpio)
+{
     struct gpio_chip *pchip = NULL;
 
+    if (GPIO_INDEX_INVALID == gpio) {
+        return NULL;
+    }
+
     pchip = to_gpiochip(gpio);
-    if (NULL == pchip) {
-        PIO_ERR_FUN_LINE;
+    if (!pchip) {
         return NULL;
     }
 

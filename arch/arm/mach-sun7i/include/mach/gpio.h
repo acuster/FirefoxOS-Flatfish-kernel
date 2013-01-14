@@ -79,6 +79,9 @@ enum sun7i_gpio_number {
 /* config value for external int */
 #define GPIO_CFG_EINT       (0b110  )   /* config value to eint for ph/pi */
 
+#define GPIO_CFG_INPUT      (0)
+#define GPIO_CFG_OUTPUT     (1)
+
 /* port number for gpiolib */
 #ifdef ARCH_NR_GPIOS
 #undef ARCH_NR_GPIOS
