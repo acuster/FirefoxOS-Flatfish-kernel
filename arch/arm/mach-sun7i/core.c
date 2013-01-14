@@ -74,9 +74,8 @@ static void __init gic_init_irq(void)
 static void __init sun7i_timer_init(void)
 {
 	aw_clkevt_init();
-	/* TO BE DONE: ADD hs timer, 2012-1-10 */
-	//aw_clksrc_init();
-	//arch_timer_common_register();
+	aw_clksrc_init();
+	arch_timer_common_register();
 }
 
 static struct sys_timer sun7i_timer = {
