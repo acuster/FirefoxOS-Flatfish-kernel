@@ -74,8 +74,9 @@ static void __init gic_init_irq(void)
 static void __init sun7i_timer_init(void)
 {
 	aw_clkevt_init();
-	aw_clksrc_init();
-	arch_timer_common_register();
+	/* to fix, 2013-1-14 */
+	//aw_clksrc_init();
+	//arch_timer_common_register();
 }
 
 static struct sys_timer sun7i_timer = {
