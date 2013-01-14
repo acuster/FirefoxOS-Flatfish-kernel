@@ -32,8 +32,9 @@ int mali_clk_flag=0;
 _mali_osk_errcode_t mali_platform_init(void)
 {
 	unsigned long rate;
-	int clk_div;
-	int mali_used = 0;
+
+    script_item_u   mali_use, clk_drv;
+    script_item_value_type_e  type;
 
 	//get mali ahb clock
 	h_ahb_mali = clk_get(NULL, "ahb_mali");
@@ -59,16 +60,15 @@ _mali_osk_errcode_t mali_platform_init(void)
 	//set mali clock
 	rate = clk_get_rate(h_ve_pll);
 
-	if(!script_parser_fetch("mali_para", "mali_used", &mali_used, 1)) {
-		if (mali_used == 1) {
-			if (!script_parser_fetch("mali_para", "mali_clkdiv", &clk_div, 1)) {
-				if (clk_div > 0) {
-					//pr_info("mali: use config clk_div %d\n", clk_div);
-					mali_clk_div = clk_div;
-				}
-			}
-		}
-	}
+    if(SCIRPT_ITEM_VALUE_TYPE_INT == script_get_item("mali_para", "mali_used", &mali_use)){
+        if(mali_use.val == 1){
+            if(SCIRPT_ITEM_VALUE_TYPE_INT == script_get_item("mali_para", "mali_clkdiv", &clk_drv)){
+                if(clk_drv.val > 0){
+                    mali_clk_div = clk_drv.val;
+                }
+            }
+        }
+    }
 
 	//pr_info("mali: clk_div %d\n", mali_clk_div);
 	rate /= mali_clk_div;
