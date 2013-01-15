@@ -16,6 +16,8 @@
 #ifndef __AW_TIMER_H__
 #define __AW_TIMER_H__
 
+#include "platform.h"
+
 /* timer reg offset */
 #define TMR_IRQ_EN_REG_OFF               0x0000
 #define TMR_IRQ_STA_REG_OFF              0x0004
