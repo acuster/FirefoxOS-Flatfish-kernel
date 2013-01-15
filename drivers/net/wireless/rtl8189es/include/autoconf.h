@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2010 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2010 - 2012 Realtek Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -31,13 +31,11 @@
 #define RTL871X_MODULE_NAME "8189ES"
 #define DRV_NAME "rtl8189es"
 
-#define CONFIG_DEBUG 1
+#define CONFIG_RTL8188E
+#define CONFIG_SDIO_HCI
+#define PLATFORM_LINUX
 
-#define CONFIG_RTL8188E 1
-#define CONFIG_SDIO_HCI 1
-#define PLATFORM_LINUX 1
-
-//#define CONFIG_IOCTL_CFG80211 1
+#define CONFIG_IOCTL_CFG80211
 
 #ifdef CONFIG_PLATFORM_ARM_SUNxI
 	#ifndef CONFIG_IOCTL_CFG80211 
@@ -45,88 +43,117 @@
 	#endif
 #endif
 
-#ifdef CONFIG_IOCTL_CFG80211
-	#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
-	//#define CONFIG_DEBUG_CFG80211 1
+#ifdef CONFIG_PLATFORM_ARM_SUN6I
+	#ifndef CONFIG_IOCTL_CFG80211 
+		#define CONFIG_IOCTL_CFG80211 1
+	#endif
 #endif
 
-#define CONFIG_EMBEDDED_FWIMG 1
+#ifdef CONFIG_IOCTL_CFG80211
+	#define RTW_USE_CFG80211_STA_EVENT /* Opne this for Android 4.1's wpa_supplicant */
+	#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
+	//#define CONFIG_DEBUG_CFG80211
+	#define CONFIG_SET_SCAN_DENY_TIMER
+#endif
 
-#define CONFIG_80211N_HT 1
-#define CONFIG_RECV_REORDERING_CTRL 1
+#define CONFIG_EMBEDDED_FWIMG
 
-#define CONFIG_AP_MODE	1
+#define CONFIG_XMIT_ACK
+#define CONFIG_80211N_HT
+#define CONFIG_RECV_REORDERING_CTRL
+
+#define CONFIG_CONCURRENT_MODE
+#ifdef CONFIG_CONCURRENT_MODE
+	#define CONFIG_TSF_RESET_OFFLOAD		// For 2 PORT TSF SYNC.
+	//#define CONFIG_HWPORT_SWAP				//Port0->Sec , Port1 -> Pri
+#endif
+
+#define CONFIG_AP_MODE
 #ifdef CONFIG_AP_MODE
 
 	#define CONFIG_INTERRUPT_BASED_TXBCN // Tx Beacon when driver early interrupt occurs	
-
+	#if defined(CONFIG_CONCURRENT_MODE) && defined(CONFIG_INTERRUPT_BASED_TXBCN)
+		#undef CONFIG_INTERRUPT_BASED_TXBCN
+	#endif
 	#ifdef CONFIG_INTERRUPT_BASED_TXBCN
 		//#define CONFIG_INTERRUPT_BASED_TXBCN_EARLY_INT
 		#define CONFIG_INTERRUPT_BASED_TXBCN_BCN_OK_ERR		
 	#endif
 	
-	#define CONFIG_NATIVEAP_MLME	1
+	#define CONFIG_NATIVEAP_MLME
 	#ifndef CONFIG_NATIVEAP_MLME
-		#define CONFIG_HOSTAPD_MLME	1
+		#define CONFIG_HOSTAPD_MLME
 	#endif
-	//#define CONFIG_FIND_BEST_CHANNEL	1
-	//#define CONFIG_NO_WIRELESS_HANDLERS	1
+	//#define CONFIG_FIND_BEST_CHANNEL
+	//#define CONFIG_NO_WIRELESS_HANDLERS
 #endif
 
-#define CONFIG_P2P	1
+#define CONFIG_P2P
 #ifdef CONFIG_P2P
 	//The CONFIG_WFD is for supporting the Wi-Fi display
-	//#define CONFIG_WFD	1
+	//#define CONFIG_WFD
 	
-	#define CONFIG_P2P_REMOVE_GROUP_INFO
-	//#define CONFIG_DBG_P2P
+	#ifndef CONFIG_WIFI_TEST
+		#define CONFIG_P2P_REMOVE_GROUP_INFO
+	#endif
+	#define CONFIG_DBG_P2P
+	#define CONFIG_P2P_IPS
 #endif
 
-// Added by Kurt 20110511
-//#define CONFIG_TDLS	1
+//	Added by Kurt 20110511
+//#define CONFIG_TDLS
+#ifdef CONFIG_TDLS
+//	#ifndef CONFIG_WFD
+//		#define CONFIG_WFD	1
+//	#endif
+//	#define CONFIG_TDLS_AUTOSETUP			1
+//	#define CONFIG_TDLS_AUTOCHECKALIVE		1
+#endif
 
-#define CONFIG_SKB_COPY	1//for amsdu
+#define CONFIG_SKB_COPY	//for amsdu
 
 #define CONFIG_LAYER2_ROAMING
 #define CONFIG_LAYER2_ROAMING_RESUME
 
 #define CONFIG_LONG_DELAY_ISSUE
 #define CONFIG_NEW_SIGNAL_STAT_PROCESS
-#define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable, 2:Enable only for P2P */
+#define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable, */
 
 /*
  * Hardware Related Config
  */
 
-//#define SUPPORT_HW_RFOFF_DETECTED	1
+//#define SUPPORT_HW_RFOFF_DETECTED
 
-//#define CONFIG_SW_LED 1
+//#define CONFIG_SW_LED
 
 
 /*
  * Interface Related Config
  */
 //#define CONFIG_SDIO_TX_TASKLET
-//#define CONFIG_SDIO_RX_COPY
+#define CONFIG_SDIO_RX_COPY
+//#define CONFIG_SDIO_REDUCE_TX_POLLING
+
 
 /*
  * Others
  */
-//#define CONFIG_MAC_LOOPBACK_DRIVER 1
+//#define CONFIG_MAC_LOOPBACK_DRIVER
 
 
 /*
  * Auto Config Section
  */
 #if defined(CONFIG_RTL8188E) && defined(CONFIG_SDIO_HCI)
-#define CONFIG_RTL8188E_SDIO 1
-#define CONFIG_XMIT_THREAD_MODE 1
+#define CONFIG_RTL8188E_SDIO 
+#define CONFIG_XMIT_THREAD_MODE
 #endif
 
-#define CONFIG_IPS		1
-#define CONFIG_LPS		1
+#define CONFIG_IPS
+#define CONFIG_LPS
 #if defined(CONFIG_LPS) && defined(CONFIG_SDIO_HCI)
-#define CONFIG_LPS_LCLK	1
+#define CONFIG_LPS_LCLK
 #endif
 
 #ifdef CONFIG_MAC_LOOPBACK_DRIVER
@@ -136,28 +163,35 @@
 #undef SUPPORT_HW_RFOFF_DETECTED
 #endif
 
-
 #ifdef CONFIG_MP_INCLUDED
 
-#define MP_DRIVER		1
-#define CONFIG_MP_IWPRIV_SUPPORT	1
+	#define MP_DRIVER		1
+	#define CONFIG_MP_IWPRIV_SUPPORT
 
-// disable unnecessary functions for MP
-#undef CONFIG_IPS
-#undef CONFIG_LPS
-#undef CONFIG_LPS_LCLK
-#undef SUPPORT_HW_RFOFF_DETECTED
+	// disable unnecessary functions for MP
+	//#undef CONFIG_IPS
+	//#undef CONFIG_LPS
+	//#undef CONFIG_LPS_LCLK
+	//#undef SUPPORT_HW_RFOFF_DETECTED
 
-#else // #ifdef CONFIG_MP_INCLUDED
+#else// #ifdef CONFIG_MP_INCLUDED
 
-#define MP_DRIVER		0
-
+	#define MP_DRIVER		0
+	
 #endif // #ifdef CONFIG_MP_INCLUDED
 
-
+//#define CONFIG_IOL
+#ifdef CONFIG_IOL
+	#define CONFIG_IOL_READ_EFUSE_MAP
+	//#define DBG_IOL_READ_EFUSE_MAP
+	#define CONFIG_IOL_LLT
+#endif
 
 #define 	CONFIG_TX_AGGREGATION
 
+//#ifdef CONFIG_PLATFORM_ARM_SUNxI
+//#define CONFIG_WITS_EVB_V13
+//#endif
 
 /*
  * Outsource  Related Config
@@ -193,15 +227,6 @@
 //#endif
 
 
-
-#define DBG 1
-#ifdef CONFIG_DEBUG
-//#define CONFIG_DEBUG_RTL871X 1
-#define CONFIG_DEBUG_RTL819X 1
-#define CONFIG_PROC_DEBUG 1
-#endif
-
-
 /*
  * HAL	Related Config
  */
@@ -221,9 +246,19 @@
 	#define HAL_RF_ENABLE		1
 #endif
 
+
+/*
+ * Debug Related Config
+ */
+#define DBG	1
+
+//#define CONFIG_DEBUG /* DBG_871X, etc... */
+//#define CONFIG_DEBUG_RTL871X /* RT_TRACE, RT_PRINT_DATA, _func_enter_, _func_exit_ */
+
+//#define CONFIG_PROC_DEBUG
+
 #define DBG_CONFIG_ERROR_DETECT
 //#define DBG_CONFIG_ERROR_RESET
-
 
 //#define DBG_IO
 //#define DBG_DELAY_OS

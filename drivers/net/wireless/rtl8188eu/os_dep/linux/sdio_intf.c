@@ -46,9 +46,6 @@
 #endif
 #endif // CONFIG_PLATFORM_SPRD
 
-#ifdef CONFIG_RTL8188E
-#include <rtl8188e_hal.h>
-#endif
 
 #include <hal_intf.h>
 #include <sdio_hal.h>
@@ -58,7 +55,13 @@
 
 #ifdef CONFIG_PLATFORM_ARM_SUNxI
 #if defined(CONFIG_MMC_SUNXI_POWER_CONTROL)
-#define SDIOID (CONFIG_CHIP_ID==1123 ? 0 : 1)
+
+#ifdef CONFIG_WITS_EVB_V13
+#define SDIOID	0
+#else
+#define SDIOID (CONFIG_CHIP_ID==1123 ? 3 : 1)
+#endif
+
 #define SUNXI_SDIO_WIFI_NUM_RTL8189ES  10
 extern void sunximmc_rescan_card(unsigned id, unsigned insert);
 extern int mmc_pm_get_mod_type(void);
@@ -160,8 +163,10 @@ static void sd_sync_int_hdl(struct sdio_func *func)
 		DBG_871X("%s if1 == NULL\n", __func__);
 		return;
 	}
-	
+
+	rtw_sdio_set_irq_thd(psdpriv, current);
 	sd_int_hdl(psdpriv->if1);
+	rtw_sdio_set_irq_thd(psdpriv, NULL);
 }
 
 int sdio_alloc_irq(struct dvobj_priv *dvobj)
@@ -800,9 +805,6 @@ static int rtw_sdio_suspend(struct device *dev)
 		padapter->pwrctrlpriv.wowlan_mode==_TRUE){
 		poidparam.subcode=WOWLAN_ENABLE;
 		padapter->HalFunc.SetHwRegHandler(padapter,HW_VAR_WOWLAN,(u8 *)&poidparam);
-		padapter->pwrctrlpriv.wowlan_wake_reason = rtw_read8(padapter, REG_WOWLAN_WAKE_REASON);
-		DBG_871X_LEVEL(_drv_always_, "wowlan_wake_reason: 0x%02x\n",
-					padapter->pwrctrlpriv.wowlan_wake_reason);
 	} else
 #else
 	{
@@ -951,11 +953,9 @@ int rtw_resume_process(_adapter *padapter)
 	DBG_871X("==> %s (%s:%d)\n",__FUNCTION__, current->comm, current->pid);
 
 #ifdef CONFIG_WOWLAN
-	DBG_871X_LEVEL(_drv_always_, "wakeup_reason: 0x%02x\n", padapter->pwrctrlpriv.wowlan_wake_reason);
-
 	rtw_set_ps_mode(padapter, PS_MODE_ACTIVE, 0, 0);
 	LPS_RF_ON_check(padapter, 100);
-
+	
 	if (!padapter->pwrctrlpriv.wowlan_mode){
 	if (padapter) {
 		pnetdev = padapter->pnetdev;
@@ -1058,8 +1058,6 @@ int rtw_resume_process(_adapter *padapter)
 	rtw_unlock_suspend();
 	#endif //CONFIG_RESUME_IN_WORKQUEUE
 
-	pwrpriv->bInSuspend = _FALSE;
-
 #ifdef CONFIG_WOWLAN
 	if (padapter->pwrctrlpriv.wowlan_wake_reason & FWDecisionDisconnect)
 		rtw_indicate_disconnect(padapter);
@@ -1077,8 +1075,9 @@ int rtw_resume_process(_adapter *padapter)
 #endif //CONFIG_WOWLAN
 
 exit:
-	DBG_871X_LEVEL(_drv_always_, "sdio resume success in %d ms\n",
-			rtw_get_passing_time_ms(start_time));
+	pwrpriv->bInSuspend = _FALSE;
+	DBG_871X_LEVEL(_drv_always_, "sdio resume ret:%d in %d ms\n", ret,
+		rtw_get_passing_time_ms(start_time));
 
 	_func_exit_;
 	
@@ -1094,11 +1093,6 @@ static int rtw_sdio_resume(struct device *dev)
 	 int ret = 0;
 
 	DBG_871X("==> %s (%s:%d)\n",__FUNCTION__, current->comm, current->pid);
-#ifdef CONFIG_WOWLAN
-	padapter->pwrctrlpriv.wowlan_wake_reason = rtw_read8(padapter, REG_WOWLAN_WAKE_REASON);
-	// Reset wakeup reason
-	rtw_write8(padapter, REG_WOWLAN_WAKE_REASON, 0);
-#endif
 
 	if(pwrpriv->bInternalAutoSuspend ){
  		ret = rtw_resume_process(padapter);

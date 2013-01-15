@@ -145,13 +145,12 @@ static int i2c_num = 0;
 static const unsigned short i2c_address[] = {0x1e, 0x1d};
 
 enum {
-	DEBUG_I2C_DETECT = 1U << 0,
-	DEBUG_INT = 1U << 1,
-	DEBUG_INT_BOTTOM_HALF = 1U << 2,
-	DEBUG_REPORT_ACC_DATA = 1U << 3,
-	DEBUG_REPORT_MAG_DATA = 1U << 3,
-	DEBUG_SUSPEND = 1U << 4,
-	
+	DEBUG_INIT = 1U << 0,
+	DEBUG_REPORT_ACC_DATA = 1U << 1,
+	DEBUG_REPORT_MAG_DATA = 1U << 2,
+	DEBUG_SUSPEND = 1U << 3,
+	DEBUG_CONTROL_INFO = 1U << 4,
+	DEBUG_INT = 1U << 5,
 };
 
 static u32 debug_mask = 0;
@@ -405,7 +404,7 @@ static int e_compass_fetch_sysconfig_para(void)
 	script_item_u	val;
 	script_item_value_type_e  type;	
 		
-	dprintk(DEBUG_I2C_DETECT, "========%s===================\n", __func__);
+	dprintk(DEBUG_INIT, "========%s===================\n", __func__);
 	
 	type = script_get_item("compass_para", "compass_used", &val);
  
@@ -423,7 +422,7 @@ static int e_compass_fetch_sysconfig_para(void)
 		}
 		twi_id = val.val;
 		
-		dprintk(DEBUG_I2C_DETECT, "%s: twi_id is %d. \n", __func__, twi_id);
+		dprintk(DEBUG_INIT, "%s: twi_id is %d. \n", __func__, twi_id);
 
 		ret = 0;
 		
@@ -454,16 +453,16 @@ static int e_compass_detect(struct i2c_client *client, struct i2c_board_info *in
 	u8 buf[1];
 	u8 cmd;
 
-	dprintk(DEBUG_I2C_DETECT, "enter func %s. \n", __FUNCTION__);
+	dprintk(DEBUG_INIT, "enter func %s. \n", __FUNCTION__);
 	
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
 	if(twi_id == adapter->nr){
-		for(i2c_num = 0; i2c_num < (sizeof(i2c_address)/sizeof(i2c_address[0]));i2c_num++){	    
+		for(i2c_num = 0; i2c_num < (sizeof(i2c_address)/sizeof(i2c_address[0]));i2c_num++){
 			client->addr = i2c_address[i2c_num];
 
-			dprintk(DEBUG_I2C_DETECT, "check i2c addr: %x .\n", client->addr);
+			dprintk(DEBUG_INIT, "check i2c addr: %x .\n", client->addr);
 			buf[0] = status_registers.who_am_i.address;
 			cmd = buf[0];
 
@@ -472,11 +471,11 @@ static int e_compass_detect(struct i2c_client *client, struct i2c_board_info *in
 			if (ret != sizeof(cmd))
 				continue;
 
-			dprintk(DEBUG_I2C_DETECT, "check i2c addr: %x after send cmd.\n", client->addr);
+			dprintk(DEBUG_INIT, "check i2c addr: %x after send cmd.\n", client->addr);
 
 			err = i2c_master_recv(client, buf, 1);
 
-			dprintk(DEBUG_I2C_DETECT, "check i2c addr: %x after recv cmd.\n", client->addr);			
+			dprintk(DEBUG_INIT, "check i2c addr: %x after recv cmd.\n", client->addr);
 
 			if (err < 0) {
 				dev_warn(&client->dev, "Error reading WHO_AM_I: is device"
@@ -1169,6 +1168,8 @@ static ssize_t attr_set_enable_acc(struct kobject *kobj,
 	if (strict_strtoul(buf, 10, &val))
 		return -EINVAL;
 
+	dprintk(DEBUG_CONTROL_INFO, "%s: val is %ld. \n", __func__, val);
+
 	if (val)
 		lsm303d_acc_enable(stat);
 	else
@@ -1187,6 +1188,8 @@ static ssize_t attr_set_enable_mag(struct kobject *kobj,
 
 	if (strict_strtoul(buf, 10, &val))
 		return -EINVAL;
+
+	dprintk(DEBUG_CONTROL_INFO, "%s: val is %ld. \n", __func__, val);
 
 	if (val)
 		lsm303d_mag_enable(stat);
@@ -1632,7 +1635,7 @@ static void lsm303d_acc_input_work_func(struct work_struct *work)
 	int xyz[3] = { 0 };
 	int err;
 
-	dprintk(DEBUG_INT_BOTTOM_HALF, "enter func %s. \n", __FUNCTION__);
+	dprintk(DEBUG_REPORT_ACC_DATA, "enter func %s. \n", __FUNCTION__);
 	
 	stat = container_of((struct delayed_work *)work,
 			struct lsm303d_status, input_work_acc);
@@ -1655,7 +1658,7 @@ static void lsm303d_mag_input_work_func(struct work_struct *work)
 	int xyz[3] = { 0 };
 	int err;
 
-	dprintk(DEBUG_INT_BOTTOM_HALF, "enter func %s. \n", __FUNCTION__);
+	dprintk(DEBUG_REPORT_MAG_DATA, "enter func %s. \n", __FUNCTION__);
 
 	stat = container_of((struct delayed_work *)work,
 			struct lsm303d_status, input_work_mag);
@@ -1784,7 +1787,7 @@ static int lsm303d_probe(struct i2c_client *client,
 	int err = -1;
 	dev_info(&client->dev, "probe start.\n");
 
-	dprintk(DEBUG_I2C_DETECT, "lsm303d probe i2c address is %d \n",i2c_address[i2c_num]);
+	dprintk(DEBUG_INIT, "lsm303d probe i2c address is %d \n",i2c_address[i2c_num]);
 	client->addr = i2c_address[i2c_num];
 	
 	stat = kzalloc(sizeof(struct lsm303d_status), GFP_KERNEL);
@@ -1967,12 +1970,12 @@ static int lsm303d_probe(struct i2c_client *client,
 
 	mutex_unlock(&stat->lock);
 
-	#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_HAS_EARLYSUSPEND
 	stat->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	stat->early_suspend.suspend = lsm303d_early_suspend;
 	stat->early_suspend.resume = lsm303d_late_resume;
 	register_early_suspend(&stat->early_suspend);
-	#endif
+#endif
 	
 	dev_info(&client->dev, "%s: probed\n", LSM303D_DEV_NAME);
 	return 0;
@@ -2007,9 +2010,9 @@ static int __devexit lsm303d_remove(struct i2c_client *client)
 {
 	struct lsm303d_status *stat = i2c_get_clientdata(client);
 
-	#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&stat->early_suspend);
-	#endif
+#endif
 
 	lsm303d_acc_disable(stat);
 	lsm303d_mag_disable(stat);
@@ -2024,6 +2027,8 @@ static int __devexit lsm303d_remove(struct i2c_client *client)
 	if (stat->pdata_mag->exit)
 		stat->pdata_mag->exit();
 
+	i2c_set_clientdata(client, NULL);
+
 	kfree(stat->pdata_acc);
 	kfree(stat->pdata_mag);
 	kfree(stat);
@@ -2036,6 +2041,8 @@ static void lsm303d_early_suspend(struct early_suspend *h)
 	struct lsm303d_status *data =
 		container_of(h, struct lsm303d_status, early_suspend);
 
+	dprintk(DEBUG_SUSPEND, "%s: start\n", __func__);
+
 	err = lsm303d_acc_disable(data);
 	if (err < 0) {	
 		pr_err("%s: lsm303d_acc_disable failed\n", LSM303D_DEV_NAME);
@@ -2044,6 +2051,8 @@ static void lsm303d_early_suspend(struct early_suspend *h)
 	if (err < 0) {	
 		pr_err("%s: lsm303d_mag_disable failed\n", LSM303D_DEV_NAME);
 	}
+
+	dprintk(DEBUG_SUSPEND, "%s: end\n", __func__);
 	return;
 }
 
@@ -2053,6 +2062,8 @@ static void lsm303d_late_resume(struct early_suspend *h)
 	struct lsm303d_status *data =
 		container_of(h, struct lsm303d_status, early_suspend);
 
+	dprintk(DEBUG_SUSPEND, "%s: start\n", __func__);
+
 	err = lsm303d_acc_enable(data);
 	if (err < 0) {	
 		pr_err("%s: lsm303d_acc_enable failed\n", LSM303D_DEV_NAME);
@@ -2061,6 +2072,8 @@ static void lsm303d_late_resume(struct early_suspend *h)
 	if (err < 0) {	
 		pr_err("%s: lsm303d_mag_enable failed\n", LSM303D_DEV_NAME);
 	}
+
+	dprintk(DEBUG_SUSPEND, "%s: end\n", __func__);
 	return;
 }
 #else
@@ -2140,7 +2153,7 @@ static int __init lsm303d_init(void)
 {
 	pr_info("%s driver: init\n", LSM303D_DEV_NAME);
 	
-	if(e_compass_fetch_sysconfig_para()){
+	if (e_compass_fetch_sysconfig_para()) {
 		printk("%s: err.\n", __func__);
 		return -1;
 	}

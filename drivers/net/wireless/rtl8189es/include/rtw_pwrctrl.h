@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *                                        
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -223,34 +223,44 @@ struct pwrctrl_priv
 	u8	const_amdpci_aspm;
 #endif
 
-	//u8	ips_enable;//for dbg
-	//u8	lps_enable;//for dbg
-
 	uint 	ips_enter_cnts;
 	uint 	ips_leave_cnts;
-	
-	_timer 	ips_check_timer;
 
 	u8	ips_mode; 
 	u8	ips_mode_req; // used to accept the mode setting request, will update to ipsmode later
+	uint bips_processing;
+	u32 ips_deny_time; /* will deny IPS when system time is smaller than this */
+	u8 ps_processing; /* temporarily used to mark whether in rtw_ps_processor */
 
 	u8	bLeisurePs;
 	u8	LpsIdleCount;
 	u8	power_mgnt;
 	u8	bFwCurrentInPSMode;
 	u32	DelayLPSLastTimeStamp;
-
+	u8 	btcoex_rfon;
 	s32		pnp_current_pwr_state;
 	u8		pnp_bstop_trx;
 
 
 	u8		bInternalAutoSuspend;
 	u8		bInSuspend;
+#ifdef	CONFIG_BT_COEXIST
+	u8		bAutoResume;
+	u8		autopm_cnt;
+#endif
 	u8		bSupportRemoteWakeup;	
+#ifdef CONFIG_WOWLAN
+	u8		wowlan_mode;
+	u8		wowlan_pattern;
+	u8		wowlan_magic;
+	u8		wowlan_unicast;
+	u8		wowlan_pattern_idx;
+	u8		wowlan_wake_reason;
+	u32		wowlan_pattern_context[8][5];
+#endif // CONFIG_WOWLAN
 	_timer 	pwr_state_check_timer;
 	int		pwr_state_check_interval;
 	u8		pwr_state_check_cnts;
-	uint 		bips_processing;
 
 	int 		ps_flag;
 	
@@ -290,6 +300,8 @@ struct pwrctrl_priv
 
 #define rtw_ips_mode_req(pwrctrlpriv, ips_mode) \
 	(pwrctrlpriv)->ips_mode_req = (ips_mode)
+
+#define RTW_PWR_STATE_CHK_INTERVAL 2000
 
 #define _rtw_set_pwr_state_check_timer(pwrctrlpriv, ms) \
 	do { \
@@ -335,6 +347,7 @@ rt_rf_power_state RfOnOffDetect(IN	PADAPTER pAdapter );
 
 
 #ifdef CONFIG_LPS
+s32 LPS_RF_ON_check(PADAPTER padapter, u32 delay_ms);
 void LPS_Enter(PADAPTER padapter);
 void LPS_Leave(PADAPTER padapter);
 #endif
@@ -350,8 +363,10 @@ void rtw_unregister_early_suspend(struct pwrctrl_priv *pwrpriv);
 #endif //CONFIG_HAS_EARLYSUSPEND || CONFIG_ANDROID_POWER
 
 u8 rtw_interface_ps_func(_adapter *padapter,HAL_INTF_PS_FUNC efunc_id,u8* val);
-int _rtw_pwr_wakeup(_adapter *padapter, const char *caller);
-#define rtw_pwr_wakeup(adapter) _rtw_pwr_wakeup(adapter, __FUNCTION__)
+int _rtw_pwr_wakeup(_adapter *padapter, u32 ips_deffer_ms, const char *caller);
+#define rtw_pwr_wakeup(adapter) _rtw_pwr_wakeup(adapter, RTW_PWR_STATE_CHK_INTERVAL, __FUNCTION__)
+int rtw_pm_set_ips(_adapter *padapter, u8 mode);
+int rtw_pm_set_lps(_adapter *padapter, u8 mode);
 
 #endif  //__RTL871X_PWRCTRL_H_
 

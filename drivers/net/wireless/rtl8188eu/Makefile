@@ -69,7 +69,8 @@ CONFIG_PLATFORM_DMP_PHILIPS = n
 CONFIG_PLATFORM_TI_DM365 = n
 CONFIG_PLATFORM_MSTAR_TITANIA12 = n
 CONFIG_PLATFORM_SZEBOOK = n
-CONFIG_PLATFORM_ARM_SUNxI = y
+CONFIG_PLATFORM_ARM_SUNxI = n
+CONFIG_PLATFORM_ARM_SUN6I = y
 
 CONFIG_DRVEXT_MODULE = n
 
@@ -102,7 +103,9 @@ endif
 OUTSRC_FILES += hal/OUTSRC/$(RTL871X)/odm_RTL8192C.o\
 								hal/OUTSRC/$(RTL871X)/HalDMOutSrc8192C_CE.o
 
-CHIP_FILES := hal/$(RTL871X)/$(RTL871X)_sreset.o
+CHIP_FILES := \
+	hal/$(RTL871X)/$(RTL871X)_sreset.o \
+	hal/$(RTL871X)/$(RTL871X)_xmit.o
 CHIP_FILES += $(OUTSRC_FILES)
 
 endif
@@ -134,7 +137,8 @@ ifeq ($(CONFIG_RTL8723A), y)
 
 RTL871X = rtl8723a
 
-HAL_COMM_FILES := hal/$(RTL871X)/$(RTL871X)_sreset.o
+HAL_COMM_FILES := hal/$(RTL871X)/$(RTL871X)_xmit.o \
+								hal/$(RTL871X)/$(RTL871X)_sreset.o
 
 ifeq ($(CONFIG_GSPI_HCI), y)
 MODULE_NAME = 8723as
@@ -509,18 +513,18 @@ MODULE_NAME := wlan
 endif
 
 ifeq ($(CONFIG_PLATFORM_ARM_TCC8900), y)
-EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN -DCONFIG_MINIMAL_MEMORY_USAGE
-ARCH ?= arm
-CROSS_COMPILE ?= /media/DATA-1/telechips/SDK_2302_20110425/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
-KSRC ?=/media/DATA-1/telechips/SDK_2302_20110425/kernel
+EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
+ARCH := arm
+CROSS_COMPILE := /home/android_sdk/Telechips/SDK_2304_20110613/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
+KSRC := /home/android_sdk/Telechips/SDK_2304_20110613/kernel
 MODULE_NAME := wlan
 endif
 
 ifeq ($(CONFIG_PLATFORM_ARM_TCC8920), y)
-EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN #-DCONFIG_MINIMAL_MEMORY_USAGE
+EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
 ARCH := arm
-CROSS_COMPILE := /media/DATA-2/telechips/ics_sdk/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
-KSRC := /media/DATA-2/telechips/ics_sdk/kernel
+CROSS_COMPILE := /home/android_sdk/Telechips/v12.06_r1-tcc-android-4.0.4/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
+KSRC := /home/android_sdk/Telechips/v12.06_r1-tcc-android-4.0.4/kernel
 MODULE_NAME := wlan
 endif
 
@@ -584,6 +588,17 @@ KVER  := 3.0.8
 #KSRC:= ../lichee/linux-3.0/
 endif
 
+ifeq ($(CONFIG_PLATFORM_ARM_SUN6I), y)
+EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN -DCONFIG_PLATFORM_ARM_SUN6I
+ARCH := arm
+CROSS_COMPILE := arm-none-linux-gnueabi-
+KVER  := 3.3.0
+#KSRC:= ../lichee/linux-3.3/
+endif
+
+ifneq ($(USER_MODULE_NAME),)
+MODULE_NAME := $(USER_MODULE_NAME)
+endif
 
 ifneq ($(KERNELRELEASE),)
 

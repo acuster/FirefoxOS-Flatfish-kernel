@@ -54,7 +54,7 @@
 	#define RTL8723_PHY_RADIO_A				"rtl8723S\\radio_a_1T.txt"
 	#define RTL8723_PHY_RADIO_B				"rtl8723S\\radio_b_1T.txt"
 	#define RTL8723_AGC_TAB					"rtl8723S\\AGC_TAB_1T.txt"
-	#define RTL8723_PHY_MACREG 				"rtl8723S\\MAC_REG.txt"	
+	#define RTL8723_PHY_MACREG 				"rtl8723S\\MAC_REG.txt"
 	#define RTL8723_PHY_REG_PG				"rtl8723S\\PHY_REG_PG.txt"
 	#define RTL8723_PHY_REG_MP				"rtl8723S\\PHY_REG_MP.txt"
 
@@ -64,7 +64,7 @@
 
 	// Fw Array
 	#define Rtl8723_FwImageArray				Rtl8723SFwImgArray
-	#define Rtl8723_FwUMCBCutImageArray		Rtl8723SFwUMCBCutImgArray
+	#define Rtl8723_FwUMCBCutImageArray			Rtl8723SFwUMCBCutImgArray
 
 	#define Rtl8723_ImgArrayLength				Rtl8723SImgArrayLength
 	#define Rtl8723_UMCBCutImgArrayLength		Rtl8723SUMCBCutImgArrayLength
@@ -74,10 +74,10 @@
 #if MP_DRIVER == 1
 	#define Rtl8723E_FwBTImgArray				Rtl8723EFwBTImgArray
 	#define Rtl8723E_FwBTImgArrayLength			Rtl8723EBTImgArrayLength
-	
+
 	#define Rtl8723_FwUMCBCutMPImageArray		Rtl8723SFwUMCBCutMPImgArray
-	#define Rtl8723_UMCBCutMPImgArrayLength	Rtl8723SUMCBCutMPImgArrayLength
-	
+	#define Rtl8723_UMCBCutMPImgArrayLength 	Rtl8723SUMCBCutMPImgArrayLength
+
 	#define Rtl8723_PHY_REG_Array_MP			Rtl8723SPHY_REG_Array_MP
 	#define Rtl8723_PHY_REG_Array_MPLength		Rtl8723SPHY_REG_Array_MPLength
 #endif
@@ -117,7 +117,7 @@
 	#define RTL8723_PHY_RADIO_A				"rtl8723S\\radio_a_1T.txt"
 	#define RTL8723_PHY_RADIO_B				"rtl8723S\\radio_b_1T.txt"
 	#define RTL8723_AGC_TAB					"rtl8723S\\AGC_TAB_1T.txt"
-	#define RTL8723_PHY_MACREG 				"rtl8723S\\MAC_REG.txt"	
+	#define RTL8723_PHY_MACREG 				"rtl8723S\\MAC_REG.txt"
 	#define RTL8723_PHY_REG_PG				"rtl8723S\\PHY_REG_PG.txt"
 	#define RTL8723_PHY_REG_MP				"rtl8723S\\PHY_REG_MP.txt"
 
@@ -138,9 +138,9 @@
 #if MP_DRIVER == 1
 	#define Rtl8723E_FwBTImgArray				Rtl8723EFwBTImgArray
 	#define Rtl8723E_FwBTImgArrayLength			Rtl8723EBTImgArrayLength
-	
+
 	#define Rtl8723_FwUMCBCutMPImageArray		Rtl8723SFwUMCBCutMPImgArray
-	#define Rtl8723_UMCBCutMPImgArrayLength	Rtl8723SUMCBCutMPImgArrayLength
+	#define Rtl8723_UMCBCutMPImgArrayLength	    Rtl8723SUMCBCutMPImgArrayLength
 
 	#define Rtl8723_PHY_REG_Array_MP			Rtl8723UPHY_REG_Array_MP
 	#define Rtl8723_PHY_REG_Array_MPLength		Rtl8723UPHY_REG_Array_MPLength
@@ -156,16 +156,16 @@
 	#define Rtl8723_RadioA_1TArray				Rtl8723URadioA_1TArray
 	//#define Rtl8723_RadioB_2TArray				Rtl8723URadioB_2TArray
 	#define Rtl8723_RadioB_1TArray				Rtl8723URadioB_1TArray
-	
-	
+
+
 
 	// Array length
-	
+
 	#define Rtl8723_MAC_ArrayLength				Rtl8723UMAC_2T_ArrayLength
 	#define Rtl8723_AGCTAB_1TArrayLength			Rtl8723UAGCTAB_1TArrayLength
 	#define Rtl8723_PHY_REG_1TArrayLength 			Rtl8723UPHY_REG_1TArrayLength
-	
-	
+
+
 	#define Rtl8723_RadioA_1TArrayLength			Rtl8723URadioA_1TArrayLength
 	#define Rtl8723_RadioB_1TArrayLength			Rtl8723URadioB_1TArrayLength
 #endif
@@ -339,7 +339,7 @@ enum ChannelPlan
 // leave 1byte and program full section
 // 9bytes + 1byt + 5bytes and pre 1byte.
 // For worst case:
-// | 1byte|----8bytes----|1byte|--5bytes--| 
+// | 1byte|----8bytes----|1byte|--5bytes--|
 // |         |            Reserved(14bytes)	      |
 //
 
@@ -375,7 +375,7 @@ typedef enum _RT_MULTI_FUNC {
 //
 typedef enum _RT_POLARITY_CTL {
 	RT_POLARITY_LOW_ACT = 0,
-	RT_POLARITY_HIGH_ACT = 1,	
+	RT_POLARITY_HIGH_ACT = 1,
 } RT_POLARITY_CTL, *PRT_POLARITY_CTL;
 
 // For RTL8723 regulator mode. by tynli. 2011.01.14.
@@ -394,20 +394,13 @@ typedef enum _RTL8192C_C2H_EVT
 	C2H_CCX_TX_RPT = 3,	// The FW notify the report of the specific tx packet.
 	C2H_BT_RSSI = 4,
 	C2H_BT_OP_MODE = 5,
-	C2H_EXT_RA_RPT = 6, 
+	C2H_EXT_RA_RPT = 6,
 	C2H_HW_INFO_EXCH = 10,
 	C2H_C2H_H2C_TEST = 11,
 	C2H_BT_INFO = 12,
 	C2H_BT_MP_INFO = 15,
 	MAX_C2HEVENT
 } RTL8192C_C2H_EVT;
-
-typedef struct _C2H_EVT_HDR
-{
-	u8	CmdID: 4;
-	u8	CmdLen: 4; 
-	u8	CmdSeq;
-} __attribute__((__packed__)) C2H_EVT_HDR, *PC2H_EVT_HDR;
 
 typedef struct hal_data_8723a
 {
@@ -434,7 +427,7 @@ typedef struct hal_data_8723a
 	u8	NumTotalRFPath;
 
 	u8	BoardType;
-
+	u8	CrystalCap;
 	//
 	// EEPROM setting.
 	//
@@ -447,7 +440,7 @@ typedef struct hal_data_8723a
 	u8	EEPROMSubCustomerID;
 	u8	EEPROMRegulatory;
 	u8	EEPROMThermalMeter;
-	u8	EEPROMBluetoothCoexist; 
+	u8	EEPROMBluetoothCoexist;
 	u8	EEPROMBluetoothType;
 	u8	EEPROMBluetoothAntNum;
 	u8	EEPROMBluetoothAntIsolation;
@@ -616,8 +609,6 @@ typedef struct hal_data_8723a
 	// Interrupt relatd register information.
 	u32	IntArray[2];
 	u32	IntrMask[2];
-	u8	C2hArray[16];
-
 #endif
 
 
@@ -644,7 +635,7 @@ typedef struct hal_data_8723a
 	// HIQ, MID, LOW, PUB free pages; padapter->xmitpriv.free_txpg
 	u8			SdioTxFIFOFreePage[SDIO_TX_FREE_PG_QUEUE];
 	_lock		SdioTxFIFOFreePageLock;
-	_thread_hdl_	SdioXmitThread;
+	_thread_hdl_ 	SdioXmitThread;
 	_sema		SdioXmitSema;
 	_sema		SdioXmitTerminateSema;
 
@@ -668,107 +659,6 @@ typedef struct hal_data_8723a HAL_DATA_TYPE, *PHAL_DATA_TYPE;
 
 #define INCLUDE_MULTI_FUNC_BT(_Adapter)		(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_BT)
 #define INCLUDE_MULTI_FUNC_GPS(_Adapter)	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_GPS)
-
-
-typedef struct txdescriptor_8723a
-{
-	u32 pktlen:16;
-	u32 offset:8;
-	u32 bmc:1;
-	u32 htc:1;
-	u32 ls:1;
-	u32 fs:1;
-	u32 linip:1;
-	u32 noacm:1;
-	u32 gf:1;
-	u32 own:1;
-
-	u32 macid:5;
-	u32 agg_en:1;
-	u32 bk:1;
-	u32 rd_en:1;
-	u32 qsel:5;
-	u32 rd_nav_ext:1;
-	u32 lsig_txop_en:1;
-	u32 pifs:1;
-	u32 rate_id:4;
-	u32 navusehdr:1;
-	u32 en_desc_id:1;
-	u32 sectype:2;
-	u32 rsvd0424:2;
-	u32 pkt_offset:5;	// unit: 8 bytes
-	u32 rsvd0431:1;
-
-	u32 rts_rc:6;
-	u32 data_rc:6;
-	u32 rsvd0812:2;
-	u32 bar_rty_th:2;
-	u32 rsvd0816:1;
-	u32 morefrag:1;
-	u32 raw:1;
-	u32 ccx:1;
-	u32 ampdu_density:3;
-	u32 bt_null:1;
-	u32 ant_sel_a:1;
-	u32 ant_sel_b:1;
-	u32 tx_ant_cck:2;
-	u32 tx_antl:2;
-	u32 tx_ant_ht:2;
-
-	u32 nextheadpage:8;
-	u32 tailpage:8;
-	u32 seq:12;
-	u32 cpu_handle:1;
-	u32 tag1:1;
-	u32 trigger_int:1;
-	u32 hwseq_en:1;
-
-	u32 rtsrate:5;
-	u32 ap_dcfe:1;
-	u32 hwseq_sel:2;
-	u32 userate:1;
-	u32 disrtsfb:1;
-	u32 disdatafb:1;
-	u32 cts2self:1;
-	u32 rtsen:1;
-	u32 hw_rts_en:1;
-	u32 port_id:1;
-	u32 rsvd1615:3;
-	u32 wait_dcts:1;
-	u32 cts2ap_en:1;
-	u32 data_sc:2;
-	u32 data_stbc:2;
-	u32 data_short:1;
-	u32 data_bw:1;
-	u32 rts_short:1;
-	u32 rts_bw:1;
-	u32 rts_sc:2;
-	u32 vcs_stbc:2;
-
-	u32 datarate:6;
-	u32 sgi:1;
-	u32 try_rate:1;
-	u32 data_ratefb_lmt:5;
-	u32 rts_ratefb_lmt:4;
-	u32 rty_lmt_en:1;
-	u32 data_rt_lmt:6;
-	u32 usb_txagg_num:8;
-
-	u32 txagg_a:5;
-	u32 txagg_b:5;
-	u32 use_max_len:1;
-	u32 max_agg_num:5;
-	u32 mcsg1_max_len:4;
-	u32 mcsg2_max_len:4;
-	u32 mcsg3_max_len:4;
-	u32 mcs7_sgi_max_len:4;
-
-	u32 checksum:16;	// TxBuffSize(PCIe)/CheckSum(USB)
-	u32 mcsg4_max_len:4;
-	u32 mcsg5_max_len:4;
-	u32 mcsg6_max_len:4;
-	u32 mcs15_sgi_max_len:4;
-}TXDESC, *PTXDESC;
 
 typedef struct rxreport_8723a
 {

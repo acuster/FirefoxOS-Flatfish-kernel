@@ -406,10 +406,6 @@ rtl8723a_InitHalDm(
 	
 	u8	i;
 
-#ifdef CONFIG_USB_HCI
-	dm_InitGPIOSetting(Adapter);
-#endif
-
 	pdmpriv->DM_Type = DM_Type_ByDriver;
 	pdmpriv->DMFlag = DYNAMIC_FUNC_DISABLE;
 

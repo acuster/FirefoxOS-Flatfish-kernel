@@ -63,6 +63,50 @@
 //OFFSET 20
 #define SGI		BIT(6)
 
+struct txrpt_ccx_8723a {
+	/* offset 0 */
+	u8 tag1:1;
+	u8 rsv:4;
+	u8 int_bt:1;
+	u8 int_tri:1;
+	u8 int_ccx:1;
+
+	/* offset 1 */
+	u8 mac_id:5;
+	u8 pkt_drop:1;
+	u8 pkt_ok:1;
+	u8 bmc:1;
+
+	/* offset 2 */
+	u8 retry_count:6;
+	u8 lifetime_over:1;
+	u8 retry_over:1;
+
+	/* offset 3 */
+	u8 ccx_qtime_0;
+	u8 ccx_qtime_1;
+
+	/* offset 5 */
+	u8 final_data_rate;
+
+	/* offset 6 */
+	u8 sw1:4;
+	u8 qsel:4;
+
+	/* offset 7 */
+	u8 sw0;
+};
+
+#define txrpt_ccx_8723a_sw(txrpt_ccx) ((txrpt_ccx)->sw0 + ((txrpt_ccx)->sw1<<8))
+
+#ifdef CONFIG_XMIT_ACK
+void dump_txrpt_ccx_8723a(void *buf);
+void handle_txrpt_ccx_8723a(_adapter *adapter, void *buf);
+#else
+#define dump_txrpt_ccx_8723a(buf) do {} while(0)
+#define handle_txrpt_ccx_8723a(adapter, buf) do {} while(0)
+#endif //CONFIG_XMIT_ACK
+
 void rtl8723a_update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem);
 void rtl8723a_fill_fake_txdesc(PADAPTER padapter, u8 *pDesc, u32 BufferLen, u8 IsPsPoll, u8 IsBTQosNull);
 

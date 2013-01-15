@@ -27,26 +27,26 @@ CheckCondition(
     const u4Byte  Hex
     )
 {
-    u4Byte board = Hex & 0xFF;
-    u4Byte interfaceValue = Hex & 0xFF00;
-    u4Byte platform = Hex & 0xFF0000;
+    u4Byte _board     = (Hex & 0x000000FF);
+    u4Byte _interface = (Hex & 0x0000FF00) >> 8;
+    u4Byte _platform  = (Hex & 0x00FF0000) >> 16;
     u4Byte cond = Condition;
 
     if ( Condition == 0xCDCDCDCD )
         return TRUE;
 
-    cond = Condition & 0xFF;
-    if ( (board & cond) == 0 && cond != 0x1F)
+    cond = Condition & 0x000000FF;
+    if ( (_board == cond) && cond != 0x00)
         return FALSE;
 
-    cond = Condition & 0xFF00;
+    cond = Condition & 0x0000FF00;
     cond = cond >> 8;
-    if ( (interfaceValue & cond) == 0 && cond != 0x07)
+    if ( (_interface & cond) == 0 && cond != 0x07)
         return FALSE;
 
-    cond = Condition & 0xFF0000;
+    cond = Condition & 0x00FF0000;
     cond = cond >> 16;
-    if ( (platform & cond) == 0 && cond != 0x0F)
+    if ( (_platform & cond) == 0 && cond != 0x0F)
         return FALSE;
     return TRUE;
 }
@@ -286,7 +286,7 @@ u4Byte Array_PHY_REG_1T_8188E[] = {
 		0x858, 0x569A11A9,
 		0x85C, 0x01000014,
 		0x860, 0x66F60110,
-		0x864, 0x061F0641,
+		0x864, 0x061F0649,
 		0x868, 0x00000000,
 		0x86C, 0x27272700,
 		0x870, 0x07000760,
@@ -306,7 +306,7 @@ u4Byte Array_PHY_REG_1T_8188E[] = {
 		0x908, 0x00000000,
 		0x90C, 0x81121111,
 		0x910, 0x00000002,
-		0x914, 0x00000001,
+		0x914, 0x00000201,
 		0xA00, 0x00D047C8,
 		0xA04, 0x80FF000C,
 		0xA08, 0x8C838300,
@@ -357,7 +357,7 @@ u4Byte Array_PHY_REG_1T_8188E[] = {
 		0xC74, 0x020610DB,
 		0xC78, 0x0000001F,
 		0xC7C, 0x00B91612,
-		0xC80, 0x40000100,
+		0xC80, 0x390000E4,
 		0xC84, 0x20F60000,
 		0xC88, 0x40000100,
 		0xC8C, 0x20200000,
@@ -449,6 +449,7 @@ u4Byte Array_PHY_REG_1T_8188E[] = {
 		0xEDC, 0x00000014,
 		0xEE0, 0x00000014,
 		0xEEC, 0x01C00014,
+		0xF14, 0x00000003,
 		0xF4C, 0x00000000,
 		0xF00, 0x00000300,
 

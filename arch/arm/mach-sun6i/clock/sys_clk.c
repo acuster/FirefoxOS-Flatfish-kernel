@@ -651,7 +651,7 @@ static __s32 sys_clk_set_rate(__aw_ccu_clk_id_e id, __u64 rate)
         case AW_SYS_CLK_PLL10:
         {
             volatile __ccmu_media_pll_t  *tmp_reg;
-	     __ccmu_media_pll_t  tmp_pll;
+            __ccmu_media_pll_t  tmp_pll;
 
             if(id == AW_SYS_CLK_PLL3)
                 tmp_reg = &aw_ccu_reg->Pll3Ctl;
@@ -678,9 +678,9 @@ static __s32 sys_clk_set_rate(__aw_ccu_clk_id_e id, __u64 rate)
             {
                 tmp_reg->ModeSel = 0;
                 tmp_reg->FracMod = (rate == 270000000)?0:1;
-		ccm_get_pllx_para(&tmp_pll, rate);
-		tmp_reg->FactorM = tmp_pll.FactorM;
-		tmp_reg->FactorN = tmp_pll.FactorN;
+                ccm_get_pllx_para(&tmp_pll, rate);
+                tmp_reg->FactorM = tmp_pll.FactorM;
+                tmp_reg->FactorN = tmp_pll.FactorN;
                 return 0;
             }
             else

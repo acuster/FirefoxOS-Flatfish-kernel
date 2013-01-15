@@ -1239,7 +1239,7 @@ succeed:
 static void axp_charging_monitor(struct work_struct *work)
 {
 	struct axp_charger *charger;
-	uint8_t	val,temp_val[2];
+	uint8_t	val,temp_val[4];
 	int	pre_rest_vol,pre_bat_curr_dir;
 //	uint16_t tmp;
 	charger = container_of(work, struct axp_charger, work.work);
@@ -1322,9 +1322,14 @@ static void axp_charging_monitor(struct work_struct *work)
 #endif	
 	/* if battery volume changed, inform uevent */
 	if((charger->rest_vol - pre_rest_vol) || (charger->bat_current_direction != pre_bat_curr_dir)){
-		printk("battery vol change: %d->%d \n", pre_rest_vol, charger->rest_vol);
+		if(axp_debug)
+			{
+				axp_reads(charger->master,0xe2,2,temp_val);
+				axp_reads(charger->master,0xe4,2,(temp_val+2));
+				printk("battery vol change: %d->%d \n", pre_rest_vol, charger->rest_vol);
+				printk("for test %d %d %d %d %d %d\n",charger->vbat,charger->ocv,charger->ibat,(temp_val[2] & 0x7f),(temp_val[3] & 0x7f),(((temp_val[0] & 0x7f) <<8) + temp_val[1])*1456/1000);
+			}
 		pre_rest_vol = charger->rest_vol;
-//		axp_write(charger->master,AXP22_DATA_BUFFER1,charger->rest_vol | 0x80);
 		power_supply_changed(&charger->batt);
 	}
 	/* reschedule for the next time */
@@ -1786,7 +1791,7 @@ static int axp_battery_probe(struct platform_device *pdev)
   	
 
 /* RDC initial */
-	axp_read(charger->master, AXP22_BATCAP0,&val2);
+	axp_read(charger->master, AXP22_RDC0,&val2);
 	if((pmu_battery_rdc) && (!(val2 & 0x40)))		//如果配置电池内阻，则手动配置
 	{
 		rdc = (pmu_battery_rdc * 10000 + 5371) / 10742;

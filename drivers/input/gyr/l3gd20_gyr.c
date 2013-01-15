@@ -167,12 +167,11 @@ static int i2c_num = 0;
 static const unsigned short i2c_address[] = {0x6a, 0x6b};
 
 enum {
-	DEBUG_I2C_DETECT = 1U << 0,
-	DEBUG_INT = 1U << 1,
-	DEBUG_INT_BOTTOM_HALF = 1U << 2,
-	DEBUG_SET = 1U << 3,
-	DEBUG_REPORT_DATA = 1U << 4,
-	DEBUG_SUSPEND = 1U << 5,
+	DEBUG_INIT = 1U << 0,
+	DEBUG_CONTROL_INFO = 1U << 1,
+	DEBUG_REPORT_DATA = 1U << 2,
+	DEBUG_SUSPEND = 1U << 3,
+	DEBUG_INT = 1U << 4,
 };
 
 static u32 debug_mask = 0;
@@ -270,7 +269,7 @@ static int gyr_fetch_sysconfig_para(void)
 	script_item_value_type_e  type;
 	
 		
-	dprintk(DEBUG_I2C_DETECT, "========%s===================\n", __func__);
+	dprintk(DEBUG_INIT, "========%s===================\n", __func__);
 
 	
 	type = script_get_item("gy_para", "gy_used", &val);
@@ -289,7 +288,7 @@ static int gyr_fetch_sysconfig_para(void)
 		}
 		twi_id = val.val;
 		
-		dprintk(DEBUG_I2C_DETECT, "%s: twi_id is %d. \n", __func__, twi_id);
+		dprintk(DEBUG_INIT, "%s: twi_id is %d. \n", __func__, twi_id);
 
 		ret = 0;
 		
@@ -321,7 +320,7 @@ static int gyr_detect(struct i2c_client *client, struct i2c_board_info *info)
 	u8 buf[1];
 	u8 cmd;
 	
-	dprintk(DEBUG_I2C_DETECT, "enter func %s. \n", __FUNCTION__);
+	dprintk(DEBUG_INIT, "enter func %s. \n", __FUNCTION__);
 	
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
@@ -330,7 +329,7 @@ static int gyr_detect(struct i2c_client *client, struct i2c_board_info *info)
 		for(i2c_num = 0; i2c_num < (sizeof(i2c_address)/sizeof(i2c_address[0]));i2c_num++){	    
 			client->addr = i2c_address[i2c_num];
 
-			dprintk(DEBUG_I2C_DETECT, "check i2c addr: %x .\n", client->addr);
+			dprintk(DEBUG_INIT, "check i2c addr: %x .\n", client->addr);
 			buf[0] = status_registers.who_am_i.address;
 			cmd = buf[0];
 
@@ -339,11 +338,11 @@ static int gyr_detect(struct i2c_client *client, struct i2c_board_info *info)
 			if (ret != sizeof(cmd))
 				return ret;
 
-			dprintk(DEBUG_I2C_DETECT, "check i2c addr: %x after send cmd.\n", client->addr);
+			dprintk(DEBUG_INIT, "check i2c addr: %x after send cmd.\n", client->addr);
 
 			err = i2c_master_recv(client, buf, 1);
 
-			dprintk(DEBUG_I2C_DETECT, "check i2c addr: %x after recv cmd.\n", client->addr);			
+			dprintk(DEBUG_INIT, "check i2c addr: %x after recv cmd.\n", client->addr);			
 
 			if (err < 0) {
 				dev_warn(&client->dev, "Error reading WHO_AM_I: is device"
@@ -908,7 +907,7 @@ static int l3gd20_enable(struct l3gd20_data *dev_data)
 {
 	int err;
 
-	dprintk(DEBUG_SET, "enter func %s. \n", __FUNCTION__);
+	dprintk(DEBUG_CONTROL_INFO, "enter func %s. \n", __FUNCTION__);
 	if (!atomic_cmpxchg(&dev_data->enabled, 0, 1)) {
 
 		err = l3gd20_device_power_on(dev_data);
@@ -916,7 +915,7 @@ static int l3gd20_enable(struct l3gd20_data *dev_data)
 			atomic_set(&dev_data->enabled, 0);
 			return err;
 		}
-		dprintk(DEBUG_SET, "dev_data->polling_enabled = %d. \n", dev_data->polling_enabled);
+		dprintk(DEBUG_CONTROL_INFO, "dev_data->polling_enabled = %d. \n", dev_data->polling_enabled);
 		if (dev_data->polling_enabled) {
 			dev_data->input_poll_dev->poll_interval =
 						dev_data->pdata->poll_interval;
@@ -924,18 +923,18 @@ static int l3gd20_enable(struct l3gd20_data *dev_data)
 			if (dev_data->input_poll_dev->input->users) {
 				err = cancel_delayed_work_sync(&dev_data->
 							input_poll_dev->work);
-				dprintk(DEBUG_SET, "%s cancel_delayed_work_sync"
+				dprintk(DEBUG_CONTROL_INFO, "%s cancel_delayed_work_sync"
 						" result: %d", __func__, err);
 				if (dev_data->input_poll_dev->
 							poll_interval > 0) {
 
-					dprintk(DEBUG_SET, "%s: queue work\n", __func__);
+					dprintk(DEBUG_CONTROL_INFO, "%s: queue work\n", __func__);
 					err = schedule_delayed_work(
 						&dev_data->input_poll_dev->work,
 							      msecs_to_jiffies(dev_data->
 							      pdata->poll_interval));
 
-					dprintk(DEBUG_SET, "%s schedule_delayed_work "
+					dprintk(DEBUG_CONTROL_INFO, "%s schedule_delayed_work "
 								"result: %d",
 								__func__, err);
 				}
@@ -960,7 +959,7 @@ static int l3gd20_disable(struct l3gd20_data *dev_data)
 		}
 		l3gd20_device_power_off(dev_data);
 		err = cancel_delayed_work_sync(&dev_data->input_poll_dev->work);
-		dprintk(DEBUG_SET, "%s cancel_delayed_work_sync result: %d",
+		dprintk(DEBUG_CONTROL_INFO, "%s cancel_delayed_work_sync result: %d",
 								__func__, err);
 	}
 	return 0;
@@ -994,7 +993,7 @@ static ssize_t attr_polling_rate_store(struct device *dev,
 	if (atomic_read(&gyro->enabled) && &gyro->polling_enabled)
 		gyro->input_poll_dev->poll_interval = interval_ms;
 	gyro->pdata->poll_interval = interval_ms;
-	dprintk(DEBUG_SET, "gyro->pdata->poll_interval = %d. \n", gyro->pdata->poll_interval);
+	dprintk(DEBUG_CONTROL_INFO, "gyro->pdata->poll_interval = %d. \n", gyro->pdata->poll_interval);
 	
 	l3gd20_update_odr(gyro, interval_ms);
 	mutex_unlock(&gyro->lock);
@@ -1546,7 +1545,7 @@ static int l3gd20_probe(struct i2c_client *client,
 
 	int err = -1;
 
-	pr_info("%s: probe start.\n", L3GD20_GYR_DEV_NAME);
+	dprintk(DEBUG_INIT, "%s: probe start.\n", L3GD20_GYR_DEV_NAME);
 
 	/* Support for both I2C and SMBUS adapter interfaces. */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -1569,7 +1568,7 @@ static int l3gd20_probe(struct i2c_client *client,
 		goto err0;
 	}
 
-	dprintk(DEBUG_I2C_DETECT, "l3gd20 probe i2c address is %d \n",i2c_address[i2c_num]);
+	dprintk(DEBUG_INIT, "l3gd20 probe i2c address is %d \n",i2c_address[i2c_num]);
 	client->addr = i2c_address[i2c_num];
 
 	mutex_init(&gyro->lock);
@@ -1696,11 +1695,9 @@ static int l3gd20_probe(struct i2c_client *client,
 	register_early_suspend(&gyro->early_suspend);
 	#endif
 
-#if DEBUG
-	dev_info(&client->dev, "%s probed: device created successfully\n",
-							L3GD20_GYR_DEV_NAME);
-#endif
 
+	dprintk(DEBUG_INIT, "%s probed: device created successfully\n",
+							L3GD20_GYR_DEV_NAME);
 	return 0;
 
 /*err7:
@@ -1734,9 +1731,8 @@ err0:
 static int l3gd20_remove(struct i2c_client *client)
 {
 	struct l3gd20_data *gyro = i2c_get_clientdata(client);
-#if DEBUG
-	pr_info("%s: driver removing\n", L3GD20_GYR_DEV_NAME);
-#endif
+
+	dprintk(DEBUG_INIT, "%s: driver removing\n", L3GD20_GYR_DEV_NAME);
 
 	/*
 	if (gyro->pdata->gpio_int1 >= 0)
@@ -1754,14 +1750,16 @@ static int l3gd20_remove(struct i2c_client *client)
 	}
 #endif
 
-	#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&gyro->early_suspend);
-	#endif
+#endif
 	
 	l3gd20_disable(gyro);
 	l3gd20_input_cleanup(gyro);
 
 	remove_sysfs_interfaces(&client->dev);
+
+	i2c_set_clientdata(client, NULL);
 
 	kfree(gyro->pdata);
 	kfree(gyro);
@@ -1774,6 +1772,8 @@ static void l3gd20_early_suspend(struct early_suspend *h)
 	struct l3gd20_data *data =
 		container_of(h, struct l3gd20_data, early_suspend);
 	u8 buf[2];
+
+	dprintk(DEBUG_SUSPEND, "l3gd20 early suspend\n");
 
 	l3gd20_disable(data);
 	
@@ -1791,6 +1791,8 @@ static void l3gd20_late_resume(struct early_suspend *h)
 	struct l3gd20_data *data =
 		container_of(h, struct l3gd20_data, early_suspend);
 	u8 buf[2];
+
+	dprintk(DEBUG_SUSPEND, "l3gd20 late resume\n");
 
 	l3gd20_enable(data);
 	if (atomic_read(&data->enabled)) {
@@ -1810,9 +1812,8 @@ static int l3gd20_suspend(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct l3gd20_data *data = i2c_get_clientdata(client);
 	u8 buf[2];
-#if DEBUG
-	dev_info(&client->dev, "suspend\n");
-#endif /* DEBUG */
+
+	dprintk(DEBUG_SUSPEND, "l3gd20 suspend\n");
 
 	l3gd20_disable(data);
 	
@@ -1834,9 +1835,7 @@ static int l3gd20_resume(struct device *dev)
 	struct l3gd20_data *data = i2c_get_clientdata(client);
 	u8 buf[2];
 
-#if DEBUG
-	dev_info(&client->dev, "resume\n");
-#endif /*DEBUG */
+	dprintk(DEBUG_SUSPEND, "l3gd20 resume\n");
 	
 	l3gd20_enable(data);
 	if (atomic_read(&data->enabled)) {
@@ -1883,10 +1882,10 @@ static struct i2c_driver l3gd20_driver = {
 
 static int __init l3gd20_init(void)
 {
-#if DEBUG
-	pr_info("%s: gyroscope sysfs driver init\n", L3GD20_GYR_DEV_NAME);
-#endif
-	if(gyr_fetch_sysconfig_para()){
+
+	dprintk(DEBUG_INIT, "%s: gyroscope sysfs driver init\n", L3GD20_GYR_DEV_NAME);
+
+	if (gyr_fetch_sysconfig_para()) {
 		printk("%s: err.\n", __func__);
 		return -1;
 	}

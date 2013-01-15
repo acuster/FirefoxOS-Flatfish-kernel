@@ -2612,8 +2612,9 @@ void rtl8188e_start_thread(_adapter *padapter)
 #ifndef CONFIG_SDIO_TX_TASKLET
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 
-	pHalData->SdioXmitThread = kernel_thread(rtl8188es_xmit_thread, padapter, CLONE_FS|CLONE_FILES);
-	if (pHalData->SdioXmitThread < 0) {
+	pHalData->SdioXmitThread = kthread_run(rtl8188es_xmit_thread, padapter, "RTWHALXT");
+	if (IS_ERR(pHalData->SdioXmitThread))
+	{
 		RT_TRACE(_module_hal_xmit_c_, _drv_err_, ("%s: start rtl8188es_xmit_thread FAIL!!\n", __FUNCTION__));
 	}
 #endif
@@ -3164,7 +3165,9 @@ void Hal_ReadPowerSavingMode88E(
 				
 		// decide hw if support remote wakeup function
 		// if hw supported, 8051 (SIE) will generate WeakUP signal( D+/D- toggle) when autoresume
-		padapter->pwrctrlpriv.bSupportRemoteWakeup = (hwinfo[EEPROM_RF_FEATURE_OPTION_88E] & BIT6)?_TRUE :_FALSE;
+#ifdef CONFIG_USB_HCI
+		padapter->pwrctrlpriv.bSupportRemoteWakeup = (hwinfo[EEPROM_USB_OPTIONAL_FUNCTION0] & BIT1)?_TRUE :_FALSE;
+#endif //CONFIG_USB_HCI
 
 		//if(SUPPORT_HW_RADIO_DETECT(Adapter))	
 			//Adapter->registrypriv.usbss_enable = Adapter->pwrctrlpriv.bSupportRemoteWakeup ;
@@ -3573,7 +3576,7 @@ s32 iol_execute(PADAPTER padapter, u8 control)
 		&& (passing_time=rtw_get_passing_time_ms(start))<1000
 	) {
 		DBG_871X("%s polling reg_0x88:0x%02x\n", __FUNCTION__, reg_0x88);
-		rtw_usleep_os(100);
+		rtw_udelay_os(100);
 	}
 
 	reg_0x88 = rtw_read8(padapter, 0x88);

@@ -85,12 +85,6 @@ s32	_rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, _adapter *padapter)
 	sint	res=_SUCCESS;   
 	u32 max_xmit_extbuf_size = MAX_XMIT_EXTBUF_SZ;
 	u32 num_xmit_extbuf = NR_XMIT_EXTBUFF;
-#if defined(CONFIG_MP_INCLUDED) && defined(CONFIG_RTL8723A)
-	if (padapter->registrypriv.mp_mode) {
-		max_xmit_extbuf_size = 20000;
-		num_xmit_extbuf = 1;
-	}
-#endif
 
 _func_enter_;   	
 
@@ -418,6 +412,7 @@ out:
 _func_exit_;		
 
 }
+
 
 static void update_attrib_vcs_info(_adapter *padapter, struct xmit_frame *pxmitframe)
 {
@@ -2384,31 +2379,7 @@ _func_enter_;
 		}
 #endif	
 	
-#ifdef CONFIG_USB_HCI
-		//entry indx: 0->vo, 1->vi, 2->be, 3->bk.
-		acirp_cnt[0] = pxmitpriv->voq_cnt;
-		acirp_cnt[1] = pxmitpriv->viq_cnt;
-		acirp_cnt[2] = pxmitpriv->beq_cnt;
-		acirp_cnt[3] = pxmitpriv->bkq_cnt;
-
-		for(i=0; i<4; i++)
-		{
-			for(j=i+1; j<4; j++)
-			{
-				if(acirp_cnt[j]<acirp_cnt[i])
-				{
-					tmp = acirp_cnt[i];
-					acirp_cnt[i] = acirp_cnt[j];
-					acirp_cnt[j] = tmp;
-
-					tmp = inx[i];
-					inx[i] = inx[j];
-					inx[j] = tmp;
-				}
-			}
-		}
-#endif
-#ifdef CONFIG_SDIO_HCI
+#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
 		for(j=0; j<4; j++)
 			inx[j] = pxmitpriv->wmm_para_seq[j];
 #endif

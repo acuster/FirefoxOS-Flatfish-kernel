@@ -31,6 +31,7 @@ static __u32 drc_reg_bak[2];
 __s32 drc_clk_init(__u32 sel)
 {
 	__u32 pll_freq;
+    __u32 mclk_div;
 
     DE_INF("drc %d clk init\n", sel);
 	if(!sel)
@@ -44,14 +45,12 @@ __s32 drc_clk_init(__u32 sel)
 		OSAL_CCMU_SetMclkSrc(h_drcmclk0, SYS_CLK_PLL10);
 
 		pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10);
-		if(pll_freq < 350000000)
-		{
-			OSAL_CCMU_SetMclkDiv(h_drcmclk0, 1);
-		}
-		else
-		{
-			OSAL_CCMU_SetMclkDiv(h_drcmclk0, 2);
-		}
+        mclk_div = 1;
+        while((pll_freq / mclk_div) > 300000000)
+        {
+            mclk_div ++;
+        }
+		OSAL_CCMU_SetMclkDiv(h_drcmclk0, mclk_div);
 		
 		OSAL_CCMU_MclkOnOff(h_drcahbclk0, CLK_ON);
 		OSAL_CCMU_MclkOnOff(h_drcmclk0, CLK_ON);
@@ -69,14 +68,12 @@ __s32 drc_clk_init(__u32 sel)
 		OSAL_CCMU_SetMclkSrc(h_drcmclk1, SYS_CLK_PLL10);
 		
 		pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10);
-		if(pll_freq < 350000000)
-		{
-			OSAL_CCMU_SetMclkDiv(h_drcmclk1, 1);
-		}
-		else
-		{
-			OSAL_CCMU_SetMclkDiv(h_drcmclk1, 2);
-		}
+        mclk_div = 1;
+        while((pll_freq / mclk_div) > 300000000)
+        {
+            mclk_div ++;
+        }
+		OSAL_CCMU_SetMclkDiv(h_drcmclk1, mclk_div);
 				
 		OSAL_CCMU_MclkOnOff(h_drcahbclk1, CLK_ON);
 		OSAL_CCMU_MclkOnOff(h_drcmclk1, CLK_ON);

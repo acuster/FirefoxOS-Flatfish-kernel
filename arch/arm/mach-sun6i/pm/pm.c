@@ -18,6 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/suspend.h>
+#include <linux/cpufreq.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/syscalls.h>
@@ -73,7 +74,8 @@
 #define AW_PMU_MAJOR    267
 
 static int debug_mask = PM_STANDBY_PRINT_STANDBY | PM_STANDBY_PRINT_RESUME;
-module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
+static int suspend_freq = SUSPEND_FREQ;
+static int suspend_delay_ms = SUSPEND_DELAY_MS;
 
 extern char *standby_bin_start;
 extern char *standby_bin_end;
@@ -237,20 +239,31 @@ static int aw_pm_valid(suspend_state_t state)
 */
 int aw_pm_begin(suspend_state_t state)
 {
-    PM_DBG("%d state begin\n", state);
+	struct cpufreq_policy policy;
+
+	PM_DBG("%d state begin\n", state);
 
 	//set freq max
 #ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
-	cpufreq_user_event_notify();
+	//cpufreq_user_event_notify();
 #endif
+	
+	if (cpufreq_get_policy(&policy, 0))
+		goto out;
 
-/*must init perfcounter, because delay_us and delay_ms is depandant perf counter*/
+	cpufreq_driver_target(&policy, suspend_freq, CPUFREQ_RELATION_L);
+
+
+	/*must init perfcounter, because delay_us and delay_ms is depandant perf counter*/
 #ifndef GET_CYCLE_CNT
-		backup_perfcounter();
-		init_perfcounters (1, 0);
+	backup_perfcounter();
+	init_perfcounters (1, 0);
 #endif
 
 	return 0;
+
+out:
+	return -1;
 }
 
 
@@ -397,6 +410,7 @@ static int aw_early_suspend(void)
 #endif
 
 	super_standby_para_info.timeout = 0;
+
 	if(unlikely(debug_mask&PM_STANDBY_PRINT_STANDBY)){
 		pr_info("resume1_bin_start = 0x%x, resume1_bin_end = 0x%x. \n", (int)&resume1_bin_start, (int)&resume1_bin_end);
 		pr_info("resume_code_src = 0x%lx, resume_code_length = %ld. resume_code_length = %lx \n", super_standby_para_info.resume_code_src, super_standby_para_info.resume_code_length, super_standby_para_info.resume_code_length);
@@ -522,6 +536,7 @@ mem_enter:
 	standby_level = STANDBY_WITH_POWER_OFF;
 	mem_para_info.resume_pointer = (void *)&&mem_enter;
 	mem_para_info.debug_mask = debug_mask;
+	mem_para_info.suspend_delay_ms = suspend_delay_ms;
 	//busy_waiting();
 	if(unlikely(debug_mask&PM_STANDBY_PRINT_STANDBY)){
 		pr_info("resume_pointer = 0x%x. \n", (unsigned int)(mem_para_info.resume_pointer));
@@ -602,6 +617,14 @@ static int aw_pm_enter(suspend_state_t state)
 		}
 	}
 
+	if(unlikely(debug_mask&PM_STANDBY_PRINT_CCU_STATUS)){
+		printk(KERN_INFO "CCU status as follow:");
+		for(i=0; i<(CCU_REG_LENGTH); i++){
+			printk(KERN_INFO "ADDR = %x, value = %x .\n", \
+				IO_ADDRESS(AW_CCM_BASE) + i*0x04, *(volatile __u32 *)(IO_ADDRESS(AW_CCM_BASE) + i*0x04));
+		}
+	}
+
 	if(NORMAL_STANDBY== standby_type){
 		standby = (int (*)(struct aw_pm_info *arg))SRAM_FUNC_START;
 		//move standby code to sram
@@ -615,6 +638,7 @@ static int aw_pm_enter(suspend_state_t state)
 			standby_info.standby_para.event = CPU0_BOOTFAST_WAKEUP;
 		}
 
+		standby_info.standby_para.gpio_enable_bitmap = mem_para_info.cpus_gpio_wakeup;
 		standby_info.standby_para.timeout = 0;
 		standby_info.standby_para.debug_mask = debug_mask;
 
@@ -769,8 +793,16 @@ static struct platform_suspend_ops aw_pm_ops = {
 static int __init aw_pm_init(void)
 {
 	script_item_u item;
+	script_item_u   *list = NULL;
+	int cpu0_en = 0;
+	int dram_selfresh_en = 0;
+	int wakeup_src_cnt = 0;
+	unsigned gpio = 0;
+	int i = 0;
+	
 	PM_DBG("aw_pm_init!\n");
 
+	//get standby_mode.
 	if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("pm_para", "standby_mode", &item)){
 		pr_err("%s: script_parser_fetch err. \n", __func__);
 		standby_mode = 0;
@@ -784,9 +816,72 @@ static int __init aw_pm_init(void)
 		}
 	}
 
+	//get wakeup_src_para cpu_en
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("wakeup_src_para", "cpu_en", &item)){
+		cpu0_en = 0;
+	}else{
+		cpu0_en = item.val;
+	}
+	pr_info("cpu0_en = %d.\n", cpu0_en);
+
+	//get dram_selfresh en
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("wakeup_src_para", "dram_selfresh_en", &item)){
+		dram_selfresh_en = 1;
+	}else{
+		dram_selfresh_en = item.val;
+	}
+	pr_info("dram_selfresh_en = %d.\n", dram_selfresh_en);
+
+	if(0 == dram_selfresh_en && 0 == cpu0_en){
+		pr_err("Notice: if u don't want the dram enter selfresh mode,\n \
+				make sure the cpu0 is not allowed to be powered off.\n");
+		goto script_para_err;
+	}else{
+		//defaultly, 0 == cpu0_en && 1 ==  dram_selfresh_en
+		if(1 == cpu0_en){
+			standby_mode = 0;
+			pr_info("notice: only support ns, standby_mode = %d.\n", standby_mode);
+		}
+	}
+	
+	//get wakeup_src_cnt
+	wakeup_src_cnt = script_get_pio_list("wakeup_src_para",&list);
+	pr_info("wakeup src cnt is : %d. \n", wakeup_src_cnt);
+
+	//script_dump_mainkey("wakeup_src_para");
+	mem_para_info.cpus_gpio_wakeup = 0;
+	if(0 != wakeup_src_cnt){
+		while(wakeup_src_cnt--){
+			gpio = (list + (i++) )->gpio.gpio;
+			//pr_info("gpio == 0x%x.\n", gpio);
+			if( gpio > GPIO_INDEX_END){
+				pr_info("gpio config err. \n");
+			}else if( gpio >= AXP_NR_BASE){
+				mem_para_info.cpus_gpio_wakeup |= (WAKEUP_GPIO_AXP((gpio - AXP_NR_BASE)));
+				//pr_info("gpio - AXP_NR_BASE == 0x%x.\n", gpio - AXP_NR_BASE);
+			}else if( gpio >= PM_NR_BASE){
+				mem_para_info.cpus_gpio_wakeup |= (WAKEUP_GPIO_PM((gpio - PM_NR_BASE)));
+				//pr_info("gpio - PM_NR_BASE == 0x%x.\n", gpio - PM_NR_BASE);
+			}else if( gpio >= PL_NR_BASE){
+				mem_para_info.cpus_gpio_wakeup |= (WAKEUP_GPIO_PL((gpio - PL_NR_BASE)));
+				//pr_info("gpio - PL_NR_BASE == 0x%x.\n", gpio - PL_NR_BASE);
+			}else{
+				pr_info("cpux need care gpio %d. but, notice, currently, \
+					cpux not support it.\n", gpio);
+			}
+		}
+		super_standby_para_info.gpio_enable_bitmap = mem_para_info.cpus_gpio_wakeup;
+		pr_info("cpus need care gpio: mem_para_info.cpus_gpio_wakeup = 0x%x. \n",\
+			mem_para_info.cpus_gpio_wakeup);
+	}
+
 	suspend_set_ops(&aw_pm_ops);
 
 	return 0;
+
+script_para_err:
+	return -1;
+
 }
 
 
@@ -810,6 +905,9 @@ static void __exit aw_pm_exit(void)
 	suspend_set_ops(NULL);
 }
 
+module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
+module_param_named(suspend_freq, suspend_freq, int, S_IRUGO | S_IWUSR | S_IWGRP);
+module_param_named(suspend_delay_ms, suspend_delay_ms, int, S_IRUGO | S_IWUSR | S_IWGRP);
 module_init(aw_pm_init);
 module_exit(aw_pm_exit);
 

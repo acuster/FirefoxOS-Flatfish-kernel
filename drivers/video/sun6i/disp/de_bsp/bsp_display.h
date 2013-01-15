@@ -121,6 +121,7 @@ typedef struct
     __s32 (*hdmi_resume)(void);
 	__s32 (*disp_int_process)(__u32 sel);
 	__s32 (*vsync_event)(__u32 sel);
+	__s32 (*take_effect) (__u32 sel);
 }__disp_bsp_init_para;
 
 

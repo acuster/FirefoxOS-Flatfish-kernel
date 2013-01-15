@@ -992,6 +992,11 @@ __inline static void _set_workitem(_workitem *pwork)
 	schedule_work(pwork);
 }
 
+__inline static void _cancel_workitem_sync(_workitem *pwork)
+{
+	cancel_work_sync(pwork);
+}
+
 //
 // Global Mutex: can only be used at PASSIVE level.
 //
@@ -1659,6 +1664,9 @@ extern u64 rtw_division64(u64 x, u64 y);
 			 (((u64) (a)[5]) << 40) | (((u64) (a)[4]) << 32) | \
 			 (((u64) (a)[3]) << 24) | (((u64) (a)[2]) << 16) | \
 			 (((u64) (a)[1]) << 8) | ((u64) (a)[0]))
+
+void rtw_buf_free(u8 **buf, u32 *buf_len);
+void rtw_buf_update(u8 **buf, u32 *buf_len, u8 *src, u32 src_len);
 
 #endif
 

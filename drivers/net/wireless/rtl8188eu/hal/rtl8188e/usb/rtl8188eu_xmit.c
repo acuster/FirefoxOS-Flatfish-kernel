@@ -404,7 +404,7 @@ if (padapter->registrypriv.mp_mode == 0)
 			#if (POWER_TRAINING_ACTIVE==1)
 			pwr_status = ODM_RA_GetHwPwrStatus_8188E(&pHalData->odmpriv,pattrib->mac_id);
 			ptxdesc->txdw4 |=cpu_to_le32( (pwr_status & 0x7)<< PWR_STATUS_SHT);
-			#endif		   
+			#endif //(POWER_TRAINING_ACTIVE==1)
 	#else//if (RATE_ADAPTIVE_SUPPORT == 1)	
 				
 			if(pattrib->ht_en)
@@ -460,9 +460,16 @@ if (padapter->registrypriv.mp_mode == 0)
 		//offset 8		
 #ifdef CONFIG_XMIT_ACK
 		//CCX-TXRPT ack for xmit mgmt frames.
-		if(pxmitframe->ack_report)
-			ptxdesc->txdw2 |= cpu_to_le32(BIT(19));	
-#endif //CONFIG_XMIT_ACK		
+		if (pxmitframe->ack_report) {
+			#ifdef DBG_CCX
+			static u16 ccx_sw = 0x123;
+			ptxdesc->txdw7 |= cpu_to_le32(((ccx_sw)<<16)&0x0fff0000);
+			DBG_871X("%s set ccx, sw:0x%03x\n", __func__, ccx_sw);
+			ccx_sw = (ccx_sw+1)%0xfff;
+			#endif
+			ptxdesc->txdw2 |= cpu_to_le32(BIT(19));
+		}
+#endif //CONFIG_XMIT_ACK
 
 		//offset 12
 		ptxdesc->txdw3 |= cpu_to_le32((pattrib->seqnum<<SEQ_SHT)&0x0FFF0000);
@@ -554,13 +561,13 @@ if (padapter->registrypriv.mp_mode == 0)
  */
 s32 rtl8188eu_xmit_buf_handler(PADAPTER padapter)
 {
-	PHAL_DATA_TYPE phal;
+	//PHAL_DATA_TYPE phal;
 	struct xmit_priv *pxmitpriv;
 	struct xmit_buf *pxmitbuf;
 	s32 ret;
 
 
-	phal = GET_HAL_DATA(padapter);
+	//phal = GET_HAL_DATA(padapter);
 	pxmitpriv = &padapter->xmitpriv;
 
 	ret = _rtw_down_sema(&pxmitpriv->xmit_sema);

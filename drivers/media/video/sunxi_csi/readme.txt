@@ -1,10 +1,10 @@
 ===========================================
 
-Version: V1_10
+Version: V1_20
 
 Author:  raymonxiu
 
-Date:     2012-12-26 14:24:24
+Date:     2013-1-11 19:17
 
 Description:
 
@@ -30,3 +30,25 @@ CSI: Fix OV5640/GC0307 bugs; Optimizing standby and probe
 3)Move power ldo request and power on sequency to work queue in probe
 4)Add semaphore in resume and open to ensure open being called after resume
 5)Optimize power on timming in gc0307
+
+V1_11
+CSI: Add unlock when csi driver is opened twice; Optimizing ov5640 and gc2035
+1) Add unlock when csi driver is opened twice
+2) Force regulator disable when release
+3) Optimizing GC2035 power on sequency
+4) OV5640 disable internal LDO when initial
+5) OV5640 recheck when af fw download is failed
+6) OV5640 add IO oe disable before S_FMT and IO OE enable after S_FMT
+
+V1_12
+CSI: Modify probe; Move standby to early standby; OV5640 add 1080p@15fps
+1) Modify probe handle insure that the video node and platform suspend/resume function
+   is not registered when the module is installed failed.
+2) Modify the suspend/resume to early suspend/late resume
+3) Modify ov5640 1080p to 15fps
+
+V1_20
+CSI: Optimizing ov5640 and add preview mode(s5k4ec)
+1) Modify ov5640 to auto fps
+2) Reduce denoise level and enhance sharpness in ov5640
+3) Add preview mode in ov5640 and s5k4ec

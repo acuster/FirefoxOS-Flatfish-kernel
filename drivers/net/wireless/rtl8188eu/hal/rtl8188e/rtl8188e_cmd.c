@@ -264,9 +264,14 @@ _func_exit_;
 void rtl8188e_Add_RateATid(PADAPTER pAdapter, u32 bitmap, u8 arg, u8 rssi_level)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	//struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 
 	u8 macid, init_rate, raid, shortGIrate=_FALSE;
+
+#ifdef CONFIG_CONCURRENT_MODE
+	if(rtw_buddy_adapter_up(pAdapter) && pAdapter->adapter_type > PRIMARY_ADAPTER)	
+		pHalData = GET_HAL_DATA(pAdapter->pbuddy_adapter);				
+#endif //CONFIG_CONCURRENT_MODE
 
 	macid = arg&0x1f;
 
@@ -1168,10 +1173,15 @@ _func_enter_;
 			//pwowlan_parm.mode |=FW_WOWLAN_GPIO_ACTIVE;
 			pwowlan_parm.mode |=FW_WOWLAN_REKEY_WAKEUP;
 			pwowlan_parm.mode |=FW_WOWLAN_DEAUTH_WAKEUP;
-			//pwowlan_parm.mode |=FW_WOWLAN_ALL_PKT_DROP;
 
 			//DataPinWakeUp
+#ifdef CONFIG_USB_HCI
+			pwowlan_parm.gpio_index=0x0;
+#endif //CONFIG_USB_HCI
+
+#ifdef CONFIG_SDIO_HCI
 			pwowlan_parm.gpio_index=0x80;
+#endif //CONFIG_SDIO_HCI
 
 			DBG_871X_LEVEL(_drv_info_, "%s 5.pwowlan_parm.mode=0x%x \n",__FUNCTION__,pwowlan_parm.mode);
 			DBG_871X_LEVEL(_drv_info_, "%s 6.pwowlan_parm.index=0x%x \n",__FUNCTION__,pwowlan_parm.gpio_index);

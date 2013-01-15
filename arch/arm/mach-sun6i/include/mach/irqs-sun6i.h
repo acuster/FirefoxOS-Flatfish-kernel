@@ -247,6 +247,7 @@
 
 #elif defined (CONFIG_AW_ASIC_EVB_PLATFORM)
 
+#define AW_IRQ_UART_DEBUG	(AW_IRQ_GIC_START + 0)		/*	UART0		*/
 #define AW_IRQ_UART0		(AW_IRQ_GIC_START + 0)		/*	UART0		*/
 #define AW_IRQ_UART1		(AW_IRQ_GIC_START + 1)		/*	UART1		*/
 #define AW_IRQ_UART2		(AW_IRQ_GIC_START + 2)		/*	UART2		*/

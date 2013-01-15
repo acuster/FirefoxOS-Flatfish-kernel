@@ -130,6 +130,8 @@ static void rtw_free_mlme_ie_data(u8 **ppie, u32 *plen)
 void rtw_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv)
 {
 #if defined (CONFIG_AP_MODE) && defined (CONFIG_NATIVEAP_MLME)
+	rtw_buf_free(&pmlmepriv->assoc_req, &pmlmepriv->assoc_req_len);
+	rtw_buf_free(&pmlmepriv->assoc_rsp, &pmlmepriv->assoc_rsp_len);
 	rtw_free_mlme_ie_data(&pmlmepriv->wps_beacon_ie, &pmlmepriv->wps_beacon_ie_len);
 	rtw_free_mlme_ie_data(&pmlmepriv->wps_probe_req_ie, &pmlmepriv->wps_probe_req_ie_len);
 	rtw_free_mlme_ie_data(&pmlmepriv->wps_probe_resp_ie, &pmlmepriv->wps_probe_resp_ie_len);
@@ -1434,22 +1436,30 @@ _func_enter_;
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("+rtw_indicate_connect\n"));
  
 	pmlmepriv->to_join = _FALSE;
+
+	if(!check_fwstate(&padapter->mlmepriv, _FW_LINKED)) 
+	{
+
 #ifdef CONFIG_SW_ANTENNA_DIVERSITY
-	rtw_hal_set_hwreg(padapter, HW_VAR_ANTENNA_DIVERSITY_LINK, 0);
+		rtw_hal_set_hwreg(padapter, HW_VAR_ANTENNA_DIVERSITY_LINK, 0);
 #endif
-	set_fwstate(pmlmepriv, _FW_LINKED);
 
-	rtw_led_control(padapter, LED_CTL_LINK);
+		set_fwstate(pmlmepriv, _FW_LINKED);
 
+		rtw_led_control(padapter, LED_CTL_LINK);
+
+	
 #ifdef CONFIG_DRVEXT_MODULE
-	if(padapter->drvextpriv.enable_wpa)
-	{
-		indicate_l2_connect(padapter);
-	}
-	else
+		if(padapter->drvextpriv.enable_wpa)
+		{
+			indicate_l2_connect(padapter);
+		}
+		else
 #endif
-	{
-		rtw_os_indicate_connect(padapter);
+		{
+			rtw_os_indicate_connect(padapter);
+		}
+
 	}
 
 	#ifdef CONFIG_LAYER2_ROAMING
@@ -1483,9 +1493,15 @@ _func_enter_;
 	
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("+rtw_indicate_disconnect\n"));
 
-	_clr_fwstate_(pmlmepriv, _FW_LINKED|_FW_UNDER_LINKING|WIFI_UNDER_WPS);
+	_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING|WIFI_UNDER_WPS);
 
-	rtw_led_control(padapter, LED_CTL_NO_LINK);
+        //DBG_871X("clear wps when %s\n", __func__);
+
+#ifdef CONFIG_LAYER2_ROAMING
+	if(pmlmepriv->to_roaming > 0)
+		_clr_fwstate_(pmlmepriv, _FW_LINKED);
+#endif
+	
 
 #ifdef CONFIG_WAPI_SUPPORT
 	psta = rtw_get_stainfo(pstapriv,cur_network->MacAddress);
@@ -1500,12 +1516,23 @@ _func_enter_;
 	}
 #endif
 
-	#ifdef CONFIG_LAYER2_ROAMING
-	if(pmlmepriv->to_roaming<=0)
-	#endif
+	if(check_fwstate(&padapter->mlmepriv, _FW_LINKED) 
+#ifdef CONFIG_LAYER2_ROAMING
+		|| (pmlmepriv->to_roaming<=0)
+#endif
+	)
+	{
 		rtw_os_indicate_disconnect(padapter);
 
+	      _clr_fwstate_(pmlmepriv, _FW_LINKED);
+
+		rtw_led_control(padapter, LED_CTL_NO_LINK);
+	}
+
 #ifdef CONFIG_LPS
+#ifdef CONFIG_WOWLAN
+	if(padapter->pwrctrlpriv.wowlan_mode==_FALSE)
+#endif //CONFIG_WOWLAN
 	rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_DISCONNECT, 1);
 #endif
 
@@ -1533,12 +1560,12 @@ void rtw_scan_abort(_adapter *adapter)
 	while (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)
 		&& rtw_get_passing_time_ms(start) <= 200) {
 
-		DBG_871X("%s : fw_state=_FW_UNDER_SURVEY!\n", __func__);
+		DBG_871X(FUNC_NDEV_FMT"fw_state=_FW_UNDER_SURVEY!\n", FUNC_NDEV_ARG(adapter->pnetdev));
 		rtw_msleep_os(20);
 	}
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)) {
-		DBG_871X("waiting for scan_abort time out!\n");
+		DBG_871X(FUNC_NDEV_FMT"waiting for scan_abort time out!\n", FUNC_NDEV_ARG(adapter->pnetdev));
 		#ifdef CONFIG_PLATFORM_MSTAR_TITANIA12	
 		//_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY);
 		set_survey_timer(pmlmeext, 0);
@@ -1698,9 +1725,14 @@ static void rtw_joinbss_update_network(_adapter *padapter, struct wlan_network *
 				
 	//update fw_state //will clr _FW_UNDER_LINKING here indirectly
 	switch(pnetwork->network.InfrastructureMode)
-	{
+	{	
 		case Ndis802_11Infrastructure:						
-				pmlmepriv->fw_state = WIFI_STATION_STATE;
+			
+				if(pmlmepriv->fw_state&WIFI_UNDER_WPS)
+					pmlmepriv->fw_state = WIFI_STATION_STATE|WIFI_UNDER_WPS;
+				else
+					pmlmepriv->fw_state = WIFI_STATION_STATE;
+				
 				break;
 		case Ndis802_11IBSS:		
 				pmlmepriv->fw_state = WIFI_ADHOC_STATE;
@@ -2424,9 +2456,6 @@ static void rtw_auto_scan_handler(_adapter *padapter)
 		pmlmepriv->scan_interval--;
 		if(pmlmepriv->scan_interval==0)
 		{
-			if( pwrctrlpriv->power_mgnt != PS_MODE_ACTIVE )
-				return;			
-
 /*		
 			if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING) == _TRUE) 
 			{
@@ -2563,11 +2592,13 @@ void rtw_set_scan_deny_timer_hdl(_adapter *adapter)
 	struct mlme_priv *mlmepriv = &adapter->mlmepriv;
 
 	//allowed set scan
+	DBG_871X("clear scan deny\n");
 	ATOMIC_SET(&mlmepriv->set_scan_deny, 0);
 }
 
 void rtw_set_scan_deny(struct mlme_priv *mlmepriv, u32 ms)
 {
+	DBG_871X("%s\n", __func__);
 	ATOMIC_SET(&mlmepriv->set_scan_deny, 1);
 	_set_timer(&mlmepriv->set_scan_deny_timer, ms);
 }

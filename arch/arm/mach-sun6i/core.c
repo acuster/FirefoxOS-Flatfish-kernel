@@ -87,25 +87,51 @@ static struct sys_timer sun6i_timer = {
 	.init		= sun6i_timer_init,
 };
 
-static void sun6i_fixup(struct tag *tags, char **from,
+static void __init sun6i_fixup(struct tag *tags, char **from,
 			       struct meminfo *meminfo)
 {
-	pr_debug("[%s] enter\n", __func__);
-	meminfo->bank[0].start = PLAT_PHYS_OFFSET;
-	meminfo->bank[0].size = HW_RESERVED_MEM_BASE - meminfo->bank[0].start;
-	meminfo->bank[1].start = HW_RESERVED_MEM_BASE + HW_RESERVED_MEM_SIZE;
-	meminfo->bank[1].size = (PLAT_PHYS_OFFSET+PLAT_MEM_SIZE) - meminfo->bank[1].start;
+	struct tag *t;
 
-	/* for sys_config */
+	for (t = tags; t->hdr.size; t = tag_next(t)) {
+		if (t->hdr.tag == ATAG_MEM && t->u.mem.size) {
+			pr_debug("[%s]: From boot, get meminfo:\n"
+					"\tStart:\t0x%08x\n"
+					"\tSize:\t%dMB\n",
+					__func__,
+					t->u.mem.start,
+					t->u.mem.size >> 20);
+			return;
+		}
+	}
+	pr_debug("[%s] enter\n", __func__);
+
+	meminfo->bank[0].start = PLAT_PHYS_OFFSET;
+	meminfo->bank[0].size = PLAT_MEM_SIZE;
+	meminfo->nr_banks = 1;
+
+	pr_debug("nr_banks: %d, bank.start: 0x%08x, bank.size: 0x%08lx\n",
+			meminfo->nr_banks, meminfo->bank[0].start, 
+			meminfo->bank[0].size);
+}
+
+void __init sun6i_reserve(void)
+{
+	/* reserve for sys_config */
 	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
-	/* for standby: 0x4600,0000-0x4600,0000+1k; */
+
+	/* 
+	 * reserve for DE and VE
+	 * Here, we must use memblock_remove, because it be allocated using genalloc.
+	 */
+	memblock_remove(HW_RESERVED_MEM_BASE, HW_RESERVED_MEM_SIZE);
+
+	/* reserve for standby */
 	memblock_reserve(SUPER_STANDBY_MEM_BASE, SUPER_STANDBY_MEM_SIZE);
+
 #if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
-	/* for ion carveout heap */
+	/* reserve for ION */
 	memblock_reserve(ION_CARVEOUT_MEM_BASE, ION_CARVEOUT_MEM_SIZE);
 #endif
-
-	meminfo->nr_banks = 2;
 }
 
 static void sun6i_restart(char mode, const char *cmd)
@@ -132,6 +158,7 @@ void __init sun6i_init_early(void)
 
 MACHINE_START(SUN6I, "sun6i")
 	.atag_offset	= 0x100,
+	.reserve	= sun6i_reserve,
 	.fixup		= sun6i_fixup,
 	.map_io		= sun6i_map_io,
 	.init_early	= sun6i_init_early,

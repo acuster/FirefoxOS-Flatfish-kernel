@@ -39,9 +39,12 @@ static int rtl8723as_module_power(int onoff)
 		ret = regulator_force_disable(wifi_ldo);
 		if (ret < 0) {
 			rtl8723as_msg("regulator_force_disable fail, return %d.\n", ret);
+			regulator_put(wifi_ldo);
 			return ret;
 		}
+		regulator_put(wifi_ldo);
 		first = 0;
+		return ret;
 	}
 
 	if (onoff) {
@@ -50,12 +53,14 @@ static int rtl8723as_module_power(int onoff)
 			ret = regulator_set_voltage(wifi_ldo, 3300000, 3300000);
 			if (ret < 0) {
 				rtl8723as_msg("regulator_set_voltage fail, return %d.\n", ret);
+			regulator_put(wifi_ldo);
 				return ret;
 			}
 
 			ret = regulator_enable(wifi_ldo);
 			if (ret < 0) {
 				rtl8723as_msg("regulator_enable fail, return %d.\n", ret);
+			regulator_put(wifi_ldo);
 				return ret;
 			}
 			axp_power_on = true;
@@ -71,6 +76,7 @@ static int rtl8723as_module_power(int onoff)
 			axp_power_on = false;
 		}
 	}
+	regulator_put(wifi_ldo);
 	return ret;
 }
 
@@ -122,12 +128,12 @@ static int rtl8723as_gpio_ctrl(char* name, int level)
 		}
 	}
 	if (strcmp(name, "rtk_rtl8723as_bt_dis") == 0) {
-		if ((level && !rtl8723as_wl_on)	|| (!level && !rtl8723as_wl_on)) {
+		if ((level && !rtl8723as_wl_on && !rtl8723as_bt_on)	|| (!level && !rtl8723as_wl_on)) {
 			rtl8723as_msg("%s is powered %s by bt\n", SDIO_MODULE_NAME, level ? "up" : "down");
 			goto power_change;
 		} else {
 			if (level) {
-				rtl8723as_msg("%s is already on by wifi\n", SDIO_MODULE_NAME);
+				rtl8723as_msg("%s is already on by %s\n", SDIO_MODULE_NAME, rtl8723as_bt_on ? "bt" : "wifi");
 			} else {
 				rtl8723as_msg("%s should stay on because of wifi\n", SDIO_MODULE_NAME);
 			}
@@ -231,6 +237,10 @@ void rtl8723as_gpio_init(void)
 	ops->gpio_ctrl	= rtl8723as_gpio_ctrl;
 	ops->power 		= rtl8723as_power;
 	ops->standby	= rtl8723as_standby;
+	
+	// force to disable wifi power in system booting,
+	// make sure wifi power is down when system start up
+	rtl8723as_module_power(0);
 }
 
 #undef SDIO_MODULE_NAME

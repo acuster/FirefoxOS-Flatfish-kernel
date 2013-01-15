@@ -407,7 +407,10 @@ typedef struct _C2H_EVT_HDR
 	u8	CmdID: 4;
 	u8	CmdLen: 4;
 	u8	CmdSeq;
+	u8	payload[0];
 } __attribute__((__packed__)) C2H_EVT_HDR, *PC2H_EVT_HDR;
+
+#define c2h_evt_exist(c2h_evt) ((c2h_evt)->CmdID || (c2h_evt)->CmdLen)
 
 typedef struct hal_data_8723a
 {
@@ -616,8 +619,6 @@ typedef struct hal_data_8723a
 	// Interrupt relatd register information.
 	u32	IntArray[2];
 	u32	IntrMask[2];
-	u8	C2hArray[16];
-
 #endif
 
 

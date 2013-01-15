@@ -145,6 +145,7 @@ int ar100_dvfs_set_cpufreq(unsigned int freq, unsigned long mode, ar100_cb_t cb,
 {
 	unsigned int          msg_attr = 0;
 	struct ar100_message *pmessage;
+	int                   result = 0;
 	
 	if (mode & AR100_DVFS_SYN) {
 		msg_attr |= AR100_MESSAGE_ATTR_HARDSYN;
@@ -170,9 +171,10 @@ int ar100_dvfs_set_cpufreq(unsigned int freq, unsigned long mode, ar100_cb_t cb,
 	
 	/* dvfs mode : syn or not */
 	if (mode & AR100_DVFS_SYN) {
+		result = pmessage->result;
 		ar100_message_free(pmessage);
 	}
 	
-	return 0;
+	return result;
 }
 EXPORT_SYMBOL(ar100_dvfs_set_cpufreq);

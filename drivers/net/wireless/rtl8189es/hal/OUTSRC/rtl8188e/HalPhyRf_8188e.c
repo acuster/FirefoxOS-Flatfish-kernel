@@ -1519,12 +1519,15 @@ phy_IQCalibrate_8188E(
 	u4Byte	retryCount = 2;
 #else
 #if MP_DRIVER
-	const u4Byte	retryCount = 9;
+	u4Byte	retryCount = 9;
 #else
-	const u4Byte	retryCount = 2;
+	u4Byte	retryCount = 2;
 #endif
 #endif
-
+if ( *(pDM_Odm->mp_mode) == 1)
+	retryCount = 9;
+else
+	retryCount = 2;	
 	// Note: IQ calibration must be performed after loading 
 	// 		PHY_REG.txt , and radio_a, radio_b.txt	
 	
@@ -1965,6 +1968,8 @@ phy_APCalibrate_8188E(
 	s4Byte			BB_offset, delta_V, delta_offset;
 
 #if MP_DRIVER == 1
+if ( *(pDM_Odm->mp_mode) == 1)
+{
 #if (DM_ODM_SUPPORT_TYPE == ODM_CE)
 	PMPT_CONTEXT	pMptCtx = &(pAdapter->mppriv.MptCtx);	
 #else
@@ -1972,7 +1977,7 @@ phy_APCalibrate_8188E(
 #endif
 	pMptCtx->APK_bound[0] = 45;
 	pMptCtx->APK_bound[1] = 52;	
-
+}
 #endif
 
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("==>phy_APCalibrate_8188E() delta %d\n", delta));
@@ -1986,9 +1991,10 @@ phy_APCalibrate_8188E(
 // and value will cause RF internal PA to be unpredictably disabled by HW, such that RF Tx signal
 // will disappear after disable/enable card many times on 88CU. RF SD and DD have not find the
 // root cause, so we remove these actions temporarily. Added by tynli and SD3 Allen. 2010.05.31.
-#if MP_DRIVER != 1
+//#if MP_DRIVER != 1
+if (*(pDM_Odm->mp_mode) != 1)
 	return;
-#endif
+//#endif
 	//settings adjust for normal chip
 	for(index = 0; index < PATH_NUM; index ++)
 	{
@@ -2361,11 +2367,11 @@ PHY_IQCalibrate_8188E(
 	#endif
 
 	#if (MP_DRIVER == 1)
-	#if (DM_ODM_SUPPORT_TYPE == ODM_MP)	
-	PMPT_CONTEXT	pMptCtx = &(pAdapter->MptCtx);	
-	#else// (DM_ODM_SUPPORT_TYPE == ODM_CE)
-	PMPT_CONTEXT	pMptCtx = &(pAdapter->mppriv.MptCtx);		
-	#endif	
+		#if (DM_ODM_SUPPORT_TYPE == ODM_MP)	
+		PMPT_CONTEXT	pMptCtx = &(pAdapter->MptCtx);	
+		#else// (DM_ODM_SUPPORT_TYPE == ODM_CE)
+		PMPT_CONTEXT	pMptCtx = &(pAdapter->mppriv.MptCtx);		
+		#endif	
 	#endif//(MP_DRIVER == 1)
 #endif	
 
@@ -2413,9 +2419,12 @@ PHY_IQCalibrate_8188E(
 #endif		
 
 #if MP_DRIVER == 1	
+if (*(pDM_Odm->mp_mode) == 1)
+{
 	bStartContTx = pMptCtx->bStartContTx;
 	bSingleTone = pMptCtx->bSingleTone;
 	bCarrierSuppression = pMptCtx->bCarrierSuppression;	
+}
 #endif
 	
 	// 20120213<Kordan> Turn on when continuous Tx to pass lab testing. (required by Edlu)
@@ -2661,9 +2670,12 @@ PHY_LCCalibrate_8188E(
 
 
 #if MP_DRIVER == 1	
+if (*(pDM_Odm->mp_mode) == 1)
+{
 	bStartContTx = pMptCtx->bStartContTx;
 	bSingleTone = pMptCtx->bSingleTone;
 	bCarrierSuppression = pMptCtx->bCarrierSuppression;	
+}
 #endif
 
 

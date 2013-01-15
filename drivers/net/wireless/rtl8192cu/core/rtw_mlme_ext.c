@@ -567,6 +567,7 @@ void mgt_dispatcher(_adapter *padapter, union recv_frame *precv_frame)
 #endif //CONFIG_AP_MODE
 	u8 bc_addr[ETH_ALEN] = {0xff,0xff,0xff,0xff,0xff,0xff};
 	u8 *pframe = precv_frame->u.hdr.rx_data;
+	struct sta_info *psta = rtw_get_stainfo(&padapter->stapriv, GetAddr2Ptr(pframe));
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 		 ("+mgt_dispatcher: type(0x%x) subtype(0x%x)\n",
@@ -620,18 +621,19 @@ void mgt_dispatcher(_adapter *padapter, union recv_frame *precv_frame)
 	}
 	ptable += index;
 
-#if 0//gtest
-	sa = get_sa(pframe);
-	psta = search_assoc_sta(sa, padapter);
-	// only check last cache seq number for management frame
-	if (psta != NULL) {
-		if (GetRetry(pframe)) {
-			if (GetTupleCache(pframe) == psta->rxcache->nonqos_seq){
-				RT_TRACE(_module_rtl871x_mlme_c_,_drv_err_,("drop due to decache!\n"));
+#if 1
+	if (psta != NULL)
+	{
+		if (GetRetry(pframe))
+		{
+			if (precv_frame->u.hdr.attrib.seq_num == psta->RxMgmtFrameSeqNum)
+			{
+				/* drop the duplicate management frame */
+				DBG_871X("Drop duplicate management frame with seq_num = %d.\n", precv_frame->u.hdr.attrib.seq_num);
 				return;
 			}
 		}
-		psta->rxcache->nonqos_seq = GetTupleCache(pframe);
+		psta->RxMgmtFrameSeqNum = precv_frame->u.hdr.attrib.seq_num;
 	}
 #else
 
@@ -2051,6 +2053,7 @@ unsigned int OnAssocRsp(_adapter *padapter, union recv_frame *precv_frame)
 	int res;
 	unsigned short	status;
 	PNDIS_802_11_VARIABLE_IEs	pIE;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	//WLAN_BSSID_EX 		*cur_network = &(pmlmeinfo->network);
@@ -2137,6 +2140,11 @@ unsigned int OnAssocRsp(_adapter *padapter, union recv_frame *precv_frame)
 	UpdateBrateTbl(padapter, pmlmeinfo->network.SupportedRates);
 
 report_assoc_result:
+	if (res > 0) {
+		rtw_buf_update(&pmlmepriv->assoc_rsp, &pmlmepriv->assoc_rsp_len, pframe, pkt_len);
+	} else {
+		rtw_buf_free(&pmlmepriv->assoc_rsp, &pmlmepriv->assoc_rsp_len);
+	}
 
 	report_join_res(padapter, res);
 
@@ -6926,6 +6934,7 @@ void issue_asocrsp(_adapter *padapter, unsigned short status, struct sta_info *p
 
 void issue_assocreq(_adapter *padapter)
 {
+	int ret = _FAIL;
 	struct xmit_frame				*pmgntframe;
 	struct pkt_attrib				*pattrib;
 	unsigned char					*pframe, *p;
@@ -6958,9 +6967,7 @@ void issue_assocreq(_adapter *padapter)
 #endif //CONFIG_DFS
 
 	if ((pmgntframe = alloc_mgtxmitframe(pxmitpriv)) == NULL)
-	{
-		return;
-	}
+		goto exit;
 
 	//update attribute
 	pattrib = &pmgntframe->attrib;
@@ -7074,14 +7081,11 @@ void issue_assocreq(_adapter *padapter)
 #endif
 #endif	// Check if the AP's supported rates are also supported by STA.
 
-	if(bssrate_len == 0)
-	{
+	if (bssrate_len == 0) {
 		rtw_free_xmitbuf(pxmitpriv, pmgntframe->pxmitbuf);
-	
 		rtw_free_xmitframe_ex(pxmitpriv, pmgntframe);
-	
-		return; //don't connect to AP if no joint supported rate
-	}	
+		goto exit; //don't connect to AP if no joint supported rate
+	}
 
 
 	if (bssrate_len > 8)
@@ -7411,6 +7415,14 @@ void issue_assocreq(_adapter *padapter)
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
 	dump_mgntframe(padapter, pmgntframe);
+
+	ret = _SUCCESS;
+
+exit:
+	if (ret == _SUCCESS)
+		rtw_buf_update(&pmlmepriv->assoc_req, &pmlmepriv->assoc_req_len, (u8 *)pwlanhdr, pattrib->pktlen);
+	else
+		rtw_buf_free(&pmlmepriv->assoc_req, &pmlmepriv->assoc_req_len);
 
 	return;
 }
@@ -8420,6 +8432,11 @@ u8 collect_bss_info(_adapter *padapter, union recv_frame *precv_frame, WLAN_BSSI
 
 	if (*(p + 1))
 	{
+		if (len > NDIS_802_11_LENGTH_SSID)
+		{
+			DBG_871X("%s()-%d: IE too long (%d) for survey event\n", __FUNCTION__, __LINE__, len);
+			return _FAIL;
+		}
 		_rtw_memcpy(bssid->Ssid.Ssid, (p + 2), *(p + 1));
 		bssid->Ssid.SsidLength = *(p + 1);
 	}
@@ -8435,6 +8452,11 @@ u8 collect_bss_info(_adapter *padapter, union recv_frame *precv_frame, WLAN_BSSI
 	p = rtw_get_ie(bssid->IEs + _FIXED_IE_LENGTH_, _SUPPORTEDRATES_IE_, &len, bssid->IELength - _FIXED_IE_LENGTH_);
 	if (p != NULL)
 	{
+		if (len > NDIS_802_11_LENGTH_RATES)
+		{
+			DBG_871X("%s()-%d: IE too long (%d) for survey event\n", __FUNCTION__, __LINE__, len);
+			return _FAIL;
+		}
 		_rtw_memcpy(bssid->SupportedRates, (p + 2), len);
 		i = len;
 	}
@@ -8442,6 +8464,11 @@ u8 collect_bss_info(_adapter *padapter, union recv_frame *precv_frame, WLAN_BSSI
 	p = rtw_get_ie(bssid->IEs + _FIXED_IE_LENGTH_, _EXT_SUPPORTEDRATES_IE_, &len, bssid->IELength - _FIXED_IE_LENGTH_);
 	if (p != NULL)
 	{
+		if (len > (NDIS_802_11_LENGTH_RATES_EX-i))
+		{
+			DBG_871X("%s()-%d: IE too long (%d) for survey event\n", __FUNCTION__, __LINE__, len);
+			return _FAIL;
+		}
 		_rtw_memcpy(bssid->SupportedRates + i, (p + 2), len);
 	}
 
@@ -8456,6 +8483,9 @@ u8 collect_bss_info(_adapter *padapter, union recv_frame *precv_frame, WLAN_BSSI
 	{
 		bssid->NetworkTypeInUse = Ndis802_11OFDM24;
 	}
+
+	if (bssid->IELength < 12)
+		return _FAIL;
 
 	// Checking for DSConfig
 	p = rtw_get_ie(bssid->IEs + _FIXED_IE_LENGTH_, _DSSET_IE_, &len, bssid->IELength - _FIXED_IE_LENGTH_);

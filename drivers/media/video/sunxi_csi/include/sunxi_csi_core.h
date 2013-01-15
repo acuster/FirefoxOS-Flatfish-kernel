@@ -16,6 +16,7 @@
 #include <../arch/arm/mach-sun6i/include/mach/clock.h>
 #include <../arch/arm/mach-sun6i/include/mach/gpio.h>
 #include <../arch/arm/mach-sun6i/include/mach/sys_config.h>
+#include <linux/earlysuspend.h>
 
 //for internel driver debug
 #define DBG_EN   		0
@@ -415,6 +416,11 @@ struct csi_dev {
 	unsigned long 		   	generating;
 	int								opened;
 	
+	/* suspend */
+#if defined(CONFIG_HAS_EARLYSUSPEND)
+	struct early_suspend early_suspend;
+#endif
+
 	/* work queue */
 	struct work_struct resume_work;
 	struct delayed_work probe_work;

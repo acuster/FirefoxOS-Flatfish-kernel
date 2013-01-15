@@ -23,10 +23,6 @@
 //============================================================
 
 #include "odm_precomp.h"
-#ifdef CONFIG_RSSI_OPTIMIZATION
-#define RSSI_CCK_OPTIMIZE	3
-#define RSSI_OFDM_OPTIMIZE	0
-#endif
 
 #if (RTL8188E_FOR_TEST_CHIP > 1)
     #define READ_AND_CONFIG(ic, txt) do {\
@@ -241,7 +237,7 @@ odm_SignalScaleMapping_92CSeries(
 #endif
 
 #if ((DEV_BUS_TYPE == RT_USB_INTERFACE) ||(DEV_BUS_TYPE == RT_SDIO_INTERFACE))
-	if((pDM_Odm->SupportInterface  == ODM_ITRF_USB) || (pDM_Odm->SupportInterface  == ODM_ITRF_SDIO))
+	if((pDM_Odm->SupportInterface  == ODM_ITRF_USB) || (pDM_Odm->SupportInterface  == ODM_ITRF_SDIO) )
 	{
 		if(CurrSig >= 51 && CurrSig <= 100)
 		{
@@ -560,12 +556,6 @@ odm_RxPhyStatus92CSeries_Parsing(
 		}
 	
 		pPhyInfo->RxPWDBAll = PWDB_ALL;
-#ifdef CONFIG_RSSI_OPTIMIZATION
-		if(pDM_Odm->SupportICType & ODM_RTL8188E){
-			PWDB_ALL += RSSI_CCK_OPTIMIZE;
-		}
-#endif
-
 #if (DM_ODM_SUPPORT_TYPE &  (ODM_MP|ODM_CE))
 		pPhyInfo->BTRxRSSIPercentage = PWDB_ALL;
 		pPhyInfo->RecvSignalPower = rx_pwr_all;
@@ -712,12 +702,6 @@ odm_RxPhyStatus92CSeries_Parsing(
 		}
 
 	}
-#ifdef CONFIG_RSSI_OPTIMIZATION
-	if(pDM_Odm->SupportICType & ODM_RTL8188E){
-		PWDB_ALL += RSSI_OFDM_OPTIMIZE;
-	}
-#endif
-
 #if (DM_ODM_SUPPORT_TYPE &  (ODM_MP|ODM_CE))
 	//UI BSS List signal strength(in percentage), make it good looking, from 0~100.
 	//It is assigned to the BSS List in GetValueFromBeaconOrProbeRsp().
@@ -1097,8 +1081,7 @@ ODM_ConfigRFWithHeaderFile(
 	{
 		if(eRFPath == ODM_RF_PATH_A)
 			READ_AND_CONFIG_MP(8723A,_RadioA_1T_);
-		else if(eRFPath == ODM_RF_PATH_B)
-			READ_AND_CONFIG_MP(8723A,_RadioB_1T_);
+	
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, (" ===> ODM_ConfigRFWithHeaderFile() Radio_A:Rtl8723RadioA_1TArray\n"));
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, (" ===> ODM_ConfigRFWithHeaderFile() Radio_B:Rtl8723RadioB_1TArray\n"));
 	}

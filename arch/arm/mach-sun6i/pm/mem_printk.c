@@ -5,9 +5,17 @@
  * history: V0.1
  */
 
+
+#ifdef __STANDBY_MODULE__
 #include "pm_types.h"
 #include "pm.h"
 #include <stdarg.h>
+#elif defined(__KERNEL__)
+#include <linux/module.h>
+#include "pm_i.h"
+__s32 print_align(char *string, __s32 len, __s32 align);
+
+#endif
 
 #define NUM_TYPE long long
 

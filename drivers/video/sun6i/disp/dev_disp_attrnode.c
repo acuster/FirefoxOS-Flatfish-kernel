@@ -7,16 +7,18 @@ extern fb_info_t g_fbi;
 extern __s32 disp_video_set_dit_mode(__u32 scaler_index, __u32 mode);
 extern __s32 disp_video_get_dit_mode(__u32 scaler_index);
 
-
 static __u32 sel;
 static __u32 hid;
+//#define DISP_CMD_CALLED_BUFFER_LEN 100
+//static __u32 disp_cmd_called[DISP_CMD_CALLED_BUFFER_LEN];
+//static __u32 disp_cmd_called_index;
 
 #define ____SEPARATOR_GLABOL_NODE____
 
 static ssize_t disp_sel_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d", sel);
+	return sprintf(buf, "%d\n", sel);
 }
 
 static ssize_t disp_sel_store(struct device *dev,
@@ -47,7 +49,7 @@ static ssize_t disp_sel_store(struct device *dev,
 static ssize_t disp_hid_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d", HANDTOID(hid));
+	return sprintf(buf, "%d\n", HANDTOID(hid));
 }
 
 static ssize_t disp_hid_store(struct device *dev,
@@ -115,6 +117,81 @@ static ssize_t disp_reg_dump_store(struct device *dev,
 static DEVICE_ATTR(reg_dump, S_IRUGO|S_IWUSR|S_IWGRP,
 		disp_reg_dump_show, disp_reg_dump_store);
 
+#define ____SEPARATOR_CMD_PRINT____
+extern disp_cmd_print_level;
+static ssize_t disp_cmd_print_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", disp_cmd_print_level);
+}
+
+static ssize_t disp_cmd_print_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int err;
+    unsigned long val;
+    
+	err = strict_strtoul(buf, 10, &val);
+	if (err) {
+		printk("Invalid size\n");
+		return err;
+	}
+
+    if((val != 0) && (val != 1))
+    {
+        printk("Invalid value, 0/1 is expected!\n");
+    }else
+    {
+        disp_cmd_print_level = val;
+	}
+    
+	return count;
+}
+
+static DEVICE_ATTR(cmd_print, S_IRUGO|S_IWUSR|S_IWGRP,
+		disp_cmd_print_show, disp_cmd_print_store);
+
+
+#define ____SEPARATOR_LAYER_PARA____
+static ssize_t disp_layer_para_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+    __disp_layer_info_t layer_para;
+    __s32 ret = 0;
+
+    ret = BSP_disp_layer_get_para(sel, hid, &layer_para);
+    if(ret != 0)
+    {
+        return sprintf(buf, "screen%d layer%d is not init\n", sel, HANDTOID(hid));
+    }
+    else
+    {
+        return sprintf(buf, "=== screen%d layer%d para ====\nmode: %d\nfb.width=%d,  height=%d\nfb.mode=%d,  fb.format=%d, fb.seq=%d\ntrd_src=%d,  trd_src_mode=%d,  trd_out=%d,  trd_out_mode=%d\npipe:%d\tprio: %d\nalpha_en: %d, alpha_val=%d\tcolor_key_en: %d\nsrc_window:<%d,%d,%d,%d>\nscreen_window:<%d,%d,%d,%d>\npre_multiply=%d\n======= screen%d layer%d para ====\n", 
+        sel, HANDTOID(hid),layer_para.mode, layer_para.fb.size.width, 
+        layer_para.fb.size.height, layer_para.fb.mode, layer_para.fb.format, 
+        layer_para.fb.seq, layer_para.fb.b_trd_src,  layer_para.fb.trd_mode, 
+        layer_para.b_trd_out, layer_para.out_trd_mode, layer_para.pipe, 
+        layer_para.prio, layer_para.alpha_en, layer_para.alpha_val, 
+        layer_para.ck_enable, layer_para.src_win.x, layer_para.src_win.y, 
+        layer_para.src_win.width, layer_para.src_win.height, layer_para.scn_win.x, layer_para.scn_win.y, 
+        layer_para.scn_win.width, layer_para.scn_win.height,layer_para.fb.pre_multiply, sel, HANDTOID(hid));
+    }    
+}
+
+static ssize_t disp_layer_para_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+    printk("there no room for anything\n");
+        
+	return count;
+}
+
+static DEVICE_ATTR(layer_para, S_IRUGO|S_IWUSR|S_IWGRP,
+		disp_layer_para_show, disp_layer_para_store);
+
+
 #define ____SEPARATOR_SCRIPT_DUMP____
 static ssize_t disp_script_dump_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -135,7 +212,9 @@ static ssize_t disp_script_dump_store(struct device *dev,
 
     memcpy(main_key, buf, strlen(buf)+1);
 
-    script_dump_mainkey(main_key);
+    script_dump_mainkey("lcd0_para");
+    script_dump_mainkey("disp_init");
+    script_dump_mainkey("hdmi_para");
 
 	return count;
 }
@@ -148,7 +227,14 @@ static DEVICE_ATTR(script_dump, S_IRUGO|S_IWUSR|S_IWGRP,
 static ssize_t disp_lcd_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%s", "there is nothing here!");
+	if(BSP_disp_get_output_type(sel) == DISP_OUTPUT_TYPE_LCD)
+    {
+        return sprintf(buf, "screen%d lcd on!\n", sel);
+    }
+    else
+    {
+        return sprintf(buf, "screen%d lcd off!\n", sel);
+    }
 }
 
 static ssize_t disp_lcd_store(struct device *dev,
@@ -182,7 +268,7 @@ static DEVICE_ATTR(lcd, S_IRUGO|S_IWUSR|S_IWGRP,
 static ssize_t disp_lcd_bl_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d", BSP_disp_lcd_get_bright(sel));
+	return sprintf(buf, "%d\n", BSP_disp_lcd_get_bright(sel));
 }
 
 static ssize_t disp_lcd_bl_store(struct device *dev,
@@ -217,7 +303,14 @@ static DEVICE_ATTR(lcd_bl, S_IRUGO|S_IWUSR|S_IWGRP,
 static ssize_t disp_hdmi_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%s", "there is nothing here!");
+	if(BSP_disp_get_output_type(sel) == DISP_OUTPUT_TYPE_HDMI)
+    {
+        return sprintf(buf, "screen%d hdmi on, mode=%d\n", sel, BSP_disp_hdmi_get_mode(sel));
+    }
+    else
+    {
+        return sprintf(buf, "screen%d hdmi off!\n", sel);
+    }
 }
 
 static ssize_t disp_hdmi_store(struct device *dev,
@@ -250,6 +343,24 @@ static ssize_t disp_hdmi_store(struct device *dev,
 
 static DEVICE_ATTR(hdmi, S_IRUGO|S_IWUSR|S_IWGRP,
 		disp_hdmi_show, disp_hdmi_store);
+
+static ssize_t disp_hdmi_hpd_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+
+    return sprintf(buf, "screen%d hdmi hpd=%d\n", sel, BSP_disp_hdmi_get_hpd_status(sel));
+}
+
+static ssize_t disp_hdmi_hpd_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	return count;
+}
+
+static DEVICE_ATTR(hdmi_hpd, S_IRUGO|S_IWUSR|S_IWGRP,
+		disp_hdmi_hpd_show, disp_hdmi_hpd_store);
+
 
 
 #define ____SEPARATOR_VSYNC_EVENT____
@@ -1090,6 +1201,9 @@ static struct attribute *disp_attributes[] = {
     &dev_attr_hdmi.attr,
     &dev_attr_script_dump.attr,
     &dev_attr_colorbar.attr,
+    &dev_attr_layer_para.attr,
+    &dev_attr_hdmi_hpd.attr,
+    &dev_attr_cmd_print.attr,
 	NULL
 };
 

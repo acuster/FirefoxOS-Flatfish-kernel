@@ -5875,7 +5875,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
 		goto update;
 	}
 		
-	if(info->capture_mode == V4L2_MODE_VIDEO)
+	if(info->capture_mode == V4L2_MODE_VIDEO || info->capture_mode == V4L2_MODE_PREVIEW)
 	{
 		//video
 		if(info->af_mode != V4L2_AF_FIXED) {
@@ -5917,7 +5917,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
 			return ret;
 	}
   
-	if(info->capture_mode == V4L2_MODE_VIDEO)
+	if(info->capture_mode == V4L2_MODE_VIDEO || info->capture_mode == V4L2_MODE_PREVIEW)
 	{
 		//video
 		if(info->af_mode != V4L2_AF_FIXED) {

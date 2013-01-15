@@ -68,4 +68,7 @@
 #define UL(x) _AC(x, UL)
 #define IO_ADDRESS(x)		((x) + 0xf0000000)
 
+#define SUSPEND_FREQ (720000)	//720M
+#define SUSPEND_DELAY_MS (10)
+
 #endif /*_PM_CONFIG_H*/

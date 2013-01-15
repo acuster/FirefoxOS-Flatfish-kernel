@@ -231,7 +231,7 @@ void update_recvframe_attrib_88e(
 		pattrib->rxht = (u8)((report.rxdw3 >> 6) & 0x1);//(u8)prxreport->rxht;
 		
 		pattrib->icv_err = (u8)((report.rxdw0 >> 15) & 0x1);//(u8)prxreport->icverr;
-		//pattrib->shift_sz = (u8)prxreport->shift;
+		pattrib->shift_sz = (u8)((report.rxdw0 >> 24) & 0x3);
 	
 	}
 	else if(pattrib->pkt_rpt_type == TX_REPORT1)//CCX

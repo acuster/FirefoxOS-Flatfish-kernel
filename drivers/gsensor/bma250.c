@@ -904,7 +904,6 @@ static int bma250_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	int err = 0;
-	int tempvalue;
 	struct bma250_data *data;
 
 	dprintk(DEBUG_INIT, "bma250: probe\n");
@@ -921,23 +920,7 @@ static int bma250_probe(struct i2c_client *client,
 		err = -ENOMEM;
 		goto exit;
 	}
-	/* read chip id */
-	tempvalue = 0;
-	tempvalue = i2c_smbus_read_word_data(client, BMA250_CHIP_ID_REG);
 
-	if ((tempvalue&0x00FF) == BMA250_CHIP_ID) {
-		dprintk(DEBUG_INIT, "Bosch Sensortec Device detected!\n" \
-				"BMA250 registered I2C driver!\n");
-	} else if ((tempvalue&0x00FF) == BMA150_CHIP_ID) {
-		dprintk(DEBUG_INIT, "Bosch Sensortec Device detected!\n" \
-				"BMA150 registered I2C driver!\n");
-	}
-	else {
-		printk("Bosch Sensortec Device not found, \
-				i2c error %d \n", tempvalue);
-		err = -1;
-		goto kfree_exit;
-	}
 	i2c_set_clientdata(client, data);
 	data->bma250_client = client;
 	mutex_init(&data->value_mutex);

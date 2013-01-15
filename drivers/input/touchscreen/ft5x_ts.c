@@ -22,8 +22,8 @@
 #include <linux/input.h>
 #include "ft5x_ts.h"
 #ifdef CONFIG_HAS_EARLYSUSPEND
-    #include <linux/pm.h>
-    #include <linux/earlysuspend.h>
+#include <linux/pm.h>
+#include <linux/earlysuspend.h>
 #endif
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -112,6 +112,9 @@ static const unsigned short normal_i2c[2] = {0x38,I2C_CLIENT_END};
 static const int chip_id_value[] = {0x55,0x06,0x08,0x02,0xa3};
 static __u32 twi_id = 0;
 
+static void ft5x_resume_events(struct work_struct *work);
+struct workqueue_struct *ft5x_resume_wq;
+static DECLARE_WORK(ft5x_resume_work, ft5x_resume_events);
 
 static int ctp_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
@@ -122,7 +125,6 @@ static int ctp_detect(struct i2c_client *client, struct i2c_board_info *info)
                 return -ENODEV;
     
 	if(twi_id == adapter->nr){
-                msleep(200);
 	        ret = i2c_smbus_read_byte_data(client,0xA3);
                 dprintk(DEBUG_INIT,"addr:0x%x,chip_id_value:0x%x\n",client->addr,ret);
                 while(chip_id_value[i++]){
@@ -210,6 +212,7 @@ struct ft5x_ts_data {
 	struct ts_event		event;
 	struct work_struct 	pen_event_work;
 	struct workqueue_struct *ts_workqueue;
+	bool is_suspended;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend	early_suspend;
 #endif
@@ -1115,52 +1118,69 @@ static u32 ft5x_ts_interrupt(struct ft5x_ts_data *ft5x_ts)
 	return 0;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-
-static void ft5x_ts_suspend(struct early_suspend *handler)
+static void ft5x_resume_events (struct work_struct *work)
 {
-        struct ft5x_ts_data *data = i2c_get_clientdata(this_client);
-        dprintk(DEBUG_SUSPEND,"==ft5x_ts_suspend=\n");
-        dprintk(DEBUG_SUSPEND,"CONFIG_HAS_EARLYSUSPEND: write FT5X0X_REG_PMODE .\n");
-        sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,0);
-        cancel_work_sync(&data->pen_event_work);
-        flush_workqueue(data->ts_workqueue);
-        ft5x_set_reg(FT5X0X_REG_PMODE, PMODE_HIBERNATE);
-              
-}
+	struct ft5x_ts_data *data = i2c_get_clientdata(this_client);
 
-static void ft5x_ts_resume(struct early_suspend *handler)
-{
-	dprintk(DEBUG_SUSPEND,"==CONFIG_HAS_EARLYSUSPEND:ft5x_ts_resume== \n");
 	ctp_wakeup(0,20);
-	sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,1);
-	if(STANDBY_WITH_POWER_OFF == standby_level){
+	if ((STANDBY_WITH_POWER_OFF == standby_level) || (data->is_suspended == true)) {
 	        msleep(100);
 	}
-		
+	sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,1);
 }
-#else //CONFIG_HAS_EARLYSUSPEND
-#ifdef CONFIG_PM
+
 static int ft5x_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
-        struct ft5x_ts_data *data = i2c_get_clientdata(this_client);
-        dprintk(DEBUG_SUSPEND,"==ft5x_ts_suspend=\n");
-        dprintk(DEBUG_SUSPEND,"CONFIG_PM: write FT5X0X_REG_PMODE .\n");
-        sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,0);
-        cancel_work_sync(&data->pen_event_work);
-        flush_workqueue(data->ts_workqueue);
-        ft5x_set_reg(FT5X0X_REG_PMODE, PMODE_HIBERNATE);
-        return 0;
+	struct ft5x_ts_data *data = i2c_get_clientdata(client);
+	dprintk(DEBUG_SUSPEND,"==ft5x_ts_suspend=\n");
+	dprintk(DEBUG_SUSPEND,"CONFIG_PM: write FT5X0X_REG_PMODE .\n");
+#ifndef CONFIG_HAS_EARLYSUSPEND
+	data->is_suspended = true;
+#endif
+	if (data->is_suspended == true) {
+		flush_workqueue(ft5x_resume_wq);
+		sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,0);
+		cancel_work_sync(&data->pen_event_work);
+		flush_workqueue(data->ts_workqueue);
+		ft5x_set_reg(FT5X0X_REG_PMODE, PMODE_HIBERNATE);
+	}
+	return 0;
 }
+
 static int ft5x_ts_resume(struct i2c_client *client)
 {
+	struct ft5x_ts_data *data = i2c_get_clientdata(client);
 	dprintk(DEBUG_SUSPEND,"==CONFIG_PM:ft5x_ts_resume== \n");
-	ctp_wakeup(0,20);
-	sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,1);
-	return 0;		
+	data->is_suspended = true;
+	queue_work(ft5x_resume_wq, &ft5x_resume_work);
+	return 0;
 }
-#endif
-#endif
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void ft5x_ts_early_suspend(struct early_suspend *handler)
+{
+	struct ft5x_ts_data *data = container_of(handler, struct ft5x_ts_data, early_suspend);
+	dprintk(DEBUG_SUSPEND,"==ft5x_ts_suspend=\n");
+	dprintk(DEBUG_SUSPEND,"CONFIG_HAS_EARLYSUSPEND: write FT5X0X_REG_PMODE .\n");
+	data->is_suspended = false;
+	flush_workqueue(ft5x_resume_wq);
+	sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,0);
+	cancel_work_sync(&data->pen_event_work);
+	flush_workqueue(data->ts_workqueue);
+	ft5x_set_reg(FT5X0X_REG_PMODE, PMODE_HIBERNATE);
+}
+
+static void ft5x_ts_late_resume(struct early_suspend *handler)
+{
+	struct ft5x_ts_data *data = container_of(handler, struct ft5x_ts_data, early_suspend);
+	dprintk(DEBUG_SUSPEND,"==CONFIG_HAS_EARLYSUSPEND:ft5x_ts_resume== \n");
+	if (data->is_suspended == false)
+		queue_work(ft5x_resume_wq, &ft5x_resume_work);
+
+	printk("ts->is_suspended:%d\n",data->is_suspended);
+}
+#endif /* CONFIG_HAS_EARLYSUSPEND */
+
 static int 
 ft5x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
@@ -1261,11 +1281,19 @@ ft5x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto exit_input_register_device_failed;
 	}
 
+	ft5x_ts->is_suspended = false;
+
+	ft5x_resume_wq = create_singlethread_workqueue("ft5x_resume");
+	if (ft5x_resume_wq == NULL) {
+		printk("create ft5x_resume_wq fail!\n");
+		return -ENOMEM;
+	}
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	printk("==register_early_suspend =\n");
 	ft5x_ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	ft5x_ts->early_suspend.suspend = ft5x_ts_suspend;
-	ft5x_ts->early_suspend.resume	= ft5x_ts_resume;
+	ft5x_ts->early_suspend.suspend = ft5x_ts_early_suspend;
+	ft5x_ts->early_suspend.resume	= ft5x_ts_late_resume;
 	register_early_suspend(&ft5x_ts->early_suspend);
 #endif
 
@@ -1317,10 +1345,13 @@ static int __devexit ft5x_ts_remove(struct i2c_client *client)
 	ft5x_set_reg(FT5X0X_REG_PMODE, PMODE_HIBERNATE);
 	
 	printk("==ft5x_ts_remove=\n");
+	device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR,client->adapter->nr));
 	sw_gpio_irq_free(int_handle);
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&ft5x_ts->early_suspend);
 #endif
+	cancel_work_sync(&ft5x_resume_work);
+	destroy_workqueue(ft5x_resume_wq);
 	input_unregister_device(ft5x_ts->input_dev);
 	input_free_device(ft5x_ts->input_dev);
 	cancel_work_sync(&ft5x_ts->pen_event_work);
@@ -1344,14 +1375,8 @@ static struct i2c_driver ft5x_ts_driver = {
 	.class = I2C_CLASS_HWMON,
 	.probe		= ft5x_ts_probe,
 	.remove		= __devexit_p(ft5x_ts_remove),
-#ifdef CONFIG_HAS_EARLYSUSPEND
-
-#else
-#ifdef CONFIG_PM
-	.suspend  =  ft5x_ts_suspend,
-	.resume   =  ft5x_ts_resume,
-#endif
-#endif
+	.suspend        =  ft5x_ts_suspend,
+	.resume         =  ft5x_ts_resume,
 	.id_table	= ft5x_ts_id,
 	.driver	= {
 		.name	= CTP_NAME,
@@ -1463,7 +1488,7 @@ static int __init ft5x_ts_init(void)
                 return ret;
         }
         
-	ctp_wakeup(0,20);  
+	ctp_wakeup(0,10);  
 		
 	ft5x_ts_driver.detect = ctp_detect;
 
@@ -1486,6 +1511,8 @@ static void __exit ft5x_ts_exit(void)
 {
 	printk("==ft5x_ts_exit==\n");
 	i2c_del_driver(&ft5x_ts_driver);
+	class_destroy(i2c_dev_class);
+	unregister_chrdev(I2C_MAJOR, "aw_i2c_ts");
 }
 
 late_initcall(ft5x_ts_init);

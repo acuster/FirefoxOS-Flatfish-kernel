@@ -1749,7 +1749,7 @@ int rtw_pm_set_ips(_adapter *padapter, u8 mode)
 	else if(mode ==IPS_NONE){
 		rtw_ips_mode_req(pwrctrlpriv, mode);
 		DBG_871X("%s %s\n", __FUNCTION__, "IPS_NONE");
-		if(_FAIL == rtw_pwr_wakeup(padapter))
+		if((padapter->bSurpriseRemoved ==0)&&(_FAIL == rtw_pwr_wakeup(padapter)) )
 			return -EFAULT;
 	}
 	else {

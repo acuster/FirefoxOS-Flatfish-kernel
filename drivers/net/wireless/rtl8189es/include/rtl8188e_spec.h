@@ -97,6 +97,7 @@
 #define REG_LPLDO_CTRL					0x0023
 #define REG_AFE_XTAL_CTRL				0x0024
 #define REG_AFE_PLL_CTRL				0x0028
+#define REG_APE_PLL_CTRL_EXT			0x002c
 #define REG_EFUSE_CTRL					0x0030
 #define REG_EFUSE_TEST					0x0034
 #define REG_GPIO_MUXCFG				0x0040
@@ -165,6 +166,9 @@
 #define REG_FTIMR						0x0138
 #define REG_FWISR						0x0134
 #define REG_PKTBUF_DBG_CTRL			0x0140
+#define REG_PKTBUF_DBG_ADDR 			(REG_PKTBUF_DBG_CTRL)
+#define REG_RXPKTBUF_DBG				(REG_PKTBUF_DBG_CTRL+2)
+#define REG_TXPKTBUF_DBG				(REG_PKTBUF_DBG_CTRL+3)
 #define REG_RXPKTBUF_CTRL			(REG_PKTBUF_DBG_CTRL+2)
 #define REG_PKTBUF_DBG_DATA_L			0x0144
 #define REG_PKTBUF_DBG_DATA_H		0x0148
@@ -182,6 +186,9 @@
 #define REG_C2HEVT_MSG_NORMAL		0x01A0
 #define REG_C2HEVT_CLEAR				0x01AF
 #define REG_MCUTST_1					0x01c0
+#ifdef CONFIG_WOWLAN
+#define REG_WOWLAN_WAKE_REASON			0x01c7
+#endif
 #define REG_FMETHR					0x01C8
 #define REG_HMETFR					0x01CC
 #define REG_HMEBOX_0					0x01D0
@@ -210,9 +217,7 @@
 //
 //-----------------------------------------------------
 #define 	REG_RXDMA_AGG_PG_TH			0x0280
-#define	REG_FW_UPD_RDPTR				0x0284 // FW shall update this register before FW write RXPKT_RELEASE_POLL to 1
-#define	REG_RXDMA_CONTROL			0x0286 // Control the RX DMA.
-#define	REG_RXPKT_NUM					0x0287 // The number of packets in RXPKTBUF.	
+#define	REG_RXPKT_NUM					0x0284 // The number of packets in RXPKTBUF.	
 #define 	REG_RXDMA_STATUS				0x0288
 
 //-----------------------------------------------------
@@ -356,6 +361,10 @@
 #define REG_TIMER1					0x0588
 #define REG_ACMHWCTRL				0x05C0
 
+//#define REG_FW_TSF_SYNC_CNT				0x04A0
+#define REG_FW_RESET_TSF_CNT_1				0x05FC
+#define REG_FW_RESET_TSF_CNT_0				0x05FD
+#define REG_FW_BCN_DIS_CNT				0x05FE
 
 //-----------------------------------------------------
 //
@@ -618,90 +627,6 @@ Default: 00b.
 #define	HAL92C_WOL_PTK_UPDATE_EVENT		BIT0
 #define	HAL92C_WOL_GTK_UPDATE_EVENT		BIT1
 
-
-//----------------------------------------------------------------------------
-//       8192C Rate Definition
-//----------------------------------------------------------------------------
-//CCK
-#define	RATR_1M						0x00000001
-#define	RATR_2M						0x00000002
-#define	RATR_55M					0x00000004
-#define	RATR_11M					0x00000008
-//OFDM 		
-#define	RATR_6M						0x00000010
-#define	RATR_9M						0x00000020
-#define	RATR_12M					0x00000040
-#define	RATR_18M					0x00000080
-#define	RATR_24M					0x00000100
-#define	RATR_36M					0x00000200
-#define	RATR_48M					0x00000400
-#define	RATR_54M					0x00000800
-//MCS 1 Spatial Stream	
-#define	RATR_MCS0					0x00001000
-#define	RATR_MCS1					0x00002000
-#define	RATR_MCS2					0x00004000
-#define	RATR_MCS3					0x00008000
-#define	RATR_MCS4					0x00010000
-#define	RATR_MCS5					0x00020000
-#define	RATR_MCS6					0x00040000
-#define	RATR_MCS7					0x00080000
-//MCS 2 Spatial Stream
-#define	RATR_MCS8					0x00100000
-#define	RATR_MCS9					0x00200000
-#define	RATR_MCS10					0x00400000
-#define	RATR_MCS11					0x00800000
-#define	RATR_MCS12					0x01000000
-#define	RATR_MCS13					0x02000000
-#define	RATR_MCS14					0x04000000
-#define	RATR_MCS15					0x08000000
-
-
-// NOTE: For 92CU - Ziv
-//CCK
-#define RATE_1M						BIT(0)
-#define RATE_2M						BIT(1)
-#define RATE_5_5M						BIT(2)
-#define RATE_11M						BIT(3)
-//OFDM 
-#define RATE_6M						BIT(4)
-#define RATE_9M						BIT(5)
-#define RATE_12M						BIT(6)
-#define RATE_18M						BIT(7)
-#define RATE_24M						BIT(8)
-#define RATE_36M						BIT(9)
-#define RATE_48M						BIT(10)
-#define RATE_54M						BIT(11)
-//MCS 1 Spatial Stream
-#define RATE_MCS0						BIT(12)
-#define RATE_MCS1						BIT(13)
-#define RATE_MCS2						BIT(14)
-#define RATE_MCS3						BIT(15)
-#define RATE_MCS4						BIT(16)
-#define RATE_MCS5						BIT(17)
-#define RATE_MCS6						BIT(18)
-#define RATE_MCS7						BIT(19)
-//MCS 2 Spatial Stream
-#define RATE_MCS8						BIT(20)
-#define RATE_MCS9						BIT(21)
-#define RATE_MCS10					BIT(22)
-#define RATE_MCS11					BIT(23)
-#define RATE_MCS12					BIT(24)
-#define RATE_MCS13					BIT(25)
-#define RATE_MCS14					BIT(26)
-#define RATE_MCS15					BIT(27)
-
-
-
-
-// ALL CCK Rate
-#define	RATE_ALL_CCK					RATR_1M|RATR_2M|RATR_55M|RATR_11M 
-#define	RATE_ALL_OFDM_AG			RATR_6M|RATR_9M|RATR_12M|RATR_18M|RATR_24M|\
-									RATR_36M|RATR_48M|RATR_54M	
-#define	RATE_ALL_OFDM_1SS			RATR_MCS0|RATR_MCS1|RATR_MCS2|RATR_MCS3 |\
-									RATR_MCS4|RATR_MCS5|RATR_MCS6	|RATR_MCS7	
-#define	RATE_ALL_OFDM_2SS			RATR_MCS8|RATR_MCS9	|RATR_MCS10|RATR_MCS11|\
-									RATR_MCS12|RATR_MCS13|RATR_MCS14|RATR_MCS15
-
 //----------------------------------------------------------------------------
 //       8192C BW_OPMODE bits					(Offset 0x203, 8bit)
 //----------------------------------------------------------------------------
@@ -746,7 +671,6 @@ Default: 00b.
 #define	WOW_WOMEN			BIT1 // WoW function on or off. 
 #define	WOW_MAGIC				BIT2 // Magic packet
 #define	WOW_UWF				BIT3 // Unicast Wakeup frame.
-
 
 //
 // 12. Host Interrupt Status Registers	 (Offset: 0x0300 - 0x030F)
@@ -1199,6 +1123,18 @@ Current IOREG MAP
 //	0x0200h ~ 0x027Fh	TXDMA Configuration
 //
 //-----------------------------------------------------
+//2RQPN
+#define _HPQ(x)						((x) & 0xFF)
+#define _LPQ(x)						(((x) & 0xFF) << 8)
+#define _PUBQ(x)						(((x) & 0xFF) << 16)
+#define _NPQ(x)						((x) & 0xFF)			// NOTE: in RQPN_NPQ register
+
+
+#define HPQ_PUBLIC_DIS				BIT(24)
+#define LPQ_PUBLIC_DIS				BIT(25)
+#define LD_RQPN						BIT(31)
+
+
 //2TDECTRL
 #define BCN_VALID					BIT(16)
 #define BCN_HEAD(x)					(((x) & 0xFF) << 8)
@@ -1222,16 +1158,21 @@ Current IOREG MAP
 //
 //-----------------------------------------------------
 
-//2 REG_RXDMA_CONTROL, 0x0286h
+//    REG_RXDMA_CONTROL, 0x0286h
 // Write only. When this bit is set, RXDMA will decrease RX PKT counter by one. Before
 // this bit is polled, FW shall update RXFF_RD_PTR first. This register is write pulse and auto clear.
-#define	RXPKT_RELEASE_POLL			BIT(0)
+//#define	RXPKT_RELEASE_POLL			BIT(0)
 // Read only. When RXMA finishes on-going DMA operation, RXMDA will report idle state in 
 // this bit. FW can start releasing packets after RXDMA entering idle mode.
 //#define	RXDMA_IDLE					BIT(1)	
 // When this bit is set, RXDMA will enter this mode after on-going RXDMA packet to host 
 // completed, and stop DMA packet to host. RXDMA will then report Default: 0;
 //#define	RW_RELEASE_EN				BIT(2)
+
+//2 REG_RXPKT_NUM, 0x0284
+#define 	RXPKT_RELEASE_POLL	BIT(16)
+#define	RXDMA_IDLE				BIT(17)
+#define	RW_RELEASE_EN			BIT(18)
 
 //-----------------------------------------------------
 //
@@ -1670,6 +1611,7 @@ Current IOREG MAP
 #define	EEPROM_MAC_ADDR_88EU				0xD7
 #define	EEPROM_VID_88EU						0xD0
 #define	EEPROM_PID_88EU						0xD2
+#define EEPROM_USB_OPTIONAL_FUNCTION0			0xD4
 
 // RTL88ES
 #define	EEPROM_MAC_ADDR_88ES				0x11A

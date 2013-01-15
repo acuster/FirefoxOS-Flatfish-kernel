@@ -46,6 +46,7 @@
 #endif
 
 	struct cmd_obj {
+		_adapter *padapter;
 		u16	cmdcode;
 		u8	res;
 		u8	*parmbuf;
@@ -119,6 +120,15 @@ do {\
 	pcmd->rsp = NULL;\
 	pcmd->rspsz = 0;\
 } while(0)
+
+struct c2h_evt_hdr {
+	u8 id:4;
+	u8 plen:4;
+	u8 seq;
+	u8 payload[0];
+};
+
+#define c2h_evt_exist(c2h_evt) ((c2h_evt)->id || (c2h_evt)->plen)
 
 extern u32 rtw_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *obj);
 extern struct cmd_obj *rtw_dequeue_cmd(struct cmd_priv *pcmdpriv);
@@ -959,7 +969,7 @@ extern u8 rtw_led_blink_cmd(_adapter*padapter, PLED_871x pLed);
 extern u8 rtw_set_csa_cmd(_adapter*padapter, u8 new_ch_no);
 extern u8 rtw_tdls_cmd(_adapter*padapter, u8 *addr, u8 option);
 
-extern u8 rtw_c2h_wk_cmd(PADAPTER padapter);
+extern u8 rtw_c2h_wk_cmd(PADAPTER padapter, u8 *c2h_evt);
 
 u8 rtw_drvextra_cmd_hdl(_adapter *padapter, unsigned char *pbuf);
 

@@ -43,11 +43,7 @@
 #define DRIVER_VERSION          "1.0"
 #define DRIVER_AUTHOR			"Javen Xu"
 
-#define MODEM_NAME              "cwm600"
-
-//-----------------------------------------------------------------------------
-//
-//-----------------------------------------------------------------------------
+#define MODEM_NAME             "cwm600"
 
 //-----------------------------------------------------------------------------
 //
@@ -59,32 +55,90 @@ static char g_cwm600_name[] = MODEM_NAME;
 //
 //-----------------------------------------------------------------------------
 
-void cwm600_power(struct sw_modem *modem, u32 on)
+void cwm600_reset(struct sw_modem *modem)
 {
-    if(on){
-        /* default */
-    	modem_reset(modem, 0);
-    	modem_power_on_off(modem, 1);
+    modem_dbg("reset %s modem\n", modem->name);
 
-    	/* power on */
-		modem_vbat(modem, 1);
-		msleep(4000);
-        modem_power_on_off(modem, 0);
-        sw_module_delay(700);
-        modem_power_on_off(modem, 1);
+	modem_reset(modem, 0);
+    sw_module_mdelay(100);
+	modem_reset(modem, 1);
+
+    return;
+}
+
+/*
+*******************************************************************************
+*
+* wakeup_in:
+*   H: wakeup cwm600.
+*   L: set cwm600 to sleep mode.
+*
+*******************************************************************************
+*/
+static void cwm600_sleep(struct sw_modem *modem, u32 sleep)
+{
+    modem_dbg("%s modem %s\n", modem->name, (sleep ? "sleep" : "wakeup"));
+
+    if(sleep){
+        modem_sleep(modem, 0);
     }else{
-        modem_power_on_off(modem, 0);
-        sw_module_delay(2500);
-        modem_power_on_off(modem, 1);
-		modem_vbat(modem, 0);
+        modem_sleep(modem, 1);
     }
 
     return;
 }
 
-void cwm600_reset(struct sw_modem *modem)
+static void cwm600_rf_disable(struct sw_modem *modem, u32 disable)
 {
-	modem_reset(modem, 60);
+    modem_dbg("set %s modem rf %s\n", modem->name, (disable ? "disable" : "enable"));
+
+    modem_rf_disable(modem, disable);
+
+    return;
+}
+
+/*
+*******************************************************************************
+* 模组内部默认:
+* vbat  : 低
+* power : 高
+* reset : 高
+* sleep : 高
+*
+* 开机过程:
+* (1)、默认pin配置，power拉高、reset拉高、sleep拉高
+* (1)、vbat拉高
+* (2)、power, 拉低持续0.7s，后拉高
+*
+* 关机过程:
+* (1)、power, 拉低持续2.5s，后拉高
+* (2)、vbat拉低
+*
+*******************************************************************************
+*/
+void cwm600_power(struct sw_modem *modem, u32 on)
+{
+    modem_dbg("set %s modem power %s\n", modem->name, (on ? "on" : "off"));
+
+    if(on){
+        /* default */
+    	modem_reset(modem, 1);
+    	modem_power_on_off(modem, 1);
+    	modem_sleep(modem, 1);
+
+    	/* power on */
+		modem_vbat(modem, 1);
+		msleep(4000);
+
+        modem_power_on_off(modem, 0);
+        sw_module_mdelay(700);
+        modem_power_on_off(modem, 1);
+    }else{
+        modem_power_on_off(modem, 0);
+        sw_module_mdelay(2500);
+        modem_power_on_off(modem, 1);
+		modem_vbat(modem, 0);
+    }
 
     return;
 }
@@ -93,36 +147,35 @@ static int cwm600_start(struct sw_modem *mdev)
 {
     int ret = 0;
 
-    ret = modem_irq_init(mdev);
+    ret = modem_irq_init(mdev, TRIG_EDGE_NEGATIVE);
     if(ret != 0){
        modem_err("err: sw_module_irq_init failed\n");
        return -1;
     }
 
     cwm600_power(mdev, 1);
-    modem_sleep(mdev, 0);
 
     return 0;
 }
 
 static int cwm600_stop(struct sw_modem *mdev)
 {
-    modem_irq_exit(mdev);
     cwm600_power(mdev, 0);
+    modem_irq_exit(mdev);
 
     return 0;
 }
 
 static int cwm600_suspend(struct sw_modem *mdev)
 {
-    modem_sleep(mdev, 1);
+    cwm600_sleep(mdev, 1);
 
     return 0;
 }
 
 static int cwm600_resume(struct sw_modem *mdev)
 {
-    modem_sleep(mdev, 0);
+    cwm600_sleep(mdev, 0);
 
     return 0;
 }
@@ -130,8 +183,8 @@ static int cwm600_resume(struct sw_modem *mdev)
 static struct sw_modem_ops cwm600_ops = {
 	.power          = cwm600_power,
 	.reset          = cwm600_reset,
-	.sleep          = modem_sleep,
-	.rf_disable     = modem_rf_disable,
+	.sleep          = cwm600_sleep,
+	.rf_disable     = cwm600_rf_disable,
 
 	.start          = cwm600_start,
 	.stop           = cwm600_stop,
@@ -177,8 +230,8 @@ static int __init cwm600_init(void)
     }
 
     /* 防止脚本的模组名称bb_name和驱动名称不一致，因此只使用驱动名称 */
-//    if(g_mu509.name[0] == 0){
-    strcpy(g_cwm600.name, g_cwm600_name);
+//    if(g_cwm600.name[0] == 0){
+        strcpy(g_cwm600.name, g_cwm600_name);
 //    }
     g_cwm600.ops = &cwm600_ops;
 
@@ -187,10 +240,11 @@ static int __init cwm600_init(void)
     platform_device_register(&cwm600_device);
 
 	return 0;
-
 pin_init_failed:
 
 get_config_failed:
+
+    modem_dbg("%s modem init failed\n", g_cwm600.name);
 
 	return -1;
 }

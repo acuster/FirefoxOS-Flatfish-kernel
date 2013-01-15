@@ -6357,7 +6357,11 @@ static int rtw_dbg_port(struct net_device *dev,
 				rtw_write16(padapter, 0x6d9, write_value);
 			}
 			break;
-
+		case 0x7a:
+			receive_disconnect(padapter, pmlmeinfo->network.MacAddress
+				, 65535// indicate disconnect caused by no rx
+			);
+			break;
 		case 0x7F:
 			switch(minor_cmd)
 			{
@@ -6542,7 +6546,7 @@ static int rtw_dbg_port(struct net_device *dev,
 							
 						}
 				break;
-				case 0x12:
+				case 0x15:
 					{
 						struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;	
 						DBG_871X("==>silent resete cnts:%d\n",pwrpriv->ips_enter_cnts);
@@ -6559,7 +6563,43 @@ static int rtw_dbg_port(struct net_device *dev,
 						DBG_871X("turn %s Rx RSSI display function\n",(extra_arg==1)?"on":"off");
 						padapter->bRxRSSIDisplay = extra_arg ;						
 					}
-					break;			
+					break;
+				case 0x12: //set rx_stbc
+				{
+					struct registry_priv	*pregpriv = &padapter->registrypriv;
+					// 0: disable, bit(0):enable 2.4g, bit(1):enable 5g, 0x3: enable both 2.4g and 5g
+					//default is set to enable 2.4GHZ for IOT issue with bufflao's AP at 5GHZ
+					if( pregpriv && (extra_arg == 0 || extra_arg == 1|| extra_arg == 2 || extra_arg == 3))
+					{
+						pregpriv->rx_stbc= extra_arg;
+						DBG_871X("set rx_stbc=%d\n",pregpriv->rx_stbc);
+					}
+					else
+						DBG_871X("get rx_stbc=%d\n",pregpriv->rx_stbc);
+					
+				}
+				break;
+				case 0x13: //set ampdu_enable
+				{
+					struct registry_priv	*pregpriv = &padapter->registrypriv;
+					// 0: disable, 0x1:enable (but wifi_spec should be 0), 0x2: force enable (don't care wifi_spec)
+					if( pregpriv && extra_arg >= 0 && extra_arg < 3 )
+					{
+						pregpriv->ampdu_enable= extra_arg;
+						DBG_871X("set ampdu_enable=%d\n",pregpriv->ampdu_enable);
+					}
+					else
+						DBG_871X("get ampdu_enable=%d\n",pregpriv->ampdu_enable);
+					
+				}
+				break;
+				case 0x14: //get wifi_spec
+				{
+					struct registry_priv	*pregpriv = &padapter->registrypriv;
+					DBG_871X("get wifi_spec=%d\n",pregpriv->wifi_spec);
+					
+				}
+				break;
 				case 0xaa:
 					{
 						if(extra_arg> 0x13) extra_arg = 0xFF;
@@ -8084,7 +8124,9 @@ static int rtw_wx_set_priv(struct net_device *dev,
 	struct iw_point *dwrq = (struct iw_point*)awrq;
 
 	//RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_notice_, ("+rtw_wx_set_priv\n"));
-
+	if(dwrq->length == 0)
+		return -EFAULT;
+	
 	len = dwrq->length;
 	if (!(ext = rtw_vmalloc(len)))
 		return -ENOMEM;
@@ -9588,9 +9630,14 @@ static int rtw_mp_start(struct net_device *dev,
 {
 	u8 val8;
 	PADAPTER padapter = rtw_netdev_priv(dev);
-	
+
 	if(padapter->registrypriv.mp_mode ==0)
 	{
+		#ifdef CONFIG_RTL8723A
+		DBG_871X("_rtw_mp_xmit_priv for Download BT patch FW\n");
+		_rtw_mp_xmit_priv(&padapter->xmitpriv);
+		#endif
+	
 		padapter->registrypriv.mp_mode =1;
 
 		rtw_pm_set_ips(padapter,IPS_NONE);
@@ -9598,11 +9645,7 @@ static int rtw_mp_start(struct net_device *dev,
 
 		MPT_InitializeAdapter(padapter, 1);
 	}
-	if(_rtw_init_xmit_priv(&padapter->xmitpriv, padapter) == _FAIL)
-	{
-		DBG_871X("Can't _rtw_init_xmit_priv\n");
-		return -EPERM;
-	}
+
 	if (padapter->registrypriv.mp_mode == 0)
 		return -EPERM;
 
@@ -9623,7 +9666,13 @@ static int rtw_mp_stop(struct net_device *dev,
 
 	if(padapter->registrypriv.mp_mode ==1)
 	{
+		#ifdef CONFIG_RTL8723A
+		DBG_871X("_rtw_mp_xmit_priv reinit for normal mode\n");
+		_rtw_mp_xmit_priv(&padapter->xmitpriv);
+		#endif
+		
 		MPT_DeInitAdapter(padapter);
+		padapter->registrypriv.mp_mode=0;
 	}
 	
 	if (padapter->mppriv.mode != MP_OFF) {
@@ -9796,6 +9845,8 @@ static int rtw_mp_ant_rx(struct net_device *dev,
 	//DBG_871X("%s: input=%s\n", __func__, input);
 	_rtw_memset(extra, 0, wrqu->length);
 	
+	sprintf( extra, "switch Rx antenna to %s", input );
+	
 	for (i=0; i < strlen(input); i++) {
 	
 	switch( input[i] )
@@ -9813,7 +9864,7 @@ static int rtw_mp_ant_rx(struct net_device *dev,
 	padapter->mppriv.antenna_rx = antenna;
 	//DBG_871X("%s:mppriv.antenna_rx=%d\n", __func__, padapter->mppriv.antenna_rx);
 	Hal_SetAntenna(padapter);
-	wrqu->length = strlen(extra) + 1;
+	wrqu->length = strlen(extra);
 	
 	return 0;
 }
@@ -10060,23 +10111,33 @@ static int rtw_mp_pwrtrk(struct net_device *dev,
 	u32 thermal;
 	s32 ret;
 	PADAPTER padapter = rtw_netdev_priv(dev);
+	u8 		input[wrqu->length];
 
+	if (copy_from_user(input, wrqu->pointer, wrqu->length))
+			return -EFAULT;
+
+	_rtw_memset(extra, 0, wrqu->length);
 
 	enable = 1;
 	if (wrqu->length > 1) { // not empty string
-		if (strncmp(extra, "stop", 4) == 0)
+		if (strncmp(input, "stop", 4) == 0)
+		{	
 			enable = 0;
-		else {
-			if (sscanf(extra, "ther=%d", &thermal)) {
+			sprintf(extra, "mp tx power tracking stop");
+		}
+		else if (sscanf(input, "ther=%d", &thermal)) {
 				ret = Hal_SetThermalMeter(padapter, (u8)thermal);
 				if (ret == _FAIL) return -EPERM;
-			} else
+				sprintf(extra, "mp tx power tracking start,target value=%d ok ",thermal);
+		}else	{
 				return -EINVAL;
 		}
 	}
 
 	ret = Hal_SetPowerTracking(padapter, enable);
 	if (ret == _FAIL) return -EPERM;
+
+	wrqu->length = strlen(extra);
 
 	return 0;
 }
@@ -10095,7 +10156,6 @@ static int rtw_mp_psd(struct net_device *dev,
 	
 	wrqu->length = mp_query_psd(padapter, extra);
 	
-
 	return 0;
 }
 
@@ -10502,8 +10562,6 @@ static int rtw_mp_set(struct net_device *dev,
 	u32 subcmd = wrqu->flags;
 	PADAPTER padapter = rtw_netdev_priv(dev);
 
-	DBG_871X("in mp_set extra= %s \n",extra);
-
 	if (padapter == NULL)
 	{
 		return -ENETDOWN;
@@ -10519,16 +10577,6 @@ static int rtw_mp_set(struct net_device *dev,
 
 	switch(subcmd)
 	{
-	case WRITE_REG :
-			DBG_871X("set case write_reg \n");
-			rtw_mp_write_reg (dev,info,wrqu,extra);
-			 break;
-			 
-	case WRITE_RF:
-			DBG_871X("set case write_rf \n");
-			rtw_mp_write_rf (dev,info,wrqu,extra);
-			 break; 
-			 
 	case MP_START:
 			DBG_871X("set case mp_start \n");
 			rtw_mp_start (dev,info,wrqu,extra);
@@ -10543,20 +10591,12 @@ static int rtw_mp_set(struct net_device *dev,
 			DBG_871X("set case mp_bandwidth \n");
 			rtw_mp_bandwidth (dev,info,wrqu,extra);
 			break;
-	case MP_PWRTRK:
-			DBG_871X("set case MP_PWRTRK \n");
-			rtw_mp_pwrtrk (dev,info,wrqu,extra);
-			break;
 				
 	case MP_RESET_STATS:
 			DBG_871X("set case MP_RESET_STATS \n");
 			rtw_mp_reset_stats	(dev,info,wrqu,extra);
 			break;
 			
-	case EFUSE_SET:
-			DBG_871X("efuse set \n");
-			rtw_mp_efuse_set (dev,info,wdata,extra);
-			break;	
 		 		
 	case MP_SetRFPathSwh:		
 			DBG_871X("set MP_SetRFPathSwitch \n");
@@ -10595,13 +10635,21 @@ static int rtw_mp_get(struct net_device *dev,
 	
 	switch(subcmd)
 	{
+	case WRITE_REG :
+			rtw_mp_write_reg (dev,info,wrqu,extra);
+			 break;
+			 
+	case WRITE_RF:
+			rtw_mp_write_rf (dev,info,wrqu,extra);
+			 break; 
+			 
 	case MP_PHYPARA:
 			DBG_871X("mp_get  MP_PHYPARA \n");
 			rtw_mp_phypara(dev,info,wrqu,extra);	
 			break;
 
 	case MP_CHANNEL:
-			DBG_871X("mp_get mp_channel \n");
+			DBG_871X("set case mp_channel \n");
 			rtw_mp_channel (dev,info,wrqu,extra);
 			break;
 			
@@ -10615,22 +10663,22 @@ static int rtw_mp_get(struct net_device *dev,
 			break; 
 			
 	case MP_RATE:
-			DBG_871X("mp_get case mp_rate \n");
+			DBG_871X("set case mp_rate \n");
 			rtw_mp_rate (dev,info,wrqu,extra);
 			break;
 			
 	case MP_TXPOWER:
-			DBG_871X("mp_get case MP_TXPOWER \n");
+			DBG_871X("set case MP_TXPOWER \n");
 			rtw_mp_txpower (dev,info,wrqu,extra);
 			break;
 			
 	case MP_ANT_TX:
-			DBG_871X("mp_get case MP_ANT_TX \n");
+			DBG_871X("set case MP_ANT_TX \n");
 			rtw_mp_ant_tx (dev,info,wrqu,extra);
 			break;
 			
 	case MP_ANT_RX:
-			DBG_871X("mp_get case MP_ANT_RX \n");
+			DBG_871X("set case MP_ANT_RX \n");
 			rtw_mp_ant_rx (dev,info,wrqu,extra);
 			break;
 			
@@ -10640,31 +10688,31 @@ static int rtw_mp_get(struct net_device *dev,
 			break;
 					
 	case MP_CTX:
-			DBG_871X("mp_get case MP_CTX \n");
+			DBG_871X("set case MP_CTX \n");
 			rtw_mp_ctx (dev,info,wrqu,extra);
 			break;
 			
 	case MP_ARX:
-			DBG_871X("mp_get case MP_ARX \n");
+			DBG_871X("set case MP_ARX \n");
 			rtw_mp_arx (dev,info,wrqu,extra);
 			break;
 			
 	case EFUSE_GET:
-			DBG_871X("mp_get EFUSE_GET \n");
+			DBG_871X("efuse get EFUSE_GET \n");
 			rtw_mp_efuse_get(dev,info,wdata,extra);
 		 break; 
 		 
 	case MP_DUMP:
-			DBG_871X("mp_get case MP_DUMP \n");
+			DBG_871X("set case MP_DUMP \n");
 			rtw_mp_dump (dev,info,wrqu,extra);
 		 break; 
 	case MP_PSD:
-			DBG_871X("mp_get case MP_PSD \n");
+			DBG_871X("set case MP_PSD \n");
 			rtw_mp_psd (dev,info,wrqu,extra);
 		 break;
 		 
 	case MP_THER:
-			DBG_871X("mp_get case MP_THER \n");
+			DBG_871X("set case MP_THER \n");
 			rtw_mp_thermal (dev,info,wrqu,extra);
 		break;
 
@@ -10672,7 +10720,14 @@ static int rtw_mp_get(struct net_device *dev,
 			DBG_871X("mp_get MP_QueryDrvStats \n");
 			rtw_mp_QueryDrv  (dev,info,wdata,extra);
 			break;
-			 
+		case MP_PWRTRK:
+			DBG_871X("set case MP_PWRTRK \n");
+			rtw_mp_pwrtrk (dev,info,wrqu,extra);
+			break;			 
+	case EFUSE_SET:
+			DBG_871X("set case efuse set \n");
+			rtw_mp_efuse_set (dev,info,wdata,extra);
+			break;			 
 #ifdef CONFIG_RTL8723A			
 	case MP_SetBT:		
 			DBG_871X("set MP_SetBT \n");
@@ -12350,39 +12405,25 @@ static const struct iw_priv_args rtw_private_args[] = {
 		{ MP_RATE , IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_rate" },//get
 		{ MP_RESET_STATS , IW_PRIV_TYPE_CHAR | 1024, 0, "mp_reset_stats"},
 		{ MP_QUERY , IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK , "mp_query"}, //get
-		{ MP_NULL, IW_PRIV_TYPE_CHAR | 128, 0,"NULL"},//set
 		{ READ_REG , IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "read_reg" },
-		{ MP_NULL, IW_PRIV_TYPE_CHAR | 128, 0,"NULL"},//set
 		{ MP_RATE , IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_rate" },
-		{ MP_NULL, IW_PRIV_TYPE_CHAR | 128, 0,"NULL"},//set
 		{ READ_RF , IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "read_rf" },
-		{ MP_NULL, IW_PRIV_TYPE_CHAR | 128, 0,"NULL"},//set
 		{ MP_PSD , IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_psd"}, 
-		{ MP_NULL, IW_PRIV_TYPE_CHAR | 128, 0,"NULL"},//set
 		{ MP_DUMP, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_dump" },
-		{ MP_NULL, IW_PRIV_TYPE_CHAR | 128, 0,"NULL"},//set
 		{ MP_TXPOWER , IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_txpower"},
-		{ MP_NULL, IW_PRIV_TYPE_CHAR | 128, 0,"NULL"},//set
 		{ MP_ANT_TX , IW_PRIV_TYPE_CHAR | 1024,  IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_ant_tx"},
-		{ MP_NULL, IW_PRIV_TYPE_CHAR | 128, 0,"NULL"},//set
 		{ MP_ANT_RX , IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_ant_rx"},
-		{ WRITE_REG, IW_PRIV_TYPE_CHAR | 1024, 0,"write_reg"},//set
-		{ MP_NULL, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "NULL" },
-		{ WRITE_RF, IW_PRIV_TYPE_CHAR | 1024, 0,"write_rf"},//set
-		{ MP_NULL, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "NULL" },
-		{ MP_NULL, IW_PRIV_TYPE_CHAR | 128, 0,"NULL"},//set
+		{ WRITE_REG , IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "write_reg" },
+		{ WRITE_RF , IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "write_rf" },
 		{ MP_CTX , IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_ctx"},
-		{ MP_NULL, IW_PRIV_TYPE_CHAR | 128, 0,"NULL"},//set
 		{ MP_ARX , IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_arx"},
-		{ MP_NULL, IW_PRIV_TYPE_CHAR | 128, 0,"NULL"},//set
 		{ MP_THER , IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_ther"},
-		{ EFUSE_SET, IW_PRIV_TYPE_CHAR | 1024, 0, "efuse_set" },
+		{ EFUSE_SET, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "efuse_set" },
 		{ EFUSE_GET, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "efuse_get" },
 		{ MP_PWRTRK , IW_PRIV_TYPE_CHAR | 1024, 0, "mp_pwrtrk"},
 		{ MP_QueryDrvStats, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_drvquery" },
 		{ MP_IOCTL, IW_PRIV_TYPE_CHAR | 1024, 0, "mp_ioctl"}, // mp_ioctl	
-		{ MP_SetRFPathSwh, IW_PRIV_TYPE_CHAR | 1024, 0, "mp_setrfpath" },
-		
+		{ MP_SetRFPathSwh, IW_PRIV_TYPE_CHAR | 1024, 0, "mp_setrfpath" },		
 #ifdef CONFIG_RTL8723A
 		{ MP_SetBT, IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "mp_setbt" },
 #endif

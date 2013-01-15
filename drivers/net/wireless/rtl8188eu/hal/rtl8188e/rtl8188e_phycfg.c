@@ -1644,7 +1644,7 @@ PHY_BBConfig8188E(
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	u32	RegVal;
 	u8	TmpU1B=0;
-	u8	value8;
+	u8	value8,CrystalCap;
 
 	phy_InitBBRFRegisterDefinition(Adapter);
 
@@ -1695,6 +1695,10 @@ PHY_BBConfig8188E(
 	//
 	rtStatus = phy_BB8188E_Config_ParaFile(Adapter);
 
+	// write 0x24[16:11] = 0x24[22:17] = CrystalCap
+	CrystalCap = pHalData->CrystalCap & 0x3F;
+	PHY_SetBBReg(Adapter, REG_AFE_XTAL_CTRL, 0x7ff800, (CrystalCap | (CrystalCap << 6)));
+	
 	return rtStatus;
 	
 }
@@ -2926,8 +2930,7 @@ PHY_SetBWMode8188E(
 		//pHalData->SetBWModeInProgress= FALSE;
 		pHalData->CurrentChannelBW = tmpBW;
 	}
-	ODM_CmnInfoUpdate(&pHalData->odmpriv,ODM_CMNINFO_BW, pHalData->CurrentChannelBW );
-	ODM_CmnInfoUpdate(&pHalData->odmpriv,ODM_CMNINFO_SEC_CHNL_OFFSET,pHalData->nCur40MhzPrimeSC );
+	
 }
 
 

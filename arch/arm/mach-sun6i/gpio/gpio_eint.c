@@ -794,7 +794,7 @@ u32 sw_gpio_irq_request(u32 gpio, enum gpio_eint_trigtype trig_type,
 		gpio, trig_type, (u32)handle, (u32)para);
 
 	/* request gpio */
-	WARN(0 != gpio_request(gpio, NULL), "%s err, request gpio %d failed!\n", __func__, gpio);
+	//WARN(0 != gpio_request(gpio, NULL), "%s err, request gpio %d failed!\n", __func__, gpio);
 	WARN(NULL == handle, "%s err, handle is NULL!\n", __func__);
 	if(false == is_gpio_canbe_eint(gpio)) {
 		usign = __LINE__;
@@ -841,7 +841,7 @@ end:
 			free_irq(irq_no, (void *)pdev_id);
 		if(NULL != pdev_id)
 			kfree(pdev_id);
-		gpio_free(gpio);
+		//gpio_free(gpio);
 		return 0;
 	}
 	return (u32)pdev_id;
@@ -876,7 +876,7 @@ void sw_gpio_irq_free(u32 handle)
 	free_irq(irq_no, (void *)pdev_id);
 	kfree((void *)pdev_id);
 	/* free gpio */
-	gpio_free(gpio);
+	//gpio_free(gpio);
 	return;
 }
 EXPORT_SYMBOL(sw_gpio_irq_free);

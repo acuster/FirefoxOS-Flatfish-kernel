@@ -24,10 +24,13 @@
 #include "mem_clk.h"
 #include "mem_timing.h"
 
-#define PM_STANDBY_PRINT_STANDBY (1U << 0)
-#define PM_STANDBY_PRINT_RESUME (1U << 1)
-#define PM_STANDBY_PRINT_IO_STATUS (1U << 2)
-#define PM_STANDBY_PRINT_CACHE_TLB_MISS (1U << 3)
+typedef enum{
+	PM_STANDBY_PRINT_STANDBY = (1U << 0),
+	PM_STANDBY_PRINT_RESUME = (1U << 1),
+	PM_STANDBY_PRINT_IO_STATUS = (1U << 2),
+	PM_STANDBY_PRINT_CACHE_TLB_MISS = (1U << 3),
+	PM_STANDBY_PRINT_CCU_STATUS = (1U << 4)
+}debug_mask_flag;
 
 #ifdef CONFIG_ARCH_SUN4I
 #define INT_REG_LENGTH	((0x90+0x4)>>2)
@@ -40,6 +43,7 @@
 #elif defined CONFIG_ARCH_SUN6I
 #define GPIO_REG_LENGTH	((0x278+0x4)>>2)
 #define SRAM_REG_LENGTH	((0x94+0x4)>>2)
+#define CCU_REG_LENGTH	((0x308+0x4)>>2)
 #elif defined CONFIG_ARCH_SUN7I
 #define GPIO_REG_LENGTH	((0x218+0x4)>>2)
 #define SRAM_REG_LENGTH	((0x94+0x4)>>2)
@@ -75,7 +79,9 @@ struct aw_mem_para{
 	volatile __u32 mem_flag;
 	__u32 axp_event;
 	__u32 sys_event;
+	__u32 cpus_gpio_wakeup;
 	__u32 debug_mask;
+	__u32 suspend_delay_ms;
 	__u32 saved_runtime_context_svc[RUNTIME_CONTEXT_SIZE];
 	struct clk_div_t clk_div;
 	struct pll_factor_t pll_factor;

@@ -452,7 +452,7 @@ static int __init sun6ikbd_init(void)
 err_alloc_data_failed:
 #endif
 fail3:	
-	free_irq(SW_INT_IRQNO_LRADC, sun6i_isr_key);
+	free_irq(SW_INT_IRQNO_LRADC, NULL);
 fail2:	
 	input_free_device(sun6ikbd_dev);
 fail1:
@@ -466,7 +466,7 @@ static void __exit sun6ikbd_exit(void)
 #ifdef CONFIG_HAS_EARLYSUSPEND	
 	unregister_early_suspend(&keyboard_data->early_suspend);	
 #endif
-	free_irq(SW_INT_IRQNO_LRADC, sun6i_isr_key);
+	free_irq(SW_INT_IRQNO_LRADC, NULL);
 	input_unregister_device(sun6ikbd_dev);
 }
 

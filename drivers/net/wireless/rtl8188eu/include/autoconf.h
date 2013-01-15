@@ -48,11 +48,18 @@
 	#endif
 #endif
 
+#ifdef CONFIG_PLATFORM_ARM_SUN6I
+	#ifndef CONFIG_IOCTL_CFG80211 
+		#define CONFIG_IOCTL_CFG80211 1
+	#endif
+#endif
+
 #ifdef CONFIG_IOCTL_CFG80211
 	#define RTW_USE_CFG80211_STA_EVENT /* Opne this for Android 4.1's wpa_supplicant */
 	#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
 	//#define CONFIG_DEBUG_CFG80211 1
 	//#define CONFIG_DRV_ISSUE_PROV_REQ // IOT FOR S2
+	#define CONFIG_SET_SCAN_DENY_TIMER
 #endif
 
 /*
@@ -104,6 +111,7 @@
 	#ifdef CONFIG_ANTENNA_DIVERSITY	 
 	#define CONFIG_HW_ANTENNA_DIVERSITY		
 	#endif
+
 
 	#define CONFIG_CONCURRENT_MODE 1
 	#ifdef CONFIG_CONCURRENT_MODE
@@ -217,6 +225,12 @@
 //#define CONFIG_USE_USB_BUFFER_ALLOC_RX 1	// For RX path
 
 #ifdef CONFIG_PLATFORM_ARM_SUNxI
+	#ifndef 	CONFIG_USE_USB_BUFFER_ALLOC_TX 
+		#define CONFIG_USE_USB_BUFFER_ALLOC_TX
+	#endif
+#endif
+
+#ifdef CONFIG_PLATFORM_ARM_SUN6I
 	#ifndef 	CONFIG_USE_USB_BUFFER_ALLOC_TX 
 		#define CONFIG_USE_USB_BUFFER_ALLOC_TX
 	#endif
@@ -371,4 +385,9 @@
 //#define DBG_HAL_INIT_PROFILING
 
 //#define DBG_MEMORY_LEAK	1
+
+//TX use 1 urb
+//#define CONFIG_SINGLE_XMIT_BUF
+//RX use 1 urb
+//#define CONFIG_SINGLE_RECV_BUF
 

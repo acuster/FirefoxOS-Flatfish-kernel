@@ -50,13 +50,10 @@ int resume1_c_part(void)
 
 #ifdef MMU_OPENED
 	save_mem_status(RESUME1_START |0x02);
-	//serial_puts("resume1: 2. \n", 13);
 
 	//move other storage to sram: saved_resume_pointer(virtual addr), saved_mmu_state
 	mem_memcpy((void *)&mem_para_info, (void *)(DRAM_BACKUP_BASE_ADDR1), sizeof(mem_para_info));
 #else
-	//config uart
-	serial_init_nommu();
 	//config jtag gpio
 	*(volatile __u32 * )(0x01c20800 + 0x100) = 0x00033330;
 
@@ -66,6 +63,8 @@ int resume1_c_part(void)
 	mem_memcpy((void *)&mem_para_info, (void *)(DRAM_BACKUP_BASE_ADDR1_PA), sizeof(mem_para_info));
 	
 	if(unlikely(mem_para_info.debug_mask&PM_STANDBY_PRINT_RESUME)){
+		//config uart
+		serial_init_nommu();
 		serial_puts_nommu("resume1: 0. \n");
 	}
 #if 1
@@ -74,7 +73,7 @@ int resume1_c_part(void)
 	mem_clk_setdiv(&mem_para_info.clk_div);
 	mem_clk_set_pll_factor(&mem_para_info.pll_factor);
 	change_runtime_env(0);
-	delay_ms(5);
+	delay_ms(mem_para_info.suspend_delay_ms);
 	
 	if(unlikely(mem_para_info.debug_mask&PM_STANDBY_PRINT_RESUME)){
 		serial_puts_nommu("resume1: 1. before restore mmu. \n");

@@ -58,7 +58,7 @@ int rtw_rfintfs = HWPI;
 int rtw_lbkmode = 0;//RTL8712_AIR_TRX;
 
 
-int rtw_network_mode = Ndis802_11IBSS;//Ndis802_11Infrastructure;//infra, ad-hoc, auto	  
+int rtw_network_mode = Ndis802_11IBSS;//Ndis802_11Infrastructure;//infra, ad-hoc, auto
 //NDIS_802_11_SSID	ssid;
 int rtw_channel = 1;//ad-hoc support requirement 
 int rtw_wireless_mode = WIRELESS_11BG_24N;
@@ -73,17 +73,17 @@ int rtw_soft_ap = 0;
 //int smart_ps = 1;  
 #ifdef CONFIG_POWER_SAVING
 int rtw_power_mgnt = 1;
-#else
-int rtw_power_mgnt = PS_MODE_ACTIVE;
-#endif
-
-int rtw_smart_ps = 2;
-
 #ifdef CONFIG_IPS_LEVEL_2
 int rtw_ips_mode = IPS_LEVEL_2;
 #else
 int rtw_ips_mode = IPS_NORMAL;
 #endif
+#else
+int rtw_power_mgnt = PS_MODE_ACTIVE;
+int rtw_ips_mode = IPS_NONE;
+#endif
+
+int rtw_smart_ps = 2;
 
 #ifdef CONFIG_TX_EARLY_MODE
 int rtw_early_mode=1;
@@ -97,18 +97,16 @@ int rtw_short_retry_lmt = 7;
 int rtw_busy_thresh = 40;
 //int qos_enable = 0; //*
 int rtw_ack_policy = NORMAL_ACK;
-#ifdef CONFIG_MP_INCLUDED
-int rtw_mp_mode = 1;
-#else
+
 int rtw_mp_mode = 0;
-#endif
+
 int rtw_software_encrypt = 0;
-int rtw_software_decrypt = 0;	  
+int rtw_software_decrypt = 0;
 
 int rtw_acm_method = 0;// 0:By SW 1:By HW.
  
 int rtw_wmm_enable = 1;// default is set to enable the wmm.
-int rtw_uapsd_enable = 0;	  
+int rtw_uapsd_enable = 0;
 int rtw_uapsd_max_sp = NO_LIMIT;
 int rtw_uapsd_acbk_en = 0;
 int rtw_uapsd_acbe_en = 0;
@@ -157,7 +155,7 @@ int rtw_enusbss = 0;//0:disable,1:enable
 int rtw_hwpdn_mode=2;//0:disable,1:enable,2: by EFUSE config
 
 #ifdef CONFIG_HW_PWRP_DETECTION
-int rtw_hwpwrp_detect = 1; 
+int rtw_hwpwrp_detect = 1;
 #else
 int rtw_hwpwrp_detect = 0; //HW power  ping detect 0:disable , 1:enable
 #endif
@@ -180,12 +178,23 @@ int rtw_dmsp = 0;
 int rtw_80211d = 0;
 #endif
 
+#ifdef CONFIG_SPECIAL_SETTING_FOR_FUNAI_TV
+int rtw_force_ant = 2;//0 :normal, 1:Main ant, 2:Aux ant
+int rtw_force_igi =0;//0 :normal
+module_param(rtw_force_ant, int, 0644);
+module_param(rtw_force_igi, int, 0644);
+#endif
 
 char* ifname = "wlan%d";
+module_param(ifname, charp, 0644);
+MODULE_PARM_DESC(ifname, "The default name to allocate for first interface");
+
+char* if2name = "wlan%d";
+module_param(if2name, charp, 0644);
+MODULE_PARM_DESC(if2name, "The default name to allocate for second interface");
 
 char* rtw_initmac = 0;  // temp mac address if users want to use instead of the mac address in Efuse
 
-module_param(ifname, charp, 0644);
 module_param(rtw_initmac, charp, 0644);
 module_param(rtw_channel_plan, int, 0644);
 module_param(rtw_chip_version, int, 0644);
@@ -315,7 +324,7 @@ void rtw_proc_init_one(struct net_device *dev)
 		else
 		{
 			_rtw_memcpy(rtw_proc_name, RTW_PROC_NAME, sizeof(RTW_PROC_NAME));
-		}		
+		}
 
 #if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
 		rtw_proc=create_proc_entry(rtw_proc_name, S_IFDIR, proc_net);
@@ -327,9 +336,9 @@ void rtw_proc_init_one(struct net_device *dev)
 			return;
 		}
 
-		entry = create_proc_read_entry("ver_info", S_IFREG | S_IRUGO, rtw_proc, proc_get_drv_version, dev);				   
+		entry = create_proc_read_entry("ver_info", S_IFREG | S_IRUGO, rtw_proc, proc_get_drv_version, dev);
 		if (!entry) {
-			DBG_871X("Unable to create_proc_read_entry!\n"); 
+			DBG_871X("Unable to create_proc_read_entry!\n");
 			return;
 		}
 	}
@@ -338,8 +347,8 @@ void rtw_proc_init_one(struct net_device *dev)
 
 	if(padapter->dir_dev == NULL)
 	{
-		padapter->dir_dev = create_proc_entry(dev->name, 
-					  S_IFDIR | S_IRUGO | S_IXUGO, 
+		padapter->dir_dev = create_proc_entry(dev->name,
+					  S_IFDIR | S_IRUGO | S_IXUGO,
 					  rtw_proc);
 
 		dir_dev = padapter->dir_dev;
@@ -370,157 +379,157 @@ void rtw_proc_init_one(struct net_device *dev)
 	rtw_proc_cnt++;
 
 	entry = create_proc_read_entry("write_reg", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_write_reg, dev);				   
+				   dir_dev, proc_get_write_reg, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 	entry->write_proc = proc_set_write_reg;
 
 	entry = create_proc_read_entry("read_reg", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_read_reg, dev);				   
+				   dir_dev, proc_get_read_reg, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 	entry->write_proc = proc_set_read_reg;
 
 	
 	entry = create_proc_read_entry("fwstate", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_fwstate, dev);				   
+				   dir_dev, proc_get_fwstate, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 
 
 	entry = create_proc_read_entry("sec_info", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_sec_info, dev);				   
+				   dir_dev, proc_get_sec_info, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 
 
 	entry = create_proc_read_entry("mlmext_state", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_mlmext_state, dev);				   
+				   dir_dev, proc_get_mlmext_state, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 
 
 	entry = create_proc_read_entry("qos_option", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_qos_option, dev);				   
+				   dir_dev, proc_get_qos_option, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 
 	entry = create_proc_read_entry("ht_option", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_ht_option, dev);				   
+				   dir_dev, proc_get_ht_option, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 
 	entry = create_proc_read_entry("rf_info", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_rf_info, dev);				   
+				   dir_dev, proc_get_rf_info, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 	
 	entry = create_proc_read_entry("ap_info", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_ap_info, dev);				   
+				   dir_dev, proc_get_ap_info, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 
 	entry = create_proc_read_entry("adapter_state", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_adapter_state, dev);				   
+				   dir_dev, proc_get_adapter_state, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 
 	entry = create_proc_read_entry("trx_info", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_trx_info, dev);				   
+				   dir_dev, proc_get_trx_info, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 
 	entry = create_proc_read_entry("mac_reg_dump1", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_mac_reg_dump1, dev);				   
+				   dir_dev, proc_get_mac_reg_dump1, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 
 	entry = create_proc_read_entry("mac_reg_dump2", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_mac_reg_dump2, dev);				   
+				   dir_dev, proc_get_mac_reg_dump2, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 
 	entry = create_proc_read_entry("mac_reg_dump3", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_mac_reg_dump3, dev);				   
+				   dir_dev, proc_get_mac_reg_dump3, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 	
 	entry = create_proc_read_entry("bb_reg_dump1", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_bb_reg_dump1, dev);	   
+				   dir_dev, proc_get_bb_reg_dump1, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 
 	entry = create_proc_read_entry("bb_reg_dump2", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_bb_reg_dump2, dev);	   
+				   dir_dev, proc_get_bb_reg_dump2, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 
 	entry = create_proc_read_entry("bb_reg_dump3", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_bb_reg_dump3, dev);	   
+				   dir_dev, proc_get_bb_reg_dump3, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 
 	entry = create_proc_read_entry("rf_reg_dump1", S_IFREG | S_IRUGO,
 				   dir_dev, proc_get_rf_reg_dump1, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 
 	entry = create_proc_read_entry("rf_reg_dump2", S_IFREG | S_IRUGO,
 				   dir_dev, proc_get_rf_reg_dump2, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 	
-	rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));	
+	rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 	if((RF_1T2R == rf_type) ||(RF_1T1R ==rf_type ))	{
 		entry = create_proc_read_entry("rf_reg_dump3", S_IFREG | S_IRUGO,
 					   dir_dev, proc_get_rf_reg_dump3, dev);
 		if (!entry) {
-			DBG_871X("Unable to create_proc_read_entry!\n"); 
+			DBG_871X("Unable to create_proc_read_entry!\n");
 			return;
 		}
 
 		entry = create_proc_read_entry("rf_reg_dump4", S_IFREG | S_IRUGO,
 					   dir_dev, proc_get_rf_reg_dump4, dev);
 		if (!entry) {
-			DBG_871X("Unable to create_proc_read_entry!\n"); 
+			DBG_871X("Unable to create_proc_read_entry!\n");
 			return;
 		}
 	}
@@ -528,48 +537,84 @@ void rtw_proc_init_one(struct net_device *dev)
 #ifdef CONFIG_AP_MODE
 
 	entry = create_proc_read_entry("all_sta_info", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_all_sta_info, dev);				   
+				   dir_dev, proc_get_all_sta_info, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 #endif
 
 #ifdef DBG_MEMORY_LEAK
 	entry = create_proc_read_entry("_malloc_cnt", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_malloc_cnt, dev);				   
+				   dir_dev, proc_get_malloc_cnt, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 #endif
 
 #ifdef CONFIG_FIND_BEST_CHANNEL
 	entry = create_proc_read_entry("best_channel", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_best_channel, dev);				   
+				   dir_dev, proc_get_best_channel, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 #endif
 
 	entry = create_proc_read_entry("rx_signal", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_rx_signal, dev);				   
+				   dir_dev, proc_get_rx_signal, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 	entry->write_proc = proc_set_rx_signal;
-
+#ifdef CONFIG_80211N_HT
+	entry = create_proc_read_entry("cbw40_enable", S_IFREG | S_IRUGO,
+				   dir_dev, proc_get_cbw40_enable, dev);
+	if (!entry) {
+		DBG_871X("Unable to create_proc_read_entry!\n");
+		return;
+	}
+	entry->write_proc = proc_set_cbw40_enable;
+	
+	entry = create_proc_read_entry("ampdu_enable", S_IFREG | S_IRUGO,
+				   dir_dev, proc_get_ampdu_enable, dev);
+	if (!entry) {
+		DBG_871X("Unable to create_proc_read_entry!\n");
+		return;
+	}
+	entry->write_proc = proc_set_ampdu_enable;
+	
+	entry = create_proc_read_entry("rx_stbc", S_IFREG | S_IRUGO,
+				   dir_dev, proc_get_rx_stbc, dev);
+	if (!entry) {
+		DBG_871X("Unable to create_proc_read_entry!\n");
+		return;
+	}
+	entry->write_proc = proc_set_rx_stbc;
+#endif //CONFIG_80211N_HT
+	
+	entry = create_proc_read_entry("path_rssi", S_IFREG | S_IRUGO,
+					dir_dev, proc_get_two_path_rssi, dev);
+	
 
 	entry = create_proc_read_entry("rssi_disp", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_rssi_disp, dev);				   
+				   dir_dev, proc_get_rssi_disp, dev);
 	if (!entry) {
-		DBG_871X("Unable to create_proc_read_entry!\n"); 
+		DBG_871X("Unable to create_proc_read_entry!\n");
 		return;
 	}
 	entry->write_proc = proc_set_rssi_disp;
-
+#ifdef CONFIG_BT_COEXIST
+	entry = create_proc_read_entry("btcoex_dbg", S_IFREG | S_IRUGO,
+				   dir_dev, proc_get_btcoex_dbg, dev);
+	if (!entry) {
+		DBG_871X("Unable to create_proc_read_entry!\n");
+		return;
+	}
+	entry->write_proc = proc_set_btcoex_dbg;
+#endif /*CONFIG_BT_COEXIST*/
 }
 
 void rtw_proc_remove_one(struct net_device *dev)
@@ -620,8 +665,20 @@ void rtw_proc_remove_one(struct net_device *dev)
 		remove_proc_entry("best_channel", dir_dev);
 #endif 
 		remove_proc_entry("rx_signal", dir_dev);
+#ifdef CONFIG_80211N_HT
+		remove_proc_entry("cbw40_enable", dir_dev);
+		
+		remove_proc_entry("ampdu_enable", dir_dev);
+
+		remove_proc_entry("rx_stbc", dir_dev);
+#endif //CONFIG_80211N_HT
+		remove_proc_entry("path_rssi", dir_dev);
 
 		remove_proc_entry("rssi_disp", dir_dev);
+
+#ifdef CONFIG_BT_COEXIST
+		remove_proc_entry("btcoex_dbg", dir_dev);
+#endif //CONFIG_BT_COEXIST
 
 		remove_proc_entry(dev->name, rtw_proc);
 		dir_dev = NULL;
@@ -732,7 +789,7 @@ _func_enter_;
 
 	registry_par->antdiv_cfg = (u8)rtw_antdiv_cfg;
 	registry_par->antdiv_type = (u8)rtw_antdiv_type;
-	
+
 #ifdef CONFIG_AUTOSUSPEND
 	registry_par->usbss_enable = (u8)rtw_enusbss;//0:disable,1:enable
 #endif
@@ -744,7 +801,7 @@ _func_enter_;
 	registry_par->hw_wps_pbc = (u8)rtw_hw_wps_pbc;
 
 #ifdef CONFIG_ADAPTOR_INFO_CACHING_FILE
-	snprintf(registry_par->adaptor_info_caching_file_path, PATH_LENGTH_MAX, "%s",rtw_adaptor_info_caching_file_path);
+	snprintf(registry_par->adaptor_info_caching_file_path, PATH_LENGTH_MAX, "%s", rtw_adaptor_info_caching_file_path);
 	registry_par->adaptor_info_caching_file_path[PATH_LENGTH_MAX-1]=0;
 #endif
 
@@ -764,8 +821,15 @@ _func_enter_;
 	registry_par->enable80211d = (u8)rtw_80211d;
 #endif
 
+	snprintf(registry_par->ifname, 16, "%s", ifname);
+	snprintf(registry_par->if2name, 16, "%s", if2name);
+
 	registry_par->notch_filter = (u8)rtw_notch_filter;
 
+#ifdef CONFIG_SPECIAL_SETTING_FOR_FUNAI_TV
+	registry_par->force_ant = (u8)rtw_force_ant;
+	registry_par->force_igi = (u8)rtw_force_igi;
+#endif
 _func_exit_;
 
 	return status;
@@ -853,6 +917,35 @@ static u16 rtw_select_queue(struct net_device *dev, struct sk_buff *skb)
 
 	return rtw_1d_to_queue[skb->priority];
 }
+
+u16 rtw_recv_select_queue(struct sk_buff *skb)
+{
+	struct iphdr *piphdr;
+	unsigned int dscp;
+	u16	eth_type;
+	u32 priority;
+	u8 *pdata = skb->data;
+
+	_rtw_memcpy(&eth_type, pdata+(ETH_ALEN<<1), 2);
+
+	switch (eth_type) {
+		case htons(ETH_P_IP):
+
+			piphdr = (struct iphdr *)(pdata+ETH_HLEN);
+
+			dscp = piphdr->tos & 0xfc;
+			
+			priority = dscp >> 5;
+			
+			break;
+		default:
+			priority = 0;
+	}
+
+	return rtw_1d_to_queue[priority];
+	
+}
+
 #endif
 
 #if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,29))
@@ -901,10 +994,10 @@ int rtw_init_netdev_name(struct net_device *pnetdev, const char *ifname)
 			
 			dev_put(TargetNetdev);
 			unregister_netdev(TargetNetdev);
-#ifdef CONFIG_PROC_DEBUG
+
 			if(TargetAdapter->chip_type == padapter->chip_type)
 				rtw_proc_remove_one(TargetNetdev);
-#endif
+
 			padapter->DriverState = DRIVER_REPLACE_DONGLE;
 		}
 	}
@@ -963,7 +1056,9 @@ struct net_device *rtw_init_netdev(_adapter *old_padapter)
 #endif	
 	//pnetdev->tx_timeout = NULL;
 	pnetdev->watchdog_timeo = HZ*3; /* 3 second timeout */
+#ifdef CONFIG_WIRELESS_EXT
 	pnetdev->wireless_handlers = (struct iw_handler_def *)&rtw_handlers_def;
+#endif
 
 #ifdef WIRELESS_SPY
 	//priv->wireless_data.spy_data = &priv->spy_data;
@@ -979,35 +1074,47 @@ struct net_device *rtw_init_netdev(_adapter *old_padapter)
 
 u32 rtw_start_drv_threads(_adapter *padapter)
 {
-
 	u32 _status = _SUCCESS;
 
 	RT_TRACE(_module_os_intfs_c_,_drv_info_,("+rtw_start_drv_threads\n"));
 #ifdef CONFIG_XMIT_THREAD_MODE
-	padapter->xmitThread = kernel_thread(rtw_xmit_thread, padapter, CLONE_FS|CLONE_FILES);
-	if(padapter->xmitThread < 0)
+#if defined(CONFIG_SDIO_HCI) && defined(CONFIG_CONCURRENT_MODE)
+	if(padapter->adapter_type == PRIMARY_ADAPTER){
+#endif
+	padapter->xmitThread = kthread_run(rtw_xmit_thread, padapter, "RTW_XMIT_THREAD");
+	if(IS_ERR(padapter->xmitThread))
 		_status = _FAIL;
+#if defined(CONFIG_SDIO_HCI) && defined(CONFIG_CONCURRENT_MODE)
+	}
+#endif		// CONFIG_SDIO_HCI+CONFIG_CONCURRENT_MODE
 #endif
 
 #ifdef CONFIG_RECV_THREAD_MODE
-	padapter->recvThread = kernel_thread(rtw_recv_thread, padapter, CLONE_FS|CLONE_FILES);
-	if(padapter->recvThread < 0)
+	padapter->recvThread = kthread_run(rtw_recv_thread, padapter, "RTW_RECV_THREAD");
+	if(IS_ERR(padapter->recvThread))
 		_status = _FAIL;	
 #endif
 
-	padapter->cmdThread = kernel_thread(rtw_cmd_thread, padapter, CLONE_FS|CLONE_FILES);
-	if(padapter->cmdThread < 0)
-		_status = _FAIL;
-	else
-		_rtw_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema); //wait for cmd_thread to run
+
+#ifdef CONFIG_CONCURRENT_MODE
+	if(padapter->isprimary == _TRUE)
+#endif //CONFIG_CONCURRENT_MODE
+	{
+		padapter->cmdThread = kthread_run(rtw_cmd_thread, padapter, "RTW_CMD_THREAD");
+	        if(IS_ERR(padapter->cmdThread))
+			_status = _FAIL;
+		else
+			_rtw_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema); //wait for cmd_thread to run
+	}	
 		
 
 #ifdef CONFIG_EVENT_THREAD_MODE
-	padapter->evtThread = kernel_thread(event_thread, padapter, CLONE_FS|CLONE_FILES);
-	if(padapter->evtThread < 0)
+	padapter->evtThread = kthread_run(event_thread, padapter, "RTW_EVENT_THREAD");
+	if(IS_ERR(padapter->evtThread))
 		_status = _FAIL;		
 #endif
 
+	rtw_hal_start_thread(padapter);
 	return _status;
 
 }
@@ -1016,12 +1123,17 @@ void rtw_stop_drv_threads (_adapter *padapter)
 {
 	RT_TRACE(_module_os_intfs_c_,_drv_info_,("+rtw_stop_drv_threads\n"));	
 
-	//Below is to termindate rtw_cmd_thread & event_thread...
-	_rtw_up_sema(&padapter->cmdpriv.cmd_queue_sema);
-	//_rtw_up_sema(&padapter->cmdpriv.cmd_done_sema);
-	if(padapter->cmdThread){
-		_rtw_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);
-	}
+#ifdef CONFIG_CONCURRENT_MODE
+	if(padapter->isprimary == _TRUE)
+#endif //CONFIG_CONCURRENT_MODE
+	{
+		//Below is to termindate rtw_cmd_thread & event_thread...
+		_rtw_up_sema(&padapter->cmdpriv.cmd_queue_sema);
+		//_rtw_up_sema(&padapter->cmdpriv.cmd_done_sema);
+		if(padapter->cmdThread){
+			_rtw_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);
+		}
+	}	
 
 #ifdef CONFIG_EVENT_THREAD_MODE
         _rtw_up_sema(&padapter->evtpriv.evt_notify);
@@ -1032,8 +1144,14 @@ void rtw_stop_drv_threads (_adapter *padapter)
 
 #ifdef CONFIG_XMIT_THREAD_MODE
 	// Below is to termindate tx_thread...
-	_rtw_up_sema(&padapter->xmitpriv.xmit_sema);	
+#if defined(CONFIG_SDIO_HCI) && defined(CONFIG_CONCURRENT_MODE)	
+	// Only wake-up primary adapter
+	if(padapter->adapter_type == PRIMARY_ADAPTER) 
+#endif  //SDIO_HCI + CONCURRENT
+	{
+	_rtw_up_sema(&padapter->xmitpriv.xmit_sema);
 	_rtw_down_sema(&padapter->xmitpriv.terminate_xmitthread_sema);
+	}
 	RT_TRACE(_module_os_intfs_c_,_drv_info_,("\n drv_halt: rtw_xmit_thread can be terminated ! \n"));
 #endif
 	 
@@ -1044,7 +1162,7 @@ void rtw_stop_drv_threads (_adapter *padapter)
 	RT_TRACE(_module_os_intfs_c_,_drv_info_,("\n drv_halt:recv_thread can be terminated! \n"));
 #endif
 
-
+	rtw_hal_stop_thread(padapter);
 }
 
 u8 rtw_init_default_value(_adapter *padapter);
@@ -1129,10 +1247,6 @@ u8 rtw_reset_drv_sw(_adapter *padapter)
 	padapter->bWritePortCancel = _FALSE;
 	padapter->bRxRSSIDisplay = 0;
 	pmlmepriv->scan_interval = SCAN_INTERVAL;// 30*2 sec = 60sec
-	
-	pwrctrlpriv->bips_processing = _FALSE;		
-	pwrctrlpriv->rf_pwrstate = rf_on;
-	pwrctrlpriv->bInSuspend = _FALSE;
 
 	padapter->xmitpriv.tx_pkts = 0;
 	padapter->recvpriv.rx_pkts = 0;
@@ -1143,12 +1257,12 @@ u8 rtw_reset_drv_sw(_adapter *padapter)
 
 #ifdef CONFIG_AUTOSUSPEND	
 	#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,22) && LINUX_VERSION_CODE<=KERNEL_VERSION(2,6,34))
-		padapter->dvobjpriv.pusbdev->autosuspend_disabled = 1;//autosuspend disabled by the user
+		adapter_to_dvobj(padapter)->pusbdev->autosuspend_disabled = 1;//autosuspend disabled by the user
 	#endif
 #endif
 
 #ifdef DBG_CONFIG_ERROR_DETECT
-	rtw_hal_silent_reset(padapter);
+	rtw_hal_sreset_reset_value(padapter);
 #endif
 	pwrctrlpriv->pwr_state_check_cnts = 0;
 
@@ -1276,6 +1390,11 @@ _func_enter_;
 	}
 #endif //CONFIG_INTEL_WIDI
 
+#ifdef CONFIG_WAPI_SUPPORT
+	padapter->WapiSupport = true; //set true temp, will revise according to Efuse or Registry value later.
+	rtw_wapi_init(padapter);
+#endif
+
 #ifdef CONFIG_BR_EXT
 	_rtw_spinlock_init(&padapter->br_ext_lock);
 #endif	// CONFIG_BR_EXT
@@ -1289,6 +1408,14 @@ exit:
 	return ret8;
 	
 }
+
+#ifdef CONFIG_WOWLAN
+void rtw_cancel_dynamic_chk_timer(_adapter *padapter)
+{
+	_cancel_timer_ex(&padapter->mlmepriv.dynamic_chk_timer);
+	RT_TRACE(_module_os_intfs_c_,_drv_info_,("rtw_cancel_all_timer:cancel dynamic_chk_timer! \n"));
+}
+#endif
 
 void rtw_cancel_all_timer(_adapter *padapter)
 {
@@ -1337,6 +1464,9 @@ u8 rtw_free_drv_sw(_adapter *padapter)
 
 	RT_TRACE(_module_os_intfs_c_,_drv_info_,("==>rtw_free_drv_sw"));
 
+#ifdef CONFIG_WAPI_SUPPORT
+	rtw_wapi_free(padapter);
+#endif
 
 	//we can call rtw_p2p_enable here, but:
 	// 1. rtw_p2p_enable may have IO operation
@@ -1401,9 +1531,9 @@ u8 rtw_free_drv_sw(_adapter *padapter)
 		padapter->rereg_nd_name_priv.old_pnetdev = NULL;
 	}	
 
-	if(pnetdev)
-	{
-		rtw_free_netdev(pnetdev);
+	// clear pbuddy_adapter to avoid access wrong pointer.
+	if(padapter->pbuddy_adapter != NULL) {
+		padapter->pbuddy_adapter->pbuddy_adapter = NULL;
 	}
 
 	RT_TRACE(_module_os_intfs_c_,_drv_info_,("-rtw_free_drv_sw\n"));
@@ -1424,7 +1554,7 @@ int _netdev_if2_open(struct net_device *pnetdev)
 	{
 		_netdev_open(primary_padapter->pnetdev);
 	}
-	
+
 	if(padapter->bup == _FALSE && primary_padapter->bup == _TRUE && 
 		primary_padapter->hw_init_completed == _TRUE)
 	{
@@ -1434,16 +1564,11 @@ int _netdev_if2_open(struct net_device *pnetdev)
 	 	padapter->bSurpriseRemoved = _FALSE;	 
 		padapter->bCardDisableWOHSM = _FALSE;
 		
-
-		_rtw_memcpy(pnetdev->dev_addr, padapter->eeprompriv.mac_addr, ETH_ALEN); 
-
-
-		_rtw_memcpy(padapter->HalData, primary_padapter->HalData, padapter->hal_data_sz);
+//		_rtw_memcpy(padapter->HalData, primary_padapter->HalData, padapter->hal_data_sz);
+		rtw_hal_clone_data(padapter, primary_padapter);
 
 		padapter->bFWReady = primary_padapter->bFWReady;
 		
-		rtw_hal_set_hwreg(padapter, HW_VAR_MAC_ADDR, pnetdev->dev_addr);
-
 		//if (init_mlme_ext_priv(padapter) == _FAIL)
 		//	goto netdev_if2_open_error;	
 
@@ -1463,10 +1588,8 @@ int _netdev_if2_open(struct net_device *pnetdev)
 		padapter->hw_init_completed = _TRUE;
 		
 
-#ifdef CONFIG_PROC_DEBUG
 		padapter->dir_dev = NULL;
 		rtw_proc_init_one(pnetdev);
-#endif
 
 
 #ifdef CONFIG_IOCTL_CFG80211
@@ -1485,6 +1608,19 @@ int _netdev_if2_open(struct net_device *pnetdev)
 		rtw_netif_start_queue(pnetdev);
 	else
 		rtw_netif_wake_queue(pnetdev);
+
+#ifdef CONFIG_P2P
+	init_wifidirect_info( padapter, P2P_ROLE_DISABLE );
+	reset_global_wifidirect_info( padapter );
+#ifdef CONFIG_WFD
+	if(rtw_init_wifi_display_info(padapter) == _FAIL)
+	{
+		RT_TRACE(_module_os_intfs_c_,_drv_err_,("\n Can't init init_wifi_display_info\n"));
+
+		goto netdev_if2_open_error;
+	}
+#endif //CONFIG_WFD	
+#endif // CONFIG_P2P	
 
 	DBG_871X("-871x_drv - if2_open, bup=%d\n", padapter->bup);
 	return 0;
@@ -1524,8 +1660,7 @@ static int netdev_if2_close(struct net_device *pnetdev)
 	}
 
 #ifdef CONFIG_IOCTL_CFG80211
-	DBG_871X("call rtw_cfg80211_scan_abort when netdev_if2_close\n");
-	rtw_cfg80211_scan_abort(padapter);
+	rtw_scan_abort(padapter);
 	wdev_to_priv(padapter->rtw_wdev)->bandroid_scan = _FALSE;
 #endif
 
@@ -1540,6 +1675,9 @@ static const struct net_device_ops rtw_netdev_if2_ops = {
         .ndo_set_mac_address = rtw_net_set_mac_address,
         .ndo_get_stats = rtw_net_get_stats,
         .ndo_do_ioctl = rtw_ioctl,
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
+	.ndo_select_queue	= rtw_select_queue,
+#endif	
 };
 #endif
 
@@ -1547,28 +1685,37 @@ static const struct net_device_ops rtw_netdev_if2_ops = {
 #ifdef CONFIG_USB_HCI
 	#include <usb_hal.h>
 #endif
-
-struct net_device *rtw_drv_if2_init(_adapter *primary_padapter, char *name)
+#ifdef CONFIG_SDIO_HCI
+	#include <sdio_hal.h>
+#endif
+_adapter *rtw_drv_if2_init(_adapter *primary_padapter, char *name,
+	void (*set_intf_ops)(struct _io_ops *pops))
 {
 	int res = _FAIL;
 	struct net_device *pnetdev;	
 	_adapter *padapter = NULL;
 	struct dvobj_priv *pdvobjpriv;
 	u8 mac[ETH_ALEN];
-	void (*set_hal_ops)(_adapter * padapter);
-#ifdef CONFIG_USB_HCI
-	struct usb_interface *pusb_intf;
-	struct usb_device *pusbdev;
-#endif
 
+	/****** init netdev ******/
 	pnetdev = rtw_init_netdev(NULL);
 	if (!pnetdev) 
 		goto error_rtw_drv_if2_init;
 
-	//
-	padapter = rtw_netdev_priv(pnetdev);
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,29))
+	DBG_871X("register rtw_netdev_if2_ops to netdev_ops\n");
+	pnetdev->netdev_ops = &rtw_netdev_if2_ops;
+#else
+	pnetdev->open = netdev_if2_open;
+	pnetdev->stop = netdev_if2_close;		
+#endif
+	
+#ifdef CONFIG_NO_WIRELESS_HANDLERS
+	pnetdev->wireless_handlers = NULL;
+#endif
 
-	//
+	/****** init adapter ******/
+	padapter = rtw_netdev_priv(pnetdev);
 	_rtw_memcpy(padapter, primary_padapter, sizeof(_adapter));
 	padapter->ph2c_fwcmd_mutex = primary_padapter->ph2c_fwcmd_mutex;
 	padapter->psetch_mutex = primary_padapter->psetch_mutex;
@@ -1579,77 +1726,54 @@ struct net_device *rtw_drv_if2_init(_adapter *primary_padapter, char *name)
 	padapter->bup = _FALSE;
 	padapter->net_closed = _TRUE;
 	padapter->hw_init_completed = _FALSE;
-	
 
-	//
-	padapter->pnetdev = pnetdev;
-
-	//
-#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,29))
-	DBG_871X("register rtw_netdev_if2_ops to netdev_ops\n");
-	pnetdev->netdev_ops = &rtw_netdev_if2_ops;
-#else
-	pnetdev->open = netdev_if2_open;
-	pnetdev->stop = netdev_if2_close;		
-#endif
-
-	
-#ifdef CONFIG_NO_WIRELESS_HANDLERS
-	pnetdev->wireless_handlers = NULL;
-#endif
-
-	pdvobjpriv = &padapter->dvobjpriv;
-	pdvobjpriv->padapter = padapter;
-	
 
 	//set adapter_type/iface type
 	padapter->isprimary = _FALSE;
 	padapter->adapter_type = SECONDARY_ADAPTER;
+	padapter->pbuddy_adapter = primary_padapter;		
+#ifndef CONFIG_HWPORT_SWAP			//Port0 -> Pri , Port1 -> Sec
+	padapter->iface_type = IFACE_PORT1;
+#else	
+	padapter->iface_type = IFACE_PORT0;
+#endif  //CONFIG_HWPORT_SWAP
+	//
+	padapter->pnetdev = pnetdev;
 
-	padapter->iface_type = IFACE_PORT0;//
-	//padapter->iface_type = IFACE_PORT1;//
-	
-	padapter->pbuddy_adapter = primary_padapter;
+	/****** setup dvobj ******/
+	pdvobjpriv = adapter_to_dvobj(padapter);
+	pdvobjpriv->if2 = padapter;
 
-#ifdef CONFIG_USB_HCI	
-	pusb_intf = primary_padapter->dvobjpriv.pusbintf;
-	pusbdev = primary_padapter->dvobjpriv.pusbdev;
-	
-	SET_NETDEV_DEV(pnetdev, &pusb_intf->dev);
-	pdvobjpriv->pusbintf = pusb_intf ;
-	pdvobjpriv->pusbdev = pusbdev;
-	//pdvobjpriv->pusbdev = interface_to_usbdev(pusb_intf);
-
-#ifdef CONFIG_IOCTL_CFG80211
-	rtw_wdev_alloc(padapter, &pusb_intf->dev);
-#endif //CONFIG_IOCTL_CFG80211
-	
-#endif
+	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(pdvobjpriv));
+	#ifdef CONFIG_IOCTL_CFG80211
+	rtw_wdev_alloc(padapter, dvobj_to_dev(pdvobjpriv));
+	#endif //CONFIG_IOCTL_CFG80211
 
 	//set interface_type/chip_type/HardwareType
 	padapter->interface_type = primary_padapter->interface_type;		
 	padapter->chip_type = primary_padapter->chip_type;
 	padapter->HardwareType = primary_padapter->HardwareType;
 	
-	//set hal data & hal ops
-	set_hal_ops =&hal_set_hal_ops;
-	if(set_hal_ops == NULL)
-		goto error_rtw_drv_if2_init;
-	set_hal_ops(padapter);
+	//step 2. hook HalFunc, allocate HalData
+	hal_set_hal_ops(padapter);
 	
 	padapter->HalFunc.inirp_init = NULL;
 	padapter->HalFunc.inirp_deinit = NULL;
 
-
 	//	
-	padapter->dvobj_init = primary_padapter->dvobj_init;	
-	padapter->dvobj_deinit = primary_padapter->dvobj_deinit;
 	padapter->intf_start = primary_padapter->intf_start;
 	padapter->intf_stop = primary_padapter->intf_stop;
 
-	//initialize the dvobj_priv
-	if(padapter->dvobj_init(padapter) != _SUCCESS)
-		goto error_rtw_drv_if2_init;
+	//step init_io_priv
+	if ((rtw_init_io_priv(padapter, set_intf_ops)) == _FAIL) {
+		RT_TRACE(_module_hci_intfs_c_,_drv_err_,(" \n Can't init io_reqs\n"));
+	}
+
+	//step read_chip_version
+	rtw_hal_read_chip_version(padapter);
+
+	//step usb endpoint mapping
+	rtw_hal_chip_configure(padapter);
 
 
 	//init drv data
@@ -1659,10 +1783,9 @@ struct net_device *rtw_drv_if2_init(_adapter *primary_padapter, char *name)
 
 	// alloc dev name after got efuse data.
 	if(name == NULL)
-		name = ifname;
+		name = padapter->registrypriv.if2name;
 	
 	rtw_init_netdev_name(pnetdev, name);
-	
 	//get mac address from primary_padapter
 	_rtw_memcpy(mac, primary_padapter->eeprompriv.mac_addr, ETH_ALEN);
 	
@@ -1690,18 +1813,9 @@ struct net_device *rtw_drv_if2_init(_adapter *primary_padapter, char *name)
 	
 	_rtw_memcpy(pnetdev->dev_addr, mac, ETH_ALEN);
 
-	DBG_871X("MAC Address (if2) = %02x:%02x:%02x:%02x:%02x:%02x\n",
-				mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	DBG_871X("MAC Address (if2) = "MAC_FMT"\n", MAC_ARG(mac));
 
-
-	primary_padapter->pbuddy_adapter = padapter;
-	
-	//set adapter_type/iface type for primary padapter
-	primary_padapter->isprimary = _TRUE;
-	primary_padapter->adapter_type = PRIMARY_ADAPTER;	
-	//primary_padapter->iface_type = IFACE_PORT0;//
-	primary_padapter->iface_type = IFACE_PORT1;//
-	
+	primary_padapter->pbuddy_adapter = padapter;	
 
 	//prepare concurrent shared data buffer
 	if(!primary_padapter->pcodatapriv)
@@ -1727,20 +1841,16 @@ struct net_device *rtw_drv_if2_init(_adapter *primary_padapter, char *name)
 	
 	res = _SUCCESS;
 
-	//return res;
-	return pnetdev;
+	return padapter;
 
 		
 error_rtw_drv_if2_init:
 
-	padapter->dvobj_deinit(padapter);
-
-	//if(padapter->HalData)
-	//	rtw_mfree(padapter->HalData, sizeof(HAL_DATA_TYPE));
-
 	rtw_free_drv_sw(padapter);	
-	
-	//return res;
+
+	if (pnetdev)
+		rtw_free_netdev(pnetdev);
+
 	return NULL;
 	
 }
@@ -1771,12 +1881,7 @@ void rtw_drv_if2_free(_adapter *primary_padapter)
 	if(pnetdev) 
 	{
 		unregister_netdev(pnetdev); //will call netdev_close()
-
-#ifdef CONFIG_PROC_DEBUG
-		if(padapter->bup == _TRUE)
-			rtw_proc_remove_one(pnetdev);
-#endif		
-		
+		rtw_proc_remove_one(pnetdev);
 	}
 
 	rtw_cancel_all_timer(padapter);
@@ -1791,11 +1896,6 @@ void rtw_drv_if2_free(_adapter *primary_padapter)
 		}
 
 		rtw_stop_drv_threads(padapter);
-
-		if(padapter->dvobj_deinit)
-		{
-			padapter->dvobj_deinit(padapter);
-		}
 		
 		padapter->bup = _FALSE;
 	}
@@ -1806,10 +1906,11 @@ void rtw_drv_if2_free(_adapter *primary_padapter)
 	
 	rtw_free_drv_sw(padapter);
 
-	
 #ifdef CONFIG_IOCTL_CFG80211
 	rtw_wdev_free(wdev);
 #endif //CONFIG_IOCTL_CFG80211
+
+	rtw_free_netdev(pnetdev);
 
 	//free concurrent shared data buffer
 	if(primary_padapter->pcodatapriv)
@@ -1886,11 +1987,11 @@ int _netdev_open(struct net_device *pnetdev)
 	}
 
 	if(padapter->bup == _FALSE)
-	{    
+	{
 		padapter->bDriverStopped = _FALSE;
-	 	padapter->bSurpriseRemoved = _FALSE;	 
-		padapter->bCardDisableWOHSM = _FALSE;        	
-	
+	 	padapter->bSurpriseRemoved = _FALSE;
+		padapter->bCardDisableWOHSM = _FALSE;
+
 		status = rtw_hal_init(padapter);
 		if (status ==_FAIL)
 		{			
@@ -1900,7 +2001,6 @@ int _netdev_open(struct net_device *pnetdev)
 		
 		DBG_871X("MAC Address = "MAC_FMT"\n", MAC_ARG(pnetdev->dev_addr));
 
-		
 		status=rtw_start_drv_threads(padapter);
 		if(status ==_FAIL)
 		{			
@@ -1908,13 +2008,11 @@ int _netdev_open(struct net_device *pnetdev)
 			goto netdev_open_error;			
 		}
 
-
 		if (init_hw_mlme_ext(padapter) == _FAIL)
 		{
 			RT_TRACE(_module_os_intfs_c_,_drv_err_,("can't init mlme_ext_priv\n"));
 			goto netdev_open_error;
 		}
-
 
 #ifdef CONFIG_DRVEXT_MODULE
 		init_drvext(padapter);
@@ -1925,10 +2023,8 @@ int _netdev_open(struct net_device *pnetdev)
 			padapter->intf_start(padapter);
 		}
 
-#ifdef CONFIG_PROC_DEBUG
 #ifndef RTK_DMP_PLATFORM
 		rtw_proc_init_one(pnetdev);
-#endif
 #endif
 
 #ifdef CONFIG_IOCTL_CFG80211
@@ -1943,11 +2039,8 @@ int _netdev_open(struct net_device *pnetdev)
 
 	_set_timer(&padapter->mlmepriv.dynamic_chk_timer, 2000);
 
-	if(( pwrctrlpriv->power_mgnt != PS_MODE_ACTIVE ) ||(padapter->pwrctrlpriv.bHWPwrPindetect))
-	{
-		padapter->pwrctrlpriv.bips_processing = _FALSE;	
-		rtw_set_pwr_state_check_timer(&padapter->pwrctrlpriv);
- 	}
+	padapter->pwrctrlpriv.bips_processing = _FALSE;	
+	rtw_set_pwr_state_check_timer(&padapter->pwrctrlpriv);
 
 	//netif_carrier_on(pnetdev);//call this func when rtw_joinbss_event_callback return success
 	if(!rtw_netif_queue_stopped(pnetdev))
@@ -1959,7 +2052,28 @@ int _netdev_open(struct net_device *pnetdev)
 	netdev_br_init(pnetdev);
 #endif	// CONFIG_BR_EXT
 
+#ifdef CONFIG_P2P
+	init_wifidirect_info( padapter, P2P_ROLE_DISABLE );
+	reset_global_wifidirect_info( padapter );
+#ifdef CONFIG_WFD
+	if(rtw_init_wifi_display_info(padapter) == _FAIL)
+	{
+		RT_TRACE(_module_os_intfs_c_,_drv_err_,("\n Can't init init_wifi_display_info\n"));
+
+		goto netdev_open_error;
+	}
+#endif //CONFIG_WFD	
+#endif // CONFIG_P2P
+
 netdev_open_normal_process:
+
+	#ifdef CONFIG_CONCURRENT_MODE
+	{
+		_adapter *sec_adapter = padapter->pbuddy_adapter;
+		if(sec_adapter && (sec_adapter->bup == _FALSE || sec_adapter->hw_init_completed == _FALSE))
+			_netdev_if2_open(sec_adapter->pnetdev);
+	}
+	#endif
 
 	RT_TRACE(_module_os_intfs_c_,_drv_info_,("-871x_drv - dev_open\n"));
 	DBG_871X("-871x_drv - drv_open, bup=%d\n", padapter->bup);
@@ -2003,7 +2117,7 @@ int  ips_netdrv_open(_adapter *padapter)
 	padapter->bDriverStopped = _FALSE;
 	padapter->bSurpriseRemoved = _FALSE;
 	padapter->bCardDisableWOHSM = _FALSE;
-	padapter->bup = _TRUE;
+	//padapter->bup = _TRUE;
 
 	status = rtw_hal_init(padapter);
 	if (status ==_FAIL)
@@ -2023,7 +2137,7 @@ int  ips_netdrv_open(_adapter *padapter)
 	 return _SUCCESS;
 
 netdev_open_error:
-	padapter->bup = _FALSE;
+	//padapter->bup = _FALSE;
 	DBG_871X("-ips_netdrv_open - drv_open failure, bup=%d\n", padapter->bup);
 
 	return _FAIL;
@@ -2036,6 +2150,7 @@ int rtw_ips_pwr_up(_adapter *padapter)
 	u32 start_time = rtw_get_current_time();
 	DBG_871X("===>  rtw_ips_pwr_up..............\n");
 	rtw_reset_drv_sw(padapter);
+
 	result = ips_netdrv_open(padapter);
 
 	rtw_led_control(padapter, LED_CTL_NO_LINK);
@@ -2084,7 +2199,9 @@ void rtw_ips_dev_unload(_adapter *padapter)
 int pm_netdev_open(struct net_device *pnetdev,u8 bnormal)
 {
 	int status;
-	if(bnormal)
+
+
+	if (_TRUE == bnormal)
 		status = netdev_open(pnetdev);
 #ifdef CONFIG_IPS
 	else
@@ -2093,7 +2210,7 @@ int pm_netdev_open(struct net_device *pnetdev,u8 bnormal)
 
 	return status;
 }
-//extern int rfpwrstate_check(_adapter *padapter);
+
 static int netdev_close(struct net_device *pnetdev)
 {
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(pnetdev);
@@ -2102,7 +2219,7 @@ static int netdev_close(struct net_device *pnetdev)
 
 	if(padapter->pwrctrlpriv.bInternalAutoSuspend == _TRUE)
 	{
-		//rfpwrstate_check(padapter);
+		//rtw_pwr_wakeup(padapter);
 		if(padapter->pwrctrlpriv.rf_pwrstate == rf_off)
 			padapter->pwrctrlpriv.ps_flag = _TRUE;
 	}
@@ -2159,10 +2276,14 @@ static int netdev_close(struct net_device *pnetdev)
 #endif //CONFIG_P2P
 
 #ifdef CONFIG_IOCTL_CFG80211
-	rtw_cfg80211_scan_abort(padapter);
+	rtw_scan_abort(padapter);
 	wdev_to_priv(padapter->rtw_wdev)->bandroid_scan = _FALSE;
 	padapter->rtw_wdev->iftype = NL80211_IFTYPE_MONITOR; //set this at the end
 #endif //CONFIG_IOCTL_CFG80211
+
+#ifdef CONFIG_WAPI_SUPPORT
+	rtw_wapi_disable_tx(padapter);
+#endif
 
 	RT_TRACE(_module_os_intfs_c_,_drv_info_,("-871x_drv - drv_close\n"));
 	DBG_871X("-871x_drv - drv_close, bup=%d\n", padapter->bup);

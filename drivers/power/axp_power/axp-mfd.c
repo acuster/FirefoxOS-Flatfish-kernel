@@ -400,6 +400,10 @@ static int __devinit axp_mfd_probe(struct i2c_client *client,
   				client->irq);
   		goto out_free_chip;
   	}
+  	/* enable ar100 system axp irq,
+  	 * by sunny at 2013-1-10 9:00:59.
+  	 */
+  	ar100_enable_axp_irq();
 #endif
 
 	ret = axp_mfd_add_subdevs(chip, pdata);

@@ -602,9 +602,9 @@ ssize_t write_store(struct class *class, struct class_attribute *attr,
 }
 
 static struct class_attribute dump_class_attrs[] = {
-	__ATTR(dump, 	0666, dump_show, dump_store),
-	__ATTR(compare,	0666, compare_show, compare_store),
-	__ATTR(write,	0666, write_show, write_store),
+	__ATTR(dump, 	0664, dump_show, dump_store),
+	__ATTR(compare,	0664, compare_show, compare_store),
+	__ATTR(write,	0664, write_show, write_store),
 	__ATTR_NULL,
 };
 
@@ -785,9 +785,9 @@ static ssize_t misc_write_show(struct device *dev,
 	return __sunxi_write_show(misc_wt_group, buf);
 }
 
-static DEVICE_ATTR(dump, 0666, misc_dump_show, misc_dump_store);
-static DEVICE_ATTR(compare, 0666, misc_compare_show, misc_compare_store);
-static DEVICE_ATTR(write, 0666, misc_write_show, misc_write_store);
+static DEVICE_ATTR(dump, 0664, misc_dump_show, misc_dump_store);
+static DEVICE_ATTR(compare, 0664, misc_compare_show, misc_compare_store);
+static DEVICE_ATTR(write, 0664, misc_write_show, misc_write_store);
 static struct attribute *misc_attributes[] = {
 	&dev_attr_dump.attr,
 	&dev_attr_compare.attr,

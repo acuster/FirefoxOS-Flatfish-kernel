@@ -307,7 +307,11 @@ int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 		bAllow = _TRUE;
 
 	if( (pcmdpriv->padapter->hw_init_completed ==_FALSE && bAllow == _FALSE)
-		|| pcmdpriv->cmdthd_running== _FALSE //com_thread not running
+		|| ((pcmdpriv->cmdthd_running== _FALSE	//com_thread not running
+#ifdef CONFIG_CONCURRENT_MODE
+			) && (pcmdpriv->padapter->isprimary == _TRUE
+#endif
+		))
 	)		
 	{
 		//DBG_871X("%s:%s: drop cmdcode:%u, hw_init_completed:%u, cmdthd_running:%u\n", caller_func, __FUNCTION__,
@@ -326,6 +330,7 @@ int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 u32 rtw_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 {
 	int res = _FAIL;
+	PADAPTER padapter = pcmdpriv->padapter;
 	
 _func_enter_;	
 	
@@ -337,6 +342,13 @@ _func_enter_;
 		rtw_free_cmd_obj(cmd_obj);
 		goto exit;
 	}
+
+	cmd_obj->padapter = padapter;
+
+#ifdef CONFIG_CONCURRENT_MODE
+	if (padapter->adapter_type != PRIMARY_ADAPTER && padapter->pbuddy_adapter)
+		pcmdpriv = &(padapter->pbuddy_adapter->cmdpriv);
+#endif	
 
 	res = _rtw_enqueue_cmd(&pcmdpriv->cmd_queue, cmd_obj);
 
@@ -394,7 +406,6 @@ _func_enter_;
 	
 _func_exit_;		
 }
-
 
 thread_return rtw_cmd_thread(thread_context context)
 {
@@ -472,7 +483,7 @@ _next:
 
 			if (cmd_hdl)
 			{
-				ret = cmd_hdl(padapter, pcmdbuf);
+				ret = cmd_hdl(pcmd->padapter, pcmdbuf);
 				pcmd->res = ret;
 			}
 
@@ -499,7 +510,7 @@ post_process:
 			else
 			{
 				//todo: !!! fill rsp_buf to pcmd->rsp if (pcmd->rsp!=NULL)
-				pcmd_callback(padapter, pcmd);//need conider that free cmd_obj in rtw_cmd_callback
+				pcmd_callback(pcmd->padapter, pcmd);//need conider that free cmd_obj in rtw_cmd_callback
 			}
 		}
 		else
@@ -1940,10 +1951,10 @@ static void traffic_status_watchdog(_adapter *padapter)
 #ifdef CONFIG_FTP_PROTECT
 		DBG_871X("RX in period:%d, TX in period:%d, ftp_lock_flag:%d\n", 
 			pmlmepriv->LinkDetectInfo.NumRxOkInPeriod,
-			pmlmepriv->LinkDetectInfo.NumRxOkInPeriod,
+			pmlmepriv->LinkDetectInfo.NumTxOkInPeriod,
 			pmlmepriv->ftp_lock_flag);
 		
-		bPktCount = pmlmepriv->LinkDetectInfo.NumRxOkInPeriod + pmlmepriv->LinkDetectInfo.NumRxOkInPeriod;
+		bPktCount = pmlmepriv->LinkDetectInfo.NumRxOkInPeriod + pmlmepriv->LinkDetectInfo.NumTxOkInPeriod;
 		if (bPktCount > 20 && !pmlmepriv->ftp_lock_flag) {
 			pmlmepriv->ftp_lock_flag = 1;
 			rtw_lock_suspend();
@@ -2448,7 +2459,7 @@ exit:
 }
 #endif
 
-u8 rtw_c2h_wk_cmd(PADAPTER padapter)
+u8 rtw_c2h_wk_cmd(PADAPTER padapter, u8 *c2h_evt)
 {
 	struct cmd_obj *ph2c;
 	struct drvextra_cmd_parm *pdrvextra_cmd_parm;
@@ -2469,8 +2480,8 @@ u8 rtw_c2h_wk_cmd(PADAPTER padapter)
 	}
 
 	pdrvextra_cmd_parm->ec_id = C2H_WK_CID;
-	pdrvextra_cmd_parm->type_size = 0;
-	pdrvextra_cmd_parm->pbuf = NULL;
+	pdrvextra_cmd_parm->type_size = c2h_evt?16:0;
+	pdrvextra_cmd_parm->pbuf = c2h_evt;
 
 	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
 
@@ -2479,6 +2490,25 @@ u8 rtw_c2h_wk_cmd(PADAPTER padapter)
 exit:
 	
 	return res;
+}
+
+s32 c2h_cmd_hdl(_adapter *adapter, struct c2h_evt_hdr *c2h_evt)
+{
+	s32 ret = _FAIL;
+	u8 buf[16];
+
+	if (!c2h_evt) {
+		/* No c2h event in cmd_obj, read c2h event before handling*/
+		while (c2h_evt_read(adapter, buf) == _SUCCESS) {
+			c2h_evt = (struct c2h_evt_hdr *)buf;
+			ret = rtw_hal_c2h_handler(adapter, c2h_evt);
+		}
+	} else {
+		c2h_evt_clear(adapter);
+		ret = rtw_hal_c2h_handler(adapter, c2h_evt);
+	}
+exit:
+	return ret;
 }
 
 u8 rtw_drvextra_cmd_hdl(_adapter *padapter, unsigned char *pbuf)
@@ -2535,7 +2565,7 @@ u8 rtw_drvextra_cmd_hdl(_adapter *padapter, unsigned char *pbuf)
 #endif //CONFIG_INTEL_WIDI
 
 		case C2H_WK_CID:
-			rtw_hal_set_hwreg(padapter, HW_VAR_C2H_HANDLE, NULL);
+			c2h_cmd_hdl(padapter, (struct c2h_evt_hdr *)pdrvextra_cmd->pbuf);
 			break;
 
 		default:

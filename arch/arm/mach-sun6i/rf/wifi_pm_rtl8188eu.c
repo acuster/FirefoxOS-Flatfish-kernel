@@ -34,9 +34,12 @@ static int rtl8188eu_module_power(int onoff)
 		ret = regulator_force_disable(wifi_ldo);
 		if (ret < 0) {
 			rtl8188eu_msg("regulator_force_disable fail, return %d.\n", ret);
+			regulator_put(wifi_ldo);
 			return ret;
 		}
+		regulator_put(wifi_ldo);
 		first = 0;
+		return ret;
 	}
 
 	if (onoff) {
@@ -44,12 +47,14 @@ static int rtl8188eu_module_power(int onoff)
 		ret = regulator_set_voltage(wifi_ldo, 3300000, 3300000);
 		if (ret < 0) {
 			rtl8188eu_msg("regulator_set_voltage fail, return %d.\n", ret);
+			regulator_put(wifi_ldo);
 			return ret;
 		}
 
 		ret = regulator_enable(wifi_ldo);
 		if (ret < 0) {
 			rtl8188eu_msg("regulator_enable fail, return %d.\n", ret);
+			regulator_put(wifi_ldo);
 			return ret;
 		}
 	} else {
@@ -57,9 +62,11 @@ static int rtl8188eu_module_power(int onoff)
 		ret = regulator_disable(wifi_ldo);
 		if (ret < 0) {
 			rtl8188eu_msg("regulator_disable fail, return %d.\n", ret);
+			regulator_put(wifi_ldo);
 			return ret;
 		}
 	}
+	regulator_put(wifi_ldo);
 	return ret;
 }
 
@@ -122,4 +129,8 @@ void rtl8188eu_gpio_init(void)
 	rtk8188eu_suspend = 0;
 	ops->power     = rtl8188eu_power;
 	ops->standby   = rtl8188eu_standby;
+
+	// force to disable wifi power in system booting,
+	// make sure wifi power is down when system start up
+	rtl8188eu_module_power(0);
 }

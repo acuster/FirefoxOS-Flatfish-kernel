@@ -224,7 +224,9 @@ void rtl8188e_sreset_linked_status_check(_adapter *padapter)
 	rx_dma_status = rtw_read32(padapter,REG_RXDMA_STATUS);
 	if(rx_dma_status!= 0x00){
 		DBG_8192C("%s REG_RXDMA_STATUS:0x%08x",__FUNCTION__,rx_dma_status);
+		rtw_write32(padapter,REG_RXDMA_STATUS,rx_dma_status);
 	}	
+	
 #if 0
 	u32 regc50,regc58,reg824,reg800;
 	regc50 = rtw_read32(padapter,0xc50);

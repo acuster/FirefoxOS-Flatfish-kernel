@@ -2448,7 +2448,7 @@ exit:
 }
 #endif
 
-u8 rtw_c2h_wk_cmd(PADAPTER padapter)
+u8 rtw_c2h_wk_cmd(PADAPTER padapter, u8 *c2h_evt)
 {
 	struct cmd_obj *ph2c;
 	struct drvextra_cmd_parm *pdrvextra_cmd_parm;
@@ -2469,8 +2469,8 @@ u8 rtw_c2h_wk_cmd(PADAPTER padapter)
 	}
 
 	pdrvextra_cmd_parm->ec_id = C2H_WK_CID;
-	pdrvextra_cmd_parm->type_size = 0;
-	pdrvextra_cmd_parm->pbuf = NULL;
+	pdrvextra_cmd_parm->type_size = c2h_evt?16:0;
+	pdrvextra_cmd_parm->pbuf = c2h_evt;
 
 	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
 
@@ -2535,7 +2535,7 @@ u8 rtw_drvextra_cmd_hdl(_adapter *padapter, unsigned char *pbuf)
 #endif //CONFIG_INTEL_WIDI
 
 		case C2H_WK_CID:
-			rtw_hal_set_hwreg(padapter, HW_VAR_C2H_HANDLE, NULL);
+			rtw_hal_set_hwreg(padapter, HW_VAR_C2H_HANDLE, pdrvextra_cmd->pbuf);
 			break;
 
 		default:

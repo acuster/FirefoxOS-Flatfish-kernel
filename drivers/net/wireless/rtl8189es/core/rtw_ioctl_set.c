@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -32,6 +32,10 @@
 #endif
 #ifdef CONFIG_SDIO_HCI
 #include <sdio_osintf.h>
+#endif
+
+#ifdef CONFIG_GSPI_HCI
+#include <gspi_osintf.h>
 #endif
 
 extern void indicate_wx_scan_complete_event(_adapter *padapter);
@@ -116,8 +120,14 @@ _func_enter_;
 			RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_info_,("rtw_do_join(): site survey if scanned_queue is empty\n."));
 			// submit site_survey_cmd
 			if(_SUCCESS!=(ret=rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1)) ) {
+				pmlmepriv->to_join = _FALSE;
 				RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_err_,("rtw_do_join(): site survey return error\n."));
 			}
+		}
+		else
+		{
+			pmlmepriv->to_join = _FALSE;
+			ret = _FAIL;
 		}
 		
 		goto exit;
@@ -130,12 +140,6 @@ _func_enter_;
 		{
 			pmlmepriv->to_join = _FALSE;
 			_set_timer(&pmlmepriv->assoc_timer, MAX_JOIN_TIMEOUT);
-		}
-		else if(ret == 2)//there is no need to wait for join
-		{
-			ret = _SUCCESS;
-			clr_fwstate(pmlmepriv, _FW_UNDER_LINKING);
-			rtw_indicate_connect(padapter);
 		}
 		else	
 		{
@@ -199,11 +203,15 @@ _func_enter_;
 				{
 					//DBG_871X("rtw_do_join() when   no desired bss in scanning queue \n");
 					if( _SUCCESS!=(ret=rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1)) ){
+						pmlmepriv->to_join = _FALSE;
 						RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_err_,("do_join(): site survey return error\n."));
 					}
 				}				
-
-
+				else
+				{
+					ret = _FAIL;
+					pmlmepriv->to_join = _FALSE;
+				}
 			}
 
 		}
@@ -323,8 +331,7 @@ u8 rtw_set_802_11_bssid(_adapter* padapter, u8 *bssid)
 	
 _func_enter_;
 	
-	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_notice_,
-		 ("+rtw_set_802_11_bssid: bssid="MAC_FMT"\n", MAC_ARG(bssid) ));
+	DBG_871X_LEVEL(_drv_always_, "set bssid:%pM\n", bssid);
 
 	if ((bssid[0]==0x00 && bssid[1]==0x00 && bssid[2]==0x00 && bssid[3]==0x00 && bssid[4]==0x00 &&bssid[5]==0x00) ||
 	    (bssid[0]==0xFF && bssid[1]==0xFF && bssid[2]==0xFF && bssid[3]==0xFF && bssid[4]==0xFF &&bssid[5]==0xFF))
@@ -423,9 +430,8 @@ u8 rtw_set_802_11_ssid(_adapter* padapter, NDIS_802_11_SSID *ssid)
 	
 _func_enter_;
 	
-	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_notice_,
-		 ("+rtw_set_802_11_ssid: ssid=[%s] fw_state=0x%08x\n",
-		  ssid->Ssid, get_fwstate(pmlmepriv)));
+	DBG_871X_LEVEL(_drv_always_, "set ssid [%s] fw_state=0x%08x\n",
+		       	ssid->Ssid, get_fwstate(pmlmepriv));
 
 	if(padapter->hw_init_completed==_FALSE){
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
@@ -599,19 +605,6 @@ _func_enter_;
 		RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_info_,(" change mode!"));
 		//DBG_871X("change mode, old_mode=%d, new_mode=%d, fw_state=0x%x\n", *pold_state, networktype, get_fwstate(pmlmepriv));
 
-		if((check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE) ||(*pold_state==Ndis802_11IBSS))
-			rtw_disassoc_cmd(padapter);
-
-		if((check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE) ||
-			(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)== _TRUE) )
-			rtw_free_assoc_resources(padapter, 1);
-
-
-		if((check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE) || (*pold_state==Ndis802_11Infrastructure) ||(*pold_state==Ndis802_11IBSS))
-		{		
-			rtw_indicate_disconnect(padapter); //will clr Linked_state; before this function, we must have chked whether  issue dis-assoc_cmd or not
-		}	
-	
 		if(*pold_state==Ndis802_11APMode)
 		{		
 			//change to other mode from Ndis802_11APMode			
@@ -620,13 +613,26 @@ _func_enter_;
 #ifdef CONFIG_NATIVEAP_MLME
 			stop_ap_mode(padapter);
 #endif
-		}	
+		}
+
+		if((check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE) ||(*pold_state==Ndis802_11IBSS))
+			rtw_disassoc_cmd(padapter);
+
+		if((check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE) ||
+			(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)== _TRUE) )
+			rtw_free_assoc_resources(padapter, 1);
+
+		if((*pold_state == Ndis802_11Infrastructure) ||(*pold_state == Ndis802_11IBSS))
+	       {
+			if(check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+			{		
+				rtw_indicate_disconnect(padapter); //will clr Linked_state; before this function, we must have chked whether  issue dis-assoc_cmd or not
+			}
+	       }
 		
 		*pold_state = networktype;
 
-				// clear WIFI_STATION_STATE; WIFI_AP_STATE; WIFI_ADHOC_STATE; WIFI_ADHOC_MASTER_STATE
-		//pmlmepriv->fw_state &= 0xffffff87;		
-		_clr_fwstate_(pmlmepriv, WIFI_STATION_STATE|WIFI_AP_STATE|WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE);
+		_clr_fwstate_(pmlmepriv, ~WIFI_NULL_STATE);
 				
 		switch(networktype)
 		{
@@ -681,7 +687,8 @@ _func_enter_;
 
 		rtw_disassoc_cmd(padapter);		
 		rtw_indicate_disconnect(padapter);
-		rtw_free_assoc_resources(padapter, 1);			
+		rtw_free_assoc_resources(padapter, 1);	
+		rtw_pwr_wakeup(padapter);		
 	}
 
 	_exit_critical_bh(&pmlmepriv->lock, &irqL);
@@ -762,6 +769,11 @@ _func_enter_;
 	if(psecuritypriv->ndisauthtype>3)
 		psecuritypriv->dot11AuthAlgrthm=dot11AuthAlgrthm_8021X;
 	
+#ifdef CONFIG_WAPI_SUPPORT
+	if(psecuritypriv->ndisauthtype == 6)
+		psecuritypriv->dot11AuthAlgrthm=dot11AuthAlgrthm_WAPI;
+#endif
+
 	res=rtw_set_auth(padapter,psecuritypriv);
 	
 	if(res==_SUCCESS)
@@ -1323,8 +1335,11 @@ u16 rtw_get_cur_max_rate(_adapter *adapter)
 	struct registry_priv *pregpriv = &adapter->registrypriv;
 
 #ifdef CONFIG_MP_INCLUDED
-	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == _TRUE)
+	if (adapter->registrypriv.mp_mode == 1)
+	{	
+		if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == _TRUE)
 		return 0;
+	}
 #endif
 
 	if((check_fwstate(pmlmepriv, _FW_LINKED) != _TRUE) 
@@ -1358,6 +1373,7 @@ u16 rtw_get_cur_max_rate(_adapter *adapter)
 
 	if(ht_cap == _TRUE)
 	{
+#ifdef CONFIG_80211N_HT
 		rtw_hal_get_hwreg(adapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 		max_rate = rtw_mcs_rate(
 			rf_type,
@@ -1366,6 +1382,7 @@ u16 rtw_get_cur_max_rate(_adapter *adapter)
 			short_GI_40,
 			pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate
 		);
+#endif //CONFIG_80211N_HT
 	}
 	else
 	{
@@ -1417,7 +1434,7 @@ int rtw_set_channel_plan(_adapter *adapter, u8 channel_plan)
 */
 int rtw_set_country(_adapter *adapter, const char *country_code)
 {
-	int channel_plan = RT_CHANNEL_DOMAIN_FCC;
+	int channel_plan = RT_CHANNEL_DOMAIN_ETSI;
 
 	//TODO: should have a table to match country code and RT_CHANNEL_DOMAIN
 	//TODO: should consider 2-character and 3-character counter code

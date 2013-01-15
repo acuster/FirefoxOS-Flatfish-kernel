@@ -6096,6 +6096,11 @@ static int rtw_dbg_port(struct net_device *dev,
 				#endif //CONFIG_IOL
 			}
 			break;
+		case 0x7a:
+			receive_disconnect(padapter, pmlmeinfo->network.MacAddress
+				, 65535// indicate disconnect caused by no rx
+			);
+			break;
 
 		case 0x7F:
 			switch(minor_cmd)
@@ -6268,7 +6273,7 @@ static int rtw_dbg_port(struct net_device *dev,
 							
 						}
 				break;
-				case 0x12:
+				case 0x15:
 					{
 						struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;	
 						DBG_871X("==>silent resete cnts:%d\n",pwrpriv->ips_enter_cnts);
@@ -6286,6 +6291,42 @@ static int rtw_dbg_port(struct net_device *dev,
 						padapter->bRxRSSIDisplay = extra_arg ;						
 					}
 					break;
+				case 0x12: //set rx_stbc
+				{
+					struct registry_priv	*pregpriv = &padapter->registrypriv;
+					// 0: disable, bit(0):enable 2.4g, bit(1):enable 5g, 0x3: enable both 2.4g and 5g
+					//default is set to enable 2.4GHZ for IOT issue with bufflao's AP at 5GHZ
+					if( pregpriv && (extra_arg == 0 || extra_arg == 1|| extra_arg == 2 || extra_arg == 3))
+					{
+						pregpriv->rx_stbc= extra_arg;
+						DBG_871X("set rx_stbc=%d\n",pregpriv->rx_stbc);
+					}
+					else
+						DBG_871X("get rx_stbc=%d\n",pregpriv->rx_stbc);
+					
+				}
+				break;
+				case 0x13: //set ampdu_enable
+				{
+					struct registry_priv	*pregpriv = &padapter->registrypriv;
+					// 0: disable, 0x1:enable (but wifi_spec should be 0), 0x2: force enable (don't care wifi_spec)
+					if( pregpriv && extra_arg >= 0 && extra_arg < 3 )
+					{
+						pregpriv->ampdu_enable= extra_arg;
+						DBG_871X("set ampdu_enable=%d\n",pregpriv->ampdu_enable);
+					}
+					else
+						DBG_871X("get ampdu_enable=%d\n",pregpriv->ampdu_enable);
+					
+				}
+				break;
+				case 0x14: //get wifi_spec
+				{
+					struct registry_priv	*pregpriv = &padapter->registrypriv;
+					DBG_871X("get wifi_spec=%d\n",pregpriv->wifi_spec);
+					
+				}
+				break;
 				case 0x22:
 					{
 						DBG_871X("turn %s the ForceWriteInitGain Variable\n",(extra_arg==1)?"on":"off");
@@ -7639,7 +7680,8 @@ static int rtw_wx_set_priv(struct net_device *dev,
 	struct iw_point *dwrq = (struct iw_point*)awrq;
 
 	//RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_notice_, ("+rtw_wx_set_priv\n"));
-
+	if(dwrq->length == 0)
+		return -EFAULT;
 	len = dwrq->length;
 	if (!(ext = rtw_vmalloc(len)))
 		return -ENOMEM;

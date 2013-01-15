@@ -58,6 +58,7 @@ int g2d_openclk(void)
 		printk("%s:set g2d_mclk parent to sys_pll10 failed!\n",__func__);
 	}
 	ret = clk_get_rate(g2d_src);
+	if(ret>264000000)ret = ret/3;
 	if(clk_set_rate(g2d_mclk,ret))
 		printk("%s:set g2d_mclk rate to %dHZ failed!\n",__func__,ret);
 	clk_put(g2d_src);

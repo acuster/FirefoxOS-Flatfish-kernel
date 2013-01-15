@@ -50,6 +50,13 @@ build_standby()
 		-C ${LICHEE_KDIR}/arch/arm/mach-sun6i/pm/standby all
 }
 
+build_mdfs()
+{
+	echo "build mdfs"
+	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} KDIR=${LICHEE_KDIR} \
+		-C ${LICHEE_KDIR}/arch/arm/mach-sun6i/dram-freq/mdfs all
+}
+
 NAND_ROOT=${LICHEE_KDIR}/modules/nand
 
 build_nand_lib()
@@ -100,6 +107,7 @@ build_kernel()
 	fi
 	cp rootfs/rootfs.cpio.gz .
 	build_standby
+	build_mdfs
 	make ARCH=arm CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage modules
 
 	${OBJCOPY} -R .note.gnu.build-id -S -O binary vmlinux bImage

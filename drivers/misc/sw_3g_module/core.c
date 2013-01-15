@@ -49,7 +49,7 @@
 //
 //-----------------------------------------------------------------------------
 
-void sw_module_delay(u32 time)
+void sw_module_mdelay(u32 time)
 {
     spinlock_t lock;
 	unsigned long flags = 0;
@@ -59,7 +59,7 @@ void sw_module_delay(u32 time)
 	mdelay(time);
 	spin_unlock_irqrestore(&lock, flags);
 }
-EXPORT_SYMBOL(sw_module_delay);
+EXPORT_SYMBOL(sw_module_mdelay);
 
 s32 modem_get_config(struct sw_modem *modem)
 {
@@ -138,13 +138,13 @@ s32 modem_get_config(struct sw_modem *modem)
         modem->bb_rf_dis.valid  = 0;
     }
 
-    /* bb_host_wake */
-    type = script_get_item("3g_para", "bb_host_wake", &modem->bb_host_wake.pio);
+    /* bb_wake_ap */
+    type = script_get_item("wakeup_src_para", "bb_wake_ap", &modem->bb_wake_ap.pio);
     if(type == SCIRPT_ITEM_VALUE_TYPE_PIO){
-        modem->bb_host_wake.valid = 1;
+        modem->bb_wake_ap.valid = 1;
     }else{
-        modem_err("ERR: get bb_host_wake failed\n");
-        modem->bb_host_wake.valid  = 0;
+        modem_err("ERR: get bb_wake_ap failed\n");
+        modem->bb_wake_ap.valid  = 0;
     }
 
     /* bb_wake */
@@ -445,11 +445,11 @@ static int modem_irq_config(struct sw_modem *modem)
     u32 cfg_num = 0;
 
     memset(&pcfg, 0, sizeof(struct gpio_config_eint_all));
-    pcfg.gpio = modem->bb_host_wake.pio.gpio.gpio;
+    pcfg.gpio = modem->bb_wake_ap.pio.gpio.gpio;
     pcfg.pull = 1;
     pcfg.enabled = 0;
     pcfg.irq_pd = 1;
-    pcfg.trig_type = TRIG_EDGE_NEGATIVE;
+    pcfg.trig_type = modem->trig_type;
     cfg_num = 1;
 
     sw_gpio_eint_setall_range(&pcfg, cfg_num);
@@ -463,11 +463,11 @@ static int modem_irq_config_clear(struct sw_modem *modem)
     u32 cfg_num = 0;
 
     memset(&pcfg, 0, sizeof(struct gpio_config_eint_all));
-    pcfg.gpio = modem->bb_host_wake.pio.gpio.gpio;
+    pcfg.gpio = modem->bb_wake_ap.pio.gpio.gpio;
     pcfg.pull = 1;
     pcfg.enabled = 0;
     pcfg.irq_pd = 1;
-    pcfg.trig_type = TRIG_EDGE_NEGATIVE;
+    pcfg.trig_type = modem->trig_type;
     cfg_num = 1;
 
     sw_gpio_eint_setall_range(&pcfg, cfg_num);
@@ -477,14 +477,14 @@ static int modem_irq_config_clear(struct sw_modem *modem)
 
 static void modem_irq_enable(struct sw_modem *modem)
 {
-    sw_gpio_eint_set_enable(modem->bb_host_wake.pio.gpio.gpio, 1);
+    sw_gpio_eint_set_enable(modem->bb_wake_ap.pio.gpio.gpio, 1);
 
     return;
 }
 
 static void modem_irq_disable(struct sw_modem *modem)
 {
-    sw_gpio_eint_set_enable(modem->bb_host_wake.pio.gpio.gpio, 0);
+    sw_gpio_eint_set_enable(modem->bb_wake_ap.pio.gpio.gpio, 0);
 
     return;
 }
@@ -494,7 +494,7 @@ static u32 modem_irq_is_enable(struct sw_modem *modem)
     u32 ret = 0;
     __u32 result = 0;
 
-    ret = sw_gpio_eint_get_enable(modem->bb_host_wake.pio.gpio.gpio, &result);
+    ret = sw_gpio_eint_get_enable(modem->bb_wake_ap.pio.gpio.gpio, &result);
     if(ret != 0){
         result = 0;
     }
@@ -502,14 +502,16 @@ static u32 modem_irq_is_enable(struct sw_modem *modem)
     return result;
 }
 
+/*
 static u32 modem_irq_is_pending(struct sw_modem *modem)
 {
-	return sw_gpio_eint_get_irqpd_sta(modem->bb_host_wake.pio.gpio.gpio);
+	return sw_gpio_eint_get_irqpd_sta(modem->bb_wake_ap.pio.gpio.gpio);
 }
+*/
 
 static void modem_irq_clear_pending(struct sw_modem *modem)
 {
-    sw_gpio_eint_clr_irqpd_sta(modem->bb_host_wake.pio.gpio.gpio);
+    sw_gpio_eint_clr_irqpd_sta(modem->bb_wake_ap.pio.gpio.gpio);
 
     return ;
 }
@@ -528,16 +530,6 @@ static u32 modem_irq_interrupt(void *para)
 	struct sw_modem *modem = (struct sw_modem *)para;
     int result = 0;
 
-    modem_dbg("\nriq1: config(0x%x), data(0x%x), driv(0x%x), pull(0x%x)\n",
-              readl(AW_VIR_R_PIO_BASE + 0x24),
-              readl(AW_VIR_R_PIO_BASE + 0x34),
-              readl(AW_VIR_R_PIO_BASE + 0x38),
-              readl(AW_VIR_R_PIO_BASE + 0x40));
-    modem_dbg("riq1: iconfig(0x%x), enable(0x%x), status(0x%x)\n\n",
-              readl(AW_VIR_R_PIO_BASE + 0x220),
-              readl(AW_VIR_R_PIO_BASE + 0x230),
-              readl(AW_VIR_R_PIO_BASE + 0x234));
-
 	if(modem_irq_is_enable(modem)){
 	    result = 1;
 	}
@@ -546,16 +538,6 @@ static u32 modem_irq_interrupt(void *para)
     modem_irq_config_clear(modem);
     modem_irq_clear_pending(modem);
 
-    modem_dbg("\nriq2: config(0x%x), data(0x%x), driv(0x%x), pull(0x%x)\n",
-              readl(AW_VIR_R_PIO_BASE + 0x24),
-              readl(AW_VIR_R_PIO_BASE + 0x34),
-              readl(AW_VIR_R_PIO_BASE + 0x38),
-              readl(AW_VIR_R_PIO_BASE + 0x40));
-    modem_dbg("riq2: iconfig(0x%x), enable(0x%x), status(0x%x)\n\n",
-              readl(AW_VIR_R_PIO_BASE + 0x220),
-              readl(AW_VIR_R_PIO_BASE + 0x230),
-              readl(AW_VIR_R_PIO_BASE + 0x234));
-
     if(result){
         schedule_work(&modem->irq_work);
     }
@@ -563,7 +545,7 @@ static u32 modem_irq_interrupt(void *para)
 	return 0;
 }
 
-int modem_irq_init(struct sw_modem *modem)
+int modem_irq_init(struct sw_modem *modem, enum gpio_eint_trigtype trig_type)
 {
     int ret = 0;
 
@@ -574,9 +556,10 @@ int modem_irq_init(struct sw_modem *modem)
     }
 
 	INIT_WORK(&modem->irq_work, modem_irq_work);
+	modem->trig_type = trig_type;
 
-    modem->irq_hd = sw_gpio_irq_request(modem->bb_host_wake.pio.gpio.gpio,
-                                        TRIG_EDGE_NEGATIVE,
+    modem->irq_hd = sw_gpio_irq_request(modem->bb_wake_ap.pio.gpio.gpio,
+                                        modem->trig_type,
                                         modem_irq_interrupt,
                                         modem);
     if(modem->irq_hd == 0){

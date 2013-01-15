@@ -27,8 +27,9 @@
 //add by superm
 #include <linux/sysfs.h>
 #include <linux/device.h>
-#include <linux/sched.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
+
 
 //local functions
 extern int ar100_config_dram_paras(void);

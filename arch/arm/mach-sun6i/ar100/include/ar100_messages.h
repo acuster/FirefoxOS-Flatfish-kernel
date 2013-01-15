@@ -89,6 +89,7 @@ typedef struct ar100_message
 #define AR100_MESSAGE_LOOPBACK           (AR100_MESSAGE_BASE + 0x51)  /* loopback message  (ac327 to ar100) */
 #define AR100_SET_UART_BAUDRATE          (AR100_MESSAGE_BASE + 0x52)  /* set uart baudrate (ac327 to ar100) */
 #define AR100_SET_DRAM_PARAS			 (AR100_MESSAGE_BASE + 0x53)  /* config dram parameter (ac327 to ar100) */
+#define AR100_SET_DEBUG_DRAM_CRC_PARAS	 (AR100_MESSAGE_BASE + 0x54)  /* config dram crc parameters (ac327 to ar100) */
 
 /* ar100 initialize state notify commands */
 #define AR100_STARTUP_NOTIFY             (AR100_MESSAGE_BASE + 0x80)  /* ar100 init state notify(ar100 to ac327) */

@@ -24,7 +24,7 @@
 #define SUN6I_ADC_FIFOC              (0x10)		//33 ADC FIFO Control Register, different with a10
 #define SUN6I_ADC_FIFOS              (0x14)		//33 ADC FIFO Status Register, different with a10
 #define SUN6I_ADC_RXDATA			 (0x18)		//33 ADC RX Data Register
-#define SUN6I_HMIC_CTRL				 (0x1c)		//Headset MIC bias detect register,new func
+#define SUN6I_HMIC_CTRL				 (0x1c)		//Earpiece MIC bias detect register,new func
 #define SUN6I_DAC_ACTL				 (0x20)		//Output Mixer & DAC Analog Control Register
 
 #define SUN6I_PA_CTRL				 (0x24)		//new func
@@ -148,6 +148,21 @@
 #define ADCLEN					  (30)
 #define ADCRG					  (27)
 #define ADCLG					  (24)
+#define RADCMIXMUTEMIC1BOOST	  (13)
+#define RADCMIXMUTEMIC2BOOST	  (12)
+#define RADCMIXMUTEPHONEPN		  (11)
+#define RADCMIXMUTEPHONEP		  (10)
+#define RADCMIXMUTELINEINR		  (9)
+#define RADCMIXMUTEROUTPUT		  (8)
+#define RADCMIXMUTELOUTPUT		  (7)
+#define LADCMIXMUTEMIC1BOOST	  (6)
+#define LADCMIXMUTEMIC2BOOST	  (5)
+#define LADCMIXMUTEPHONEPN		  (4)
+#define LADCMIXMUTEPHONEP		  (3)
+#define LADCMIXMUTELINEINL		  (2)
+#define LADCMIXMUTEROUTPUT		  (1)
+#define LADCMIXMUTELOUTPUT		  (0)
+
 #define RADCMIXMUTE				  (7)
 #define LADCMIXMUTE				  (0)
 

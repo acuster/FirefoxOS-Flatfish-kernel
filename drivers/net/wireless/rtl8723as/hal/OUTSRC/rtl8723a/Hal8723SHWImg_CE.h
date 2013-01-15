@@ -6,7 +6,7 @@
 //#ifdef CONFIG_MP_INCLUDED
 #define Rtl8723SUMCBCutMPImgArrayLength 18396
 //#else
-#define Rtl8723SUMCBCutImgArrayLength 24422
+#define Rtl8723SUMCBCutImgArrayLength 24468
 //#endif
 
 #define Rtl8723SImgArrayLength 20606

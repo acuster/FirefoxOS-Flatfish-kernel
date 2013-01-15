@@ -65,6 +65,7 @@ typedef struct _ADAPTER _adapter, ADAPTER,*PADAPTER;
 #include <rtw_xmit.h>
 #include <rtw_recv.h>
 #include <hal_intf.h>
+#include <hal_com.h>
 #include <rtw_qos.h>
 #include <rtw_security.h>
 #include <rtw_pwrctrl.h>
@@ -525,10 +526,10 @@ struct _ADAPTER{
 	u8	init_adpt_in_progress;
 	u8	bHaltInProgress;
 
-	_thread_hdl_	cmdThread;
-	_thread_hdl_	evtThread;
-	_thread_hdl_	xmitThread;
-	_thread_hdl_	recvThread;
+	_thread_hdl_ cmdThread;
+	_thread_hdl_ evtThread;
+	_thread_hdl_ xmitThread;
+	_thread_hdl_ recvThread;
 
 #ifndef PLATFORM_LINUX
 	NDIS_STATUS (*dvobj_init)(struct dvobj_priv *dvobj);

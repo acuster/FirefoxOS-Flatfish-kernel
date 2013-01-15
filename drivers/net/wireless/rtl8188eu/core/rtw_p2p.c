@@ -3217,7 +3217,10 @@ _func_enter_;
 	{
 		return;
 	}
-
+#ifdef CONFIG_CONCURRENT_MODE
+	if(padapter->iface_type != IFACE_PORT0) 
+		return;
+#endif
 	if(IELength <= _BEACON_IE_OFFSET_)
 		return;
 	
@@ -3354,7 +3357,8 @@ _func_enter_;
 		if(rtw_p2p_chk_state(pwdinfo, P2P_STATE_TX_PROVISION_DIS_REQ) || rtw_p2p_chk_state(pwdinfo, P2P_STATE_RX_PROVISION_DIS_RSP))
 		{
 			set_channel_bwmode(padapter, pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
-			issue_nulldata( pbuddy_adapter, 0 );
+			
+			issue_nulldata(pbuddy_adapter, NULL, 0, 3, 500);
 		}
 	}
 #endif
@@ -3439,7 +3443,7 @@ _func_enter_;
 
 		set_channel_bwmode(padapter, pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
 		
-		issue_nulldata( pbuddy_adapter, 0 );
+		issue_nulldata(pbuddy_adapter, NULL, 0, 3, 500);
 
 #else //CONFIG_IOCTL_CFG80211
 		if(rtw_p2p_chk_state(pwdinfo, P2P_STATE_IDLE))
@@ -3449,7 +3453,7 @@ _func_enter_;
 			if ( pwdinfo->ext_listen_period > 0 )
 			{
 				DBG_8192C( "[%s] P2P_STATE_IDLE, ext_listen_period = %d\n", __FUNCTION__, pwdinfo->ext_listen_period );
-				issue_nulldata( pbuddy_adapter, 1 );
+				issue_nulldata(pbuddy_adapter, NULL, 1, 3, 500);
 				set_channel_bwmode(padapter, pwdinfo->listen_channel, HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
 				rtw_p2p_set_state(pwdinfo, P2P_STATE_LISTEN);
 				val8 = 1;
@@ -3469,7 +3473,7 @@ _func_enter_;
 			rtw_hal_set_hwreg(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
 			rtw_p2p_set_state(pwdinfo, P2P_STATE_IDLE);
 			set_channel_bwmode(padapter, pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
-			issue_nulldata( pbuddy_adapter, 0 );
+			issue_nulldata(pbuddy_adapter, NULL, 0, 3, 500);
 			//	Todo: To check the value of pwdinfo->ext_listen_interval is equal to 0 or not.
 			_set_timer( &pwdinfo->ap_p2p_switch_timer, pwdinfo->ext_listen_interval );
 		}
@@ -3479,7 +3483,7 @@ _func_enter_;
 			val8 = 0;
 			rtw_hal_set_hwreg(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
 			set_channel_bwmode(padapter, pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
-			issue_nulldata( pbuddy_adapter, 0 );
+			issue_nulldata(pbuddy_adapter, NULL, 0, 3, 500);
 		}
 		else if(rtw_p2p_chk_state(pwdinfo, P2P_STATE_TX_PROVISION_DIS_REQ))
 		{
@@ -3891,7 +3895,9 @@ int rtw_p2p_check_frames(_adapter *padapter, const u8 *buf, u32 len, u8 tx)
 							}
 							else
 							{
+								#ifdef CONFIG_DEBUG_CFG80211
 								DBG_871X("provdisc_req_issued is _TRUE\n");
+								#endif //CONFIG_DEBUG_CFG80211
 								pwdev_priv->provdisc_req_issued = _TRUE;//case: p2p_devices connection before Nego req.
 							}
 												
@@ -3910,8 +3916,8 @@ int rtw_p2p_check_frames(_adapter *padapter, const u8 *buf, u32 len, u8 tx)
 		}
 		else
 		{
-			DBG_871X("ACTION_CATEGORY_PUBLIC: action=%d, OUI=0x%x, OUI_Subtype=%d, dialogToken=%d\n",
-					action, cpu_to_be32( *( ( u32* ) ( frame_body + 2 ) ) ), OUI_Subtype, dialogToken);
+			DBG_871X("RTW_%s:ACTION_CATEGORY_PUBLIC: action=%d, OUI=0x%x, OUI_Subtype=%d, dialogToken=%d\n",
+					(tx==_TRUE)?"TX":"RX", action, cpu_to_be32( *( ( u32* ) ( frame_body + 2 ) ) ), OUI_Subtype, dialogToken);
 		}
 		
 	}	
@@ -3949,7 +3955,7 @@ int rtw_p2p_check_frames(_adapter *padapter, const u8 *buf, u32 len, u8 tx)
 	}	
 	else 
 	{
-		DBG_871X("%s, action frame category=%d\n", __func__, category);
+		DBG_871X("RTW_%s:action frame category=%d\n", (tx==_TRUE)?"TX":"RX", category);
 		//is_p2p_frame = (-1);		
 	}
 
@@ -4269,10 +4275,10 @@ int rtw_init_wifi_display_info(_adapter* padapter)
 	struct wifi_display_info *pwfd_info = &padapter->wfd_info;
 
 	// Used in P2P and TDLS
-	pwfd_info->rtsp_ctrlport = 554;
+	//pwfd_info->rtsp_ctrlport = 8554;  //don't modify
 	pwfd_info->peer_rtsp_ctrlport = 0;	//	Reset to 0
-	pwfd_info->wfd_enable = _FALSE;
-	pwfd_info->wfd_device_type = WFD_DEVINFO_PSINK;
+	pwfd_info->wfd_enable = _TRUE;//default enable
+	//pwfd_info->wfd_device_type = WFD_DEVINFO_PSINK;//don't modify
 
 	// Used in P2P	
 	pwfd_info->peer_session_avail = _TRUE;
@@ -4428,8 +4434,13 @@ void init_wifidirect_info( _adapter* padapter, enum P2P_ROLE role)
 	_rtw_memset( pwdinfo->rx_prov_disc_info.strconfig_method_desc_of_prov_disc_req, '0', 3 );
 	_rtw_memset( &pwdinfo->groupid_info, 0x00, sizeof( struct group_id_info ) );
 #ifdef CONFIG_CONCURRENT_MODE
+#ifdef CONFIG_IOCTL_CFG80211
+	pwdinfo->ext_listen_interval = 2000;
+	pwdinfo->ext_listen_period = 1000;
+#else //!CONFIG_IOCTL_CFG80211
 	pwdinfo->ext_listen_interval = 3000;
 	pwdinfo->ext_listen_period = 400;
+#endif //!CONFIG_IOCTL_CFG80211
 #endif
 	pwdinfo->wfd_tdls_enable = 0;
 	_rtw_memset( pwdinfo->p2p_peer_interface_addr, 0x00, ETH_ALEN );

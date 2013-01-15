@@ -369,6 +369,8 @@ _func_enter_;
 		psta->rssi_stat.UndecoratedSmoothedPWDB = 0;
 		psta->rssi_stat.UndecoratedSmoothedCCK = (-1);
 		
+		/* init for the sequence number of received management frame */
+		psta->RxMgmtFrameSeqNum = 0xffff;
 	}
 	
 exit:

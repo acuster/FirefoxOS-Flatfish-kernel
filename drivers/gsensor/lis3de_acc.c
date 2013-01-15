@@ -1591,12 +1591,12 @@ static int lis3de_acc_probe(struct i2c_client *client,
 
 	mutex_unlock(&stat->lock);
 
-	#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_HAS_EARLYSUSPEND
 	stat->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	stat->early_suspend.suspend = lis3de_early_suspend;
 	stat->early_suspend.resume = lis3de_late_resume;
 	register_early_suspend(&stat->early_suspend);
-	#endif
+#endif
 
 	dev_info(&client->dev, "%s: probed\n", LIS3DE_ACC_DEV_NAME);
 
@@ -1635,9 +1635,9 @@ static int __devexit lis3de_acc_remove(struct i2c_client *client)
 
 	struct lis3de_acc_status *stat = i2c_get_clientdata(client);
 
-	#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&stat->early_suspend);
-	#endif
+#endif
 
 	if (stat->pdata->gpio_int1 >= 0) {
 		free_irq(stat->irq1, stat);
@@ -1654,6 +1654,7 @@ static int __devexit lis3de_acc_remove(struct i2c_client *client)
 	lis3de_acc_input_cleanup(stat);
 	lis3de_acc_device_power_off(stat);
 	remove_sysfs_interfaces(&client->dev);
+	i2c_set_clientdata(client, NULL);
 
 	if (stat->pdata->exit)
 		stat->pdata->exit();
@@ -1737,7 +1738,7 @@ static int __init lis3de_acc_init(void)
 {
 	dprintk(DEBUG_INIT, "%s accelerometer driver: init\n",
 						LIS3DE_ACC_DEV_NAME);
-	if(gsensor_fetch_sysconfig_para()){
+	if (gsensor_fetch_sysconfig_para()) {
 		printk("%s: err.\n", __func__);
 		return -1;
 	}

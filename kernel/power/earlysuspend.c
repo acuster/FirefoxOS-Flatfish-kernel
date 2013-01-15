@@ -79,6 +79,10 @@ static void early_suspend(struct work_struct *work)
 	struct early_suspend *pos;
 	unsigned long irqflags;
 	int abort = 0;
+	ktime_t calltime;
+	u64 usecs64;
+	int usecs;
+	ktime_t starttime;
 
 	mutex_lock(&early_suspend_lock);
 	spin_lock_irqsave(&state_lock, irqflags);
@@ -99,9 +103,24 @@ static void early_suspend(struct work_struct *work)
 		pr_info("early_suspend: call handlers\n");
 	list_for_each_entry(pos, &early_suspend_handlers, link) {
 		if (pos->suspend != NULL) {
-			if (debug_mask & DEBUG_VERBOSE)
+			if (debug_mask & DEBUG_VERBOSE){
 				pr_info("early_suspend: calling %pf\n", pos->suspend);
+				starttime = ktime_get();
+				
+			}
+			
 			pos->suspend(pos);
+
+			if (debug_mask & DEBUG_VERBOSE){
+				calltime = ktime_get();
+				usecs64 = ktime_to_ns(ktime_sub(calltime, starttime));
+				do_div(usecs64, NSEC_PER_USEC);
+				usecs = usecs64;
+				if (usecs == 0)
+					usecs = 1;
+				pr_info("early_suspend: %pf complete after %ld.%03ld msecs\n",
+					pos->suspend, usecs / USEC_PER_MSEC, usecs % USEC_PER_MSEC);
+			}
 		}
 	}
 	standby_level = STANDBY_WITH_POWER;
@@ -123,7 +142,11 @@ static void late_resume(struct work_struct *work)
 	struct early_suspend *pos;
 	unsigned long irqflags;
 	int abort = 0;
-
+	ktime_t calltime;
+	u64 usecs64;
+	int usecs;
+	ktime_t starttime;
+	
 	mutex_lock(&early_suspend_lock);
 	spin_lock_irqsave(&state_lock, irqflags);
 	if (state == SUSPENDED)
@@ -141,10 +164,24 @@ static void late_resume(struct work_struct *work)
 		pr_info("late_resume: call handlers\n");
 	list_for_each_entry_reverse(pos, &early_suspend_handlers, link) {
 		if (pos->resume != NULL) {
-			if (debug_mask & DEBUG_VERBOSE)
+			if (debug_mask & DEBUG_VERBOSE){
 				pr_info("late_resume: calling %pf\n", pos->resume);
+				starttime = ktime_get();
+			}
 
 			pos->resume(pos);
+
+			if (debug_mask & DEBUG_VERBOSE){
+				calltime = ktime_get();
+				usecs64 = ktime_to_ns(ktime_sub(calltime, starttime));
+				do_div(usecs64, NSEC_PER_USEC);
+				usecs = usecs64;
+				if (usecs == 0)
+					usecs = 1;
+				pr_info("late_resume: %pf complete after %ld.%03ld msecs\n",
+					pos->resume, usecs / USEC_PER_MSEC, usecs % USEC_PER_MSEC);
+			}
+	
 		}
 	}
 	if (debug_mask & DEBUG_SUSPEND)

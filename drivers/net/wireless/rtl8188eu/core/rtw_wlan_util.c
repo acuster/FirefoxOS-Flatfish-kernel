@@ -512,7 +512,6 @@ void set_channel_bwmode(_adapter *padapter, unsigned char channel, unsigned char
 	u8 center_ch;
 	unsigned int scanMode;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-	
 
 	if((bwmode == HT_CHANNEL_WIDTH_20)||(channel_offset == HAL_PRIME_CHNL_OFFSET_DONT_CARE))
 	{
@@ -936,8 +935,11 @@ void WMMOnAssocRsp(_adapter *padapter)
 	u8	acm_mask;
 	u16	TXOP;
 	u32	acParm, i;
+	u32	edca[4], inx[4];
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct xmit_priv		*pxmitpriv = &padapter->xmitpriv;
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
 
 	if (pmlmeinfo->WMM_enable == 0)
 	{
@@ -971,21 +973,25 @@ void WMMOnAssocRsp(_adapter *padapter)
 			case 0x0:
 				rtw_hal_set_hwreg(padapter, HW_VAR_AC_PARAM_BE, (u8 *)(&acParm));
 				acm_mask |= (ACM? BIT(1):0);
+				edca[XMIT_BE_QUEUE] = acParm;
 				break;
 
 			case 0x1:
 				rtw_hal_set_hwreg(padapter, HW_VAR_AC_PARAM_BK, (u8 *)(&acParm));
 				//acm_mask |= (ACM? BIT(0):0);
+				edca[XMIT_BK_QUEUE] = acParm;
 				break;
 
 			case 0x2:
 				rtw_hal_set_hwreg(padapter, HW_VAR_AC_PARAM_VI, (u8 *)(&acParm));
 				acm_mask |= (ACM? BIT(2):0);
+				edca[XMIT_VI_QUEUE] = acParm;
 				break;
 
 			case 0x3:
 				rtw_hal_set_hwreg(padapter, HW_VAR_AC_PARAM_VO, (u8 *)(&acParm));
 				acm_mask |= (ACM? BIT(3):0);
+				edca[XMIT_VO_QUEUE] = acParm;
 				break;							
 		}
 
@@ -996,6 +1002,50 @@ void WMMOnAssocRsp(_adapter *padapter)
 		rtw_hal_set_hwreg(padapter, HW_VAR_ACM_CTRL, (u8 *)(&acm_mask));
 	else
 		padapter->mlmepriv.acm_mask = acm_mask;
+
+	inx[0] = 0; inx[1] = 1; inx[2] = 2; inx[3] = 3;
+
+	if(pregpriv->wifi_spec==1)
+	{
+		u32	j, tmp, change_inx;
+
+		//entry indx: 0->vo, 1->vi, 2->be, 3->bk.
+		for(i=0; i<4; i++)
+		{
+			for(j=i+1; j<4; j++)
+			{
+				//compare CW and AIFS
+				if((edca[j] & 0xFFFF) < (edca[i] & 0xFFFF))
+				{
+					change_inx = _TRUE;
+				}
+				else if((edca[j] & 0xFFFF) == (edca[i] & 0xFFFF))
+				{
+					//compare TXOP
+					if((edca[j] >> 16) > (edca[i] >> 16))
+						change_inx = _TRUE;
+				}
+			
+				if(change_inx)
+				{
+					tmp = edca[i];
+					edca[i] = edca[j];
+					edca[j] = tmp;
+
+					tmp = inx[i];
+					inx[i] = inx[j];
+					inx[j] = tmp;
+
+					change_inx = _FALSE;
+				}
+			}
+		}
+	}
+
+	for(i=0; i<4; i++) {
+		pxmitpriv->wmm_para_seq[i] = inx[i];
+		DBG_871X("wmm_para_seq(%d): %d\n", i, pxmitpriv->wmm_para_seq[i]);
+	}
 
 	return;	
 }

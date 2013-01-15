@@ -123,7 +123,7 @@ bool ctp_set_int_port_rate(u32 clk)
         struct gpio_eint_debounce pdbc;
         int ret = -1;
 
-        if((clk != 0) || (clk != 1)){
+        if((clk != 0) && (clk != 1)){
                 return false;
         }
         ret = sw_gpio_eint_get_debounce(CTP_IRQ_NUMBER,&pdbc);
@@ -348,7 +348,7 @@ int ctp_wakeup(int status,int ms)
                         __gpio_set_value(config_info.wakeup_gpio_number, 0); 
                 }      
         }
-        msleep(10);  
+        msleep(5);  
         if(gpio_status != 1){
                 sw_gpio_setcfg(config_info.wakeup_gpio_number,gpio_status);
         }

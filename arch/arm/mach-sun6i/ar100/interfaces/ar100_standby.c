@@ -24,7 +24,12 @@
 #include <asm/cacheflush.h>
 
 /* record super-standby wakeup event */
-static unsigned long wakeup_event;
+static unsigned long wakeup_event = 0;
+static unsigned long dram_crc_error = 0;
+static unsigned long dram_crc_total_count = 0;
+static unsigned long dram_crc_error_count = 0;
+
+extern unsigned int ar100_debug_dram_crc_en;
 
 /**
  * enter super standby.
@@ -92,6 +97,34 @@ int ar100_query_wakeup_source(unsigned long *event)
 }
 EXPORT_SYMBOL(ar100_query_wakeup_source);
 
+/**
+ * query super-standby dram crc result.
+ * @para:  point of buffer to store dram crc result informations.
+ *
+ * return: result, 0 - query successed,
+ *                !0 - query failed;
+ */
+int ar100_query_dram_crc_result(unsigned long *perror, unsigned long *ptotal_count,
+	unsigned long *perror_count)
+{
+	*perror = dram_crc_error;
+	*ptotal_count = dram_crc_total_count;
+	*perror_count = dram_crc_error_count;
+	
+	return 0;
+}
+EXPORT_SYMBOL(ar100_query_dram_crc_result);
+
+int ar100_set_dram_crc_result(unsigned long error, unsigned long total_count,
+	unsigned long error_count)
+{
+	dram_crc_error = error;
+	dram_crc_total_count = total_count;
+	dram_crc_error_count = error_count;
+	
+	return 0;
+}
+EXPORT_SYMBOL(ar100_set_dram_crc_result);
 
 /**
  * notify ar100 cpux restored.
@@ -122,7 +155,12 @@ int ar100_cpux_ready_notify(void)
 	ar100_hwmsgbox_send_message(pmessage, AR100_SEND_MSG_TIMEOUT);
 	
 	/* record wakeup event */
-	wakeup_event = pmessage->paras[0];
+	wakeup_event   = pmessage->paras[0];
+	if (ar100_debug_dram_crc_en) {
+		dram_crc_error = pmessage->paras[1];
+		dram_crc_total_count++;
+		dram_crc_error_count += (dram_crc_error ? 1 : 0);
+	}
 	
 	/* free message */
 	ar100_message_free(pmessage);

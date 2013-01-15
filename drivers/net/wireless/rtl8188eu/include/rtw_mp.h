@@ -212,7 +212,7 @@ struct mp_tx
 	u8 *pallocated_buf;
 	u8 *buf;
 	u32 buf_size, write_size;
-	_thread_hdl_	PktTxThread;
+	_thread_hdl_ PktTxThread;
 };
 
 #if defined(CONFIG_RTL8192C) || defined(CONFIG_RTL8192D) || defined(CONFIG_RTL8723A) || defined(CONFIG_RTL8188E)
@@ -769,7 +769,7 @@ extern u8 Hal_ReadRFThermalMeter(PADAPTER pAdapter);
 extern void Hal_SetCCKContinuousTx(PADAPTER pAdapter, u8 bStart);
 extern void Hal_SetOFDMContinuousTx(PADAPTER pAdapter, u8 bStart);
 extern void Hal_ProSetCrystalCap (PADAPTER pAdapter , u32 CrystalCapVal);
-
+extern void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv);
 extern void MP_PHY_SetRFPathSwitch(PADAPTER pAdapter ,BOOLEAN bMain);
 
 #endif //_RTW_MP_H_

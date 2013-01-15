@@ -778,6 +778,8 @@ __inline static void _set_workitem(_workitem *pwork)
 	#include <linux/proc_fs.h>	// Necessary because we use the proc fs
 	#include <linux/interrupt.h>	// for struct tasklet_struct
 	#include <linux/ip.h>
+	#include <linux/kthread.h>
+
 
 #ifdef CONFIG_IOCTL_CFG80211	
 //	#include <linux/ieee80211.h>        
@@ -837,7 +839,7 @@ __inline static void _set_workitem(_workitem *pwork)
 	typedef unsigned long _irqL;
 	typedef	struct	net_device * _nic_hdl;
 	
-	typedef pid_t		_thread_hdl_;
+	typedef void*		_thread_hdl_;
 	typedef int		thread_return;
 	typedef void*	thread_context;
 
@@ -989,6 +991,10 @@ __inline static void _set_workitem(_workitem *pwork)
 	schedule_work(pwork);
 }
 
+__inline static void _cancel_workitem_sync(_workitem *pwork)
+{
+	cancel_work_sync(pwork);
+}
 //
 // Global Mutex: can only be used at PASSIVE level.
 //
@@ -1699,6 +1705,9 @@ extern u64 rtw_division64(u64 x, u64 y);
 			 (((u64) (a)[5]) << 40) | (((u64) (a)[4]) << 32) | \
 			 (((u64) (a)[3]) << 24) | (((u64) (a)[2]) << 16) | \
 			 (((u64) (a)[1]) << 8) | ((u64) (a)[0]))
+
+void rtw_buf_free(u8 **buf, u32 *buf_len);
+void rtw_buf_update(u8 **buf, u32 *buf_len, u8 *src, u32 src_len);
 
 #endif
 

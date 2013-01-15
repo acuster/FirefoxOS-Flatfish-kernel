@@ -23,11 +23,11 @@
 #if 1	// rtw_wifi_driver
 #define CL_IPV6_PASS    	1
 #define MACADDRLEN		6
-#define _DEBUG_ERR		printk
-#define _DEBUG_INFO		//printk
-#define DEBUG_WARN		printk
-#define DEBUG_INFO		//printk
-#define DEBUG_ERR		printk
+#define _DEBUG_ERR		DBG_8192C
+#define _DEBUG_INFO		//DBG_8192C
+#define DEBUG_WARN		DBG_8192C
+#define DEBUG_INFO		//DBG_8192C
+#define DEBUG_ERR		DBG_8192C
 //#define GET_MY_HWADDR		((GET_MIB(priv))->dot11OperationEntry.hwaddr)
 #define GET_MY_HWADDR(padapter)		((padapter)->eeprompriv.mac_addr)
 #endif	// rtw_wifi_driver

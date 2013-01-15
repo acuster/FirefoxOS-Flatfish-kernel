@@ -488,8 +488,34 @@ void set_channel_bwmode(_adapter *padapter, unsigned char channel, unsigned char
 		}
 	}	
 
-	//set Channel
-	SelectChannel(padapter, center_ch);
+	//set Channel , must be independant for correct co_ch value/
+#ifdef CONFIG_DUALMAC_CONCURRENT
+	dc_SelectChannel(padapter, center_ch);
+#else //CONFIG_DUALMAC_CONCURRENT
+	
+#ifdef CONFIG_CONCURRENT_MODE
+	_enter_critical_mutex(padapter->psetch_mutex, NULL);
+#endif
+	
+	scanMode = (pmlmeext->sitesurvey_res.scan_mode == SCAN_ACTIVE)? 1: 0;//todo:
+
+	if(padapter->HalFunc.set_channel_handler)
+	{
+#ifdef CONFIG_CONCURRENT_MODE
+		if(padapter->pcodatapriv)
+		{
+			padapter->pcodatapriv->co_ch = channel;
+		}
+#endif //CONFIG_CONCURRENT_MODE	
+		padapter->HalFunc.set_channel_handler(padapter, center_ch);
+	}
+
+#ifdef CONFIG_CONCURRENT_MODE
+	_exit_critical_mutex(padapter->psetch_mutex, NULL);
+#endif
+
+#endif // CONFIG_DUALMAC_CONCURRENT
+
 
 	//set BandWidth
 	SetBWMode(padapter, bwmode, channel_offset);

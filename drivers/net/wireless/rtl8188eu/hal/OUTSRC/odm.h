@@ -251,7 +251,7 @@ typedef struct _RX_High_Power_
 }RXHP_T, *pRXHP_T;
 
 #if(DM_ODM_SUPPORT_TYPE & (ODM_CE))
-#define ASSOCIATE_ENTRY_NUM					8 // Max size of AsocEntry[].
+#define ASSOCIATE_ENTRY_NUM					32 // Max size of AsocEntry[].
 #define	ODM_ASSOCIATE_ENTRY_NUM				ASSOCIATE_ENTRY_NUM
 
 #elif(DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
@@ -688,11 +688,10 @@ typedef enum _ODM_Support_Ability_Definition
 //	ODM_CMNINFO_INTERFACE
 typedef enum tag_ODM_Support_Interface_Definition
 {
-	ODM_ITRF_PCIE 	=	0,
-	ODM_ITRF_USB 	=	1,
-	ODM_ITRF_SDIO 	=	2,
-	ODM_ITRF_GSPI 	=	3,
-	ODM_ITRF_ALL 	=	4,
+	ODM_ITRF_PCIE 	=	0x1,
+	ODM_ITRF_USB 	=	0x2,
+	ODM_ITRF_SDIO 	=	0x4,
+	ODM_ITRF_ALL 	=	0x7,
 }ODM_INTERFACE_E;
 
 // ODM_CMNINFO_IC_TYPE

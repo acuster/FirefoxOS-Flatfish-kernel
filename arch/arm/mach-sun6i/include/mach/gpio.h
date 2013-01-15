@@ -41,7 +41,7 @@
 #define PH_NR			31
 /* for R-PORT PIO */
 #define PL_NR			9
-#define PM_NR			9 /* spec: "Pin MultiPlex" is 8 while "PM Configure Register 1" is 9 */
+#define PM_NR			8
 #ifdef CONFIG_AW_AXP22
 /* for axp power PIO */
 #define AXP_NR			5

@@ -1426,7 +1426,7 @@ int rtw_set_channel_plan(_adapter *adapter, u8 channel_plan)
 */
 int rtw_set_country(_adapter *adapter, const char *country_code)
 {
-	int channel_plan = RT_CHANNEL_DOMAIN_FCC;
+	int channel_plan = RT_CHANNEL_DOMAIN_ETSI;
 
 	//TODO: should have a table to match country code and RT_CHANNEL_DOMAIN
 	//TODO: should consider 2-character and 3-character counter code

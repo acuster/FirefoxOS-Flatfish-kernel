@@ -92,7 +92,7 @@ MODULE_ALIAS_SCSI_DEVICE(TYPE_MOD);
 MODULE_ALIAS_SCSI_DEVICE(TYPE_RBC);
 
 #if !defined(CONFIG_DEBUG_BLOCK_EXT_DEVT)
-#define SD_MINORS	16
+#define SD_MINORS	32   /*Modify by wangjx for the number of udisk times partition from 16 to 32 */
 #else
 #define SD_MINORS	0
 #endif

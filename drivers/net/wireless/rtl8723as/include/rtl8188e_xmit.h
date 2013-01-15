@@ -212,7 +212,7 @@ typedef struct txdescriptor_8188e
 	u32 mcs15_sgi_max_len:4;
 }TXDESC, *PTXDESC;
 
-struct txrpt1_ccx_88e {
+struct txrpt_ccx_88e {
 	/* offset 0 */
 	u8 tag1:1;
 	u8 pkt_num:3;
@@ -246,7 +246,7 @@ struct txrpt1_ccx_88e {
 	u8 sw0;
 };
 
-#define txrpt1_ccx_88e_sw(txrpt1_ccx) ((txrpt1_ccx)->sw0 + ((txrpt1_ccx)->sw1<<8))
+#define txrpt_ccx_88e_sw(txrpt_ccx) ((txrpt_ccx)->sw0 + ((txrpt_ccx)->sw1<<8))
 
 void rtl8188e_fill_fake_txdesc(PADAPTER	padapter,u8*pDesc,u32 BufferLen,u8 IsPsPoll,u8	IsBTQosNull);
 #ifdef CONFIG_SDIO_HCI
@@ -291,7 +291,11 @@ void UpdateEarlyModeInfo8188E(struct xmit_priv *pxmitpriv,struct xmit_buf *pxmit
 #endif
 
 #ifdef CONFIG_XMIT_ACK
-void rtl8188e_xmit_ack_rpt(_adapter *padapter, u8 *pbuf);
+void dump_txrpt_ccx_88e(void *buf);
+void handle_txrpt_ccx_88e(_adapter *adapter, u8 *buf);
+#else
+#define dump_txrpt_ccx_88e(buf) do {} while(0)
+#define handle_txrpt_ccx_88e(adapter, buf) do {} while(0)
 #endif //CONFIG_XMIT_ACK
 
 void _dbg_dump_tx_info(_adapter	*padapter,int frame_tag,struct tx_desc *ptxdesc);

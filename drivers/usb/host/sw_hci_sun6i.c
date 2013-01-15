@@ -55,10 +55,6 @@
 
 #include  "sw_hci_sun6i.h"
 
-#ifdef  CONFIG_SW_USB_3G
-#include  "sw_usb_3g.h"
-#endif
-
 #ifndef  SW_USB_FPGA
 static char* usbc_name[4] 			= {"usbc0", "usbc1", "usbc2", "usbc3"};
 #endif
@@ -82,6 +78,52 @@ static u32 usb3_set_vbus_cnt = 0;
 static u32 usb1_enable_passly_cnt = 0;
 static u32 usb2_enable_passly_cnt = 0;
 static u32 usb3_enable_passly_cnt = 0;
+
+static void sw_usb_3g_config(struct sw_hci_hcd *sw_hci)
+{
+    script_item_value_type_e type = 0;
+	script_item_u item_temp;
+    u32 usb_3g_used      = 0;
+    u32 usb_3g_usbc_num  = 0;
+    u32 usb_3g_usbc_type = 0;
+
+    /* 3g_used */
+    type = script_get_item("3g_para", "3g_used", &item_temp);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+        usb_3g_used = item_temp.val;
+    }else{
+        DMSG_PANIC("ERR: script_parser_fetch usb_3g_used failed\n");
+        usb_3g_used = 0;
+    }
+
+    if(usb_3g_used){
+        /* 3g_usbc_num */
+        type = script_get_item("3g_para", "3g_usbc_num", &item_temp);
+        if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+            usb_3g_usbc_num = item_temp.val;
+        }else{
+            DMSG_PANIC("ERR: script_parser_fetch usb_3g_usbc_num failed\n");
+            usb_3g_usbc_num = 0;
+        }
+
+        /* 3g_usbc_type */
+        type = script_get_item("3g_para", "3g_usbc_type", &item_temp);
+        if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+            usb_3g_usbc_type = item_temp.val;
+        }else{
+            DMSG_PANIC("ERR: script_parser_fetch usb_3g_usbc_type failed\n");
+            usb_3g_usbc_type = 0;
+        }
+
+        /* 只开3G使用的那个模组 */
+        if(sw_hci->usbc_no == usb_3g_usbc_num){
+            sw_hci->used = 0;
+            if(sw_hci->usbc_type == usb_3g_usbc_type){
+                sw_hci->used = 1;
+            }
+        }
+    }
+}
 
 /*
 *******************************************************************************
@@ -154,51 +196,7 @@ static s32 get_usb_cfg(struct sw_hci_hcd *sw_hci)
 		sw_hci->usb_restrict_flag = 0;
 	}
 
-#ifdef CONFIG_SW_USB_3G
-{
-    u32 usb_3g_used      = 0;
-    u32 usb_3g_usbc_num  = 0;
-    u32 usb_3g_usbc_type = 0;
-
-    /* 3g_used */
-
-	type = script_get_item("3g_para", "3g_used", &item_temp);
-	if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
-		usb_3g_used = item_temp.val;
-	}else{
-		DMSG_PANIC("ERR: script_parser_fetch usb_3g_used failed\n");
-		usb_3g_used = 0;
-	}
-
-    if(usb_3g_used){
-        /* 3g_usbc_num */
-		type = script_get_item("3g_para", "3g_usbc_num", &item_temp);
-		if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
-			usb_3g_usbc_num = item_temp.val;
-		}else{
-			DMSG_PANIC("ERR: script_parser_fetch usb_3g_usbc_num failed\n");
-			usb_3g_usbc_num = 0;
-		}
-
-        /* 3g_usbc_type */
-		type = script_get_item("3g_para", "3g_usbc_type", &item_temp);
-		if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
-			usb_3g_usbc_type = item_temp.val;
-		}else{
-			DMSG_PANIC("ERR: script_parser_fetch usb_3g_usbc_type failed\n");
-			usb_3g_usbc_type = 0;
-		}
-
-        /* 只开3G使用的那个模组 */
-        if(sw_hci->usbc_no == usb_3g_usbc_num){
-            sw_hci->used = 0;
-            if(sw_hci->usbc_type == usb_3g_usbc_type){
-                sw_hci->used = 1;
-            }
-        }
-    }
-}
-#endif
+	sw_usb_3g_config(sw_hci);
 
 	/* wifi_used */
 	if(sw_hci->host_init_state == 0){
@@ -1325,10 +1323,6 @@ static int __init sw_hci_sun6i_init(void)
     //alloc_pin(&sw_ohci2);
 
 
-#ifdef  CONFIG_SW_USB_3G
-	usb_3g_init();
-#endif
-
 #ifdef  CONFIG_USB_SW_SUN6I_EHCI0
     if(sw_ehci0.used){
     	platform_device_register(&sw_usb_ehci_device[0]);
@@ -1392,10 +1386,6 @@ static int __init sw_hci_sun6i_init(void)
 */
 static void __exit sw_hci_sun6i_exit(void)
 {
-
-#ifdef  CONFIG_SW_USB_3G
-        usb_3g_exit();
-#endif
 
 #ifdef  CONFIG_USB_SW_SUN6I_EHCI0
     if(sw_ehci0.used){

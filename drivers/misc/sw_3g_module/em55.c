@@ -55,58 +55,12 @@ static char g_em55_name[] = MODEM_NAME;
 //
 //-----------------------------------------------------------------------------
 
-/*
-*******************************************************************************
-* 默认:
-* vbat  : 高
-* power : 高
-* reset : 高
-* sleep : 低
-*
-* 开机过程:
-* (1)、vbat拉高
-* (2)、power, 拉低持续1.8s，后拉低
-* (3)、sleep, 拉高持续100毫秒, 拉底持续100毫秒, 再拉高持续100毫秒, 再拉底
-*
-* 关机过程:
-* (1)、vbat拉低
-*
-*******************************************************************************
-*/
-void em55_power(struct sw_modem *modem, u32 on)
-{
-    modem_dbg("set %s modem power %s\n", modem->name, (on ? "on" : "off"));
-
-    if(on){
-    	/* power on */
-		modem_vbat(modem, 1);
-		msleep(100);
-
-        modem_power_on_off(modem, 0);
-        sw_module_delay(1800);
-        modem_power_on_off(modem, 1);
-        sw_module_delay(1000);
-
-        modem_sleep(modem, 1);
-        sw_module_delay(100);
-        modem_sleep(modem, 0);
-        sw_module_delay(100);
-        modem_sleep(modem, 1);
-        sw_module_delay(100);
-        modem_sleep(modem, 0);
-    }else{
-		modem_vbat(modem, 0);
-    }
-
-    return;
-}
-
 void em55_reset(struct sw_modem *modem)
 {
     modem_dbg("reset %s modem\n", modem->name);
 
 	modem_reset(modem, 0);
-    sw_module_delay(60);
+    sw_module_mdelay(60);
 	modem_reset(modem, 1);
 
     return;
@@ -126,20 +80,8 @@ static void em55_sleep(struct sw_modem *modem, u32 sleep)
 
     if(sleep){
         modem_sleep(modem, 1);
-        sw_module_delay(100);
-        modem_sleep(modem, 0);
-        sw_module_delay(100);
-        modem_sleep(modem, 1);
-        sw_module_delay(100);
-        modem_sleep(modem, 0);
     }else{
-        modem_sleep(modem, 1);
-        sw_module_delay(100);
         modem_sleep(modem, 0);
-        sw_module_delay(100);
-        modem_sleep(modem, 1);
-        sw_module_delay(100);
-        modem_sleep(modem, 1);
     }
 
     return;
@@ -154,25 +96,100 @@ static void em55_rf_disable(struct sw_modem *modem, u32 disable)
     return;
 }
 
+/*
+*******************************************************************************
+* 默认:
+* vbat  : 高
+* power : 高
+* reset : 高
+* sleep : 低
+*
+* 开机过程:
+* (1)、vbat拉高
+* (2)、power, 拉低持续1.8s，后拉高
+* (3)、sleep, 拉高持续100毫秒, 拉底持续100毫秒, 再拉高持续100毫秒, 再拉底
+*
+* 关机过程:
+* (1)、vbat拉低
+*
+*******************************************************************************
+*/
+#if 0
+void em55_power(struct sw_modem *modem, u32 on)
+{
+    modem_dbg("1set %s modem power %s\n", modem->name, (on ? "on" : "off"));
+
+    if(on){
+    	/* power on */
+		modem_vbat(modem, 1);
+		sw_module_mdelay(100);
+
+        modem_power_on_off(modem, 0);
+        sw_module_mdelay(1800);
+        modem_power_on_off(modem, 1);
+        sw_module_mdelay(1000);
+
+        modem_sleep(modem, 1);
+        sw_module_mdelay(100);
+        modem_sleep(modem, 0);
+        sw_module_mdelay(100);
+        modem_sleep(modem, 1);
+        sw_module_mdelay(100);
+        modem_sleep(modem, 0);
+    }else{
+		modem_vbat(modem, 0);
+    }
+
+    return;
+}
+#else
+void em55_power(struct sw_modem *modem, u32 on)
+{
+    modem_dbg("set %s modem power %s\n", modem->name, (on ? "on" : "off"));
+
+    if(on){
+        modem_sleep(modem, 0);
+
+    	/* power on */
+		modem_vbat(modem, 1);
+		sw_module_mdelay(100);
+
+        modem_power_on_off(modem, 0);
+        sw_module_mdelay(1800);
+        modem_power_on_off(modem, 1);
+    }else{
+		modem_vbat(modem, 0);
+    }
+
+    return;
+}
+#endif
+
 static int em55_start(struct sw_modem *mdev)
 {
     int ret = 0;
 
-    ret = modem_irq_init(mdev);
-    if(ret != 0){
-       modem_err("err: sw_module_irq_init failed\n");
-       return -1;
-    }
+    if(!mdev->start){
+        ret = modem_irq_init(mdev, TRIG_EDGE_NEGATIVE);
+        if(ret != 0){
+           modem_err("err: sw_module_irq_init failed\n");
+           return -1;
+        }
 
-    em55_power(mdev, 1);
+        em55_power(mdev, 1);
+        mdev->start = 1;
+    }
 
     return 0;
 }
 
 static int em55_stop(struct sw_modem *mdev)
 {
-    em55_power(mdev, 0);
-    modem_irq_exit(mdev);
+    if(mdev->start){
+        em55_power(mdev, 0);
+        modem_irq_exit(mdev);
+        mdev->start = 0;
+    }
 
     return 0;
 }
@@ -265,7 +282,8 @@ static void __exit em55_exit(void)
     platform_device_unregister(&em55_device);
 }
 
-late_initcall(em55_init);
+//late_initcall(em55_init);
+module_init(em55_init);
 module_exit(em55_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);

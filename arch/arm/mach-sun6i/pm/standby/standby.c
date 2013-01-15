@@ -207,6 +207,8 @@ static void standby(void)
 	/*notify ar100 enter normal standby*/
 	normal_standby_para_info.event = pm_info.standby_para.axp_event;
 	normal_standby_para_info.timeout = pm_info.standby_para.timeout;
+	normal_standby_para_info.gpio_enable_bitmap = pm_info.standby_para.gpio_enable_bitmap;
+	
 	
 	standby_ar100_standby_normal((&normal_standby_para_info));
 

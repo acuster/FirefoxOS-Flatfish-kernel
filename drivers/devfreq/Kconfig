@@ -78,4 +78,14 @@ config ARM_EXYNOS4_BUS_DEVFREQ
 	  To operate with optimal voltages, ASV support is required
 	  (CONFIG_EXYNOS_ASV).
 
+config DEVFREQ_DRAM_FREQ
+	bool "DRAM Frequency scaling"
+	depends on ARCH_SUN6I
+	help
+	  DRAM Frequency scaling allows you to change the clock speed of
+	  DRAM on the fly. This is a nice method to save power, because
+	  the lower the DRAM clock speed, the less power the DRAM consumes.
+
+	  If in doubt, say N.
+
 endif # PM_DEVFREQ

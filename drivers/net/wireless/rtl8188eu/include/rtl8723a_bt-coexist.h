@@ -1792,5 +1792,12 @@ void HALBT_SetRtsCtsNoLenLimit(PADAPTER padapter);
 // ===== End of sync from SD7 driver HAL/HalBT.c =====
 #endif // __HALBT_C__
 
+#define _bt_dbg_off_		0
+#define _bt_dbg_on_		1
+
+extern u32 BTCoexDbgLevel;
+
+
+
 #endif // __RTL8723A_BT_COEXIST_H__
 

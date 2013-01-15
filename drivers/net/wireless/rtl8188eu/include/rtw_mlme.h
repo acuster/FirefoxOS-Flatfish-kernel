@@ -47,46 +47,54 @@
 #define	SCANQUEUE_LIFETIME 20 // unit:sec
 #endif
 
-#define 	WIFI_NULL_STATE		0x00000000
-#define	WIFI_ASOC_STATE		0x00000001		// Under Linked state...
-#define 	WIFI_REASOC_STATE	       0x00000002
-#define	WIFI_SLEEP_STATE	       0x00000004
-#define	WIFI_STATION_STATE	0x00000008
+#define 	WIFI_NULL_STATE			0x00000000
+
+#define	WIFI_ASOC_STATE			0x00000001		// Under Linked state...
+#define 	WIFI_REASOC_STATE	       	0x00000002
+#define	WIFI_SLEEP_STATE			0x00000004
+#define	WIFI_STATION_STATE		0x00000008
+
 #define	WIFI_AP_STATE				0x00000010
 #define	WIFI_ADHOC_STATE			0x00000020
 #define   WIFI_ADHOC_MASTER_STATE 0x00000040
 #define   WIFI_UNDER_LINKING		0x00000080
-//#define WIFI_UNDER_CMD			0x00000200
+
+#define	WIFI_UNDER_WPS			0x00000100
+//#define	WIFI_UNDER_CMD			0x00000200
+//#define	WIFI_UNDER_P2P			0x00000400
+#define	WIFI_SITE_MONITOR			0x00000800		//to indicate the station is under site surveying
+
+#ifdef WDS
+#define	WIFI_WDS					0x00001000
+#define	WIFI_WDS_RX_BEACON		0x00002000		// already rx WDS AP beacon
+#endif
+#ifdef AUTO_CONFIG
+#define	WIFI_AUTOCONF				0x00004000
+#define	WIFI_AUTOCONF_IND		0x00008000
+#endif
+
+/*
 // ========== P2P Section Start ===============
 #define	WIFI_P2P_LISTEN_STATE		0x00010000
 #define	WIFI_P2P_GROUP_FORMATION_STATE		0x00020000
 // ========== P2P Section End ===============
-#define WIFI_UNDER_WPS			0x00000100
-#define WIFI_SITE_MONITOR		0x00000800		//to indicate the station is under site surveying
-
-#ifdef WDS
-#define	WIFI_WDS				0x00001000
-#define	WIFI_WDS_RX_BEACON	0x00002000		// already rx WDS AP beacon
-#endif
-#ifdef AUTO_CONFIG
-#define	WIFI_AUTOCONF			0x00004000
-#define	WIFI_AUTOCONF_IND	0x00008000
-#endif
+*/
 
 //#ifdef UNDER_MPTEST
-#define	WIFI_MP_STATE						0x00010000
-#define	WIFI_MP_CTX_BACKGROUND			0x00020000	// in continous tx background
-#define	WIFI_MP_CTX_ST					0x00040000	// in continous tx with single-tone
+#define	WIFI_MP_STATE							0x00010000
+#define	WIFI_MP_CTX_BACKGROUND				0x00020000	// in continous tx background
+#define	WIFI_MP_CTX_ST						0x00040000	// in continous tx with single-tone
 #define	WIFI_MP_CTX_BACKGROUND_PENDING	0x00080000	// pending in continous tx background due to out of skb
-#define	WIFI_MP_CTX_CCK_HW				0x00100000	// in continous tx
-#define	WIFI_MP_CTX_CCK_CS				0x00200000	// in continous tx with carrier suppression
-#define   WIFI_MP_LPBK_STATE				0x00400000
+#define	WIFI_MP_CTX_CCK_HW					0x00100000	// in continous tx
+#define	WIFI_MP_CTX_CCK_CS					0x00200000	// in continous tx with carrier suppression
+#define   WIFI_MP_LPBK_STATE					0x00400000
 //#endif
 
 //#define _FW_UNDER_CMD		WIFI_UNDER_CMD
 #define _FW_UNDER_LINKING	WIFI_UNDER_LINKING
 #define _FW_LINKED			WIFI_ASOC_STATE
 #define _FW_UNDER_SURVEY	WIFI_SITE_MONITOR
+
 
 enum dot11AuthAlgrthmNum {
  dot11AuthAlgrthm_Open = 0,
@@ -442,6 +450,11 @@ struct mlme_priv {
 #ifdef CONFIG_80211N_HT
 	u16 ht_op_mode;
 #endif /* CONFIG_80211N_HT */	
+
+	u8 *assoc_req;
+	u32 assoc_req_len;
+	u8 *assoc_rsp;
+	u32 assoc_rsp_len;
 
 	u8 *wps_beacon_ie;	
 	//u8 *wps_probe_req_ie;

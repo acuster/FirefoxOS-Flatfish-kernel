@@ -20,15 +20,18 @@
 #include <asm/ecard.h>
 #include <asm/string.h>
 #include <linux/clk.h>
+#include <linux/console.h>
 #include <linux/serial_reg.h>
 #include <linux/gpio.h>
-
+#include <linux/delay.h>
 #include <mach/clock.h>
 #include <mach/sys_config.h>
 #include <mach/platform.h>
 #include <mach/irqs.h>
 #include <mach/gpio.h>
 #include "8250.h"
+
+
 #define MAX_PORTS	    6
 
 //static int sw_serial[MAX_PORTS];
@@ -48,7 +51,8 @@
 #define AW_UART_RD(offset)			port->serial_in(port,(offset))
 #define AW_UART_WR(value,offset)	port->serial_out(port,(offset),(value))
 #define OFFSET          			0xf0000000
-
+u32 debug_mask=0;
+u32 debug_mask_pm=0;
 typedef struct backup_reg_def{
 	u32 dll; 		/* 0x00	*/
 	u32 dlh;		/* 0x04 */
@@ -59,8 +63,6 @@ typedef struct backup_reg_def{
 	u32 sch;		/* 0x1C */
 	u32 halt;		/* 0xA4 */
 } backup_reg_t;
-
-extern struct uart_8250_port serial8250_ports[CONFIG_SERIAL_8250_NR_UARTS];
 
 struct sw_serial_data {
 	unsigned int	last_lcr;
@@ -134,19 +136,19 @@ static int sw_serial_get_resource(struct sw_serial_port *sport)
     }
 
 	sport->sclk = clk_get_rate(sport->mod_clk);
-
-	clk_enable(sport->bus_clk);
-    clk_enable(sport->mod_clk);
-	clk_reset(sport->mod_clk,AW_CCU_CLK_NRESET);
-
 	/* get irq */
     sport->irq = platform_get_irq(sport->pdev, 0);
     if (sport->irq == 0) {
         ret = -EINVAL;
 		printk(KERN_WARNING "no IORESOURCE_irq");
-        goto free_pclk;
+        goto iounmap;
     }
 
+	if(sport->irq != 32){
+		clk_enable(sport->bus_clk);
+		clk_enable(sport->mod_clk);
+		clk_reset(sport->mod_clk,AW_CCU_CLK_NRESET);
+	}
     /* get gpio resource */
     sprintf(uart_para, "uart_para%d", sport->port_no);
     cnt = script_get_pio_list(uart_para, &list);
@@ -238,7 +240,7 @@ sw_serial_pm(struct uart_port *port, unsigned int state,
 	struct sw_serial_port *up = sw_serial_uart[port->irq-32];
 
 	if (!state){
-        clk_enable(up->bus_clk);
+		clk_enable(up->bus_clk);
 		clk_enable(up->mod_clk);
 		clk_reset(up->mod_clk,AW_CCU_CLK_NRESET);
 	}else{
@@ -314,12 +316,7 @@ sw_serial_probe(struct platform_device *dev)
     sport->port.dev     	= &dev->dev;
 	sport->port.membase 	= (unsigned char __iomem    *)sport->mmres->start + OFFSET;
     sport->port.mapbase 	= sport->mmres->start;
-/*
-	if(sport->port_no) 
-		sdata->line = serial8250_register_port(&sport->port);
-	else
-		sdata->line = 0;
-*/
+
 	sdata->line = serial8250_register_port(&sport->port);
 	if(sdata->line<0){
 		ret = sdata->line;
@@ -329,10 +326,11 @@ sw_serial_probe(struct platform_device *dev)
 	UART_MSG("\nserial line %d probe %d, membase %p irq %d mapbase 0x%08x\n", 
              sdata->line,dev->id, sport->port.membase, sport->port.irq, sport->port.mapbase);
 
-	clk_reset(sport->mod_clk,AW_CCU_CLK_RESET);
-	clk_disable(sport->mod_clk);
-	clk_disable(sport->bus_clk);
-
+	if(sdata->line){
+		clk_reset(sport->mod_clk,AW_CCU_CLK_RESET);
+		clk_disable(sport->mod_clk);
+		clk_disable(sport->bus_clk);
+	}
    	return 0;
 free_dev:
     kfree(sport);
@@ -341,40 +339,28 @@ free_dev:
 	sdata = NULL;
     return ret;
 }
+#if 0
+void sunxi_8250_quot_back(unsigned int quot ,struct uart_port *port)
+{
+	struct sw_serial_data *sdata = port->private_data;
+	int port_num	= sdata->line;
+	BACK_REG.dll	= quot & 0xff;
+	BACK_REG.dlh	= quot >> 8 & 0xff;
+}
+#endif
 #define FCR_AW  0x0e1
 void sunxi_8250_backup_reg(int port_num ,struct uart_port *port)
 {
 	unsigned long port_base_addr;
 	port_base_addr = port->mapbase + OFFSET;
 	UART_MSG("\nport_base_addr is %x \n port->mapbase is %x\n",port_base_addr,port->mapbase);
+	BACK_REG.fcr	= FCR_AW;
 	BACK_REG.lcr	= AW_UART_RD(UART_LCR);
 	BACK_REG.mcr	= AW_UART_RD(UART_MCR);
-	BACK_REG.sch	= AW_UART_RD(UART_SCR);
-	BACK_REG.halt	= AW_UART_RD(UART_HALT);
-	BACK_REG.fcr	= FCR_AW;
-
-		if(AW_UART_RD(UART_USR)&1){
-			AW_UART_WR(FCR_AW | 0x07,UART_FCR);
-			AW_UART_WR(BACK_REG.mcr|(1<<4),UART_MCR);
-			while(AW_UART_RD(UART_USR)&1)
-				AW_UART_RD(UART_RX);
-		}else{
-			AW_UART_WR(BACK_REG.mcr,UART_MCR);
-		}
-		AW_UART_WR(BACK_REG.lcr & 0x7f,UART_LCR);
-
-		BACK_REG.ier	= AW_UART_RD(UART_IER);
-
-		while(AW_UART_RD(UART_USR)&1)
-			AW_UART_RD(UART_RX);
-		AW_UART_WR(BACK_REG.lcr | 0x80,UART_LCR);
-		BACK_REG.dll	= AW_UART_RD(UART_DLL);
-		BACK_REG.dlh	= AW_UART_RD(UART_DLM);
-
-		while(AW_UART_RD(UART_USR)&1)
-			AW_UART_RD(UART_RX);
-		AW_UART_WR(BACK_REG.lcr,UART_LCR);
-		AW_UART_WR(BACK_REG.mcr,UART_MCR);
+	BACK_REG.sch	= AW_UART_RD(UART_SCH) & 0xff;
+	BACK_REG.halt	= 0x00;
+	BACK_REG.ier	= AW_UART_RD(UART_IER);
+	BACK_REG.dll	= BACK_REG.sch & 0xff;
 }
 EXPORT_SYMBOL(sunxi_8250_backup_reg);
 
@@ -382,35 +368,35 @@ void sunxi_8250_comeback_reg(int port_num,struct uart_port *port)
 {
 	unsigned long port_base_addr;
 	port_base_addr = port->mapbase + OFFSET;
+	AW_UART_WR(BACK_REG.sch,UART_SCH);
 
 	if(AW_UART_RD(UART_USR)&1){
-		AW_UART_WR(BACK_REG.fcr |0x07,UART_FCR);
-		AW_UART_WR(BACK_REG.mcr|(1<<4),UART_MCR);
-		AW_UART_WR(BACK_REG.sch,UART_SCR);
-		AW_UART_WR(BACK_REG.halt,UART_HALT);
-
-		while(AW_UART_RD(UART_USR)&1)
-			AW_UART_RD(UART_RX);
-	}else{
+	//	debug_mask=1;
+		AW_UART_WR(BACK_REG.fcr,UART_FCR);
 		AW_UART_WR(BACK_REG.mcr,UART_MCR);
+
+		AW_UART_WR(BACK_REG.halt |UART_FORCE_CFG,UART_HALT);
+		AW_UART_WR(BACK_REG.lcr,UART_LCR);
+
+		AW_UART_WR(BACK_REG.dll,UART_DLL);
+		AW_UART_WR(BACK_REG.dlh,UART_DLM);
+
+		AW_UART_WR(BACK_REG.halt |UART_FORCE_CFG |UART_FORCE_UPDATE ,UART_HALT);
+		while(AW_UART_RD(UART_HALT)&UART_FORCE_UPDATE);
+		AW_UART_WR(BACK_REG.halt ,UART_HALT);
+		AW_UART_WR(BACK_REG.ier,UART_IER);
+	}else{
+	//	debug_mask=0;
+		AW_UART_WR(BACK_REG.lcr | 0x80,UART_LCR);
+		AW_UART_WR(BACK_REG.dll,UART_DLL);
+		AW_UART_WR(BACK_REG.dlh,UART_DLM);
+
+		AW_UART_WR(BACK_REG.lcr & 0x7f,UART_LCR);
+		AW_UART_WR(BACK_REG.fcr,UART_FCR);
+		AW_UART_WR(BACK_REG.mcr,UART_MCR);
+		AW_UART_WR(BACK_REG.ier,UART_IER);
+
 	}
-
-	AW_UART_WR(BACK_REG.lcr & 0x7f,UART_LCR);
-	
-	AW_UART_WR(BACK_REG.ier,UART_IER);
-
-	while(AW_UART_RD(UART_USR)&1)
-		AW_UART_RD(UART_RX);
-
-	AW_UART_WR(BACK_REG.lcr | 0x80,UART_LCR);
-	AW_UART_WR(BACK_REG.dll,UART_DLL);
-	AW_UART_WR(BACK_REG.dlh,UART_DLM);
-
-	while(AW_UART_RD(UART_USR)&1)
-		AW_UART_RD(UART_RX);
-	AW_UART_WR(BACK_REG.lcr,UART_LCR);
-
-	AW_UART_WR(BACK_REG.mcr,UART_MCR);
 }
 EXPORT_SYMBOL(sunxi_8250_comeback_reg);
 
@@ -437,7 +423,7 @@ static int sw_serial_suspend(struct platform_device *dev, pm_message_t state)
 	UART_MSG("sw_serial_suspend uart suspend\n");
 	UART_MSG("&dev->dev is 0x%x\n",&dev->dev);
 
-	for (i = 1; i < MAX_PORTS; i++) {
+	for (i = 0; i < MAX_PORTS; i++) {
 		if(!sw_serial_uart[i]){
 			continue;
 		}
@@ -453,7 +439,6 @@ static int sw_serial_suspend(struct platform_device *dev, pm_message_t state)
 		if ((port->type != PORT_UNKNOWN)&& (port->dev == &dev->dev)){
 			sunxi_8250_backup_reg(sdata->line,port);
 			serial8250_suspend_port(sdata->line);
-
 		}
 	}
 
@@ -469,7 +454,7 @@ static int sw_serial_resume(struct platform_device *dev)
 	UART_MSG("sw_serial_resume SUPER_STANDBY resume\n");
 	UART_MSG("&dev->dev is 0x%x\n",&dev->dev);
 
-	for (i = 1; i < MAX_PORTS; i++) {
+	for (i = 0; i < MAX_PORTS; i++) {
 		if(!sw_serial_uart[i]){
 			continue;
 		}
@@ -484,10 +469,10 @@ static int sw_serial_resume(struct platform_device *dev)
 		if ((port->type != PORT_UNKNOWN) && (port->dev == &dev->dev)){
 			serial8250_resume_port(sdata->line);
 			sunxi_8250_comeback_reg(sdata->line,port);
+			printk("reume ttyS%d ok!\n",sdata->line);
 		}	
 
 	}
-
 	return 0;
 }
 
@@ -516,7 +501,7 @@ static struct resource sw_uart_res[8][2] = {
     },
     {/* uart1 resource */
         {.start = UARTx_BASE(1),	.end = UARTx_BASE(1) + UART_BASE_OS - 1,	.flags = IORESOURCE_MEM}, /*base*/
-        {.start = AW_IRQ_UART1 ,	.end = AW_IRQ_UART1,           .flags = IORESOURCE_IRQ}, /*irq */
+        {.start = AW_IRQ_UART1 ,	.end = AW_IRQ_UART1,						.flags = IORESOURCE_IRQ}, /*irq */
     },
     {/* uart2 resource */
         {.start = UARTx_BASE(2),	.end = UARTx_BASE(2) + UART_BASE_OS - 1,	.flags = IORESOURCE_MEM}, /*base*/
@@ -554,11 +539,10 @@ static int __init sw_serial_init(void)
     char uart_para[16];
 	script_item_u   val;
 	script_item_value_type_e  type;
-
-	//memset(sw_serial, 0, sizeof(sw_serial));
-    //uart_used = 0;
+	debug_mask = 0;
+	debug_mask_pm = 0;
 	uart_used = 0;
-	for (i=1; i<MAX_PORTS; i++, used=0) {
+	for (i=0; i<MAX_PORTS; i++, used=0) {
         sprintf(uart_para, "uart_para%d", i);
 		sw_serial_uart[i]=NULL;
 		type = script_get_item(uart_para, "uart_used", &val);
@@ -600,6 +584,12 @@ static void __exit sw_serial_exit(void)
 MODULE_AUTHOR("Aaron.myeh<leafy.myeh@reuuimllatech.com>");
 MODULE_DESCRIPTION("SUNXI 8250-compatible serial port expansion card driver");
 MODULE_LICENSE("GPL");
+module_param(debug_mask_pm,uint,0644);
+MODULE_PARM_DESC(debug_mask_pm,"sw plartform uart debug switch");
+
+
+module_param(debug_mask,uint,0644);
+MODULE_PARM_DESC(debug_mask,"sw plartform uart debug switch");
 
 module_init(sw_serial_init);
 module_exit(sw_serial_exit);

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -120,6 +120,9 @@ DeInitLed871x(
 	)
 {
 	_cancel_timer_ex(&(pLed->BlinkTimer));
+#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
+	_cancel_workitem_sync(&(pLed->BlinkWorkItem));
+#endif
 	ResetLedStatus(pLed);
 }
 
@@ -129,7 +132,7 @@ DeInitLed871x(
 //		Implementation of LED blinking behavior.
 //		It toggle off LED and schedule corresponding timer if necessary.
 //
-#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 
 void SwLedOn(_adapter *padapter, PLED_871x pLed);
 void SwLedOff(_adapter	*padapter, PLED_871x	pLed);

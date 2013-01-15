@@ -34,10 +34,14 @@
 #include <linux/time.h>
 #include <linux/timer.h>
 
-#include <mach/sys_config.h>
-#include <mach/gpio.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
+
+#include <asm/io.h>
+
+#include <mach/sys_config.h>
+#include <mach/gpio.h>
+#include  <mach/platform.h>
 
 #include "sw_module.h"
 

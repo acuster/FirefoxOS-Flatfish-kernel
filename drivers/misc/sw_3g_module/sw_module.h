@@ -10,6 +10,7 @@
  *
  */
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/ioctl.h>
 #include <linux/miscdevice.h>
@@ -17,8 +18,8 @@
 //-----------------------------------------------------------------------------
 //
 //-----------------------------------------------------------------------------
-#define  modem_dbg(...)			(printk("[sw_module]: "), printk(__VA_ARGS__))
-#define  modem_err(...)        	(printk("sw_module:L%d(%s):", __LINE__, __FILE__), printk(__VA_ARGS__))
+#define  modem_dbg(format,args...)      pr_debug("[sw_module]: "format,##args)
+#define  modem_err(format,args...)      pr_debug("[sw_module]: "format,##args)
 
 //-----------------------------------------------------------------------------
 //
@@ -60,9 +61,11 @@ struct sw_modem_ops{
 
 struct sw_modem{
     char name[SW_3G_NAME_LEN];
+    u8 start;
 
     struct work_struct irq_work;
-    u32 irq_hd;
+    u32 irq_hd;                         /* 中断句柄     */
+    enum gpio_eint_trigtype trig_type;  /* 中断触发方式 */
     struct input_dev *key;
 
     u32 used;
@@ -74,7 +77,7 @@ struct sw_modem{
     struct sw_module_pio bb_rst;
     struct sw_module_pio bb_rf_dis;
     struct sw_module_pio bb_wake;
-    struct sw_module_pio bb_host_wake;
+    struct sw_module_pio bb_wake_ap;
 
     struct sw_modem_ops *ops;
     void *prv;                          /* private data, eg. struct sw_module_dev */
@@ -84,7 +87,7 @@ struct sw_modem{
 //
 //-----------------------------------------------------------------------------
 
-void sw_module_delay(u32 time);
+void sw_module_mdelay(u32 time);
 s32 modem_get_config(struct sw_modem *modem);
 s32 modem_pin_init(struct sw_modem *modem);
 s32 modem_pin_exit(struct sw_modem *modem);
@@ -93,7 +96,7 @@ void modem_reset(struct sw_modem *modem, u32 time);
 void modem_sleep(struct sw_modem *modem, u32 sleep);
 void modem_power_on_off(struct sw_modem *modem, u32 up);
 void modem_rf_disable(struct sw_modem *modem, u32 disable);
-int modem_irq_init(struct sw_modem *modem);
+int modem_irq_init(struct sw_modem *modem, enum gpio_eint_trigtype trig_type);
 int modem_irq_exit(struct sw_modem *modem);
 void modem_early_suspend(struct sw_modem *modem);
 void modem_early_resume(struct sw_modem *modem);

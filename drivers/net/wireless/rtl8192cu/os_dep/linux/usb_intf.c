@@ -502,14 +502,15 @@ _func_exit_;
 static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 {
 	struct dvobj_priv *dvobj = usb_get_intfdata(usb_intf);
+	_adapter *padapter = dvobj->if1;
 
 _func_enter_;
 
 	usb_set_intfdata(usb_intf, NULL);
 	if (dvobj) {
 		//Modify condition for 92DU DMDP 2010.11.18, by Thomas
-		if ((dvobj->NumInterfaces != 2 && dvobj->NumInterfaces != 3)
-			|| (dvobj->InterfaceNumber == 1)) {
+		if ((dvobj->NumInterfaces == 1)
+			|| ((dvobj->InterfaceNumber == 1) && (padapter->registrypriv.mac_phy_mode != 1))) {
 			if (interface_to_usbdev(usb_intf)->state != USB_STATE_NOTATTACHED) {
 				//If we didn't unplug usb dongle and remove/insert modlue, driver fails on sitesurvey for the first time when device is up . 
 				//Reset usb port for sitesurvey fail issue. 2009.8.13, by Thomas
@@ -1124,7 +1125,14 @@ error_exit:
 extern void rtd2885_wlan_netlink_sendMsg(char *action_string, char *name);
 #endif
 
-#ifdef CONFIG_PLATFORM_ARM_SUN4I
+#ifdef CONFIG_PLATFORM_ARM_SUNxI
+#include <mach/sys_config.h>
+extern int sw_usb_disable_hcd(__u32 usbc_no);
+extern int sw_usb_enable_hcd(__u32 usbc_no);
+static int usb_wifi_host = 2;
+#endif
+
+#ifdef CONFIG_PLATFORM_ARM_SUN6I
 #include <mach/sys_config.h>
 extern int sw_usb_disable_hcd(__u32 usbc_no);
 extern int sw_usb_enable_hcd(__u32 usbc_no);
@@ -1172,14 +1180,14 @@ _adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	decide_chip_type_by_usb_device_id(padapter, pdid);
 	#endif
 
-	if (rtw_handle_dualmac(padapter, 1) != _SUCCESS)
-		goto free_adapter;
-
 	if((pnetdev = rtw_init_netdev(padapter)) == NULL) {
-		goto handle_dualmac;
+		goto free_adapter;
 	}
 	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(dvobj));
 	padapter = rtw_netdev_priv(pnetdev);
+
+	if (rtw_handle_dualmac(padapter, 1) != _SUCCESS)
+		goto free_adapter;
 
 #ifdef CONFIG_IOCTL_CFG80211
 	if(rtw_wdev_alloc(padapter, dvobj_to_dev(dvobj)) != 0) {
@@ -1505,22 +1513,35 @@ static int __init rtw_drv_entry(void)
 	tmp |= 0x55;
 	writel(tmp,(volatile unsigned int*)0xb801a608);//write dummy register for 1055
 #endif
-#ifdef CONFIG_PLATFORM_ARM_SUN4I
+#ifdef CONFIG_PLATFORM_ARM_SUNxI
 #ifndef CONFIG_RTL8723A
-	script_item_value_type_e type;
-	
+	int ret = 0;
 	/* ----------get usb_wifi_usbc_num------------- */	
-	type = script_get_item("wifi_para", "wifi_usbc_id", &item);
-	if(SCIRPT_ITEM_VALUE_TYPE_INT != type){		
-		printk("ERR: script_get_item wifi_usbc_id failed\n");			
-		return -ENOMEM;	
+	ret = script_parser_fetch("usb_wifi_para", "usb_wifi_usbc_num", (int *)&usb_wifi_host, 64);	
+	if(ret != 0){		
+		printk("ERR: script_parser_fetch usb_wifi_usbc_num failed\n");		
+		ret = -ENOMEM;		
+		return ret;	
 	}	
-	printk("sw_usb_enable_hcd: usbc_num = %d\n", item.val);	
+	printk("sw_usb_enable_hcd: usbc_num = %d\n", usb_wifi_host);	
+	sw_usb_enable_hcd(usb_wifi_host);
+#endif //CONFIG_RTL8723A	
+#endif //CONFIG_PLATFORM_ARM_SUNxI
+
+#ifdef CONFIG_PLATFORM_ARM_SUN6I
+	script_item_value_type_e type;
+
+	type = script_get_item("wifi_para", "wifi_usbc_id", &item);	
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != type){		
+		printk("ERR: script_get_item wifi_usbc_id failed\n");		
+		return -ENOMEM;		
+	}
+	
+	printk("sw_usb_enable_hcd: usbc_num = %d\n", item.val);
 	wifi_pm_power(1);
 	mdelay(10);
 	sw_usb_enable_hcd(item.val);
-#endif //CONFIG_RTL8723A	
-#endif //CONFIG_PLATFORM_ARM_SUN4I
+#endif //CONFIG_PLATFORM_ARM_SUN6I
 
 	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("+rtw_drv_entry\n"));
 
@@ -1561,13 +1582,18 @@ static void __exit rtw_drv_halt(void)
 	_rtw_mutex_free(&usb_drv->setch_mutex);
 	_rtw_mutex_free(&usb_drv->setbw_mutex);
 #endif
-#ifdef CONFIG_PLATFORM_ARM_SUN4I
+#ifdef CONFIG_PLATFORM_ARM_SUNxI
 #ifndef CONFIG_RTL8723A
-	printk("sw_usb_disable_hcd: usbc_num = %d\n", item.val);
+	printk("sw_usb_disable_hcd: usbc_num = %d\n", usb_wifi_host);
+	sw_usb_disable_hcd(usb_wifi_host);
+#endif //ifndef CONFIG_RTL8723A	
+#endif	//CONFIG_PLATFORM_ARM_SUNxI
+
+#ifdef CONFIG_PLATFORM_ARM_SUN6I
 	sw_usb_disable_hcd(item.val);
 	wifi_pm_power(0);
-#endif //ifndef CONFIG_RTL8723A	
-#endif	//CONFIG_PLATFORM_ARM_SUN4I
+#endif
+
 	DBG_871X("-rtw_drv_halt\n");
 }
 

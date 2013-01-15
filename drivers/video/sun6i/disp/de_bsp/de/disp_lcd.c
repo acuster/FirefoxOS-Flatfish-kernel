@@ -460,8 +460,6 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
 
     sprintf(primary_key, "lcd%d_para", sel);
 
-    memset(lcd_cfg, 0, sizeof(__disp_lcd_cfg_t));
-
 //lcd_used
     ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_used", &value, 1);
     if(ret == 0)
@@ -559,6 +557,13 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
         {
             lcd_cfg->lcd_io_used[i]= 1;
         }
+    }
+
+    lcd_cfg->backlight_max_limit = 150;
+    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_pwm_max_limit", &value, 1);
+    if(ret == 0)
+    {
+        lcd_cfg->backlight_max_limit = (value > 255)? 255:value;
     }
 
 //init_bright
@@ -686,8 +691,6 @@ void LCD_CLOSE_FUNC(__u32 sel, LCD_FUNC func, __u32 delay)
 
 void TCON_open(__u32 sel)
 {    
-    Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_LCD, 1);
-
     if(gpanel_info[sel].tcon_index == 0)
     {
         tcon0_open(sel,gpanel_info+sel);
@@ -729,7 +732,6 @@ void TCON_close(__u32 sel)
         gdisp.screen[sel].lcdc_status &= LCDC_TCON1_USED_MASK;
     }
 
-    Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_LCD, 0);
 }
 
 __s32 TCON_get_cur_line(__u32 sel, __u32 tcon_index)
@@ -1005,10 +1007,15 @@ __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
 				}
 
 	        }
+            msleep(50);
+            Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_LCD, 1);
+            msleep(2);
 		}
 		else
 		{
-			if((gpanel_info[sel].lcd_if == LCD_IF_EDP) && (gpanel_info[sel].lcd_edp_tx_ic == 0))
+			Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_LCD, 0);
+            msleep(2);
+            if((gpanel_info[sel].lcd_if == LCD_IF_EDP) && (gpanel_info[sel].lcd_edp_tx_ic == 0))
 	        {
 				__u8 data;
 				__u32 ret;
@@ -1040,6 +1047,7 @@ __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
 	        OSAL_GPIO_Release(hdl, 2);
 		}
     }
+
     return 0;
 }
 
@@ -1199,7 +1207,7 @@ __s32 Disp_lcdc_event_proc(void *parg)
 #endif
 {
     __u32 sel = (__u32)parg;
-	static __u32 count = 0;
+	static __u32 cntr=0;
 
     if(tcon_irq_query(sel,LCD_IRQ_TCON0_VBLK))
     {
@@ -1211,19 +1219,31 @@ __s32 Disp_lcdc_event_proc(void *parg)
     }
     if(tcon_irq_query(sel,LCD_IRQ_TCON0_CNTR))
     {
-       LCD_vbi_event_proc(sel, 0);
+   	   LCD_vbi_event_proc(sel, 0);
+			
+		if(dsi_inst_busy(sel))
+		{
+			if(cntr>=1)
+			{
+				cntr = 0;
+			}
+			else
+			{
+				cntr++;
+			}
+		}
+		else
+		{
+			cntr = 0;		
+		}
+		
+		if(cntr==0)
+		{
+			if(gpanel_info[sel].lcd_if == LCD_IF_DSI)
+				dsi_tri_start(sel);
+		   	tcon0_tri_start(sel);
+		}
 
-	   count ++;
-	   if(10 == count)
-	   {
-		   if(gpanel_info[sel].lcd_if == LCD_IF_DSI)
-		   {
-		       dsi_tri_start(sel);
-		   }
-	       tcon0_tri_start(sel);
-
-		   count = 0;
-	   }
     }
     if(tcon_irq_query(sel,LCD_IRQ_TCON0_TRIF))
     {
@@ -1730,7 +1750,7 @@ __s32 BSP_disp_lcd_open_before(__u32 sel)
     {
         dsi_cfg(sel, (__panel_para_t*)&gpanel_info[sel]);
     }
-    BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_LCD);
+    //BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_LCD);
     DE_BE_set_display_size(sel, gpanel_info[sel].lcd_x, gpanel_info[sel].lcd_y);
     DE_BE_Output_Select(sel, sel);
 
@@ -1813,6 +1833,11 @@ __s32 BSP_disp_lcd_set_bright(__u32 sel, __u32  bright, __u32 from_iep)
     
     bright = (bright > 255)? 255:bright;
 
+    if(!from_iep)
+    {
+        gdisp.screen[sel].lcd_cfg.backlight_bright = bright;
+    }
+
     if((gdisp.screen[sel].lcd_cfg.lcd_pwm_used==1) && (gdisp.screen[sel].lcd_cfg.lcd_used))
     {
         if(bright != 0)
@@ -1820,7 +1845,7 @@ __s32 BSP_disp_lcd_set_bright(__u32 sel, __u32  bright, __u32 from_iep)
             bright += 1;
         }
 
-        bright = bright * 200 /256;
+        bright = bright * gdisp.screen[sel].lcd_cfg.backlight_max_limit / 256;
 
         if(gpanel_info[sel].lcd_pwm_pol == 0)
         {
@@ -1828,28 +1853,17 @@ __s32 BSP_disp_lcd_set_bright(__u32 sel, __u32  bright, __u32 from_iep)
         }
         else
         {
-            duty_ns = (((256 - bright) * gdisp.screen[sel].lcd_cfg.backlight_dimming/256) * gdisp.pwm[gdisp.screen[sel].lcd_cfg.lcd_pwm_ch].period_ns + 128) / 256;
+            duty_ns = ((256 - bright * gdisp.screen[sel].lcd_cfg.backlight_dimming/256) * gdisp.pwm[gdisp.screen[sel].lcd_cfg.lcd_pwm_ch].period_ns + 128) / 256;
         }
         pwm_set_duty_ns(gdisp.screen[sel].lcd_cfg.lcd_pwm_ch, duty_ns);
    }
-
-    if(!from_iep)
-    {
-        gdisp.screen[sel].lcd_cfg.backlight_bright = bright;
-    }
 
     return DIS_SUCCESS;
 }
 
 __s32 BSP_disp_lcd_get_bright(__u32 sel)
 {
-    __u32 bright = gdisp.screen[sel].lcd_cfg.backlight_bright;
-
-    bright = bright * 256 / 200;
-
-    bright = (bright == 0)? 0:(bright -1);
-
-    return bright;	
+    return gdisp.screen[sel].lcd_cfg.backlight_bright;
 }
 
 __s32 BSP_disp_set_gamma_table(__u32 sel, __u32 *gamtbl_addr,__u32 gamtbl_size)

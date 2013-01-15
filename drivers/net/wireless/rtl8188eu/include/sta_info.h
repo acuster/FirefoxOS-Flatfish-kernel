@@ -279,6 +279,9 @@ struct sta_info {
 	//
 	// ================ODM Relative Info=======================
 	//
+
+	/* To store the sequence number of received management frame */
+	u16 RxMgmtFrameSeqNum;
 };
 
 #define sta_rx_pkts(sta) \

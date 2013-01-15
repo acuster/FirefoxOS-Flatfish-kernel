@@ -26,7 +26,6 @@
 #include <xmit_osdep.h>
 #include <hal_intf.h>
 #include <rtw_version.h>
-
 #ifndef CONFIG_USB_HCI
 
 #error "CONFIG_USB_HCI shall be on!\n"
@@ -66,6 +65,60 @@ int rtw_resume_process(_adapter *padapter);
 
 static int rtw_drv_init(struct usb_interface *pusb_intf,const struct usb_device_id *pdid);
 static void rtw_dev_remove(struct usb_interface *pusb_intf);
+
+#if (LINUX_VERSION_CODE<=KERNEL_VERSION(2,6,23))
+/* Some useful macros to use to create struct usb_device_id */
+ #define USB_DEVICE_ID_MATCH_VENDOR 			 0x0001
+ #define USB_DEVICE_ID_MATCH_PRODUCT			 0x0002
+ #define USB_DEVICE_ID_MATCH_DEV_LO 			 0x0004
+ #define USB_DEVICE_ID_MATCH_DEV_HI 			 0x0008
+ #define USB_DEVICE_ID_MATCH_DEV_CLASS			 0x0010
+ #define USB_DEVICE_ID_MATCH_DEV_SUBCLASS		 0x0020
+ #define USB_DEVICE_ID_MATCH_DEV_PROTOCOL		 0x0040
+ #define USB_DEVICE_ID_MATCH_INT_CLASS			 0x0080
+ #define USB_DEVICE_ID_MATCH_INT_SUBCLASS		 0x0100
+ #define USB_DEVICE_ID_MATCH_INT_PROTOCOL		 0x0200
+ #define USB_DEVICE_ID_MATCH_INT_NUMBER 		 0x0400
+
+
+#define USB_DEVICE_ID_MATCH_INT_INFO \
+				 (USB_DEVICE_ID_MATCH_INT_CLASS | \
+				 USB_DEVICE_ID_MATCH_INT_SUBCLASS | \
+				 USB_DEVICE_ID_MATCH_INT_PROTOCOL)
+				 
+
+#define USB_DEVICE_AND_INTERFACE_INFO(vend, prod, cl, sc, pr) \
+		 .match_flags = USB_DEVICE_ID_MATCH_INT_INFO \
+				 | USB_DEVICE_ID_MATCH_DEVICE, \
+		 .idVendor = (vend), \
+		 .idProduct = (prod), \
+		 .bInterfaceClass = (cl), \
+		 .bInterfaceSubClass = (sc), \
+		 .bInterfaceProtocol = (pr)
+ 
+ /**
+  * USB_VENDOR_AND_INTERFACE_INFO - describe a specific usb vendor with a class of usb interfaces
+  * @vend: the 16 bit USB Vendor ID
+  * @cl: bInterfaceClass value
+  * @sc: bInterfaceSubClass value
+  * @pr: bInterfaceProtocol value
+  *
+  * This macro is used to create a struct usb_device_id that matches a
+  * specific vendor with a specific class of interfaces.
+  *
+  * This is especially useful when explicitly matching devices that have
+  * vendor specific bDeviceClass values, but standards-compliant interfaces.
+  */
+#define USB_VENDOR_AND_INTERFACE_INFO(vend, cl, sc, pr) \
+		 .match_flags = USB_DEVICE_ID_MATCH_INT_INFO \
+				 | USB_DEVICE_ID_MATCH_VENDOR, \
+		 .idVendor = (vend), \
+		 .bInterfaceClass = (cl), \
+		 .bInterfaceSubClass = (sc), \
+		 .bInterfaceProtocol = (pr)
+ 
+/* ----------------------------------------------------------------------- */
+#endif
 
 #define USB_VENDER_ID_REALTEK		0x0BDA
 
@@ -663,12 +716,12 @@ static void rtw_dev_unload(_adapter *padapter)
 		if(padapter->bSurpriseRemoved == _FALSE)
 		{
 			//DBG_871X("r871x_dev_unload()->rtl871x_hal_deinit()\n");
-			#ifdef CONFIG_WOWLAN
-			if(padapter->pwrctrlpriv.bSupportRemoteWakeup==_TRUE){
-				DBG_871X("%s bSupportRemoteWakeup==_TRUE  do not run rtw_hal_deinit()\n",__FUNCTION__);
+#ifdef CONFIG_WOWLAN
+			if((padapter->pwrctrlpriv.bSupportRemoteWakeup==_TRUE)&&(padapter->pwrctrlpriv.wowlan_mode==_TRUE)){
+				DBG_871X("%s bSupportWakeOnWlan==_TRUE  do not run rtw_hal_deinit()\n",__FUNCTION__);
 			}
 			else
-			#endif
+#endif //CONFIG_WOWLAN
 			{
 				rtw_hal_deinit(padapter);
 			}
@@ -676,7 +729,9 @@ static void rtw_dev_unload(_adapter *padapter)
 		}
 
 		padapter->bup = _FALSE;
-
+#ifdef CONFIG_WOWLAN
+		padapter->hw_init_completed=_FALSE;
+#endif //CONFIG_WOWLAN
 	}
 	else
 	{
@@ -868,12 +923,23 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct usb_device *usb_dev = interface_to_usbdev(pusb_intf);
+#ifdef CONFIG_WOWLAN
+	struct wowlan_ioctl_param poidparam;
+#endif // CONFIG_WOWLAN
+
 	int ret = 0;
 	u32 start_time = rtw_get_current_time();
 	
 	_func_enter_;
 
 	DBG_871X("==> %s (%s:%d)\n",__FUNCTION__, current->comm, current->pid);
+
+#ifdef CONFIG_WOWLAN
+	if (check_fwstate(pmlmepriv, _FW_LINKED))
+		padapter->pwrctrlpriv.wowlan_mode = _TRUE;
+	else
+		padapter->pwrctrlpriv.wowlan_mode = _FALSE;
+#endif
 
 	if((!padapter->bup) || (padapter->bDriverStopped)||(padapter->bSurpriseRemoved))
 	{
@@ -908,14 +974,22 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 		netif_carrier_off(pnetdev);
 		rtw_netif_stop_queue(pnetdev);
 	}
+
 #ifdef CONFIG_WOWLAN
-	padapter->pwrctrlpriv.bSupportRemoteWakeup=_TRUE;
-#else		
+	if(padapter->pwrctrlpriv.bSupportRemoteWakeup==_TRUE&&padapter->pwrctrlpriv.wowlan_mode==_TRUE){
+		//set H2C command
+		poidparam.subcode=WOWLAN_ENABLE;
+		padapter->HalFunc.SetHwRegHandler(padapter,HW_VAR_WOWLAN,(u8 *)&poidparam);
+	}
+	else
+#else
+	{
 	//s2.
 	//s2-1.  issue rtw_disassoc_cmd to fw
 	disconnect_hdl(padapter, NULL);
 	//rtw_disassoc_cmd(padapter);
-#endif
+	}
+#endif //CONFIG_WOWLAN
 
 #ifdef CONFIG_LAYER2_ROAMING_RESUME
 	if(check_fwstate(pmlmepriv, WIFI_STATION_STATE) && check_fwstate(pmlmepriv, _FW_LINKED) )
@@ -975,7 +1049,12 @@ static int rtw_resume(struct usb_interface *pusb_intf)
 #ifdef CONFIG_RESUME_IN_WORKQUEUE
 		rtw_resume_in_workqueue(pwrpriv);
 #elif defined(CONFIG_HAS_EARLYSUSPEND) || defined(CONFIG_ANDROID_POWER)
+#ifdef CONFIG_WOWLAN
+		if(rtw_is_earlysuspend_registered(pwrpriv) && 
+			!padapter->pwrctrlpriv.wowlan_mode) {
+#else
 		if(rtw_is_earlysuspend_registered(pwrpriv)) {
+#endif //CONFIG_WOWLAN
 			//jeff: bypass resume here, do in late_resume
 			pwrpriv->do_late_resume = _TRUE;
 		} else {
@@ -1102,7 +1181,8 @@ exit:
 	#ifdef CONFIG_RESUME_IN_WORKQUEUE
 	rtw_unlock_suspend();
 	#endif //CONFIG_RESUME_IN_WORKQUEUE
-	
+
+	pwrpriv->bInSuspend = _FALSE;
 	DBG_871X("<===  %s return %d.............. in %dms\n", __FUNCTION__
 		, ret, rtw_get_passing_time_ms(start_time));
 	
@@ -1241,6 +1321,13 @@ extern void rtd2885_wlan_netlink_sendMsg(char *action_string, char *name);
 #include <mach/sys_config.h>
 extern int sw_usb_disable_hcd(__u32 usbc_no);
 extern int sw_usb_enable_hcd(__u32 usbc_no);
+static int usb_wifi_host = 2;
+#endif
+
+#ifdef CONFIG_PLATFORM_ARM_SUN6I
+#include <mach/sys_config.h>
+extern int sw_usb_disable_hcd(__u32 usbc_no);
+extern int sw_usb_enable_hcd(__u32 usbc_no);
 extern void wifi_pm_power(int on);
 static script_item_u item;
 #endif
@@ -1375,7 +1462,12 @@ _adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	}	
 #endif
 	//2012-07-11 Move here to prevent the 8723AS-VAU BT auto suspend influence	
-	usb_autopm_get_interface(pusb_intf);//init pm_usage_cnt ,let it start from 1
+	#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,33))				
+			if (usb_autopm_get_interface(pusb_intf) < 0) 
+				{
+					DBG_871X( "can't get autopm: \n");
+				}
+	#endif
 #ifdef	CONFIG_BT_COEXIST
 	padapter->pwrctrlpriv.autopm_cnt=1;
 #endif
@@ -1447,6 +1539,19 @@ static void rtw_usb_if1_deinit(_adapter *if1)
 	rtw_unregister_early_suspend(&if1->pwrctrlpriv);
 #endif
 
+
+	if(usb_drv->drv_registered == _TRUE)
+	{
+		//DBG_871X("r871xu_dev_remove():padapter->bSurpriseRemoved == _TRUE\n");
+		if1->bSurpriseRemoved = _TRUE;
+	}
+	/*else
+	{
+		//DBG_871X("r871xu_dev_remove():module removed\n");
+		padapter->hw_init_completed = _FALSE;
+	}*/
+	
+
 	rtw_pm_set_ips(if1, IPS_NONE);
 	rtw_pm_set_lps(if1, PS_MODE_ACTIVE);
 
@@ -1455,18 +1560,6 @@ static void rtw_usb_if1_deinit(_adapter *if1)
 	if(check_fwstate(pmlmepriv, _FW_LINKED))
 		disconnect_hdl(if1, NULL);
 
-	#if 0
-	if(usb_drv->drv_registered == _TRUE)
-	{
-		//DBG_871X("r871xu_dev_remove():padapter->bSurpriseRemoved == _TRUE\n");
-		padapter->bSurpriseRemoved = _TRUE;
-	}
-	/*else
-	{
-		//DBG_871X("r871xu_dev_remove():module removed\n");
-		padapter->hw_init_completed = _FALSE;
-	}*/
-	#endif
 
 #ifdef CONFIG_AP_MODE
 	free_mlme_ap_info(if1);
@@ -1483,6 +1576,10 @@ static void rtw_usb_if1_deinit(_adapter *if1)
 	}
 
 	rtw_cancel_all_timer(if1);
+
+#ifdef CONFIG_WOWLAN
+	if1->pwrctrlpriv.wowlan_mode=_FALSE;
+#endif //CONFIG_WOWLAN
 
 	rtw_dev_unload(if1);
 
@@ -1752,21 +1849,33 @@ static int __init rtw_drv_entry(void)
 #endif
 #ifdef CONFIG_PLATFORM_ARM_SUNxI
 #ifndef CONFIG_RTL8723A
-	script_item_value_type_e type;
-	
+	int ret = 0;
 	/* ----------get usb_wifi_usbc_num------------- */	
-	type = script_get_item("wifi_para", "wifi_usbc_id", &item);
-	if(SCIRPT_ITEM_VALUE_TYPE_INT != type){		
-		printk("ERR: script_get_item wifi_usbc_id failed\n");			
-		return -ENOMEM;	
+	ret = script_parser_fetch("usb_wifi_para", "usb_wifi_usbc_num", (int *)&usb_wifi_host, 64);	
+	if(ret != 0){		
+		DBG_8192C("ERR: script_parser_fetch usb_wifi_usbc_num failed\n");		
+		ret = -ENOMEM;		
+		return ret;	
 	}	
-	printk("sw_usb_enable_hcd: usbc_num = %d\n", item.val);	
-	wifi_pm_power(1);
-	mdelay(10);
-	sw_usb_enable_hcd(item.val);
+	DBG_8192C("sw_usb_enable_hcd: usbc_num = %d\n", usb_wifi_host);	
+	sw_usb_enable_hcd(usb_wifi_host);
 #endif //CONFIG_RTL8723A	
 #endif //CONFIG_PLATFORM_ARM_SUNxI
 
+#ifdef CONFIG_PLATFORM_ARM_SUN6I
+	script_item_value_type_e type;
+
+	type = script_get_item("wifi_para", "wifi_usbc_id", &item);	
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != type){		
+		printk("ERR: script_get_item wifi_usbc_id failed\n");		
+		return -ENOMEM;		
+	}
+	
+	printk("sw_usb_enable_hcd: usbc_num = %d\n", item.val);
+	wifi_pm_power(1);
+	mdelay(10);
+	sw_usb_enable_hcd(item.val);	
+#endif //CONFIG_PLATFORM_ARM_SUN6I
 
 	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("+rtw_drv_entry\n"));
 
@@ -1809,11 +1918,15 @@ static void __exit rtw_drv_halt(void)
 #endif
 #ifdef CONFIG_PLATFORM_ARM_SUNxI
 #ifndef CONFIG_RTL8723A
-	printk("sw_usb_disable_hcd: usbc_num = %d\n", item.val);
-	sw_usb_disable_hcd(item.val);
-	wifi_pm_power(0);
+	DBG_8192C("sw_usb_disable_hcd: usbc_num = %d\n", usb_wifi_host);
+	sw_usb_disable_hcd(usb_wifi_host);
 #endif //ifndef CONFIG_RTL8723A	
 #endif	//CONFIG_PLATFORM_ARM_SUNxI
+
+#ifdef CONFIG_PLATFORM_ARM_SUN6I
+	sw_usb_disable_hcd(item.val);
+	wifi_pm_power(0);
+#endif
 
 	DBG_871X("-rtw_drv_halt\n");
 }

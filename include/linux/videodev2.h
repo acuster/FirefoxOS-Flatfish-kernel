@@ -728,6 +728,7 @@ struct v4l2_captureparm {
 #define V4L2_MODE_HIGHQUALITY	0x0001	/*  High quality imaging mode */
 #define V4L2_MODE_VIDEO				0x0002	/*  For video capture */
 #define V4L2_MODE_IMAGE				0x0003	/*  For image capture */
+#define V4L2_MODE_PREVIEW			0x0004	/*  For preview capture */
 #define V4L2_CAP_TIMEPERFRAME	0x1000	/*  timeperframe field is supported */
 
 struct v4l2_outputparm {

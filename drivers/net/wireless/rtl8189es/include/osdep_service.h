@@ -778,6 +778,8 @@ __inline static void _set_workitem(_workitem *pwork)
 	#include <linux/proc_fs.h>	// Necessary because we use the proc fs
 	#include <linux/interrupt.h>	// for struct tasklet_struct
 	#include <linux/ip.h>
+	#include <linux/kthread.h>
+
 
 #ifdef CONFIG_IOCTL_CFG80211	
 //	#include <linux/ieee80211.h>        
@@ -837,7 +839,7 @@ __inline static void _set_workitem(_workitem *pwork)
 	typedef unsigned long _irqL;
 	typedef	struct	net_device * _nic_hdl;
 	
-	typedef pid_t		_thread_hdl_;
+	typedef void*		_thread_hdl_;
 	typedef int		thread_return;
 	typedef void*	thread_context;
 
@@ -866,6 +868,11 @@ static inline void skb_reset_tail_pointer(struct sk_buff *skb)
 static inline void skb_set_tail_pointer(struct sk_buff *skb, const int offset)
 {
 	skb->tail = skb->data + offset;
+}
+
+static inline unsigned char *skb_end_pointer(const struct sk_buff *skb)
+{
+	return skb->end;
 }
 #endif
 
@@ -914,13 +921,16 @@ __inline static void _exit_critical_bh(_lock *plock, _irqL *pirqL)
 	spin_unlock_bh(plock);
 }
 
-__inline static void _enter_critical_mutex(_mutex *pmutex, _irqL *pirqL)
+__inline static int _enter_critical_mutex(_mutex *pmutex, _irqL *pirqL)
 {
+	int ret = 0;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
-		mutex_lock(pmutex);
+	//mutex_lock(pmutex);
+	ret = mutex_lock_interruptible(pmutex);
 #else
-		down(pmutex);
+	ret = down_interruptible(pmutex);
 #endif
+	return ret;
 }
 
 
@@ -981,6 +991,10 @@ __inline static void _set_workitem(_workitem *pwork)
 	schedule_work(pwork);
 }
 
+__inline static void _cancel_workitem_sync(_workitem *pwork)
+{
+	cancel_work_sync(pwork);
+}
 //
 // Global Mutex: can only be used at PASSIVE level.
 //
@@ -1353,6 +1367,7 @@ extern u32	rtw_end_of_queue_search(_list *queue, _list *pelement);
 
 extern u32	rtw_get_current_time(void);
 extern u32	rtw_systime_to_ms(u32 systime);
+extern u32	rtw_ms_to_systime(u32 ms);
 extern s32	rtw_get_passing_time_ms(u32 start);
 extern s32	rtw_get_time_interval_ms(u32 start, u32 end);
 
@@ -1360,6 +1375,8 @@ extern void	rtw_sleep_schedulable(int ms);
 
 extern void	rtw_msleep_os(int ms);
 extern void	rtw_usleep_os(int us);
+
+extern u32 	rtw_atoi(u8* s);
 
 #ifdef DBG_DELAY_OS
 #define rtw_mdelay_os(ms) _rtw_mdelay_os((ms), __FUNCTION__, __LINE__)
@@ -1540,7 +1557,9 @@ extern void rtw_suspend_lock_init(void);
 extern void rtw_suspend_lock_uninit(void);
 extern void rtw_lock_suspend(void);
 extern void rtw_unlock_suspend(void);
-
+#ifdef CONFIG_WOWLAN
+extern void rtw_lock_suspend_timeout(long timeout);
+#endif //CONFIG_WOWLAN
 
 //Atomic integer operations
 #ifdef PLATFORM_LINUX
@@ -1599,6 +1618,14 @@ extern void rtw_free_netdev(struct net_device * netdev);
 #define rtw_netdev_priv(netdev) (((struct ifnet *)netdev)->if_softc)
 #define rtw_free_netdev(netdev) if_free((netdev))
 #endif //PLATFORM_FREEBSD
+#endif
+
+#ifdef PLATFORM_LINUX
+#define FUNC_NDEV_FMT "%s(%s)"
+#define FUNC_NDEV_ARG(ndev) __func__, ndev->name
+#else
+#define FUNC_NDEV_FMT "%s"
+#define FUNC_NDEV_ARG(ndev) __func__
 #endif
 
 #ifdef PLATFORM_LINUX
@@ -1678,6 +1705,9 @@ extern u64 rtw_division64(u64 x, u64 y);
 			 (((u64) (a)[5]) << 40) | (((u64) (a)[4]) << 32) | \
 			 (((u64) (a)[3]) << 24) | (((u64) (a)[2]) << 16) | \
 			 (((u64) (a)[1]) << 8) | ((u64) (a)[0]))
+
+void rtw_buf_free(u8 **buf, u32 *buf_len);
+void rtw_buf_update(u8 **buf, u32 *buf_len, u8 *src, u32 src_len);
 
 #endif
 

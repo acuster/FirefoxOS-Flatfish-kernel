@@ -208,7 +208,12 @@
 #include "rtl8188e/HalHWImg8188E_TestChip_BB.h"
 #endif
 
-//#include "rtl8188e/HalHWImg8188E_FW.h"
+#ifdef CONFIG_WOWLAN
+#if (RTL8188E_SUPPORT==1)
+#include "rtl8188e/HalHWImg8188E_FW.h"
+#endif
+#endif //CONFIG_WOWLAN
+
 #include "rtl8188e/odm_RegConfig8188E.h"
 #include "rtl8188e/odm_RTL8188E.h"
 #endif

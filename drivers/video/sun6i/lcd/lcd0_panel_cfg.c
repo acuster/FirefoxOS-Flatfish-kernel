@@ -112,7 +112,7 @@ static __s32 LCD_open_flow(__u32 sel)
 {
 	LCD_OPEN_FUNC(sel, LCD_power_on, 50);   //open lcd power, and delay 50ms
 	LCD_OPEN_FUNC(sel, LCD_panel_init,	200);   //open lcd power, than delay 200ms
-	LCD_OPEN_FUNC(sel, TCON_open, 500);     //open lcd controller, and delay 500ms
+	LCD_OPEN_FUNC(sel, TCON_open, 100);     //open lcd controller, and delay 100ms
 	LCD_OPEN_FUNC(sel, LCD_bl_open, 0);     //open lcd backlight, and delay 0ms
 
 	return 0;
@@ -123,7 +123,7 @@ static __s32 LCD_close_flow(__u32 sel)
 	LCD_CLOSE_FUNC(sel, LCD_bl_close, 0);       //close lcd backlight, and delay 0ms
 	LCD_CLOSE_FUNC(sel, TCON_close, 0);         //close lcd controller, and delay 0ms
 	LCD_CLOSE_FUNC(sel, LCD_panel_exit,	200);   //open lcd power, than delay 200ms
-	LCD_CLOSE_FUNC(sel, LCD_power_off, 1000);   //close lcd power, and delay 1000ms
+	LCD_CLOSE_FUNC(sel, LCD_power_off, 500);   //close lcd power, and delay 500ms
 
 	return 0;
 }

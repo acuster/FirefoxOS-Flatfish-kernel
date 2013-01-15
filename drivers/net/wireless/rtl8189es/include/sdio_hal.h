@@ -29,12 +29,12 @@ void sd_int_dpc(PADAPTER padapter);
 
 #ifdef CONFIG_RTL8723A
 void rtl8723as_set_hal_ops(PADAPTER padapter);
-#define set_hal_ops rtl8723as_set_hal_ops
+#define hal_set_hal_ops rtl8723as_set_hal_ops
 #endif
 
 #ifdef CONFIG_RTL8188E
 void rtl8188es_set_hal_ops(PADAPTER padapter);
-#define set_hal_ops rtl8188es_set_hal_ops
+#define hal_set_hal_ops rtl8188es_set_hal_ops
 #endif
 
 #endif //__SDIO_HAL_H__

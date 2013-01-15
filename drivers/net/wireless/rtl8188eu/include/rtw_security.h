@@ -193,6 +193,7 @@ struct security_priv
 	//u32				PMKIDCount;						// Added by Annie, 2006-10-13.
 	//u8				szCapability[256];				// For WPA2-PSK using zero-config, by Annie, 2005-09-20.
 
+	u8 bWepDefaultKeyIdxSet;
 };
 
 struct sha256_state {

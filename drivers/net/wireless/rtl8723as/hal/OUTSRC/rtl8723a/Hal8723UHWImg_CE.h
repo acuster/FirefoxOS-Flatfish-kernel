@@ -8,7 +8,7 @@
 extern u8 Rtl8723UFwImgArray[Rtl8723UImgArrayLength];
 #define Rtl8723UBTImgArrayLength 1
 extern u8 Rtl8723UFwBTImgArray[Rtl8723UBTImgArrayLength];
-#define Rtl8723UUMCBCutImgArrayLength 24422
+#define Rtl8723UUMCBCutImgArrayLength 24468
 extern u8 Rtl8723UFwUMCBCutImgArray[Rtl8723UUMCBCutImgArrayLength];
 
 #define Rtl8723SUMCBCutMPImgArrayLength 18396

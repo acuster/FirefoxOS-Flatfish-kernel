@@ -21,8 +21,6 @@
 
 #include "../ar100_i.h"
 
-int g_ar100_debug_level = 2;
-
 /**
  * set ar100 debug level.
  * @level: ar100 debug level;

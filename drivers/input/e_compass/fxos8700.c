@@ -90,12 +90,11 @@ static __u32 twi_id = 0;
 static int i2c_num = 0;
 static const unsigned short i2c_address[] = {0x1c, 0x1d, 0x1e, 0x1f};
 enum {
-	DEBUG_I2C_DETECT = 1U << 0,
-	DEBUG_INT = 1U << 1,
-	DEBUG_INT_BOTTOM_HALF = 1U << 2,
-	DEBUG_REPORT_DATA = 1U << 3,
-	DEBUG_SUSPEND = 1U << 4,
-	
+	DEBUG_INIT = 1U << 0,
+	DEBUG_CONTROL_INFO = 1U << 1,
+	DEBUG_REPORT_DATA = 1U << 2,
+	DEBUG_SUSPEND = 1U << 3,
+	DEBUG_INT = 1U << 4,
 };
 
 static u32 debug_mask = 0;
@@ -141,7 +140,7 @@ static int e_compass_fetch_sysconfig_para(void)
 	script_item_value_type_e  type;
 	
 		
-	dprintk(DEBUG_I2C_DETECT, "========%s===================\n", __func__);
+	dprintk(DEBUG_INIT, "========%s===================\n", __func__);
 
 	
 	type = script_get_item("compass_para", "compass_used", &val);
@@ -160,7 +159,7 @@ static int e_compass_fetch_sysconfig_para(void)
 		}
 		twi_id = val.val;
 		
-		dprintk(DEBUG_I2C_DETECT, "%s: twi_id is %d. \n", __func__, twi_id);
+		dprintk(DEBUG_INIT, "%s: twi_id is %d. \n", __func__, twi_id);
 
 		ret = 0;
 		
@@ -193,11 +192,11 @@ static int e_compass_detect(struct i2c_client *client, struct i2c_board_info *in
 	if (twi_id == adapter->nr) {
 		for (i2c_num = 0; i2c_num < (sizeof(i2c_address)/sizeof(i2c_address[0]));i2c_num++) {	    
 			client->addr = i2c_address[i2c_num];
-			dprintk(DEBUG_I2C_DETECT, "%s:addr= 0x%x,i2c_num:%d\n",__func__,client->addr,i2c_num);
+			dprintk(DEBUG_INIT, "%s:addr= 0x%x,i2c_num:%d\n",__func__,client->addr,i2c_num);
 			ret = i2c_smbus_read_byte_data(client,FXOS8700_WHO_AM_I);
-			dprintk(DEBUG_I2C_DETECT, "Read ID value is :%d",ret);
+			dprintk(DEBUG_INIT, "Read ID value is :%d",ret);
 			if ((ret &0x00FF) == FXOS8700_DEVICE_ID) {
-				dprintk(DEBUG_I2C_DETECT, "FXOS8700 Device detected!\n" );
+				dprintk(DEBUG_INIT, "FXOS8700 Device detected!\n" );
 				strlcpy(info->type, FXOS8700_DEV_NAME, I2C_NAME_SIZE);
 				return 0; 
 			}                                                           
@@ -307,7 +306,7 @@ static int fxos8700_report_data(struct input_dev *idev, struct fxos8700_data_axi
 		input_report_abs(idev, ABS_Y, data->y);
 		input_report_abs(idev, ABS_Z, data->z);
 		input_sync(idev);
-		dprintk(DEBUG_REPORT_DATA, "stat->input_dev_acc x = %d, y = %d, z = %d. \n", \
+		dprintk(DEBUG_REPORT_DATA, "fxos8700 x = %d, y = %d, z = %d. \n", \
 		data->x, data->y, data->z); 
 	}
 	return 0;
@@ -507,6 +506,7 @@ static ssize_t fxos8700_enable_store(struct device *dev,
 	int enable;
 	int ret;
 	enable = simple_strtoul(buf, NULL, 10);
+	dprintk(DEBUG_CONTROL_INFO, "%s: start\n", __func__);
 	mutex_lock(&pdata->data_lock);
 	if(poll_dev == pdata->acc_poll_dev)
 		type = FXOS8700_TYPE_ACC;
@@ -614,6 +614,9 @@ static int fxos8700_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct fxos8700_data *pdata =  i2c_get_clientdata(client);
+	dprintk(DEBUG_SUSPEND, "%s: start\n", __func__);
+	pdata->acc_poll_dev->input->close(pdata->acc_poll_dev->input);
+	pdata->mag_poll_dev->input->close(pdata->mag_poll_dev->input);
 	mutex_lock(&pdata->data_lock);
 	if(pdata->acc_active || pdata->mag_active)
 		fxos8700_device_stop(client);
@@ -626,6 +629,7 @@ static int fxos8700_resume(struct device *dev)
 	int ret = 0;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct fxos8700_data *pdata =  i2c_get_clientdata(client);
+	dprintk(DEBUG_SUSPEND, "%s: start\n", __func__);
 	if (NORMAL_STANDBY == standby_type) {
 		mutex_lock(&pdata->data_lock);
 		if(pdata->acc_active)
@@ -634,7 +638,15 @@ static int fxos8700_resume(struct device *dev)
 			fxos8700_change_mode(client,FXOS8700_TYPE_MAG,FXOS8700_ACTIVED);
 		mutex_unlock(&pdata->data_lock);
 	} else if (SUPER_STANDBY == standby_type) {
-		fxos8700_device_init(client);
+		ret = i2c_smbus_write_byte_data(client, FXOS8700_CTRL_REG1, 0x00); //standby mode
+		if (ret < 0)
+			goto out;
+		ret = i2c_smbus_write_byte_data(client, FXOS8700_CTRL_REG1, 0x18); //0dr 100hz
+		if (ret < 0)
+			goto out;
+		ret = i2c_smbus_write_byte_data(client, FXOS8700_M_CTRL_REG1,0x3); //hybrid mode
+		if (ret < 0)
+			goto out;
 		
 		mutex_lock(&pdata->data_lock);
 		if(pdata->acc_active)
@@ -643,6 +655,9 @@ static int fxos8700_resume(struct device *dev)
 			fxos8700_change_mode(client,FXOS8700_TYPE_MAG,FXOS8700_ACTIVED);
 		mutex_unlock(&pdata->data_lock);
 	}
+	pdata->acc_poll_dev->input->open(pdata->acc_poll_dev->input);
+	pdata->mag_poll_dev->input->open(pdata->mag_poll_dev->input);
+out:
 	return ret;
 
 }
@@ -655,26 +670,42 @@ static void fxos8700_early_suspend(struct early_suspend *h)
 {
 	struct fxos8700_data *pdata =  container_of(h, struct fxos8700_data, early_suspend);
 	struct i2c_client *client =  pdata->client;
+	dprintk(DEBUG_SUSPEND, "%s: start\n", __func__);
+	pdata->acc_poll_dev->input->close(pdata->acc_poll_dev->input);
+	pdata->mag_poll_dev->input->close(pdata->mag_poll_dev->input);
 	if(pdata->acc_active || pdata->mag_active)
 		fxos8700_device_stop(client);
 }
 static void fxos8700_late_resume(struct early_suspend *h)
 {
+	int ret = 0;
+	
 	struct fxos8700_data *pdata =  container_of(h, struct fxos8700_data, early_suspend);
 	struct i2c_client *client =  pdata->client;
+	dprintk(DEBUG_SUSPEND, "%s: start\n", __func__);
 	if (NORMAL_STANDBY == standby_type) {
 		if(pdata->acc_active)
 			fxos8700_change_mode(client,FXOS8700_TYPE_ACC,FXOS8700_ACTIVED);
 		if(pdata->mag_active)
 			fxos8700_change_mode(client,FXOS8700_TYPE_MAG,FXOS8700_ACTIVED);
 	} else if (SUPER_STANDBY == standby_type) {
-		fxos8700_device_init(client);
+		ret = i2c_smbus_write_byte_data(client, FXOS8700_CTRL_REG1, 0x00); //standby mode
+		if (ret < 0)
+			printk("fxos8700 write register failed\n");
+		ret = i2c_smbus_write_byte_data(client, FXOS8700_CTRL_REG1, 0x18); //0dr 100hz
+		if (ret < 0)
+			printk("fxos8700 write register failed\n");
+		ret = i2c_smbus_write_byte_data(client, FXOS8700_M_CTRL_REG1,0x3); //hybrid mode
+		if (ret < 0)
+			printk("fxos8700 write register failed\n");
 		
 		if(pdata->acc_active)
 			fxos8700_change_mode(client,FXOS8700_TYPE_ACC,FXOS8700_ACTIVED);
 		if(pdata->mag_active)
 			fxos8700_change_mode(client,FXOS8700_TYPE_MAG,FXOS8700_ACTIVED);
 	}
+	pdata->acc_poll_dev->input->open(pdata->acc_poll_dev->input);
+	pdata->mag_poll_dev->input->open(pdata->mag_poll_dev->input);
 }
 #endif
 
@@ -685,7 +716,7 @@ static int __devinit fxos8700_probe(struct i2c_client *client,
 	struct fxos8700_data * pdata;
 	struct i2c_adapter *adapter;
 
-	dprintk(DEBUG_I2C_DETECT, "fxos8700 probe i2c address is %d \n",i2c_address[i2c_num]);
+	dprintk(DEBUG_INIT, "fxos8700 probe i2c address is %d \n",i2c_address[i2c_num]);
 	client->addr = i2c_address[i2c_num];
 
 	adapter = to_i2c_adapter(client->dev.parent);
@@ -762,7 +793,10 @@ static int __devexit fxos8700_remove(struct i2c_client *client)
 #endif
 	fxos8700_unreigister_caldata_input(pdata);
 	fxos8700_unregister_sysfs_device(pdata);
+	pdata->acc_poll_dev->input->close(pdata->acc_poll_dev->input);
+	pdata->mag_poll_dev->input->close(pdata->mag_poll_dev->input);
 	fxos8700_unregister_poll_device(pdata);
+	i2c_set_clientdata(client, NULL);
 	kfree(pdata);
 	return 0;
 }

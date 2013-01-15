@@ -394,6 +394,7 @@ static int __devexit afa750_remove(struct i2c_client *client)
 #ifdef CONFIG_HAS_EARLYSUSPEND	
 	unregister_early_suspend(&afa750_data.early_suspend);
 #endif
+	afa750_idev->input->close(afa750_idev->input);
 	input_unregister_polled_device(afa750_idev);
 	input_free_polled_device(afa750_idev);
 	

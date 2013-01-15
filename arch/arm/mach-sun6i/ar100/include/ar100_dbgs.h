@@ -22,7 +22,7 @@
 #ifndef	__AR100_DBGS_H
 #define	__AR100_DBGS_H
 
-extern int g_ar100_debug_level;
+extern unsigned int ar100_debug_level;
 /* 
  * debug level define,
  * level 0 : dump debug information--none;
@@ -40,19 +40,19 @@ extern int g_ar100_debug_level;
 #define DEBUG_LEVEL_LOG    ((u32)1 << 3)
 
 #define	AR100_INF(...)							\
-	if(DEBUG_LEVEL_INF & (0xf0 >> (g_ar100_debug_level +1))) 	\
+	if(DEBUG_LEVEL_INF & (0xf0 >> (ar100_debug_level +1))) 	\
 	printk(__VA_ARGS__)
 
 #define	AR100_WRN(...)							\
-	if(DEBUG_LEVEL_WRN & (0xf0 >> (g_ar100_debug_level +1)))	\
+	if(DEBUG_LEVEL_WRN & (0xf0 >> (ar100_debug_level +1)))	\
 	printk(__VA_ARGS__)
 
 #define	AR100_ERR(...)							\
-	if(DEBUG_LEVEL_ERR & (0xf0 >> (g_ar100_debug_level +1)))	\
+	if(DEBUG_LEVEL_ERR & (0xf0 >> (ar100_debug_level +1)))	\
 	printk(__VA_ARGS__)
 
 #define	AR100_LOG(...)							\
-	if(DEBUG_LEVEL_LOG & (0xf0 >> (g_ar100_debug_level +1)))	\
+	if(DEBUG_LEVEL_LOG & (0xf0 >> (ar100_debug_level +1)))	\
 	printk(__VA_ARGS__)
 
 #else /* AR100_DEBUG_ON */

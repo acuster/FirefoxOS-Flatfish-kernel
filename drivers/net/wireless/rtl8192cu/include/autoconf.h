@@ -31,17 +31,25 @@
 
 #define PLATFORM_LINUX	1
 
-#define CONFIG_IOCTL_CFG80211 1
-#ifdef CONFIG_PLATFORM_ARM_SUN4I
+//#define CONFIG_IOCTL_CFG80211 1
+#ifdef CONFIG_PLATFORM_ARM_SUNxI
 	#ifndef CONFIG_IOCTL_CFG80211 
 		#define CONFIG_IOCTL_CFG80211 1
 	#endif
 #endif
+
+#ifdef CONFIG_PLATFORM_ARM_SUN6I
+	#ifndef CONFIG_IOCTL_CFG80211 
+		#define CONFIG_IOCTL_CFG80211 1
+	#endif
+#endif
+
 #ifdef CONFIG_IOCTL_CFG80211
 	#define RTW_USE_CFG80211_STA_EVENT /* Opne this for Android 4.1's wpa_supplicant */
 	#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
 	//#define CONFIG_DEBUG_CFG80211 1
 	//#define CONFIG_DRV_ISSUE_PROV_REQ // IOT FOR S2
+	#define CONFIG_SET_SCAN_DENY_TIMER
 #endif
 
 /*
@@ -196,7 +204,13 @@
  */
 //#define CONFIG_USE_USB_BUFFER_ALLOC_TX 1	// Trade-off: For TX path, improve stability on some platforms, but may cause performance degrade on other platforms.
 //#define CONFIG_USE_USB_BUFFER_ALLOC_RX 1	// For RX path
-#ifdef CONFIG_PLATFORM_ARM_SUN4I
+#ifdef CONFIG_PLATFORM_ARM_SUNxI
+	#ifndef 	CONFIG_USE_USB_BUFFER_ALLOC_TX 
+		#define CONFIG_USE_USB_BUFFER_ALLOC_TX
+	#endif
+#endif
+
+#ifdef CONFIG_PLATFORM_ARM_SUN6I
 	#ifndef 	CONFIG_USE_USB_BUFFER_ALLOC_TX 
 		#define CONFIG_USE_USB_BUFFER_ALLOC_TX
 	#endif

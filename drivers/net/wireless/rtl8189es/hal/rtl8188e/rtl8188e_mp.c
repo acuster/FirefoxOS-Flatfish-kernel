@@ -119,19 +119,10 @@ void Hal_mpt_SwitchRfSetting(PADAPTER pAdapter)
 	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(pAdapter);
 	
 	// <20120525, Kordan> Dynamic mechanism for APK, asked by Dennis.
-	if (IS_HARDWARE_TYPE_8188ES(pAdapter) && (1 <= ChannelToSw && ChannelToSw <= 11) &&
-		(ulRateIdx == MPT_RATE_MCS0 || ulRateIdx == MPT_RATE_1M || ulRateIdx == MPT_RATE_6M))
-	{
 		pmp->MptCtx.backup0x52_RF_A = (u1Byte)PHY_QueryRFReg(pAdapter, RF_PATH_A, RF_0x52, 0x000F0);
 		pmp->MptCtx.backup0x52_RF_B = (u1Byte)PHY_QueryRFReg(pAdapter, RF_PATH_B, RF_0x52, 0x000F0);
 		PHY_SetRFReg(pAdapter, RF_PATH_A, RF_0x52, 0x000F0, 0xD);
 		PHY_SetRFReg(pAdapter, RF_PATH_B, RF_0x52, 0x000F0, 0xD);
-	}
-	else
-	{
-		PHY_SetRFReg(pAdapter, RF_PATH_A, RF_0x52, 0x000F0, pmp->MptCtx.backup0x52_RF_A);
-		PHY_SetRFReg(pAdapter, RF_PATH_B, RF_0x52, 0x000F0, pmp->MptCtx.backup0x52_RF_B);
-	}
 
 	return ;
 }
@@ -232,7 +223,7 @@ void Hal_MPT_CCKTxPowerAdjustbyIndex(PADAPTER pAdapter, BOOLEAN beven)
 	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
 
 
-	if (!IS_92C_SERIAL(pHalData->VersionID) || !IS_NORMAL_CHIP(pHalData->VersionID))
+	if (!IS_92C_SERIAL(pHalData->VersionID))
 		return;
 #if 0
 	while(PlatformAtomicExchange(&Adapter->IntrCCKRefCount, TRUE) == TRUE)
@@ -370,13 +361,6 @@ void Hal_SetChannel(PADAPTER pAdapter)
 		pDM_Odm->RFCalibrateInfo.bCCKinCH14 = _FALSE;
 		Hal_MPT_CCKTxPowerAdjust(pAdapter, pDM_Odm->RFCalibrateInfo.bCCKinCH14);
 	}
-#if 0
-//#ifdef CONFIG_USB_HCI
-	// Georgia add 2009-11-17, suggested by Edlu , for 8188CU ,46 PIN
-	if (!IS_92C_SERIAL(pHalData->VersionID) && !IS_NORMAL_CHIP(pHalData->VersionID)) {
-		mpt_AdjustRFRegByRateByChan92CU(pAdapter, rate, pHalData->CurrentChannel, bandwidth);
-	}
-#endif
 
 #endif
 }
@@ -816,6 +800,10 @@ void Hal_SetSingleCarrierTx(PADAPTER pAdapter, u8 bStart)
 		// 5. Disable TX power saving at STF & LLTF
 		write_bbreg(pAdapter, rOFDM1_LSTF, BIT22, 1);
 #endif
+		//for dynamic set Power index.
+		write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000500);
+		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000500);
+		
 	}
 	else// Stop Single Carrier.
 	{
@@ -835,6 +823,11 @@ void Hal_SetSingleCarrierTx(PADAPTER pAdapter, u8 bStart)
 		//BB Reset
 		write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x0);
 		write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x1);
+
+		//Stop for dynamic set Power index.
+		write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000100);
+		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000100);
+		
 	}
 }
 
@@ -894,6 +887,11 @@ void Hal_SetSingleToneTx(PADAPTER pAdapter, u8 bStart)
 			write_rfreg(pAdapter, rfPath, 0x00, 0x2001f); // PAD all on.
 			rtw_usleep_os(100);
 		}
+
+		//for dynamic set Power index.
+		write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000500);
+		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000500);
+		
 	}
 	else// Stop Single Tone.
 	{
@@ -923,6 +921,11 @@ void Hal_SetSingleToneTx(PADAPTER pAdapter, u8 bStart)
 			write_rfreg(pAdapter, rfPath, 0x00, 0x30000); // PAD all on.
 			rtw_usleep_os(100);
 		}
+
+		//Stop for dynamic set Power index.
+		write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000100);
+		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000100);
+		
 	}
 	
 }
@@ -954,6 +957,11 @@ void Hal_SetCarrierSuppressionTx(PADAPTER pAdapter, u8 bStart)
 			//PHY_SetBBReg(pAdapter, rCCK0_System, bCCKTxRate, pMgntInfo->ForcedDataRate);
 			write_bbreg(pAdapter, rCCK0_System, bCCKTxRate, 0x0);    //Set FTxRate to 1Mbps
 		}
+
+		//for dynamic set Power index.
+		write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000500);
+		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000500);
+		
 	}
 	else// Stop Carrier Suppression.
 	{
@@ -967,6 +975,11 @@ void Hal_SetCarrierSuppressionTx(PADAPTER pAdapter, u8 bStart)
 			write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x0);
 			write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x1);
 		}
+
+		//Stop for dynamic set Power index.
+		write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000100);
+		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000100);
+		
 	}
 	//DbgPrint("\n MPT_ProSetCarrierSupp() is finished. \n");
 }
@@ -1022,6 +1035,9 @@ void Hal_SetCCKContinuousTx(PADAPTER pAdapter, u8 bStart)
 		else
 			write_bbreg(pAdapter, 0xA71, BIT(6), bEnable);
 #endif
+		//for dynamic set Power index.
+		write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000500);
+		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000500);
 
 	}
 	else {
@@ -1034,6 +1050,10 @@ void Hal_SetCCKContinuousTx(PADAPTER pAdapter, u8 bStart)
 		//BB Reset
 		write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x0);
 		write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x1);
+
+		//Stop for dynamic set Power index.
+		write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000100);
+		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000100);
 	}
 
 	pAdapter->mppriv.MptCtx.bCckContTx = bStart;
@@ -1061,6 +1081,11 @@ void Hal_SetOFDMContinuousTx(PADAPTER pAdapter, u8 bStart)
 		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMContinueTx, bEnable);
 		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleCarrier, bDisable);
 		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleTone, bDisable);
+
+		//for dynamic set Power index.
+		write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000500);
+		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000500);
+		
 	} else {
 		RT_TRACE(_module_mp_,_drv_info_, ("SetOFDMContinuousTx: test stop\n"));
 		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMContinueTx, bDisable);
@@ -1071,6 +1096,10 @@ void Hal_SetOFDMContinuousTx(PADAPTER pAdapter, u8 bStart)
 		//BB Reset
 		write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x0);
 		write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x1);
+
+		//Stop for dynamic set Power index.
+		write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000100);
+		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000100);
 	}
 
 	pAdapter->mppriv.MptCtx.bCckContTx = _FALSE;

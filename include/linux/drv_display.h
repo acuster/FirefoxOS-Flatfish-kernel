@@ -738,10 +738,11 @@ typedef struct
 
 typedef struct
 {   
-    __u32               count;
     int                 post2_layers;
     __bool              use_sgx;
     __disp_layer_info_t layer_info[4];
+    __disp_rect_t       fb_scn_win;
+    __u32               fb_yoffset;
 }setup_dispc_data_t;
 
 typedef enum tag_DISP_CMD

@@ -316,10 +316,10 @@ static ssize_t mma8452_delay_store(struct device *dev,struct device_attribute *a
 	return count;
 		}
 
-static DEVICE_ATTR(enable, 0666,
+static DEVICE_ATTR(enable, 0664,
 		NULL, mma8452_enable_store);
 		
-static DEVICE_ATTR(delay, 0666,
+static DEVICE_ATTR(delay, 0664,
 		NULL, mma8452_delay_store);
 
 static struct attribute *mma8452_attributes[] = {

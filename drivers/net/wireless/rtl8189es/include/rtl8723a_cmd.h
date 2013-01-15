@@ -207,7 +207,7 @@ u8 rtl8192c_set_rssi_cmd(PADAPTER padapter, u8 *param);
 //u8 rtl8723a_set_rssi_cmd(PADAPTER padapter, u8 *param);
 u8 rtl8192c_set_raid_cmd(PADAPTER padapter, u32 mask, u8 arg);
 //u8 rtl8723a_set_raid_cmd(PADAPTER padapter, u32 mask, u8 arg);
-void rtl8192c_Add_RateATid(PADAPTER padapter, u32 bitmap, u8 arg);
+void rtl8192c_Add_RateATid(PADAPTER padapter, u32 bitmap, u8 arg, u8 rssi_level);
 //void rtl8723a_Add_RateATid(PADAPTER padapter, u32 bitmap, u8 arg);
 u8 rtl8192c_set_FwSelectSuspend_cmd(PADAPTER padapter, u8 bfwpoll, u16 period);
 //u8 rtl8723a_set_FwSelectSuspend_cmd(PADAPTER padapter, u8 bfwpoll, u16 period);

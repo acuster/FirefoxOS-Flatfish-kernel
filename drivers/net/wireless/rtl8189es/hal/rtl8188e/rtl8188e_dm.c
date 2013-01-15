@@ -289,8 +289,10 @@ static void Init_ODM_ComInfo_88E(PADAPTER	Adapter)
 	
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_PLATFORM,ODM_CE);
 
-	
-	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_INTERFACE,Adapter->interface_type);//RTL871X_HCI_TYPE
+	if(Adapter->interface_type == RTW_GSPI )
+		ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_INTERFACE,ODM_ITRF_SDIO);
+	else
+		ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_INTERFACE,Adapter->interface_type);//RTL871X_HCI_TYPE
 	
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_IC_TYPE,ODM_RTL8188E);
 
@@ -371,8 +373,11 @@ static void Update_ODM_ComInfo_88E(PADAPTER	Adapter)
 		pdmpriv->InitODMFlag |= ODM_BB_ANT_DIV;
 
 	#if (MP_DRIVER==1)
+		if (Adapter->registrypriv.mp_mode == 1)
+		{
 		pdmpriv->InitODMFlag = 	ODM_RF_CALIBRATION	|
 								ODM_RF_TX_PWR_TRACK;	
+		}
 	#endif//(MP_DRIVER==1)
 	
 	#endif//CONFIG_DISABLE_ODM	
@@ -386,7 +391,7 @@ static void Update_ODM_ComInfo_88E(PADAPTER	Adapter)
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_BW,&(pHalData->CurrentChannelBW ));
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_CHNL,&( pHalData->CurrentChannel));	
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_NET_CLOSED,&( Adapter->net_closed));
-
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_MP_MODE,&(Adapter->registrypriv.mp_mode));
 	//================= only for 8192D   =================
 	/*
 	//pHalData->CurrentBandType92D
@@ -443,6 +448,7 @@ rtl8188e_HalDmWatchDog(
 {
 	BOOLEAN		bFwCurrentInPSMode = _FALSE;
 	BOOLEAN		bFwPSAwake = _TRUE;
+	u8 hw_init_completed = _FALSE;
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
@@ -451,9 +457,30 @@ rtl8188e_HalDmWatchDog(
 #endif //CONFIG_CONCURRENT_MODE
 
 	_func_enter_;
+
+	#if defined(CONFIG_CONCURRENT_MODE)
+	if (Adapter->isprimary == _FALSE && pbuddy_adapter) {
+		hw_init_completed = pbuddy_adapter->hw_init_completed;
+	} else
+	#endif
+	{
+		hw_init_completed = Adapter->hw_init_completed;
+	}
+
+	if (hw_init_completed == _FALSE)
+		goto skip_dm;
+
 #ifdef CONFIG_LPS
-	bFwCurrentInPSMode = Adapter->pwrctrlpriv.bFwCurrentInPSMode;
-	rtw_hal_get_hwreg(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
+	#if defined(CONFIG_CONCURRENT_MODE)
+	if (Adapter->iface_type != IFACE_PORT0 && pbuddy_adapter) {
+		bFwCurrentInPSMode = pbuddy_adapter->pwrctrlpriv.bFwCurrentInPSMode;
+		rtw_hal_get_hwreg(pbuddy_adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
+	} else
+	#endif
+	{
+		bFwCurrentInPSMode = Adapter->pwrctrlpriv.bFwCurrentInPSMode;
+		rtw_hal_get_hwreg(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
+	}
 #endif
 
 #ifdef CONFIG_P2P
@@ -463,36 +490,13 @@ rtl8188e_HalDmWatchDog(
 		bFwPSAwake = _FALSE;
 #endif //CONFIG_P2P
 
-	if( (Adapter->hw_init_completed == _TRUE)
+	if( (hw_init_completed == _TRUE)
 		&& ((!bFwCurrentInPSMode) && bFwPSAwake))
 	{
-#ifdef CONFIG_CONCURRENT_MODE
-		if(check_fwstate(&Adapter->mlmepriv, WIFI_AP_STATE) &&
-				check_fwstate(&pbuddy_adapter->mlmepriv, _FW_LINKED))
-		{
-			if(Adapter->iface_type == IFACE_PORT1)
-			{
-				//reset TSF
-				rtw_write8(Adapter, REG_DUAL_TSF_RST, BIT(1));
-				//BCN1 TSF will sync to BCN0 TSF with offset(0x518) if if1_sta linked
-				rtw_write8(Adapter, REG_DUAL_TSF_RST, BIT(3));
-			}
-			else if(Adapter->iface_type == IFACE_PORT0)
-			{
-				//reset TSF
-				rtw_write8(Adapter, REG_DUAL_TSF_RST, BIT(0));
-				//BCN0 TSF will sync to BCN1 TSF with offset(0x518) if if2_sta linked
-				rtw_write8(Adapter, REG_DUAL_TSF_RST, BIT(2));
-			}
-			else
-				DBG_8192C("Error Condition\n");
-		}
-#endif
 		//
 		// Calculate Tx/Rx statistics.
 		//
 		dm_CheckStatistics(Adapter);
-	
 	
 #ifdef CONFIG_CONCURRENT_MODE
 		if(Adapter->adapter_type > PRIMARY_ADAPTER)
@@ -518,7 +522,7 @@ rtl8188e_HalDmWatchDog(
 
 
 	//ODM
-	if (Adapter->hw_init_completed == _TRUE)
+	if (hw_init_completed == _TRUE)
 	{
 		struct mlme_priv	*pmlmepriv = &Adapter->mlmepriv;
 		u8	bLinked=_FALSE;
@@ -537,12 +541,12 @@ rtl8188e_HalDmWatchDog(
 				bLinked = _TRUE;
 		}
 
-		ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_LINK, bLinked);					
+		ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_LINK, bLinked);
 		ODM_DMWatchdog(&pHalData->odmpriv);
 			
 	}
 
-	
+skip_dm:
 
 	// Check GPIO to determine current RF on/off and Pbc status.
 	// Check Hardware Radio ON/OFF or not

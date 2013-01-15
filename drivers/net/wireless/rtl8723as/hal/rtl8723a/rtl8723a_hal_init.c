@@ -444,13 +444,9 @@ int _WriteBTFWtoTxPktBuf8723A(
 
 			//_rtw_memset(pmgntframe->buf_addr, 0, TotalPktLen+TXDESC_SIZE);
 			//pmgntframe->buf_addr = ReservedPagePacket ;
-			#ifdef CONFIG_USB_HCI
+
 			_rtw_memcpy( (u8*) (pmgntframe->buf_addr + TXDESC_OFFSET), ReservedPagePacket, FwBufLen);
 			DBG_871X("===>TotalPktLen + TXDESC_OFFSET TotalPacketLen:%d ", (FwBufLen + TXDESC_OFFSET));
-			#else
-			_rtw_memcpy( (u8*) (pmgntframe->buf_addr + TXDESC_SIZE), ReservedPagePacket, FwBufLen);
-			DBG_871X("===>TotalPktLen + TXDESC_SIZE TotalPacketLen:%d ", (FwBufLen + TXDESC_SIZE));
-			#endif
 		
 		     	dump_mgntframe(Adapter, pmgntframe);
 
@@ -4614,7 +4610,7 @@ static void process_c2h_event(PADAPTER padapter, PC2H_EVT_HDR pC2hEvent, u8 *c2h
 			break;
 
 		case C2H_CCX_TX_RPT:
-//			CCX_FwC2HTxRpt(padapter, QueueID, tmpBuf);
+			handle_txrpt_ccx_8723a(padapter, c2hBuf);
 			break;
 
 #ifdef CONFIG_BT_COEXIST
@@ -4670,7 +4666,7 @@ static void process_c2h_event(PADAPTER padapter, PC2H_EVT_HDR pC2hEvent, u8 *c2h
 // Field	 TRIGGER		CONTENT	   CMD_SEQ 	CMD_LEN		 CMD_ID
 // BITS	 [127:120]	[119:16]      [15:8]		  [7:4]	 	   [3:0]
 //2009.10.08. by tynli.
-static void C2HCommandHandler(PADAPTER padapter)
+static void C2HCommandHandler(PADAPTER padapter, C2H_EVT_HDR *c2h_evt)
 {
 	C2H_EVT_HDR		C2hEvent;
 #if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
@@ -4726,16 +4722,11 @@ static void C2HCommandHandler(PADAPTER padapter)
 
 	if (tmpBuf)
 		rtw_mfree(tmpBuf, C2hEvent.CmdLen);
-#endif
+	
+#elif defined(CONFIG_USB_HCI)
 
-#ifdef CONFIG_USB_HCI
-	HAL_DATA_TYPE	*pHalData=GET_HAL_DATA(padapter);
+	process_c2h_event(padapter, c2h_evt, c2h_evt->payload);
 
-	_rtw_memset(&C2hEvent, 0, sizeof(C2H_EVT_HDR));
-	C2hEvent.CmdID = pHalData->C2hArray[USB_C2H_CMDID_OFFSET] & 0xF;
-	C2hEvent.CmdLen = (pHalData->C2hArray[USB_C2H_CMDID_OFFSET] & 0xF0) >> 4;
-	C2hEvent.CmdSeq =pHalData->C2hArray[USB_C2H_SEQ_OFFSET];
-	process_c2h_event(padapter,&C2hEvent,&pHalData->C2hArray[USB_C2H_EVENT_OFFSET]);
 #endif
 }
 
@@ -5366,7 +5357,7 @@ _func_enter_;
 			break;
 
 		case HW_VAR_C2H_HANDLE:
-			C2HCommandHandler(padapter);
+			C2HCommandHandler(padapter, (C2H_EVT_HDR *)val);
 			break;
 
 		case HW_VAR_BCN_VALID:

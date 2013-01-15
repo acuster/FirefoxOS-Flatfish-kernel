@@ -112,6 +112,8 @@ DeInitLed871x(
 	)
 {
 	_cancel_timer_ex(&(pLed->BlinkTimer));
+	_cancel_workitem_sync(&(pLed->BlinkWorkItem));
+	// We should reset bLedBlinkInProgress if we cancel the LedControlTimer, 2005.03.10, by rcnjko.
 	ResetLedStatus(pLed);
 }
 

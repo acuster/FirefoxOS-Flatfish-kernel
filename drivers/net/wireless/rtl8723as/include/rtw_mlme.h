@@ -451,6 +451,11 @@ struct mlme_priv {
 	u16 ht_op_mode;
 #endif /* CONFIG_80211N_HT */	
 
+	u8 *assoc_req;
+	u32 assoc_req_len;
+	u8 *assoc_rsp;
+	u32 assoc_rsp_len;
+
 	u8 *wps_beacon_ie;	
 	//u8 *wps_probe_req_ie;
 	u8 *wps_probe_resp_ie;

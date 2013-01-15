@@ -23,43 +23,58 @@
 #include <rtw_byteorder.h>
 
 #include <hal_intf.h>
-#include "HalVerDef.h"
 #include <hal_com.h>
 
+#ifdef CONFIG_RTL8192C
+#include <rtl8192c_hal.h>
+#endif
+#ifdef CONFIG_RTL8192D
+#include <rtl8192d_hal.h>
+#endif
+#ifdef CONFIG_RTL8723A
+#include <rtl8723a_hal.h>
+#endif
+#ifdef CONFIG_RTL8188E
+#include <rtl8188e_hal.h>
+#endif
 
 #define _HAL_INIT_C_
 
 void dump_chip_info(HAL_VERSION	ChipVersion)
 {
+	int cnt = 0;
+	u8 buf[128];
+
 	if(IS_81XXC(ChipVersion)){
-		DBG_871X("Chip Version Info: %s_",IS_92C_SERIAL(ChipVersion)?"CHIP_8192C":"CHIP_8188C");
+		cnt += sprintf((buf+cnt), "Chip Version Info: %s_", IS_92C_SERIAL(ChipVersion)?"CHIP_8192C":"CHIP_8188C");
 	}
 	else if(IS_92D(ChipVersion)){
-		DBG_871X("Chip Version Info: CHIP_8192D_");
+		cnt += sprintf((buf+cnt), "Chip Version Info: CHIP_8192D_");
 	}
 	else if(IS_8723_SERIES(ChipVersion)){
-		DBG_871X("Chip Version Info: CHIP_8723A_");
+		cnt += sprintf((buf+cnt), "Chip Version Info: CHIP_8723A_");
 	}
 	else if(IS_8188E(ChipVersion)){
-		DBG_871X("Chip Version Info: CHIP_8188E_");
+		cnt += sprintf((buf+cnt), "Chip Version Info: CHIP_8188E_");
 	}
 
-	DBG_871X("%s_",IS_NORMAL_CHIP(ChipVersion)?"Normal_Chip":"Test_Chip");	
-	DBG_871X("%s_",IS_CHIP_VENDOR_TSMC(ChipVersion)?"TSMC":"UMC");
-	if(IS_A_CUT(ChipVersion)) DBG_871X("A_CUT_");	
-	else if(IS_B_CUT(ChipVersion)) DBG_871X("B_CUT_");	
-	else if(IS_C_CUT(ChipVersion)) DBG_871X("C_CUT_");	
-	else if(IS_D_CUT(ChipVersion)) DBG_871X("D_CUT_");	
-	else if(IS_E_CUT(ChipVersion)) DBG_871X("E_CUT_");	
-	else DBG_871X("UNKNOWN_CUT(%d)_",ChipVersion.CUTVersion);
-	
-	if(IS_1T1R(ChipVersion))	DBG_871X("1T1R_");	
-	else if(IS_1T2R(ChipVersion))	DBG_871X("1T2R_");	
-	else if(IS_2T2R(ChipVersion))	DBG_871X("2T2R_");
-	else DBG_871X("UNKNOWN_RFTYPE(%d)_",ChipVersion.RFType);
+	cnt += sprintf((buf+cnt), "%s_", IS_NORMAL_CHIP(ChipVersion)?"Normal_Chip":"Test_Chip");
+	cnt += sprintf((buf+cnt), "%s_", IS_CHIP_VENDOR_TSMC(ChipVersion)?"TSMC":"UMC");
+	if(IS_A_CUT(ChipVersion)) cnt += sprintf((buf+cnt), "A_CUT_");
+	else if(IS_B_CUT(ChipVersion)) cnt += sprintf((buf+cnt), "B_CUT_");
+	else if(IS_C_CUT(ChipVersion)) cnt += sprintf((buf+cnt), "C_CUT_");
+	else if(IS_D_CUT(ChipVersion)) cnt += sprintf((buf+cnt), "D_CUT_");
+	else if(IS_E_CUT(ChipVersion)) cnt += sprintf((buf+cnt), "E_CUT_");
+	else cnt += sprintf((buf+cnt), "UNKNOWN_CUT(%d)_", ChipVersion.CUTVersion);
 
-	
-	DBG_871X("RomVer(%d)\n",ChipVersion.ROMVer);	
+	if(IS_1T1R(ChipVersion)) cnt += sprintf((buf+cnt), "1T1R_");
+	else if(IS_1T2R(ChipVersion)) cnt += sprintf((buf+cnt), "1T2R_");
+	else if(IS_2T2R(ChipVersion)) cnt += sprintf((buf+cnt), "2T2R_");
+	else cnt += sprintf((buf+cnt), "UNKNOWN_RFTYPE(%d)_", ChipVersion.RFType);
+
+	cnt += sprintf((buf+cnt), "RomVer(%d)\n", ChipVersion.ROMVer);
+
+	DBG_871X("%s", buf);
 }
 
 
@@ -313,5 +328,68 @@ void hal_init_macaddr(_adapter *adapter)
 	if (adapter->pbuddy_adapter)
 		rtw_hal_set_hwreg(adapter->pbuddy_adapter, HW_VAR_MAC_ADDR, adapter->pbuddy_adapter->eeprompriv.mac_addr);
 #endif
+}
+
+/* 
+* C2H event format:
+* Field	 TRIGGER		CONTENT	   CMD_SEQ 	CMD_LEN		 CMD_ID
+* BITS	 [127:120]	[119:16]      [15:8]		  [7:4]	 	   [3:0]
+*/
+
+void c2h_evt_clear(_adapter *adapter)
+{
+	rtw_write8(adapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
+}
+
+s32 c2h_evt_read(_adapter *adapter, u8 *buf)
+{
+	s32 ret = _FAIL;
+	struct c2h_evt_hdr *c2h_evt;
+	int i;
+	u8 trigger;
+
+	if (buf == NULL)
+		goto exit;
+
+	trigger = rtw_read8(adapter, REG_C2HEVT_CLEAR);
+
+	if (trigger == C2H_EVT_HOST_CLOSE) {
+		goto exit; /* Not ready */
+	} else if (trigger != C2H_EVT_FW_CLOSE) {
+		goto clear_evt; /* Not a valid value */
+	}
+
+	c2h_evt = (struct c2h_evt_hdr *)buf;
+
+	_rtw_memset(c2h_evt, 0, 16);
+
+	*buf = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL);
+	*(buf+1) = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL + 1);	
+
+	RT_PRINT_DATA(_module_hal_init_c_, _drv_info_, "c2h_evt_read(): ",
+		&c2h_evt , sizeof(c2h_evt));
+
+	if (0) {
+		DBG_871X("%s id:%u, len:%u, seq:%u, trigger:0x%02x\n", __func__
+			, c2h_evt->id, c2h_evt->plen, c2h_evt->seq, trigger);
+	}
+
+	/* Read the content */
+	for (i = 0; i < c2h_evt->plen; i++)
+		c2h_evt->payload[i] = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL + sizeof(*c2h_evt) + i);
+
+	RT_PRINT_DATA(_module_hal_init_c_, _drv_info_, "c2h_evt_read(): Command Content:\n",
+		c2h_evt->payload, c2h_evt->plen);
+
+	ret = _SUCCESS;
+
+clear_evt:
+	/* 
+	* Clear event to notify FW we have read the command.
+	* If this field isn't clear, the FW won't update the next command message.
+	*/
+	c2h_evt_clear(adapter);
+exit:
+	return ret;
 }
 

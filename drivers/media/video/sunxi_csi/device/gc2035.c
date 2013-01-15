@@ -1394,7 +1394,7 @@ static int sensor_read(struct v4l2_subdev *sd, unsigned char *reg,
 	/*
 	 * Send out the register address...
 	 */
-	msg.addr = client->addr;
+	msg.addr = (I2C_ADDR>>1);//client->addr;
 	msg.flags = 0;
 	msg.len = REG_ADDR_STEP;
 	msg.buf = data;
@@ -1437,7 +1437,7 @@ static int sensor_write(struct v4l2_subdev *sd, unsigned char *reg,
 	for(i = REG_ADDR_STEP; i < REG_STEP; i++)
 			data[i] = value[i-REG_ADDR_STEP];
 	
-	msg.addr = client->addr;
+	msg.addr = (I2C_ADDR>>1);//client->addr;
 	msg.flags = 0;
 	msg.len = REG_STEP;
 	msg.buf = data;
@@ -1583,17 +1583,14 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			//power supply
 			csi_gpio_write(sd,&dev->power_io,CSI_PWR_ON);
 			mdelay(10);
-			if(dev->dvdd) {
-				regulator_enable(dev->dvdd);
-				mdelay(10);
+			if(dev->iovdd) {
+				regulator_enable(dev->iovdd);
 			}
 			if(dev->avdd) {
 				regulator_enable(dev->avdd);
-				mdelay(10);
 			}
-			if(dev->iovdd) {
-				regulator_enable(dev->iovdd);
-				mdelay(10);
+			if(dev->dvdd) {
+				regulator_enable(dev->dvdd);
 			}
 			//standby off io
 			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_OFF);
@@ -1614,17 +1611,14 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			csi_gpio_write(sd,&dev->reset_io,CSI_RST_ON);
 			mdelay(10);
 			//power supply off
-			if(dev->iovdd) {
-				regulator_disable(dev->iovdd);
-				mdelay(10);
+			if(dev->dvdd) {
+				regulator_disable(dev->dvdd);
 			}
 			if(dev->avdd) {
 				regulator_disable(dev->avdd);
-				mdelay(10);
 			}
-			if(dev->dvdd) {
-				regulator_disable(dev->dvdd);
-				mdelay(10);	
+			if(dev->iovdd) {
+				regulator_disable(dev->iovdd);
 			}
 			csi_gpio_write(sd,&dev->power_io,CSI_PWR_OFF);
 			mdelay(10);

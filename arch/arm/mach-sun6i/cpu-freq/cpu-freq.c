@@ -50,6 +50,12 @@ static struct cpumask sunxi_cpumask;
 static int cpus_initialized;
 #endif
 
+#ifdef CONFIG_CPU_FREQ_SETFREQ_DEBUG
+int setgetfreq_debug = 0;
+unsigned long long setfreq_time_usecs = 0;
+unsigned long long getfreq_time_usecs = 0;
+#endif
+
 /*
  *check if the cpu frequency policy is valid;
  */
@@ -82,6 +88,13 @@ static int sunxi_cpufreq_target(struct cpufreq_policy *policy, __u32 freq, __u32
     unsigned int            index;
     struct sunxi_cpu_freq_t freq_cfg;
     struct cpufreq_freqs    freqs;
+#ifdef CONFIG_CPU_FREQ_SETFREQ_DEBUG
+	ktime_t calltime = ktime_set(0, 0), delta, rettime;
+
+	if (unlikely(setgetfreq_debug)) {
+		calltime = ktime_get();
+	}
+#endif
 
     mutex_lock(&sunxi_cpu_lock);
 
@@ -115,7 +128,7 @@ static int sunxi_cpufreq_target(struct cpufreq_policy *policy, __u32 freq, __u32
     /* update the target frequency */
     freq_cfg.pll = sunxi_freq_tbl[index].frequency * 1000;
     freq_cfg.div = *(struct sunxi_clk_div_t *)&sunxi_freq_tbl[index].index;
-    CPUFREQ_ERR("target frequency find is %u, entry %u\n", freq_cfg.pll, index);
+    CPUFREQ_DBG("target frequency find is %u, entry %u\n", freq_cfg.pll, index);
 
     /* notify that cpu clock will be adjust if needed */
     if (policy) {
@@ -178,9 +191,17 @@ static int sunxi_cpufreq_target(struct cpufreq_policy *policy, __u32 freq, __u32
     }
 
     last_target = freq;
-    CPUFREQ_ERR("set cpu frequency to %uMHz ok\n", freq / 1000);
+    CPUFREQ_DBG("set cpu frequency to %uMHz ok\n", freq / 1000);
 
 out:
+#ifdef CONFIG_CPU_FREQ_SETFREQ_DEBUG
+	if (unlikely(setgetfreq_debug)) {
+		rettime = ktime_get();
+		delta = ktime_sub(rettime, calltime);
+		setfreq_time_usecs = ktime_to_ns(delta) >> 10;
+		printk("[setfreq]: %Ld usecs\n", setfreq_time_usecs);
+	}
+#endif
     mutex_unlock(&sunxi_cpu_lock);
 
     return ret;
@@ -194,7 +215,27 @@ out:
  */
 static unsigned int sunxi_cpufreq_get(unsigned int cpu)
 {
-    return clk_get_rate(clk_cpu) / 1000;
+	unsigned int current_freq = 0;
+#ifdef CONFIG_CPU_FREQ_SETFREQ_DEBUG
+	ktime_t calltime = ktime_set(0, 0), delta, rettime;
+
+	if (unlikely(setgetfreq_debug)) {
+		calltime = ktime_get();
+	}
+#endif
+
+	current_freq = clk_get_rate(clk_cpu) / 1000;
+
+#ifdef CONFIG_CPU_FREQ_SETFREQ_DEBUG
+	if (unlikely(setgetfreq_debug)) {
+		rettime = ktime_get();
+		delta = ktime_sub(rettime, calltime);
+		getfreq_time_usecs = ktime_to_ns(delta) >> 10;
+		printk("[getfreq]: %Ld usecs\n", getfreq_time_usecs);
+	}
+#endif
+
+	return current_freq;
 }
 
 

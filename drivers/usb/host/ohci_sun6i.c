@@ -35,9 +35,6 @@
 //#include  <mach/clock.h>
 #include "sw_hci_sun6i.h"
 
-#ifdef  CONFIG_SW_USB_3G
-#include  "sw_usb_3g.h"
-#endif
 
 /*.......................................................................................*/
 //                               全局信息定义
@@ -423,20 +420,6 @@ static int sw_ohci_hcd_probe(struct platform_device *pdev)
         }
     }
 
-#ifdef  CONFIG_SW_USB_3G
-    if(is_suspport_usb_3g(sw_ohci->usbc_no, SW_USB_OHCI)){
-    	ret = usb_3g_wakeup_irq_init();
-	    if(ret != 0){
-	       DMSG_PANIC("err: usb_3g_irq_init failed\n");
-	       usb_remove_hcd(hcd);
-	       return -1;
-	    }
-
-        usb_3g_power(sw_ohci->usbc_no, 1);
-        usb_3g_wakeup_sleep(sw_ohci->usbc_no, 0);
-    }
-#endif
-
     return 0;
 
 ERR3:
@@ -495,13 +478,6 @@ static int sw_ohci_hcd_remove(struct platform_device *pdev)
 	DMSG_INFO("[%s%d]: remove, pdev->name: %s, pdev->id: %d, sw_ohci: 0x%p\n",
 		      ohci_name, sw_ohci->usbc_no, pdev->name, pdev->id, sw_ohci);
 
-#ifdef  CONFIG_SW_USB_3G
-    if(is_suspport_usb_3g(sw_ohci->usbc_no, SW_USB_OHCI)){
-    	usb_3g_wakeup_irq_exit();
-        usb_3g_power(sw_ohci->usbc_no, 0);
-    }
-#endif
-
 	usb_remove_hcd(hcd);
 
 	sw_stop_ohc(sw_ohci);
@@ -557,20 +533,8 @@ void sw_ohci_hcd_shutdown(struct platform_device* pdev)
 
  	DMSG_INFO("[%s]: ohci shutdown start\n", sw_ohci->hci_name);
 
-#ifdef  CONFIG_SW_USB_3G
-    if(is_suspport_usb_3g(sw_ohci->usbc_no, SW_USB_OHCI)){
-    	usb_3g_wakeup_irq_exit();
-    }
-#endif
-
     usb_hcd_platform_shutdown(pdev);
     sw_stop_ohc(sw_ohci);
-
-#ifdef  CONFIG_SW_USB_3G
-    if(is_suspport_usb_3g(sw_ohci->usbc_no, SW_USB_OHCI)){
-        usb_3g_power(sw_ohci->usbc_no, 0);
-    }
-#endif
 
  	DMSG_INFO("[%s]: ohci shutdown end\n", sw_ohci->hci_name);
 
@@ -652,12 +616,6 @@ static int sw_ohci_hcd_suspend(struct device *dev)
 
     spin_unlock_irqrestore(&ohci->lock, flags);
 
-#ifdef  CONFIG_SW_USB_3G
-    if(is_suspport_usb_3g(sw_ohci->usbc_no, SW_USB_OHCI)){
-        usb_3g_wakeup_sleep(sw_ohci->usbc_no, 1);
-    }
-#endif
-
     sw_stop_ohc(sw_ohci);
 
     return rc;
@@ -710,12 +668,6 @@ static int sw_ohci_hcd_resume(struct device *dev)
 	}
 
  	DMSG_INFO("[%s]: sw_ohci_hcd_resume\n", sw_ohci->hci_name);
-
-#ifdef  CONFIG_SW_USB_3G
-    if(is_suspport_usb_3g(sw_ohci->usbc_no, SW_USB_OHCI)){
-        usb_3g_wakeup_sleep(sw_ohci->usbc_no, 0);
-    }
-#endif
 
 	sw_start_ohc(sw_ohci);
 

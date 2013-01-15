@@ -53,6 +53,7 @@
 #define REG_LPLDO_CTRL				0x0023
 #define REG_AFE_XTAL_CTRL			0x0024
 #define REG_AFE_PLL_CTRL			0x0028
+#define REG_MAC_PHY_CTRL			0x002c
 #define REG_EFUSE_CTRL				0x0030
 #define REG_EFUSE_TEST				0x0034
 #define REG_PWR_DATA				0x0038

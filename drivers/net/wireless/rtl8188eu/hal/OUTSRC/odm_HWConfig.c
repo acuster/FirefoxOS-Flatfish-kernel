@@ -237,8 +237,7 @@ odm_SignalScaleMapping_92CSeries(
 #endif
 
 #if ((DEV_BUS_TYPE == RT_USB_INTERFACE) ||(DEV_BUS_TYPE == RT_SDIO_INTERFACE))
-	if((pDM_Odm->SupportInterface  == ODM_ITRF_USB) || (pDM_Odm->SupportInterface  == ODM_ITRF_SDIO) ||
-			(pDM_Odm->SupportInterface  == ODM_ITRF_GSPI))
+	if((pDM_Odm->SupportInterface  == ODM_ITRF_USB) || (pDM_Odm->SupportInterface  == ODM_ITRF_SDIO) )
 	{
 		if(CurrSig >= 51 && CurrSig <= 100)
 		{

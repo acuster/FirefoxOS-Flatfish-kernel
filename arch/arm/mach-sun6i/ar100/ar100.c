@@ -23,44 +23,168 @@
 
 /* local functions */
 static int     ar100_wait_ready(unsigned int timeout);
-static ssize_t ar100_debug_store(struct kobject *kobject,struct attribute *attr, const char *buf, size_t count);
-static ssize_t ar100_debug_show(struct kobject *kobject,struct attribute *attr, char *buf);
-static void    ar100_obj_release(struct kobject *kobject);
 
 /* external vars */
 extern char *ar100_binary_start;
 extern char *ar100_binary_end;
 
 unsigned long ar100_sram_a2_vbase = (unsigned long)IO_ADDRESS(AW_SRAM_A2_BASE);
+unsigned int ar100_debug_baudrate = 57600;
+unsigned int ar100_debug_dram_crc_en = 0;
+unsigned int ar100_debug_dram_crc_srcaddr = 0x40000000;
+unsigned int ar100_debug_dram_crc_len = (1024 * 1024);
+unsigned int ar100_debug_dram_crc_error = 0;
+unsigned int ar100_debug_dram_crc_total_count = 0;
+unsigned int ar100_debug_dram_crc_error_count = 0;
+unsigned int ar100_debug_level = 2;
 
-struct attribute ar100_debug_mask_attr = {
-	.name = "debug_mask",
-	.mode = S_IRWXUGO
-};
-struct attribute ar100_debug_baudrate_attr = {
-	.name = "debug_baudrate",
-	.mode = S_IRWXUGO
+
+ssize_t ar100_debug_mask_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+	ssize_t size = 0;
+	
+	size = sprintf(buf, "%u\n", ar100_debug_level);
+	
+	return size;
+}
+
+ssize_t ar100_debug_mask_store(struct class *class, struct class_attribute *attr,
+			const char *buf, size_t size)
+{
+	u32 value = 0;
+	
+	sscanf(buf, "%u", &value);
+	if ((value < 0) || (value > 3)) {
+		AR100_WRN("invalid ar100 debug mask [%d] to set\n", value);
+		return size;
+	}
+	
+	ar100_debug_level = value;
+	ar100_set_debug_level(ar100_debug_level);
+	AR100_LOG("debug_mask change to %d\n", ar100_debug_level);
+	
+	return size;
+}
+
+ssize_t ar100_debug_baudrate_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+	ssize_t size = 0;
+	
+	size = sprintf(buf, "%u\n", ar100_debug_baudrate);
+	
+	return size;
+}
+
+ssize_t ar100_debug_baudrate_store(struct class *class, struct class_attribute *attr,
+			const char *buf, size_t size)
+{
+	u32 value = 0;
+	
+	sscanf(buf, "%u", &value);
+	if ((value != 57600) && (value != 9600)) {
+		AR100_WRN("invalid ar100 uart baudrate [%d] to set\n", value);
+		return size;
+	}
+	
+	ar100_debug_baudrate = value;
+	ar100_set_uart_baudrate(ar100_debug_baudrate);
+	AR100_LOG("debug_baudrate change to %d\n", ar100_debug_baudrate);
+	
+	return size;
+}
+
+ssize_t ar100_dram_crc_paras_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+	ssize_t size = 0;
+	
+	size = sprintf(buf, "enable:0x%x srcaddr:0x%x lenght:0x%x\n", ar100_debug_dram_crc_en,
+			                 ar100_debug_dram_crc_srcaddr, ar100_debug_dram_crc_len);
+	
+	return size;
+}
+
+ssize_t ar100_dram_crc_paras_store(struct class *class, struct class_attribute *attr,
+			const char *buf, size_t size)
+{
+	u32 dram_crc_en      = 0;
+	u32 dram_crc_srcaddr = 0;
+	u32 dram_crc_len     = 0;
+	
+	sscanf(buf, "%x %x %x\n", &dram_crc_en, &dram_crc_srcaddr, &dram_crc_len);
+	
+	if (((dram_crc_en != 0) && (dram_crc_en != 1)) ||
+	    ((dram_crc_srcaddr < 0x40000000) || (dram_crc_srcaddr > 0xc0000000)) ||
+	    ((dram_crc_len < 0) || (dram_crc_len > (0x80000000)))) {
+		AR100_WRN("invalid ar100 debug dram crc paras [%x] [%x] [%x] to set\n",
+		                          dram_crc_en, dram_crc_srcaddr, dram_crc_len);
+
+		return size;
+	}
+	
+	ar100_debug_dram_crc_en = dram_crc_en;
+	ar100_debug_dram_crc_srcaddr = dram_crc_srcaddr;
+	ar100_debug_dram_crc_len = dram_crc_len;
+	ar100_set_dram_crc_paras(ar100_debug_dram_crc_en, 
+	                         ar100_debug_dram_crc_srcaddr,
+	                         ar100_debug_dram_crc_len);
+	AR100_LOG("dram_crc_en=0x%x, dram_crc_srcaddr=0x%x, dram_crc_len=0x%x\n",
+	          ar100_debug_dram_crc_en, ar100_debug_dram_crc_srcaddr, ar100_debug_dram_crc_len);
+	
+	return size;
+}
+
+ssize_t ar100_dram_crc_result_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+	ssize_t size = 0;
+	
+	ar100_query_dram_crc_result((unsigned long *)&ar100_debug_dram_crc_error,
+							    (unsigned long *)&ar100_debug_dram_crc_total_count,
+							    (unsigned long *)&ar100_debug_dram_crc_error_count);
+	size = sprintf(buf, "error:%u total count:%u error count:%u\n", ar100_debug_dram_crc_error,
+							ar100_debug_dram_crc_total_count, ar100_debug_dram_crc_error_count);
+	
+	return size;
+}
+
+ssize_t ar100_dram_crc_result_store(struct class *class, struct class_attribute *attr,
+			const char *buf, size_t size)
+{
+	u32 error = 0;
+	u32 total_count = 0;
+	u32 error_count = 0;
+	
+	sscanf(buf, "%u %u %u", &error, &total_count, &error_count);
+	if (((error != 0) && (error != 1)) || (total_count < 0) || (error_count < 0)) {
+		AR100_WRN("invalid ar100 dram crc result [%d] [%d] [%d] to set\n", error, total_count, error_count);
+		return size;
+	}
+	
+	ar100_debug_dram_crc_error = error;
+	ar100_debug_dram_crc_total_count = total_count;
+	ar100_debug_dram_crc_error_count = error_count;
+	ar100_set_dram_crc_result((unsigned long)ar100_debug_dram_crc_error,
+							  (unsigned long)ar100_debug_dram_crc_total_count,
+							  (unsigned long)ar100_debug_dram_crc_error_count);
+	AR100_LOG("debug_dram_crc_result change to error:%u total count:%u error count:%u\n",
+			ar100_debug_dram_crc_error, ar100_debug_dram_crc_total_count, ar100_debug_dram_crc_error_count);
+	
+	return size;
+}
+
+
+static struct class_attribute ar100_class_attrs[] = {
+	__ATTR(debug_mask, 	    0644, ar100_debug_mask_show,      ar100_debug_mask_store),
+	__ATTR(debug_baudrate,	0644, ar100_debug_baudrate_show,  ar100_debug_baudrate_store),
+	__ATTR(dram_crc_paras,	0644, ar100_dram_crc_paras_show,  ar100_dram_crc_paras_store),
+	__ATTR(dram_crc_result,	0644, ar100_dram_crc_result_show, ar100_dram_crc_result_store),
+	__ATTR_NULL,
 };
 
-static struct attribute *ar100_def_attrs[] = {
-	&ar100_debug_mask_attr,
-	&ar100_debug_baudrate_attr,
-	NULL
+static struct class ar100_class = {
+	.name		 = "ar100",
+	.owner		 = THIS_MODULE,
+	.class_attrs = ar100_class_attrs,
 };
-
-struct sysfs_ops ar100_obj_sysops = {
-	.show =  ar100_debug_show,
-	.store = ar100_debug_store
-};
-
-struct kobj_type ar100_ktype = {
-	.release       = ar100_obj_release,
-	.sysfs_ops     = &ar100_obj_sysops,
-	.default_attrs = ar100_def_attrs
-};
-
-static struct kobject ar100_kobj;
-unsigned int g_ar100_debug_baudrate = 57600;
 
 int ar100_init(void)
 {
@@ -112,7 +236,7 @@ int ar100_init(void)
 	
 	/* wait ar100 ready */
 	AR100_INF("wait ar100 ready....\n");
-	if (ar100_wait_ready(500000)) {
+	if (ar100_wait_ready(10000)) {
 		AR100_LOG("ar100 startup failed\n");
 	}
 	
@@ -133,9 +257,9 @@ int ar100_init(void)
 	}
 	
 	/* register ar100 debug device node */
-	ret = kobject_init_and_add(&ar100_kobj, &ar100_ktype, NULL, "ar100");
+	ret = class_register(&ar100_class);
 	if (ret) {
-		AR100_WRN("add ar100 kobject failed\n");
+		AR100_WRN("register ar100 class failed\n");
 	}
 	
 	/* ar100 initialize succeeded */
@@ -201,46 +325,6 @@ static int ar100_wait_ready(unsigned int timeout)
 		}
 		/* we need waiting continue */
 	}
+	
 	return 0;
 }
-
-static ssize_t ar100_debug_store(struct kobject *kobject,struct attribute *attr, const char *buf, size_t count)
-{
-	u32 value = 0;
-	if (strcmp(attr->name, "debug_mask") == 0) {
-		sscanf(buf, "%i", &value);
-		g_ar100_debug_level = value;
-		ar100_set_debug_level(g_ar100_debug_level);
-		AR100_LOG("debug_mask change to %d\n", g_ar100_debug_level);
-	} else if (strcmp(attr->name, "debug_baudrate") == 0) {
-		sscanf(buf, "%i", &value);
-		if ((g_ar100_debug_baudrate != 57600) && (g_ar100_debug_baudrate != 9600)) {
-			AR100_WRN("invalid ar100 uart baudrate [%d] to set\n", g_ar100_debug_baudrate);
-			return 0;
-		}
-		g_ar100_debug_baudrate = value;
-		ar100_set_uart_baudrate(g_ar100_debug_baudrate);
-		AR100_LOG("debug_baudrate change to %d\n", g_ar100_debug_baudrate);
-	}
-	
-	return count;
-}
-
-static ssize_t ar100_debug_show(struct kobject *kobject,struct attribute *attr, char *buf)
-{
-	ssize_t count = 0;
-
-	if (strcmp(attr->name, "debug_mask") == 0) {
-		count = sprintf(buf, "%i\n", g_ar100_debug_level);
-	} else if (strcmp(attr->name, "debug_baudrate") == 0) {
-		count = sprintf(buf, "%d\n", g_ar100_debug_baudrate);
-	}
-	
-	return count;
-}
-
-static void ar100_obj_release(struct kobject *kobject)
-{
-	printk("ar100 obj release\n");
-}
-

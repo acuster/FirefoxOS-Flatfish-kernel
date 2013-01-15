@@ -85,12 +85,6 @@ s32	_rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, _adapter *padapter)
 	sint	res=_SUCCESS;   
 	u32 max_xmit_extbuf_size = MAX_XMIT_EXTBUF_SZ;
 	u32 num_xmit_extbuf = NR_XMIT_EXTBUFF;
-#if defined(CONFIG_MP_INCLUDED) && defined(CONFIG_RTL8723A)
-	if (padapter->registrypriv.mp_mode) {
-		max_xmit_extbuf_size = 20000;
-		num_xmit_extbuf = 1;
-	}
-#endif
 
 _func_enter_;   	
 
@@ -166,11 +160,6 @@ _func_enter_;
 
 	//init xmit_buf
 	_rtw_init_queue(&pxmitpriv->free_xmitbuf_queue);
-#ifdef CONFIG_SDIO_TX_MULTI_QUEUE
-	_rtw_init_queue(&pxmitpriv->tx_pending_queue[0]);
-	_rtw_init_queue(&pxmitpriv->tx_pending_queue[1]);
-	_rtw_init_queue(&pxmitpriv->tx_pending_queue[2]);
-#endif
 	_rtw_init_queue(&pxmitpriv->pending_xmitbuf_queue);
 
 	pxmitpriv->pallocated_xmitbuf = rtw_zvmalloc(NR_XMITBUFF * sizeof(struct xmit_buf) + 4);
@@ -340,11 +329,6 @@ void  rtw_mfree_xmit_priv_lock (struct xmit_priv *pxmitpriv)
 
 	_rtw_spinlock_free(&pxmitpriv->free_xmit_queue.lock);
 	_rtw_spinlock_free(&pxmitpriv->free_xmitbuf_queue.lock);
-#ifdef CONFIG_SDIO_TX_MULTI_QUEUE
-	_rtw_spinlock_free(&pxmitpriv->tx_pending_queue[0].lock);
-	_rtw_spinlock_free(&pxmitpriv->tx_pending_queue[1].lock);
-	_rtw_spinlock_free(&pxmitpriv->tx_pending_queue[2].lock);
-#endif
 	_rtw_spinlock_free(&pxmitpriv->pending_xmitbuf_queue.lock);
 }
 
@@ -2225,16 +2209,6 @@ _func_enter_;
 		pxframe->agg_num = 1;
 #endif
 
-#ifdef PLATFORM_LINUX
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35))
-		if(pxmitpriv->free_xmitframe_cnt==1)
-		{
-			if (!rtw_netif_queue_stopped(padapter->pnetdev))
-				rtw_netif_stop_queue(padapter->pnetdev);
-		}
-#endif
-#endif
-
 #ifdef CONFIG_XMIT_ACK
 		pxframe->ack_report = 0;
 #endif
@@ -2404,29 +2378,9 @@ _func_enter_;
 		}
 #endif	
 	
-#ifdef CONFIG_USB_HCI
-		//entry indx: 0->vo, 1->vi, 2->be, 3->bk.
-		acirp_cnt[0] = pxmitpriv->voq_cnt;
-		acirp_cnt[1] = pxmitpriv->viq_cnt;
-		acirp_cnt[2] = pxmitpriv->beq_cnt;
-		acirp_cnt[3] = pxmitpriv->bkq_cnt;
-
-		for(i=0; i<4; i++)
-		{
-			for(j=i+1; j<4; j++)
-			{
-				if(acirp_cnt[j]<acirp_cnt[i])
-				{
-					tmp = acirp_cnt[i];
-					acirp_cnt[i] = acirp_cnt[j];
-					acirp_cnt[j] = tmp;
-
-					tmp = inx[i];
-					inx[i] = inx[j];
-					inx[j] = tmp;
-				}
-			}
-		}
+#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+		for(j=0; j<4; j++)
+			inx[j] = pxmitpriv->wmm_para_seq[j];
 #endif
 	}
 
@@ -3803,7 +3757,7 @@ void rtw_sctx_init(struct submit_ctx *sctx, int timeout_ms)
 #ifdef PLATFORM_LINUX /* TODO: add condition wating interface for other os */
 	init_completion(&sctx->done);
 #endif
-	sctx->status = RTW_SCTX_DONE_SUCCESS;
+	sctx->status = RTW_SCTX_SUBMITTED;
 }
 
 int rtw_sctx_wait(struct submit_ctx *sctx)
@@ -3861,15 +3815,46 @@ void rtw_sctx_done(struct submit_ctx **sctx)
 }
 
 #ifdef CONFIG_XMIT_ACK
+
+#ifdef CONFIG_XMIT_ACK_POLLING
+s32 c2h_cmd_hdl(_adapter *adapter, struct c2h_evt_hdr *c2h_evt);
+int rtw_ack_tx_polling(struct xmit_priv *pxmitpriv, u32 timeout_ms)
+{
+	int ret = _FAIL;
+	struct submit_ctx *pack_tx_ops = &pxmitpriv->ack_tx_ops;
+	_adapter *adapter = container_of(pxmitpriv, _adapter, xmitpriv);
+
+	pack_tx_ops->submit_time = rtw_get_current_time();
+	pack_tx_ops->timeout_ms = timeout_ms;
+	pack_tx_ops->status = RTW_SCTX_SUBMITTED;
+
+	do {
+		c2h_cmd_hdl(adapter, NULL);
+		if (pack_tx_ops->status != RTW_SCTX_SUBMITTED)
+			break;
+		rtw_msleep_os(30);
+	} while (rtw_get_passing_time_ms(pack_tx_ops->submit_time) < timeout_ms);
+
+	if (pack_tx_ops->status == RTW_SCTX_DONE_SUCCESS)
+		ret = _SUCCESS;
+
+	return ret;
+}
+#endif
+
 int rtw_ack_tx_wait(struct xmit_priv *pxmitpriv, u32 timeout_ms)
 {
+#ifdef CONFIG_XMIT_ACK_POLLING
+	return rtw_ack_tx_polling(pxmitpriv, timeout_ms);
+#else
 	struct submit_ctx *pack_tx_ops = &pxmitpriv->ack_tx_ops;
 
 	pack_tx_ops->submit_time = rtw_get_current_time();
 	pack_tx_ops->timeout_ms = timeout_ms;
-	pack_tx_ops->status = 0;
+	pack_tx_ops->status = RTW_SCTX_SUBMITTED;
 
 	return rtw_sctx_wait(pack_tx_ops);
+#endif
 }
 
 void rtw_ack_tx_done(struct xmit_priv *pxmitpriv, int status)

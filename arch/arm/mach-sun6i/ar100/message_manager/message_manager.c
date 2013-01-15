@@ -122,6 +122,18 @@ static int ar100_semaphore_free(struct semaphore *sem)
 	return 0;
 }
 
+static int ar100_message_invalid(struct ar100_message *pmessage)
+{
+	if ((pmessage >= message_start) &&
+		(pmessage < message_end))
+	{
+		/* valid ar100 message */
+		return 0;
+	}
+	/* invalid ar100 message */
+	return 1;
+}
+
 /**
  * allocate one message frame. mainly use for send message by message-box,
  * the message frame allocate form messages pool shared memory area.
@@ -140,12 +152,10 @@ struct ar100_message *ar100_message_allocate(unsigned int msg_attr)
 		spin_lock_irqsave(&(msg_mgr_lock), msg_mgr_flag);
 		message_cache.number--;
 		palloc = message_cache.cache[message_cache.number];
-		palloc->next = 0;
-		palloc->attr = msg_attr;
 		spin_unlock_irqrestore(&(msg_mgr_lock), msg_mgr_flag);
 		AR100_INF("message [%x] allocate from message_cache\n", (u32)palloc);
 	}
-	if (palloc == NULL) {
+	if (ar100_message_invalid(palloc)) {
 		/*
 		 * cached message_cache finded fail, 
 		 * use spinlock 0 to exclusive with ar100.
@@ -158,9 +168,7 @@ struct ar100_message *ar100_message_allocate(unsigned int msg_attr)
 			if (pmessage->state == AR100_MESSAGE_FREED) {
 				/* find free message in message pool, allocate it */
 				palloc = pmessage;
-				palloc->state  = AR100_MESSAGE_ALLOCATED;
-				palloc->next   = 0;
-				palloc->attr   = msg_attr;
+				palloc->state = AR100_MESSAGE_ALLOCATED;
 				AR100_INF("message [%x] allocate from message pool\n", (u32)palloc);
 				break;
 			}
@@ -170,10 +178,13 @@ struct ar100_message *ar100_message_allocate(unsigned int msg_attr)
 		/* unlock hwspinlock 0 */
 		ar100_hwspin_unlock(0);
 	}
-	if (palloc == NULL) {
-		AR100_ERR("allocate message frame fail\n");
+	if (ar100_message_invalid(palloc)) {
+		AR100_ERR("allocate message frame is invalid\n");
 		return NULL;
 	}
+	/* initialize messgae frame */
+	palloc->next = 0;
+	palloc->attr = msg_attr;
 	if (msg_attr & AR100_MESSAGE_ATTR_SOFTSYN) {
 		/* syn message,allocate one semaphore for private */
 		palloc->private = ar100_semaphore_allocate();
@@ -192,8 +203,9 @@ struct ar100_message *ar100_message_allocate(unsigned int msg_attr)
  */
 void ar100_message_free(struct ar100_message *pmessage)
 {
-	if (pmessage == NULL) {
-		AR100_WRN("free null message\n");
+	/* check this message valid or not */
+	if (ar100_message_invalid(pmessage)) {
+		AR100_WRN("free invalid ar100 message\n");
 		return;
 	}
 	if (pmessage->attr & AR100_MESSAGE_ATTR_SOFTSYN) {

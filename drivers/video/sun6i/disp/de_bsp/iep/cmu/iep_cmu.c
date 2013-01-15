@@ -155,7 +155,8 @@ __s32 IEP_CMU_Set_Imgsize(__u8 sel, __u32 width, __u32 height)
 __s32 IEP_CMU_Set_Par(__u8 sel, __u32 hue, __u32 saturaion, __u32 brightness, __u32 mode)
 {
 	char primary_key[20];
-	__u32 i,j,reg_val,ret;
+	__u32 i,j,reg_val;
+	__s32 ret = 0;
 	__u32 hue_g,hue_l,i_hue,i_saturaion,i_brightness;
 
 	hue_l = 41*hue-0x7FF;
@@ -212,9 +213,9 @@ __s32 IEP_CMU_Set_Par(__u8 sel, __u32 hue, __u32 saturaion, __u32 brightness, __
 			for(i=2, j=0; i<9; i++,j+=4)CMU_WUINT32(sel,IMGEHC_CMU_VRANGE_HLGAIN_REG0_OFF + j, hsv_adjust_vivid_par[i]&0xFFFF0FFF);
 			for(i=9, j=0; i<16; i++,j+=4)CMU_WUINT32(sel,IMGEHC_CMU_LOCAL_SVGAIN_REG0_OFF + j, hsv_adjust_vivid_par[i]&0x1FFF01FF);
 			sprintf(primary_key, "lcd%d_para", sel);
-			ret = OSAL_Script_FetchParser_Data(primary_key, "florid_color", &reg_val, 1);
+			ret = OSAL_Script_FetchParser_Data(primary_key, "smart_color", &reg_val, 1);
 
-			if(ret < 0)break;//florid_color para not exit
+			if(ret < 0)break;//smart_color para not exit
 			else
 			{
 				i_saturaion = 41*reg_val;

@@ -23,33 +23,12 @@
 #include <drv_conf.h>
 #include <osdep_service.h>
 #include <drv_types.h>
-
+#include <rtw_sreset.h>
 
 #ifdef DBG_CONFIG_ERROR_DETECT
-#define	WIFI_STATUS_SUCCESS 		0
-#define	USB_VEN_REQ_CMD_FAIL 	BIT0
-#define	USB_READ_PORT_FAIL 		BIT1
-#define	USB_WRITE_PORT_FAIL		BIT2
-#define	WIFI_MAC_TXDMA_ERROR 	BIT3			
-#define   WIFI_TX_HANG				BIT4
-#define	WIFI_RX_HANG				BIT5
-#define 	WIFI_IF_NOT_EXIST			BIT6
-
-struct sreset_priv {
-	_mutex 	silentreset_mutex;
-	u8 	silent_reset_inprogress;
-	u8	Wifi_Error_Status;
-	unsigned long last_tx_time;
-	unsigned long last_tx_complete_time;
-};
-
-
-extern void rtl8723a_sreset_init_value(_adapter *padapter);
-extern void rtl8723a_sreset_reset_value(_adapter *padapter);
 extern void rtl8723a_silentreset_for_specific_platform(_adapter *padapter);
 extern void rtl8723a_sreset_xmit_status_check(_adapter *padapter);
 extern void rtl8723a_sreset_linked_status_check(_adapter *padapter);
-extern u8 rtl8723a_sreset_get_wifi_status(_adapter *padapter);
 #endif
 #endif
 

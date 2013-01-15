@@ -244,7 +244,8 @@ struct sta_info {
 	//for DM
 	RSSI_STA	 rssi_stat;
 	
-
+        /* To store the sequence number of received management frame */
+	u16 RxMgmtFrameSeqNum;
 };
 
 #define sta_rx_pkts(sta) \

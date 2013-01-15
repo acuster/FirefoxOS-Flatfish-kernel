@@ -55,6 +55,48 @@ static char g_mu509_name[] = MODEM_NAME;
 //
 //-----------------------------------------------------------------------------
 
+void mu509_reset(struct sw_modem *modem)
+{
+    modem_dbg("reset %s modem\n", modem->name);
+
+	modem_reset(modem, 0);
+    sw_module_mdelay(100);
+	modem_reset(modem, 1);
+
+    return;
+}
+
+/*
+*******************************************************************************
+*
+* wakeup_in:
+*   H: wakeup MU509.
+*   L: set MU509 to sleep mode.
+*
+*******************************************************************************
+*/
+static void mu509_sleep(struct sw_modem *modem, u32 sleep)
+{
+    modem_dbg("%s modem %s\n", modem->name, (sleep ? "sleep" : "wakeup"));
+
+    if(sleep){
+        modem_sleep(modem, 0);
+    }else{
+        modem_sleep(modem, 1);
+    }
+
+    return;
+}
+
+static void mu509_rf_disable(struct sw_modem *modem, u32 disable)
+{
+    modem_dbg("set %s modem rf %s\n", modem->name, (disable ? "disable" : "enable"));
+
+    modem_rf_disable(modem, disable);
+
+    return;
+}
+
 /*
 *******************************************************************************
 * 模组内部默认:
@@ -89,47 +131,14 @@ void mu509_power(struct sw_modem *modem, u32 on)
 		msleep(4000);
 
         modem_power_on_off(modem, 0);
-        sw_module_delay(700);
+        sw_module_mdelay(700);
         modem_power_on_off(modem, 1);
     }else{
         modem_power_on_off(modem, 0);
-        sw_module_delay(2500);
+        sw_module_mdelay(2500);
         modem_power_on_off(modem, 1);
 		modem_vbat(modem, 0);
     }
-
-    return;
-}
-
-void mu509_reset(struct sw_modem *modem)
-{
-    modem_dbg("reset %s modem\n", modem->name);
-
-	modem_reset(modem, 0);
-    sw_module_delay(100);
-	modem_reset(modem, 1);
-
-    return;
-}
-
-static void mu509_sleep(struct sw_modem *modem, u32 sleep)
-{
-    modem_dbg("%s modem %s\n", modem->name, (sleep ? "sleep" : "wakeup"));
-
-    if(sleep){
-        modem_sleep(modem, 0);
-    }else{
-        modem_sleep(modem, 1);
-    }
-
-    return;
-}
-
-static void mu509_rf_disable(struct sw_modem *modem, u32 disable)
-{
-    modem_dbg("set %s modem rf %s\n", modem->name, (disable ? "disable" : "enable"));
-
-    modem_rf_disable(modem, disable);
 
     return;
 }
@@ -138,7 +147,7 @@ static int mu509_start(struct sw_modem *mdev)
 {
     int ret = 0;
 
-    ret = modem_irq_init(mdev);
+    ret = modem_irq_init(mdev, TRIG_EDGE_NEGATIVE);
     if(ret != 0){
        modem_err("err: sw_module_irq_init failed\n");
        return -1;
@@ -159,14 +168,14 @@ static int mu509_stop(struct sw_modem *mdev)
 
 static int mu509_suspend(struct sw_modem *mdev)
 {
-    modem_sleep(mdev, 1);
+    mu509_sleep(mdev, 1);
 
     return 0;
 }
 
 static int mu509_resume(struct sw_modem *mdev)
 {
-    modem_sleep(mdev, 0);
+    mu509_sleep(mdev, 0);
 
     return 0;
 }

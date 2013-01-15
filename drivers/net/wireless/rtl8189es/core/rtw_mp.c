@@ -237,7 +237,7 @@ static int init_mp_priv_by_os(struct mp_priv *pmp_priv)
 		goto _exit_init_mp_priv;
 	}
 
-	pmp_priv->pmp_xmtframe_buf = pmp_priv->pallocated_mp_xmitframe_buf + 4 - ((uint) (pmp_priv->pallocated_mp_xmitframe_buf) & 3);
+	pmp_priv->pmp_xmtframe_buf = pmp_priv->pallocated_mp_xmitframe_buf + 4 - ((SIZE_PTR) (pmp_priv->pallocated_mp_xmitframe_buf) & 3);
 
 	pmp_xmitframe = (struct mp_xmit_frame*)pmp_priv->pmp_xmtframe_buf;
 
@@ -458,12 +458,17 @@ MPT_InitializeAdapter(
 	pMptCtx->backup0xc50 = (u1Byte)PHY_QueryBBReg(pAdapter, rOFDM0_XAAGCCore1, bMaskByte0);
 	pMptCtx->backup0xc58 = (u1Byte)PHY_QueryBBReg(pAdapter, rOFDM0_XBAGCCore1, bMaskByte0);
 	pMptCtx->backup0xc30 = (u1Byte)PHY_QueryBBReg(pAdapter, rOFDM0_RxDetector1, bMaskByte0);
+#ifdef CONFIG_RTL8188E
+	pMptCtx->backup0x52_RF_A = (u1Byte)PHY_QueryRFReg(pAdapter, RF_PATH_A, RF_0x52, 0x000F0);
+	pMptCtx->backup0x52_RF_B = (u1Byte)PHY_QueryRFReg(pAdapter, RF_PATH_A, RF_0x52, 0x000F0);
+#endif
 
 	//set ant to wifi side in mp mode
 	rtw_write16(pAdapter, 0x870, 0x300);
 	rtw_write16(pAdapter, 0x860, 0x110);
 
-	pmlmepriv->fw_state = WIFI_MP_STATE;
+	if (pAdapter->registrypriv.mp_mode == 1)
+		pmlmepriv->fw_state = WIFI_MP_STATE;
 
 	return	rtStatus;
 }
@@ -493,8 +498,10 @@ MPT_DeInitAdapter(
 	PMPT_CONTEXT		pMptCtx = &pAdapter->mppriv.MptCtx;
 
 	pMptCtx->bMptDrvUnload = _TRUE;
+	#ifdef CONFIG_RTL8723A
 	_rtw_free_sema(&(pMptCtx->MPh2c_Sema));
 	_cancel_timer_ex( &pMptCtx->MPh2c_timeout_timer);
+	#endif
 #if 0 // for Windows
 	PlatformFreeWorkItem( &(pMptCtx->MptWorkItem) );
 
@@ -586,7 +593,9 @@ s32 mp_start_test(PADAPTER padapter)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *tgt_network = &pmlmepriv->cur_network;
 
-
+	padapter->registrypriv.mp_mode = 1;
+	pmppriv->bSetTxPower=0;		//for  manually set tx power
+	
 	//3 disable dynamic mechanism
 	disable_dm(padapter);
 
@@ -645,7 +654,8 @@ s32 mp_start_test(PADAPTER padapter)
 		rtw_free_assoc_resources(padapter, 1);
 	}
 	pmppriv->prev_fw_state = get_fwstate(pmlmepriv);
-	pmlmepriv->fw_state = WIFI_MP_STATE;
+	if (padapter->registrypriv.mp_mode == 1)
+		pmlmepriv->fw_state = WIFI_MP_STATE;
 #if 0
 	if (pmppriv->mode == _LOOPBOOK_MODE_) {
 		set_fwstate(pmlmepriv, WIFI_MP_LPBK_STATE); //append txdesc
@@ -716,10 +726,11 @@ void mp_stop_test(PADAPTER padapter)
 	struct sta_info *psta;
 
 	_irqL irqL;
-
-
-	_enter_critical_bh(&pmlmepriv->lock, &irqL);
-
+	
+	if(pmppriv->mode==MP_ON)
+	{
+	pmppriv->bSetTxPower=0;
+	_enter_critical_bh(&pmlmepriv->lock, &irqL);	
 	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == _FALSE)
 		goto end_of_mp_stop_test;
 
@@ -742,6 +753,7 @@ void mp_stop_test(PADAPTER padapter)
 end_of_mp_stop_test:
 
 	_exit_critical_bh(&pmlmepriv->lock, &irqL);
+	}
 }
 /*---------------------------hal\rtl8192c\MPT_Phy.c---------------------------*/
 #if 0
@@ -942,32 +954,55 @@ void GetThermalMeter(PADAPTER pAdapter, u8 *value)
 
 void SetSingleCarrierTx(PADAPTER pAdapter, u8 bStart)
 {
+	PhySetTxPowerLevel(pAdapter);
 	Hal_SetSingleCarrierTx(pAdapter,bStart);
 }
 
 void SetSingleToneTx(PADAPTER pAdapter, u8 bStart)
 {
+	PhySetTxPowerLevel(pAdapter);
 	Hal_SetSingleToneTx(pAdapter,bStart);
 }
 
 void SetCarrierSuppressionTx(PADAPTER pAdapter, u8 bStart)
 {
+	PhySetTxPowerLevel(pAdapter);
 	Hal_SetCarrierSuppressionTx(pAdapter, bStart);
 }
 
 void SetCCKContinuousTx(PADAPTER pAdapter, u8 bStart)
-		{
+{
+	PhySetTxPowerLevel(pAdapter);
 	Hal_SetCCKContinuousTx(pAdapter,bStart);
-		}
+}
 
 void SetOFDMContinuousTx(PADAPTER pAdapter, u8 bStart)
-        {
-   Hal_SetOFDMContinuousTx( pAdapter, bStart);
+{
+	PhySetTxPowerLevel(pAdapter);
+   	Hal_SetOFDMContinuousTx( pAdapter, bStart);
 }/* mpt_StartOfdmContTx */
 
 void SetContinuousTx(PADAPTER pAdapter, u8 bStart)
 {
+	PhySetTxPowerLevel(pAdapter);
 	Hal_SetContinuousTx(pAdapter,bStart);
+}
+
+
+void PhySetTxPowerLevel(PADAPTER pAdapter)
+{
+	struct mp_priv *pmp_priv = &pAdapter->mppriv;
+		
+	if (pmp_priv->bSetTxPower==0) // for NO manually set power index
+	{
+#ifdef CONFIG_RTL8188E	
+		PHY_SetTxPowerLevel8188E(pAdapter,pmp_priv->channel);
+#elif defined(CONFIG_RTL8192D)
+		PHY_SetTxPowerLevel8192D(pAdapter,pmp_priv->channel);
+#else
+		PHY_SetTxPowerLevel8192C(pAdapter,pmp_priv->channel);
+#endif
+	}
 }
 
 //------------------------------------------------------------------------------
@@ -988,7 +1023,7 @@ static struct xmit_frame *alloc_mp_xmitframe(struct xmit_priv *pxmitpriv)
 
 	if ((pxmitbuf = rtw_alloc_xmitbuf(pxmitpriv)) == NULL)
 	{
-		rtw_free_xmitframe_ex(pxmitpriv, pmpframe);
+		rtw_free_xmitframe(pxmitpriv, pmpframe);
 		return NULL;
 	}
 
@@ -1023,7 +1058,6 @@ static thread_return mp_xmit_packet_thread(thread_context context)
 	while (1) {
 		pxmitframe = alloc_mp_xmitframe(pxmitpriv);
 		if (pxmitframe == NULL) {
-			printk("alloc_mp_xmitframe == NULL \n");
 			if (pmptx->stop ||
 			    padapter->bSurpriseRemoved ||
 			    padapter->bDriverStopped) {
@@ -1125,7 +1159,7 @@ void SetPacketTx(PADAPTER padapter)
 
 	//3 3. init TX descriptor
 	// offset 0
-#if  defined(CONFIG_RTL8188E) && !defined(CONFIG_RTL8188E_SDIO)
+#if defined(CONFIG_RTL8188E) && !defined(CONFIG_RTL8188E_SDIO)
 	desc->txdw0 |= cpu_to_le32(OWN | FSG | LSG);
 	desc->txdw0 |= cpu_to_le32(pkt_size & 0x0000FFFF); // packet size
 	desc->txdw0 |= cpu_to_le32(((TXDESC_SIZE + OFFSET_SZ) << OFFSET_SHT) & 0x00FF0000); //32 bytes for TX Desc
@@ -1219,7 +1253,9 @@ void SetPacketTx(PADAPTER padapter)
 
 	//3 6. start thread
 #ifdef PLATFORM_LINUX
-	pmp_priv->tx.PktTxThread = kernel_thread(mp_xmit_packet_thread, pmp_priv, CLONE_FS|CLONE_FILES);
+	pmp_priv->tx.PktTxThread = kthread_run(mp_xmit_packet_thread, pmp_priv, "RTW_MP_THREAD");
+	if (IS_ERR(pmp_priv->tx.PktTxThread))
+		DBG_871X("Create PktTx Thread Fail !!!!!\n");
 #endif
 #ifdef PLATFORM_FREEBSD
 {
@@ -1227,11 +1263,11 @@ void SetPacketTx(PADAPTER padapter)
 	struct thread *td;
 	pmp_priv->tx.PktTxThread = kproc_kthread_add(mp_xmit_packet_thread, pmp_priv,
 					&p, &td, RFHIGHPID, 0, "MPXmitThread", "MPXmitThread");
-}
-#endif
+
 	if (pmp_priv->tx.PktTxThread < 0)
 		DBG_871X("Create PktTx Thread Fail !!!!!\n");
-
+}
+#endif
 }
 
 void SetPacketRx(PADAPTER pAdapter, u8 bStartRx)
@@ -1241,9 +1277,16 @@ void SetPacketRx(PADAPTER pAdapter, u8 bStartRx)
 	if(bStartRx)
 	{
 		// Accept CRC error and destination address
-#if 0
-		pHalData->ReceiveConfig |= (RCR_ACRC32|AB);
+#if 1
+//ndef CONFIG_RTL8723A
+		pHalData->ReceiveConfig = AAP | APM | AM | AB | APP_ICV | ADF | AMF | HTC_LOC_CTRL | APP_MIC | APP_PHYSTS;
+		
+		pHalData->ReceiveConfig |= ACRC32;
+		
 		rtw_write32(pAdapter, REG_RCR, pHalData->ReceiveConfig);
+		
+		// Accept all data frames
+		rtw_write16(pAdapter, REG_RXFLTMAP2, 0xFFFF);
 #else
 		rtw_write32(pAdapter, REG_RCR, 0x70000101);
 #endif
@@ -1385,27 +1428,110 @@ u32 mp_query_psd(PADAPTER pAdapter, u8 *data)
 }
 
 
-u32 rtw_atoi(u8* s)
+
+void _rtw_mp_xmit_priv (struct xmit_priv *pxmitpriv)
 {
-
-	int num=0,flag=0;
-	int i;
-	for(i=0;i<=strlen(s);i++)
+	   int i,res;
+	  _adapter *padapter = pxmitpriv->adapter;
+	struct xmit_frame	*pxmitframe = (struct xmit_frame*) pxmitpriv->pxmit_frame_buf;
+	struct xmit_buf *pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmitbuf;
+	
+	u32 max_xmit_extbuf_size = MAX_XMIT_EXTBUF_SZ;
+	u32 num_xmit_extbuf = NR_XMIT_EXTBUFF;
+	if(padapter->registrypriv.mp_mode ==0)
 	{
-	  if(s[i] >= '0' && s[i] <= '9')
-		 num = num * 10 + s[i] -'0';
-	  else if(s[0] == '-' && i==0) 
-		 flag =1;
-	  else 
-		  break;
-	 }
+		max_xmit_extbuf_size = MAX_XMIT_EXTBUF_SZ;
+		num_xmit_extbuf = NR_XMIT_EXTBUFF;
+	}
+	else
+	{
+		max_xmit_extbuf_size = 20000;
+		num_xmit_extbuf = 1;
+	}
 
-	if(flag == 1)
-	   num = num * -1;
+	pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmit_extbuf;
+	for(i=0; i<num_xmit_extbuf; i++)
+	{
+		rtw_os_xmit_resource_free(padapter, pxmitbuf,(max_xmit_extbuf_size + XMITBUF_ALIGN_SZ));
+		
+		pxmitbuf++;
+	}
 
-	 return(num); 
+	if(pxmitpriv->pallocated_xmit_extbuf) {
+		rtw_vmfree(pxmitpriv->pallocated_xmit_extbuf, num_xmit_extbuf * sizeof(struct xmit_buf) + 4);
+	}
 
+	if(padapter->registrypriv.mp_mode ==0)
+	{
+		max_xmit_extbuf_size = 20000;
+		num_xmit_extbuf = 1;
+	}
+	else
+	{
+		max_xmit_extbuf_size = MAX_XMIT_EXTBUF_SZ;
+		num_xmit_extbuf = NR_XMIT_EXTBUFF;
+	}
+	
+	// Init xmit extension buff
+	_rtw_init_queue(&pxmitpriv->free_xmit_extbuf_queue);
+
+	pxmitpriv->pallocated_xmit_extbuf = rtw_zvmalloc(num_xmit_extbuf * sizeof(struct xmit_buf) + 4);
+	
+	if (pxmitpriv->pallocated_xmit_extbuf  == NULL){
+		RT_TRACE(_module_rtl871x_xmit_c_,_drv_err_,("alloc xmit_extbuf fail!\n"));
+		res= _FAIL;
+		goto exit;
+	}
+
+	pxmitpriv->pxmit_extbuf = (u8 *)N_BYTE_ALIGMENT((SIZE_PTR)(pxmitpriv->pallocated_xmit_extbuf), 4);
+
+	pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmit_extbuf;
+
+	for (i = 0; i < num_xmit_extbuf; i++)
+	{
+		_rtw_init_listhead(&pxmitbuf->list);
+
+		pxmitbuf->priv_data = NULL;
+		pxmitbuf->padapter = padapter;
+		pxmitbuf->ext_tag = _TRUE;
+
+/*
+		pxmitbuf->pallocated_buf = rtw_zmalloc(max_xmit_extbuf_size);
+		if (pxmitbuf->pallocated_buf == NULL)
+		{
+			res = _FAIL;
+			goto exit;
+		}
+
+		pxmitbuf->pbuf = (u8 *)N_BYTE_ALIGMENT((SIZE_PTR)(pxmitbuf->pallocated_buf), 4);
+*/		
+
+		if((res=rtw_os_xmit_resource_alloc(padapter, pxmitbuf,max_xmit_extbuf_size + XMITBUF_ALIGN_SZ)) == _FAIL) {
+			res= _FAIL;
+			goto exit;
+		}
+		
+#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
+		pxmitbuf->phead = pxmitbuf->pbuf;
+		pxmitbuf->pend = pxmitbuf->pbuf + max_xmit_extbuf_size;
+		pxmitbuf->len = 0;
+		pxmitbuf->pdata = pxmitbuf->ptail = pxmitbuf->phead;
+#endif
+
+		rtw_list_insert_tail(&pxmitbuf->list, &(pxmitpriv->free_xmit_extbuf_queue.queue));
+		#ifdef DBG_XMIT_BUF_EXT
+		pxmitbuf->no=i;
+		#endif
+		pxmitbuf++;
+		
+	}
+
+	pxmitpriv->free_xmit_extbuf_cnt = num_xmit_extbuf;
+
+exit:
+	;
 }
+
 
 #endif
 

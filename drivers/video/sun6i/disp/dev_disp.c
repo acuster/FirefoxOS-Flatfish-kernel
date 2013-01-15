@@ -25,6 +25,8 @@ static dev_t devid ;
 static struct class *disp_class;
 struct device	*display_dev;
 
+__u32 disp_cmd_print_level = 0;
+
 static struct resource disp_resource[DISP_IO_NUM] =
 {
 	[DISP_IO_SCALER0] = {
@@ -456,6 +458,7 @@ __s32 DRV_DISP_Init(void)
 
 	para.disp_int_process       = DRV_disp_int_process;
     para.vsync_event            = DRV_disp_vsync_event;
+    para.take_effect            = DRV_disp_take_effect_event;
 
 	memset(&g_disp_drv, 0, sizeof(__disp_drv_t));
 
@@ -655,8 +658,30 @@ static int disp_remove(struct platform_device *pdev)
 void backlight_early_suspend(struct early_suspend *h)
 {
     int i = 0;
+    int r_count = g_fbi.cb_r_conut;
 
-    for(i=0; i<2; i++)
+    while(r_count != g_fbi.cb_w_conut)
+    {        
+        if(r_count >= 9)
+        {
+           r_count = 0; 
+        }
+        else
+        {
+            r_count++;
+        }
+
+        if(g_fbi.cb_arg[r_count] != 0)
+        {
+            g_fbi.cb_fn(g_fbi.cb_arg[r_count], 1);
+            g_fbi.cb_arg[r_count] = 0;
+            g_fbi.cb_r_conut = r_count;
+            //printk(KERN_WARNING "##es r_count:%d\n", r_count);
+        }
+    }
+    g_fbi.b_no_output = 1;
+
+    for(i=1; i>=0; i--)
     {
         suspend_output_type[i] = BSP_disp_get_output_type(i);
         if(suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
@@ -693,15 +718,14 @@ void backlight_late_resume(struct early_suspend *h)
     {
         BSP_disp_clk_on(2);
     }
-    for(i=0; i<2; i++)
+    for(i=1; i>=0; i--)
     {
         if(suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
         {
-            __lcd_flow_t *flow;
-
             if(2 == suspend_prestep)//late resume from  resume
             {
 #if 0
+                __lcd_flow_t *flow;
                 flow =BSP_disp_lcd_get_open_flow(i);
                 while(flow->cur_step < (flow->func_num))//open flow is finished  accept the last one
                 {
@@ -734,6 +758,7 @@ void backlight_late_resume(struct early_suspend *h)
         }
     }
 
+    g_fbi.b_no_output = 0;
     suspend_status &= (~1);
     suspend_prestep = 3;
 
@@ -758,10 +783,32 @@ int disp_suspend(struct platform_device *pdev, pm_message_t state)
     int i = 0;
     
 #ifndef CONFIG_HAS_EARLYSUSPEND
+    int r_count = g_fbi.cb_r_conut;
+
+    while(r_count != g_fbi.cb_w_conut)
+    {        
+        if(r_count >= 9)
+        {
+           r_count = 0; 
+        }
+        else
+        {
+            r_count++;
+        }
+
+        if(g_fbi.cb_arg[r_count] != 0)
+        {
+            g_fbi.cb_fn(g_fbi.cb_arg[r_count], 1);
+            g_fbi.cb_arg[r_count] = 0;
+            g_fbi.cb_r_conut = r_count;
+            //printk(KERN_WARNING "##es r_count:%d\n", r_count);
+        }
+    }
+    g_fbi.b_no_output = 1;
 
     pr_info("[DISP]>>disp_suspend call<<\n");
 
-    for(i=0; i<2; i++)
+    for(i=1; i>=0; i--)
     {
         suspend_output_type[i] = BSP_disp_get_output_type(i);
         if(suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
@@ -796,7 +843,7 @@ int disp_suspend(struct platform_device *pdev, pm_message_t state)
 #else
     if(2 == suspend_prestep)//suspend after resume,not  after early suspend
     {   
-        for(i=0; i<2; i++)
+        for(i=1; i>=0; i--)
         {
             if(suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
             {
@@ -870,7 +917,7 @@ int disp_resume(struct platform_device *pdev)
 
     pr_info("[DISP]==disp_resume call==\n");
 
-    for(i=0; i<2; i++)
+    for(i=1; i>=0; i--)
     {
         if(suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
         {
@@ -892,7 +939,7 @@ int disp_resume(struct platform_device *pdev)
     }
 #else
    pr_info("[DISP]>>disp_resume call<<\n");
-   for(i=0; i<2; i++)
+   for(i=1; i>=0; i--)
     {
         if(suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
         {
@@ -905,7 +952,7 @@ int disp_resume(struct platform_device *pdev)
         }
     }
 #endif
-
+    g_fbi.b_no_output = 0;
     suspend_status &= (~2);
     suspend_prestep = 2;
     return 0;
@@ -956,15 +1003,16 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         return -1;
     }
     
-#if 0
-    if(cmd!=DISP_CMD_TV_GET_INTERFACE && cmd!=DISP_CMD_HDMI_GET_HPD_STATUS && cmd!=DISP_CMD_GET_OUTPUT_TYPE 
-    	&& cmd!=DISP_CMD_SCN_GET_WIDTH && cmd!=DISP_CMD_SCN_GET_HEIGHT
-    	&& cmd!=DISP_CMD_VIDEO_SET_FB && cmd!=DISP_CMD_VIDEO_GET_FRAME_ID)
-    	&& cmd!=DISP_CMD_VSYNC_EVENT_EN)
+    if(disp_cmd_print_level == 1)
     {
-        OSAL_PRINTF("cmd:0x%x,%ld,%ld\n",cmd, ubuffer[0], ubuffer[1]);
+        if(cmd!=DISP_CMD_TV_GET_INTERFACE && cmd!=DISP_CMD_HDMI_GET_HPD_STATUS && cmd!=DISP_CMD_GET_OUTPUT_TYPE 
+        	&& cmd!=DISP_CMD_SCN_GET_WIDTH && cmd!=DISP_CMD_SCN_GET_HEIGHT
+        	&& cmd!=DISP_CMD_VIDEO_SET_FB && cmd!=DISP_CMD_VIDEO_GET_FRAME_ID
+        	&& cmd!=DISP_CMD_VSYNC_EVENT_EN)
+        {
+            OSAL_PRINTF("cmd:0x%x,%ld,%ld\n",cmd, ubuffer[0], ubuffer[1]);
+        }
     }
-#endif
 
     switch(cmd)
     {
@@ -1205,7 +1253,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             break;
 
       case DISP_CMD_SET_OVL_MODE:
-      		ret = disp_set_ovl_mode(ubuffer[0], ubuffer[1], ubuffer[2]);
+      		ret = disp_set_ovl_mode(ubuffer[0], ubuffer[1]);
       	    break;
 
     //----layer----

@@ -49,9 +49,11 @@
 #else
 #define MAX_XMITBUF_SZ	(2048)
 #endif
-
+#ifdef CONFIG_SINGLE_XMIT_BUF
+#define NR_XMITBUFF	(1)
+#else
 #define NR_XMITBUFF	(4)
-
+#endif //CONFIG_SINGLE_XMIT_BUF
 #elif defined (CONFIG_PCI_HCI)
 #define MAX_XMITBUF_SZ	(1664)
 #define NR_XMITBUFF	(128)
@@ -371,6 +373,7 @@ struct  submit_ctx{
 };
 
 enum {
+	RTW_SCTX_SUBMITTED = -1,
 	RTW_SCTX_DONE_SUCCESS = 0,
 	RTW_SCTX_DONE_UNKNOWN,
 	RTW_SCTX_DONE_TIMEOUT,
@@ -590,6 +593,8 @@ struct	xmit_priv	{
 	struct hw_xmit *hwxmits;
 	u8	hwxmit_entry;
 
+	u8	wmm_para_seq[4];//sequence for wmm ac parameter strength from large to small. it's value is 0->vo, 1->vi, 2->be, 3->bk.
+
 #ifdef CONFIG_USB_HCI
 	_sema	tx_retevt;//all tx return event;
 	u8		txirp_cnt;//
@@ -627,18 +632,6 @@ struct	xmit_priv	{
 #ifdef PLATFORM_LINUX
 	struct tasklet_struct xmit_tasklet;
 #endif
-#endif
-#ifdef CONFIG_SDIO_TX_MULTI_QUEUE
-	_queue tx_pending_queue[3];// HIQ,MIQ,LOQ
-	u8	tx_page_full_mask;
-	u8	requiredPage;
-	u8	PageIndex;
-
-	//per AC pending irp
-	int	beq_cnt;
-	int	bkq_cnt;
-	int	viq_cnt;
-	int	voq_cnt;
 #endif
 #endif
 

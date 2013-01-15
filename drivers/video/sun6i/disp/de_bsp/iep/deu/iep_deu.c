@@ -26,6 +26,7 @@ static __u8 *plptab;
 __s32 deu_clk_init(__u32 sel)
 {
     __u32 pll_freq;
+    __u32 mclk_div;
 
     DE_INF("deu %d clk init\n", sel);
 	if(!sel)
@@ -36,17 +37,15 @@ __s32 deu_clk_init(__u32 sel)
 
 		OSAL_CCMU_MclkReset(h_deumclk0, RST_INVAILD);
 		
-		OSAL_CCMU_SetMclkSrc(h_deumclk0, SYS_CLK_PLL10);	//FIX CONNECT TO PLL9
+		OSAL_CCMU_SetMclkSrc(h_deumclk0, SYS_CLK_PLL10);	//FIX CONNECT TO  PLL10
 		OSAL_CCMU_SetMclkDiv(h_deumclk0, 1);
         pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10);
-		if(pll_freq < 350000000)
-		{
-			OSAL_CCMU_SetMclkDiv(h_deumclk0, 1);
-		}
-		else
-		{
-			OSAL_CCMU_SetMclkDiv(h_deumclk0, 2);
-		}
+        mclk_div = 1;
+        while((pll_freq / mclk_div) > 300000000)
+        {
+            mclk_div ++;
+        }
+		OSAL_CCMU_SetMclkDiv(h_deumclk0, mclk_div);
 		
 		OSAL_CCMU_MclkOnOff(h_deuahbclk0, CLK_ON);
 		OSAL_CCMU_MclkOnOff(h_deumclk0, CLK_ON);
@@ -60,17 +59,15 @@ __s32 deu_clk_init(__u32 sel)
 	    h_deumclk1 = OSAL_CCMU_OpenMclk(MOD_CLK_IEPDEU1);
 
 		OSAL_CCMU_MclkReset(h_deumclk1, RST_INVAILD);
-		OSAL_CCMU_SetMclkSrc(h_deumclk1, SYS_CLK_PLL10);	//FIX CONNECT TO PLL9
+		OSAL_CCMU_SetMclkSrc(h_deumclk1, SYS_CLK_PLL10);	//FIX CONNECT TO PLL10
 		OSAL_CCMU_SetMclkDiv(h_deumclk1, 1);
         pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10);
-		if(pll_freq < 350000000)
-		{
-			OSAL_CCMU_SetMclkDiv(h_deumclk1, 1);
-		}
-		else
-		{
-			OSAL_CCMU_SetMclkDiv(h_deumclk1, 2);
-		}
+        mclk_div = 1;
+        while((pll_freq / mclk_div) > 300000000)
+        {
+            mclk_div ++;
+        }
+		OSAL_CCMU_SetMclkDiv(h_deumclk1, mclk_div);
 		
 		OSAL_CCMU_MclkOnOff(h_deuahbclk1, CLK_ON);
 		OSAL_CCMU_MclkOnOff(h_deumclk1, CLK_ON);
@@ -183,6 +180,7 @@ __s32 DEU_ALG(__u32 sel)
         {
             count = 0;
             //pr_warn("<<deu-I>>\n");
+            //pr_warn("frameinfo.disp_size: <%dx%d>\n", gdeu[sel].frameinfo.disp_size.width,  gdeu[sel].frameinfo.disp_size.height);
         }
     }
 	
@@ -269,14 +267,16 @@ __s32 DEU_ALG(__u32 sel)
 }
 
 #define ____SEPARATOR_DEU_BSP____
-
+//enable: 0 disable
+//           1 enable
+//           2 disable right now
 __s32 IEP_Deu_Enable(__u32 sel, __u32 enable)
 {
 	__u32 strtab_addr;
 
     //pr_warn("BSP_disp_deu_disable, ====3======sel=%d, enable=%d\n", sel, enable);
     strtab_addr =(__u32)g_strtab_addr;
-	if(enable)
+	if(enable == 1)
 	{
 		deu_clk_open(sel);
 		DEU_EBIOS_Enable(sel, 1);
@@ -302,6 +302,11 @@ __s32 IEP_Deu_Enable(__u32 sel, __u32 enable)
 		DEU_EBIOS_Enable(sel, 0);
 				
 		g_deu_status[sel] |= DEU_NEED_CLOSED;
+
+        if(enable == 2)
+        {
+            IEP_Deu_Operation_In_Vblanking(sel);
+        }
 		
 	}
 
@@ -426,7 +431,7 @@ __s32 IEP_Deu_Exit(__u32 sel)
 
 __s32 IEP_Deu_Operation_In_Vblanking(__u32 sel)
 {
-	if(g_deu_status[sel] & DEU_USED)
+    if(g_deu_status[sel] & DEU_USED)
 	{
 		//function about setting level through frameinfo
 		

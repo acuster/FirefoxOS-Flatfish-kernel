@@ -214,7 +214,10 @@ typedef enum _RT_SPINLOCK_TYPE{
 		#define DEV_BUS_TYPE  	RT_PCI_INTERFACE
 	#elif defined(CONFIG_SDIO_HCI)
 		#define DEV_BUS_TYPE  	RT_SDIO_INTERFACE
-	#endif	
+        #elif defined(CONFIG_GSPI_HCI)
+		#define DEV_BUS_TYPE  	RT_SDIO_INTERFACE
+	#endif
+	
 
 	#if defined(CONFIG_LITTLE_ENDIAN)	
 		#define	ODM_ENDIAN_TYPE			ODM_ENDIAN_LITTLE

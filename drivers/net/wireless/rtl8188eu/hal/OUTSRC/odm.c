@@ -838,9 +838,9 @@ ODM_DMWatchdog(
 	if( 	(pDM_Odm->Adapter->pwrctrlpriv.pwr_mode != PS_MODE_ACTIVE) &&// in LPS mode
 		( 			
 			(pDM_Odm->SupportICType & (ODM_RTL8723A ) )||
-		   	(pDM_Odm->SupportICType & (ODM_RTL8188E) &&((pDM_Odm->SupportInterface  == ODM_ITRF_SDIO)||(pDM_Odm->SupportInterface == ODM_ITRF_GSPI)) ) 
+		   	(pDM_Odm->SupportICType & (ODM_RTL8188E) &&((pDM_Odm->SupportInterface  == ODM_ITRF_SDIO)) ) 
 			
-		//&&((pDM_Odm->SupportInterface  == ODM_ITRF_SDIO)||(pDM_Odm->SupportInterface == ODM_ITRF_GSPI))
+		//&&((pDM_Odm->SupportInterface  == ODM_ITRF_SDIO))
 	  	)	
 	)
 	{
@@ -1224,35 +1224,7 @@ ODM_CmnInfoUpdate(
 			pDM_Odm->bBtDisableEdcaTurbo = (BOOLEAN)Value;
 			break;
 #endif
-/*
-		case	ODM_CMNINFO_OP_MODE:
-			pDM_Odm->OPMode = (u1Byte)Value;
-			break;
 
-		case	ODM_CMNINFO_WM_MODE:
-			pDM_Odm->WirelessMode = (u1Byte)Value;
-			break;
-
-		case	ODM_CMNINFO_BAND:
-			pDM_Odm->BandType = (u1Byte)Value;
-			break;
-
-		case	ODM_CMNINFO_SEC_CHNL_OFFSET:
-			pDM_Odm->SecChOffset = (u1Byte)Value;
-			break;
-
-		case	ODM_CMNINFO_SEC_MODE:
-			pDM_Odm->Security = (u1Byte)Value;
-			break;
-
-		case	ODM_CMNINFO_BW:
-			pDM_Odm->BandWidth = (u1Byte)Value;
-			break;
-
-		case	ODM_CMNINFO_CHNL:
-			pDM_Odm->Channel = (u1Byte)Value;
-			break;			
-*/	
 	}
 
 	
@@ -2078,12 +2050,12 @@ odm_DIG(
 		else
 		{
 		//2 Modify DIG upper bound
-		if((pDM_Odm->RSSI_Min + 20) > dm_dig_max )
-			pDM_DigTable->rx_gain_range_max = dm_dig_max;
+			if((pDM_Odm->RSSI_Min + 20) > dm_dig_max )
+				pDM_DigTable->rx_gain_range_max = dm_dig_max;
 			else if((pDM_Odm->RSSI_Min + 20) < dm_dig_min )
 				pDM_DigTable->rx_gain_range_max = dm_dig_min;
-		else
-			pDM_DigTable->rx_gain_range_max = pDM_Odm->RSSI_Min + 20;
+			else
+				pDM_DigTable->rx_gain_range_max = pDM_Odm->RSSI_Min + 20;
 			
 		
 		//2 Modify DIG lower bound
@@ -4768,7 +4740,8 @@ odm_TXPowerTrackingCheckCE(
 	if(!pDM_Odm->RFCalibrateInfo.TM_Trigger)		//at least delay 1 sec
 	{
 		//pHalData->TxPowerCheckCnt++;	//cosa add for debug
-		ODM_SetRFReg(pDM_Odm, RF_PATH_A, RF_T_METER, bRFRegOffsetMask, 0x60);
+		//ODM_SetRFReg(pDM_Odm, RF_PATH_A, RF_T_METER, bRFRegOffsetMask, 0x60);
+		PHY_SetRFReg(Adapter, RF_PATH_A, RF_T_METER_88E, BIT17 | BIT16, 0x03);
 		//DBG_8192C("Trigger 92C Thermal Meter!!\n");
 		
 		pDM_Odm->RFCalibrateInfo.TM_Trigger = 1;

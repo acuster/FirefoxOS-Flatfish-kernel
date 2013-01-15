@@ -909,6 +909,9 @@ static int dma_read_fifo(struct sw_udc_ep *ep, struct sw_udc_request *req)
 */
 static int sw_udc_read_fifo(struct sw_udc_ep *ep, struct sw_udc_request *req)
 {
+	u32			idx 		= 0;
+	u8		old_ep_index 	= 0;
+	int 		fifo_count	= 0;
 	if(ep->dma_working){
 		if(g_dma_debug){
 		    struct sw_udc_request *req_next = NULL;
@@ -932,7 +935,21 @@ static int sw_udc_read_fifo(struct sw_udc_ep *ep, struct sw_udc_request *req)
 		return 0;
 	}
 
-	if(is_sw_udc_dma_capable(req, ep)){
+
+	idx = ep->bEndpointAddress & 0x7F;
+
+    /* select ep */
+	old_ep_index = USBC_GetActiveEp(g_sw_udc_io.usb_bsp_hdle);
+	USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, idx);
+
+	fifo_count = sw_udc_fifo_count_out(g_sw_udc_io.usb_bsp_hdle, idx);
+
+	if(g_msc_read_debug)
+		pr_err("-:%d\n", fifo_count);
+
+	USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, old_ep_index);
+
+	if(is_sw_udc_dma_capable(req, ep) && (fifo_count >= ep->ep.maxpacket)){
 		return dma_read_fifo(ep, req);
 	}else{
 		return pio_read_fifo(ep, req);

@@ -51,7 +51,21 @@ int ar100_standby_super(struct super_standby_para *para);
  */
 int ar100_query_wakeup_source(unsigned long *event);
 
+/**
+ * query super-standby dram crc result.
+ * @perror:  pointer of dram crc result.
+ * @ptotal_count: pointer of dram crc total count
+ * @perror_count: pointer of dram crc error count
+ *
+ * return: result, 0 - query successed,
+ *                !0 - query failed;
+ */
+int ar100_query_dram_crc_result(unsigned long *perror, unsigned long *ptotal_count,
+	unsigned long *perror_count);
 
+int ar100_set_dram_crc_result(unsigned long error, unsigned long total_count,
+	unsigned long error_count);
+	
 /**
  * notify ar100 cpux restored.
  * @para:  none.

@@ -1115,7 +1115,7 @@ DESCRIPTOR_ATTR(bDeviceSubClass, "%d\n")
 DESCRIPTOR_ATTR(bDeviceProtocol, "%d\n")
 DESCRIPTOR_STRING_ATTR(iManufacturer, manufacturer_string)
 DESCRIPTOR_STRING_ATTR(iProduct, product_string)
-DESCRIPTOR_STRING_ATTR(iSerial, serial_string)
+//DESCRIPTOR_STRING_ATTR(iSerial, serial_string)
 
 static DEVICE_ATTR(functions, S_IRUGO | S_IWUSR, functions_show,
 						 functions_store);
@@ -1131,7 +1131,7 @@ static struct device_attribute *android_usb_attributes[] = {
 	&dev_attr_bDeviceProtocol,
 	&dev_attr_iManufacturer,
 	&dev_attr_iProduct,
-	&dev_attr_iSerial,
+	//&dev_attr_iSerial,
 	&dev_attr_functions,
 	&dev_attr_enable,
 	&dev_attr_state,

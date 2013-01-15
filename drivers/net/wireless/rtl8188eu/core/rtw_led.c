@@ -120,6 +120,9 @@ DeInitLed871x(
 	)
 {
 	_cancel_timer_ex(&(pLed->BlinkTimer));
+#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
+	_cancel_workitem_sync(&(pLed->BlinkWorkItem));
+#endif
 	ResetLedStatus(pLed);
 }
 

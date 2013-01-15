@@ -1253,7 +1253,9 @@ void SetPacketTx(PADAPTER padapter)
 
 	//3 6. start thread
 #ifdef PLATFORM_LINUX
-	pmp_priv->tx.PktTxThread = kernel_thread(mp_xmit_packet_thread, pmp_priv, CLONE_FS|CLONE_FILES);
+	pmp_priv->tx.PktTxThread = kthread_run(mp_xmit_packet_thread, pmp_priv, "RTW_MP_THREAD");
+	if (IS_ERR(pmp_priv->tx.PktTxThread))
+		DBG_871X("Create PktTx Thread Fail !!!!!\n");
 #endif
 #ifdef PLATFORM_FREEBSD
 {
@@ -1261,11 +1263,11 @@ void SetPacketTx(PADAPTER padapter)
 	struct thread *td;
 	pmp_priv->tx.PktTxThread = kproc_kthread_add(mp_xmit_packet_thread, pmp_priv,
 					&p, &td, RFHIGHPID, 0, "MPXmitThread", "MPXmitThread");
-}
-#endif
+
 	if (pmp_priv->tx.PktTxThread < 0)
 		DBG_871X("Create PktTx Thread Fail !!!!!\n");
-
+}
+#endif
 }
 
 void SetPacketRx(PADAPTER pAdapter, u8 bStartRx)
@@ -1275,9 +1277,16 @@ void SetPacketRx(PADAPTER pAdapter, u8 bStartRx)
 	if(bStartRx)
 	{
 		// Accept CRC error and destination address
-#ifndef CONFIG_RTL8723A
-		pHalData->ReceiveConfig |= (RCR_ACRC32|RCR_AAP);
+#if 1
+//ndef CONFIG_RTL8723A
+		pHalData->ReceiveConfig = AAP | APM | AM | AB | APP_ICV | ADF | AMF | HTC_LOC_CTRL | APP_MIC | APP_PHYSTS;
+		
+		pHalData->ReceiveConfig |= ACRC32;
+		
 		rtw_write32(pAdapter, REG_RCR, pHalData->ReceiveConfig);
+		
+		// Accept all data frames
+		rtw_write16(pAdapter, REG_RXFLTMAP2, 0xFFFF);
 #else
 		rtw_write32(pAdapter, REG_RCR, 0x70000101);
 #endif
@@ -1417,6 +1426,112 @@ u32 mp_query_psd(PADAPTER pAdapter, u8 *data)
 
 	return strlen(data)+1;
 }
+
+
+
+void _rtw_mp_xmit_priv (struct xmit_priv *pxmitpriv)
+{
+	   int i,res;
+	  _adapter *padapter = pxmitpriv->adapter;
+	struct xmit_frame	*pxmitframe = (struct xmit_frame*) pxmitpriv->pxmit_frame_buf;
+	struct xmit_buf *pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmitbuf;
+	
+	u32 max_xmit_extbuf_size = MAX_XMIT_EXTBUF_SZ;
+	u32 num_xmit_extbuf = NR_XMIT_EXTBUFF;
+	if(padapter->registrypriv.mp_mode ==0)
+	{
+		max_xmit_extbuf_size = MAX_XMIT_EXTBUF_SZ;
+		num_xmit_extbuf = NR_XMIT_EXTBUFF;
+	}
+	else
+	{
+		max_xmit_extbuf_size = 20000;
+		num_xmit_extbuf = 1;
+	}
+
+	pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmit_extbuf;
+	for(i=0; i<num_xmit_extbuf; i++)
+	{
+		rtw_os_xmit_resource_free(padapter, pxmitbuf,(max_xmit_extbuf_size + XMITBUF_ALIGN_SZ));
+		
+		pxmitbuf++;
+	}
+
+	if(pxmitpriv->pallocated_xmit_extbuf) {
+		rtw_vmfree(pxmitpriv->pallocated_xmit_extbuf, num_xmit_extbuf * sizeof(struct xmit_buf) + 4);
+	}
+
+	if(padapter->registrypriv.mp_mode ==0)
+	{
+		max_xmit_extbuf_size = 20000;
+		num_xmit_extbuf = 1;
+	}
+	else
+	{
+		max_xmit_extbuf_size = MAX_XMIT_EXTBUF_SZ;
+		num_xmit_extbuf = NR_XMIT_EXTBUFF;
+	}
+	
+	// Init xmit extension buff
+	_rtw_init_queue(&pxmitpriv->free_xmit_extbuf_queue);
+
+	pxmitpriv->pallocated_xmit_extbuf = rtw_zvmalloc(num_xmit_extbuf * sizeof(struct xmit_buf) + 4);
+	
+	if (pxmitpriv->pallocated_xmit_extbuf  == NULL){
+		RT_TRACE(_module_rtl871x_xmit_c_,_drv_err_,("alloc xmit_extbuf fail!\n"));
+		res= _FAIL;
+		goto exit;
+	}
+
+	pxmitpriv->pxmit_extbuf = (u8 *)N_BYTE_ALIGMENT((SIZE_PTR)(pxmitpriv->pallocated_xmit_extbuf), 4);
+
+	pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmit_extbuf;
+
+	for (i = 0; i < num_xmit_extbuf; i++)
+	{
+		_rtw_init_listhead(&pxmitbuf->list);
+
+		pxmitbuf->priv_data = NULL;
+		pxmitbuf->padapter = padapter;
+		pxmitbuf->ext_tag = _TRUE;
+
+/*
+		pxmitbuf->pallocated_buf = rtw_zmalloc(max_xmit_extbuf_size);
+		if (pxmitbuf->pallocated_buf == NULL)
+		{
+			res = _FAIL;
+			goto exit;
+		}
+
+		pxmitbuf->pbuf = (u8 *)N_BYTE_ALIGMENT((SIZE_PTR)(pxmitbuf->pallocated_buf), 4);
+*/		
+
+		if((res=rtw_os_xmit_resource_alloc(padapter, pxmitbuf,max_xmit_extbuf_size + XMITBUF_ALIGN_SZ)) == _FAIL) {
+			res= _FAIL;
+			goto exit;
+		}
+		
+#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
+		pxmitbuf->phead = pxmitbuf->pbuf;
+		pxmitbuf->pend = pxmitbuf->pbuf + max_xmit_extbuf_size;
+		pxmitbuf->len = 0;
+		pxmitbuf->pdata = pxmitbuf->ptail = pxmitbuf->phead;
+#endif
+
+		rtw_list_insert_tail(&pxmitbuf->list, &(pxmitpriv->free_xmit_extbuf_queue.queue));
+		#ifdef DBG_XMIT_BUF_EXT
+		pxmitbuf->no=i;
+		#endif
+		pxmitbuf++;
+		
+	}
+
+	pxmitpriv->free_xmit_extbuf_cnt = num_xmit_extbuf;
+
+exit:
+	;
+}
+
 
 #endif
 

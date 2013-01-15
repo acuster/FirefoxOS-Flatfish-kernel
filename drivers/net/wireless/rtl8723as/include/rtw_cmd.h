@@ -959,7 +959,7 @@ extern u8 rtw_led_blink_cmd(_adapter*padapter, PLED_871x pLed);
 extern u8 rtw_set_csa_cmd(_adapter*padapter, u8 new_ch_no);
 extern u8 rtw_tdls_cmd(_adapter*padapter, u8 *addr, u8 option);
 
-extern u8 rtw_c2h_wk_cmd(PADAPTER padapter);
+extern u8 rtw_c2h_wk_cmd(PADAPTER padapter, u8 *c2h_evt);
 
 u8 rtw_drvextra_cmd_hdl(_adapter *padapter, unsigned char *pbuf);
 

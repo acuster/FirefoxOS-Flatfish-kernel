@@ -321,9 +321,11 @@
 #define AW_UART_RFL 0x84 /* RFL */
 #define AW_UART_HALT 0xa4 /* Halt TX Register */
 
-#define UART_USR        (AW_UART_USR >> 2)
-#define UART_HALT       (AW_UART_HALT >> 2)
-#define UART_FORCE_CFG  (1 << 1)
+#define UART_USR        	(AW_UART_USR >> 2)
+#define UART_HALT       	(AW_UART_HALT >> 2)
+#define UART_SCH			(AW_UART_SCH >> 2)
+#define UART_FORCE_CFG  	(1 << 1)
+#define UART_FORCE_UPDATE	(1 << 2)
 
 #define AW_UART_LOG(fmt, args...) do {} while(0)
 #if 0

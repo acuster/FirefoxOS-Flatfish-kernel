@@ -43,6 +43,8 @@
 #define MGMT_QUEUE_NUM 5
 
 #define ETH_ALEN	6
+#define ETH_TYPE_LEN		2
+#define PAYLOAD_TYPE_LEN	1
 
 #ifdef CONFIG_AP_MODE
 
@@ -71,6 +73,9 @@ enum {
 	RTL871X_HOSTAPD_SET_WPS_PROBE_RESP = 18,
 	RTL871X_HOSTAPD_SET_WPS_ASSOC_RESP = 19,
 	RTL871X_HOSTAPD_SET_HIDDEN_SSID = 20,
+	RTL871X_HOSTAPD_SET_MACADDR_ACL = 21,
+	RTL871X_HOSTAPD_ACL_ADD_STA = 22,
+	RTL871X_HOSTAPD_ACL_REMOVE_STA = 23,
 };
 
 /* STA flags */
@@ -186,6 +191,7 @@ enum NETWORK_TYPE
     WIRELESS_11G_24N = (WIRELESS_11G|WIRELESS_11_24N), // tx: ofdm & MCS, rx: ofdm & cck & MCS, hw: cck & ofdm
     WIRELESS_11A_5N = (WIRELESS_11A|WIRELESS_11_5N), // tx: ofdm & MCS, rx: ofdm & MCS, hw: ofdm only
     WIRELESS_11BG_24N = (WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N), // tx: ofdm & cck & MCS, rx: ofdm & cck & MCS, hw: ofdm & cck
+    WIRELESS_11AGN = (WIRELESS_11A|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N), // tx: ofdm & MCS, rx: ofdm & MCS, hw: ofdm only
     WIRELESS_11ABGN = (WIRELESS_11A|WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N),
 };
 
@@ -210,7 +216,7 @@ enum NETWORK_TYPE
 typedef struct ieee_param {
 	u32 cmd;
 	u8 sta_addr[ETH_ALEN];
-        union {
+	union {
 		struct {
 			u8 name;
 			u32 value;
@@ -249,6 +255,30 @@ typedef struct ieee_param {
 
 	} u;	   
 }ieee_param;
+
+#ifdef CONFIG_AP_MODE
+typedef struct ieee_param_ex {
+	u32 cmd;
+	u8 sta_addr[ETH_ALEN];
+	u8 data[0];
+}ieee_param_ex;
+
+struct sta_data{
+	u16 aid;
+	u16 capability;
+	int flags;
+	u32 sta_set;
+	u8 tx_supp_rates[16];	
+	u32 tx_supp_rates_len;
+	struct rtw_ieee80211_ht_cap ht_cap;
+	u64	rx_pkts;
+	u64	rx_bytes;
+	u64	rx_drops;
+	u64	tx_pkts;
+	u64	tx_bytes;
+	u64	tx_drops;
+};
+#endif
 
 
 #if WIRELESS_EXT < 17
@@ -453,6 +483,11 @@ enum eap_type {
 
 #define RTW_IEEE80211_SCTL_FRAG		0x000F
 #define RTW_IEEE80211_SCTL_SEQ		0xFFF0
+
+
+#define RTW_ERP_INFO_NON_ERP_PRESENT BIT(0)
+#define RTW_ERP_INFO_USE_PROTECTION BIT(1)
+#define RTW_ERP_INFO_BARKER_PREAMBLE_MODE BIT(2)
 
 /* QoS,QOS */
 #define NORMAL_ACK			0
@@ -862,52 +897,6 @@ struct ieee80211_info_element {
 } __attribute__ ((packed));
 #endif
 
-#ifdef CONFIG_TDLS
-/* TDLS */
-#define TDLS_MIC_LEN 16
-#define WPA_NONCE_LEN 32
-#define TDLS_TIMEOUT_LEN 4
-
-struct wpa_tdls_ftie {
-	u8 ie_type; /* FTIE */
-	u8 ie_len;
-	u8 mic_ctrl[2];
-	u8 mic[TDLS_MIC_LEN];
-	u8 Anonce[WPA_NONCE_LEN]; /* Responder Nonce in TDLS */
-	u8 Snonce[WPA_NONCE_LEN]; /* Initiator Nonce in TDLS */
-	/* followed by optional elements */
-} ;
-
-struct wpa_tdls_timeoutie {
-	u8 ie_type; /* Timeout IE */
-	u8 ie_len;
-	u8 interval_type;
-	u8 value[TDLS_TIMEOUT_LEN];
-} ;
-
-struct wpa_tdls_lnkid {
-	u8 ie_type; /* Link Identifier IE */
-	u8 ie_len;
-	u8 bssid[ETH_ALEN];
-	u8 init_sta[ETH_ALEN];
-	u8 resp_sta[ETH_ALEN];
-} ;
-
-static u8 TDLS_RSNIE[]={	0x01, 0x00,	//version shall be set to 1
-						0x00, 0x0f, 0xac, 0x07,	//group sipher suite
-						0x01, 0x00,	//pairwise cipher suite count
-						0x00, 0x0f, 0xac, 0x04,	//pairwise cipher suite list; CCMP only
-						0x01, 0x00,	//AKM suite count
-						0x00, 0x0f, 0xac, 0x07,	//TPK Handshake
-						0x00, 0x02,
-						//PMKID shall not be present
-						};
-
-static u8 TDLS_WMMIE[]={0x00, 0x50, 0xf2, 0x02, 0x00, 0x01, 0x00};	//Qos info all set zero
-
-static u8 TDLS_EXT_CAPIE[] = {0x00, 0x00, 0x00, 0x50, 0x20};	//bit(28), bit(30), bit(37)
-#endif //CONFIG_TDLS
-
 #ifdef PLATFORM_WINDOWS
 
 #pragma pack(1)
@@ -1067,7 +1056,7 @@ struct ieee80211_txb {
 
 #define CRC_LENGTH                 4U
 
-#define MAX_WPA_IE_LEN (128)
+#define MAX_WPA_IE_LEN (256)
 #define MAX_WPS_IE_LEN (512)
 #define MAX_P2P_IE_LEN (256)
 #define MAX_WFD_IE_LEN (128)
@@ -1281,6 +1270,9 @@ enum TDLS_ACTION_FIELD{
 	TDLS_DISCOVERY_REQUEST = 10,
 	TDLS_DISCOVERY_RESPONSE = 14,	//it's used in public action frame
 };
+
+#define	TUNNELED_PROBE_REQ	15
+#define	TUNNELED_PROBE_RSP	16
 #endif //CONFIG_TDLS
 
 /* BACK action code */
@@ -1397,14 +1389,18 @@ ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 u8 *rtw_set_fixed_ie(unsigned char *pbuf, unsigned int len, unsigned char *source, unsigned int *frlen);
 u8 *rtw_set_ie(u8 *pbuf, sint index, uint len, u8 *source, uint *frlen);
 u8 *rtw_get_ie(u8*pbuf, sint index, sint *len, sint limit);
+u8 *rtw_get_ie_ex(u8 *in_ie, uint in_len, u8 eid, u8 *oui, u8 oui_len, u8 *ie, uint *ielen);
+int rtw_ies_remove_ie(u8 *ies, uint *ies_len, uint offset, u8 eid, u8 *oui, u8 oui_len);
+
 void rtw_set_supported_rate(u8* SupportedRates, uint mode) ;
 
 unsigned char *rtw_get_wpa_ie(unsigned char *pie, int *wpa_ie_len, int limit);
 unsigned char *rtw_get_wpa2_ie(unsigned char *pie, int *rsn_ie_len, int limit);
 int rtw_get_wpa_cipher_suite(u8 *s);
 int rtw_get_wpa2_cipher_suite(u8 *s);
-int rtw_parse_wpa_ie(u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher);
-int rtw_parse_wpa2_ie(u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher);
+int rtw_get_wapi_ie(u8 *in_ie,uint in_len,u8 *wapi_ie,u16 *wapi_len);
+int rtw_parse_wpa_ie(u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x);
+int rtw_parse_wpa2_ie(u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x);
 
 int rtw_get_sec_ie(u8 *in_ie,uint in_len,u8 *rsn_ie,u16 *rsn_len,u8 *wpa_ie,u16 *wpa_len);
 
@@ -1418,7 +1414,7 @@ void dump_wps_ie(u8 *ie, u32 ie_len);
 
 #ifdef CONFIG_P2P
 void dump_p2p_ie(u8 *ie, u32 ie_len);
-u8 *rtw_get_p2p_ie(u8 *in_ie, uint in_len, u8 *p2p_ie, uint *p2p_ielen);
+u8 *rtw_get_p2p_ie(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen);
 u8 *rtw_get_p2p_attr(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id ,u8 *buf_attr, u32 *len_attr);
 u8 *rtw_get_p2p_attr_content(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id ,u8 *buf_content, uint *len_content);
 u32 rtw_set_p2p_attr_content(u8 *pbuf, u8 attr_id, u16 attr_len, u8 *pdata_attr);
@@ -1426,7 +1422,7 @@ void rtw_WLAN_BSSID_EX_remove_p2p_attr(WLAN_BSSID_EX *bss_ex, u8 attr_id);
 #endif
 
 #ifdef CONFIG_WFD
-int rtw_get_wfd_ie(u8 *in_ie, uint in_len, u8 *wfd_ie, uint *wfd_ielen);
+int rtw_get_wfd_ie(u8 *in_ie, int in_len, u8 *wfd_ie, uint *wfd_ielen);
 int rtw_get_wfd_attr_content(u8 *wfd_ie, uint wfd_ielen, u8 target_attr_id ,u8 *attr_content, uint *attr_contentlen);
 #endif // CONFIG_WFD
 
@@ -1443,6 +1439,8 @@ uint	rtw_is_cckrates_included(u8 *rate);
 uint	rtw_is_cckratesonly_included(u8 *rate);
 
 int rtw_check_network_type(unsigned char *rate, int ratelen, int channel);
+
+void rtw_get_bcn_info(struct wlan_network *pnetwork);
 
 void rtw_macaddr_cfg(u8 *mac_addr);
 

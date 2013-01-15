@@ -437,7 +437,15 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 	int proc_set_rssi_disp(struct file *file, const char *buffer,
 		unsigned long count, void *data);
 
+#ifdef CONFIG_BT_COEXIST
+	int proc_get_btcoex_dbg(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
 
+	int proc_set_btcoex_dbg(struct file *file, const char *buffer,
+		unsigned long count, void *data);
+
+#endif //CONFIG_BT_COEXIST
 #endif //CONFIG_PROC_DEBUG
 
 #endif	//__RTW_DEBUG_H__

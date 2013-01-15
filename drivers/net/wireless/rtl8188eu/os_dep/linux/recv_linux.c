@@ -318,27 +318,14 @@ _func_enter_;
 			if(psta)
 			{
 				struct net_device *pnetdev= (struct net_device*)padapter->pnetdev;			
-#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
-				u16 queue_index = 0;				
-				const struct net_device_ops *ops = pnetdev->netdev_ops;
-#endif
+
 				//DBG_871X("directly forwarding to the rtw_xmit_entry\n");
 
 				//skb->ip_summed = CHECKSUM_NONE;
-				skb->dev = pnetdev;
-				skb->protocol = eth_type_trans(skb, pnetdev);
-
+				skb->dev = pnetdev;				
 #if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
-
-				skb_reset_network_header(skb);
-
-				if (ops->ndo_select_queue) 
-				{
-					queue_index = ops->ndo_select_queue(pnetdev, skb);
-				}
-
-				skb_set_queue_mapping(skb, queue_index);
-#endif
+				skb_set_queue_mapping(skb, rtw_recv_select_queue(skb));
+#endif //LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35)
 			
 				rtw_xmit_entry(skb, pnetdev);
 

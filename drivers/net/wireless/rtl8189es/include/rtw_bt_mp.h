@@ -134,10 +134,11 @@ typedef enum _BT_CTRL_STATUS{
 typedef enum _BT_CTRL_OPCODE_UPPER{
 	BT_UP_OP_BT_READY										= 0x00, 
 	BT_UP_OP_BT_SET_MODE									= 0x01,
-	BT_UP_OP_BT_SET_TX_RX_PARAMETER 						= 0x02,
+	BT_UP_OP_BT_SET_TX_RX_PARAMETER 					= 0x02,
 	BT_UP_OP_BT_SET_GENERAL 								= 0x03,
 	BT_UP_OP_BT_GET_GENERAL 								= 0x04,
 	BT_UP_OP_BT_TEST_CTRL									= 0x05,
+	BT_UP_OP_TEST_BT										= 0x06,
 	BT_UP_OP_MAX
 }BT_CTRL_OPCODE_UPPER,*PBT_CTRL_OPCODE_UPPER;
 
@@ -218,13 +219,13 @@ typedef struct _BT_REQ_CMD{
     UCHAR       opCodeVer;
     UCHAR       OpCode;
     USHORT      paraLength;
-    UCHAR       pParamStart[1];
+    UCHAR       pParamStart[100];
 } BT_REQ_CMD, *PBT_REQ_CMD;
 
 typedef struct _BT_RSP_CMD{
     USHORT      status;
     USHORT      paraLength;
-    UCHAR       pParamStart[1];
+    UCHAR       pParamStart[100];
 } BT_RSP_CMD, *PBT_RSP_CMD;
 
 
@@ -232,7 +233,7 @@ typedef struct _BT_H2C{
 	u1Byte	opCodeVer:4;
 	u1Byte	reqNum:4;
 	u1Byte	opCode;
-	u1Byte	buf[1];
+	u1Byte	buf[100];
 }BT_H2C, *PBT_H2C;
 
 
@@ -243,7 +244,7 @@ typedef struct _BT_EXT_C2H{
 	u1Byte	retLen:4;
 	u1Byte	opCodeVer:4;
 	u1Byte	reqNum:4;
-	u1Byte	buf[1];
+	u1Byte	buf[100];
 }BT_EXT_C2H, *PBT_EXT_C2H;
 
 

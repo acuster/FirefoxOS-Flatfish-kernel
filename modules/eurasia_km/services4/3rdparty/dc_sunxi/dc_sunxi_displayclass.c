@@ -942,6 +942,18 @@ static IMG_BOOL ProcessFlipV2(IMG_HANDLE hCmdCookie,
 
         psDispcData->layer_info[i].fb.addr[0] = phyAddr.uiAddr;
     }
+    
+    if(psDispcData->use_sgx)
+    {
+        IMG_CPU_PHYADDR phyAddr;
+        SUNXILFB_FBINFO *psPVRFBInfo = &psDevInfo->sFBInfo;
+        struct fb_info *psLINFBInfo;
+
+        psLINFBInfo = registered_fb[psDevInfo->uiFBDevID];
+        
+        psDevInfo->sPVRJTable.pfnPVRSRVDCMemInfoGetCpuPAddr(ppsMemInfos[i], 0, &phyAddr);
+        psDispcData->fb_yoffset = (phyAddr.uiAddr - psLINFBInfo->fix.smem_start) / psLINFBInfo->fix.line_length;
+    }
 
     dispc_gralloc_queue(psDispcData, ui32DispcDataLength, dispc_proxy_cmdcomplete, (void *)hCmdCookie);
        
@@ -976,7 +988,6 @@ static IMG_BOOL ProcessFlip(IMG_HANDLE  hCmdCookie,
 
 	if(psFlipCmd->hExtBuffer)
 	{
-	    //printk(KERN_WARNING "ProcessFlipV1\n");
 		return ProcessFlipV1(hCmdCookie,
 							 psDevInfo,
 							 psFlipCmd->hExtSwapChain,
@@ -987,7 +998,6 @@ static IMG_BOOL ProcessFlip(IMG_HANDLE  hCmdCookie,
 	{
 		DISPLAYCLASS_FLIP_COMMAND2 *psFlipCmd2;
 		psFlipCmd2 = (DISPLAYCLASS_FLIP_COMMAND2 *)pvData;
-		//printk(KERN_WARNING "ProcessFlipV2\n");
 		return ProcessFlipV2(hCmdCookie,
 							 psDevInfo,
 							 psFlipCmd2->ppsMemInfos,
@@ -1175,8 +1185,6 @@ static SUNXILFB_ERROR SUNXILFBInitFBDev(SUNXILFB_DEVINFO *psDevInfo)
 	/* System Surface */
 	psDevInfo->sFBInfo.sSysAddr.uiAddr = psPVRFBInfo->sSysAddr.uiAddr;
 	psDevInfo->sFBInfo.sCPUVAddr = psPVRFBInfo->sCPUVAddr;
-
-	printk("####sysaddr:%x,cpuaddr:%x\n", psDevInfo->sFBInfo.sSysAddr.uiAddr, (unsigned int)psDevInfo->sFBInfo.sCPUVAddr);
 
 	eError = SUNXILFB_OK;
 	goto ErrorRelSem;

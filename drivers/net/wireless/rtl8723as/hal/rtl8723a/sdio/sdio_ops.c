@@ -1589,7 +1589,7 @@ void sd_int_dpc(PADAPTER padapter)
 	if (phal->sdio_hisr & SDIO_HISR_C2HCMD)
 	{
 		DBG_8192C("%s: C2H Command\n", __func__);
-		rtw_c2h_wk_cmd(padapter);
+		rtw_c2h_wk_cmd(padapter, NULL);
 	}
 
 	if (phal->sdio_hisr & SDIO_HISR_RX_REQUEST)

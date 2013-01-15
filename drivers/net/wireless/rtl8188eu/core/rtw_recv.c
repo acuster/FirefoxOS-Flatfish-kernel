@@ -892,7 +892,7 @@ void process_pwrbit_data(_adapter *padapter, union recv_frame *precv_frame)
 			if(psta->state & WIFI_SLEEP_STATE)
 			{
 				//psta->state ^= WIFI_SLEEP_STATE;
-				//pstapriv->sta_dz_bitmap &= ~BIT(psta->aid);				
+				//pstapriv->sta_dz_bitmap &= ~BIT(psta->aid);
 				
 				wakeup_sta_to_xmit(padapter, psta);
 				
@@ -967,7 +967,7 @@ void process_wmmps_data(_adapter *padapter, union recv_frame *precv_frame)
 			else
 			{
 				//issue one qos null frame with More data bit = 0 and the EOSP bit set (=1)
-				issue_qos_nulldata(padapter, psta->hwaddr, (u16)pattrib->priority);
+				issue_qos_nulldata(padapter, psta->hwaddr, (u16)pattrib->priority, 0, 0);
 			}
 		}
 				
@@ -1430,6 +1430,13 @@ _func_enter_;
 				mybssid[4],
 				mybssid[5]));
 
+			if(!bmcast)
+			{
+				DBG_871X("issue_deauth to the nonassociated ap=" MAC_FMT " for the reason(7)\n", MAC_ARG(pattrib->bssid));
+				
+				issue_deauth(adapter, pattrib->bssid, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);	
+			}	
+		
 			#ifdef DBG_RX_DROP_FRAME
 			DBG_871X("DBG_RX_DROP_FRAME %s BSSID="MAC_FMT", mybssid="MAC_FMT"\n",
 				__FUNCTION__, MAC_ARG(pattrib->bssid), MAC_ARG(mybssid));
@@ -1481,6 +1488,17 @@ _func_enter_;
 	}
 	else
 	{
+		if(_rtw_memcmp(myhwaddr, pattrib->dst, ETH_ALEN)&& (!bmcast))
+		{
+			*psta = rtw_get_stainfo(pstapriv, pattrib->bssid); // get sta_info
+			if (*psta == NULL)
+			{
+				DBG_871X("issue_deauth to the ap=" MAC_FMT " for the reason(7)\n", MAC_ARG(pattrib->bssid));
+	
+				issue_deauth(adapter, pattrib->bssid, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);				
+			}
+		}	
+	
 		ret = _FAIL;
 		#ifdef DBG_RX_DROP_FRAME
 		DBG_871X("DBG_RX_DROP_FRAME %s fw_state:0x%x\n", __FUNCTION__, get_fwstate(pmlmepriv));
@@ -1523,10 +1541,14 @@ _func_enter_;
 				}
 
 			*psta = rtw_get_stainfo(pstapriv, pattrib->src);
-
 			if (*psta == NULL)
 			{
 				RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,("can't get psta under AP_MODE; drop pkt\n"));
+				
+				DBG_871X("issue_deauth to sta=" MAC_FMT "for the reason(7)\n", MAC_ARG(pattrib->src));
+				
+				issue_deauth(adapter, pattrib->src, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
+				
 				ret= _FAIL;
 				goto exit;
 			}
@@ -3294,7 +3316,7 @@ int check_indicate_seq(struct recv_reorder_ctrl *preorder_ctrl, u16 seq_num)
 		//DbgPrint("CheckRxTsIndicateSeq(): Packet Drop! IndicateSeq: %d, NewSeq: %d\n", precvpriv->indicate_seq, seq_num);
 
 		#ifdef DBG_RX_DROP_FRAME
-		DBG_871X("DBG_RX_DROP_FRAME %s IndicateSeq: %d, NewSeq: %d\n", __FUNCTION__,
+		DBG_871X("%s IndicateSeq: %d > NewSeq: %d\n", __FUNCTION__, 
 			preorder_ctrl->indicate_seq, seq_num);
 		#endif
 
@@ -3680,7 +3702,12 @@ int recv_indicatepkt_reorder(_adapter *padapter, union recv_frame *prframe)
 		#ifdef DBG_RX_DROP_FRAME
 		DBG_871X("DBG_RX_DROP_FRAME %s check_indicate_seq fail\n", __FUNCTION__);
 		#endif
-		goto _err_exit;
+		
+		rtw_recv_indicatepkt(padapter, prframe);
+
+		_exit_critical_bh(&ppending_recvframe_queue->lock, &irql);
+		
+		goto _success_exit;
 	}
 
 
@@ -3719,6 +3746,8 @@ int recv_indicatepkt_reorder(_adapter *padapter, union recv_frame *prframe)
 		_cancel_timer_ex(&preorder_ctrl->reordering_ctrl_timer);
 	}
 
+
+_success_exit:
 
 	return _SUCCESS;
 

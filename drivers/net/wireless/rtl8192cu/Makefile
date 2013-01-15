@@ -65,7 +65,8 @@ CONFIG_PLATFORM_TI_DM365 = n
 CONFIG_PLATFORM_MN10300 = n
 CONFIG_PLATFORM_MSTAR_TITANIA12 = n
 CONFIG_PLATFORM_MSTAR_A3 = n
-CONFIG_PLATFORM_ARM_SUN4I     =   y
+CONFIG_PLATFORM_ARM_SUNxI = n
+CONFIG_PLATFORM_ARM_SUN6I = y
 
 CONFIG_DRVEXT_MODULE = n
 
@@ -396,18 +397,18 @@ MODULE_NAME := wlan
 endif
 
 ifeq ($(CONFIG_PLATFORM_ARM_TCC8900), y)
-EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN -DCONFIG_MINIMAL_MEMORY_USAGE
-ARCH ?= arm
-CROSS_COMPILE ?= /media/DATA-1/telechips/SDK_2302_20110425/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
-KSRC ?=/media/DATA-1/telechips/SDK_2302_20110425/kernel
+EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
+ARCH := arm
+CROSS_COMPILE := /home/android_sdk/Telechips/SDK_2304_20110613/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
+KSRC := /home/android_sdk/Telechips/SDK_2304_20110613/kernel
 MODULE_NAME := wlan
 endif
 
 ifeq ($(CONFIG_PLATFORM_ARM_TCC8920), y)
-EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN #-DCONFIG_MINIMAL_MEMORY_USAGE
+EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
 ARCH := arm
-CROSS_COMPILE := /media/DATA-2/telechips/ics_sdk/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
-KSRC := /media/DATA-2/telechips/ics_sdk/kernel
+CROSS_COMPILE := /home/android_sdk/Telechips/v12.06_r1-tcc-android-4.0.4/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
+KSRC := /home/android_sdk/Telechips/v12.06_r1-tcc-android-4.0.4/kernel
 MODULE_NAME := wlan
 endif
 
@@ -446,12 +447,24 @@ KSRC := /home/winuser/work/Plat_sLD2T_V3010/usr/src/linux-2.6.32.2
 INSTALL_PREFIX :=
 endif
 
-ifeq ($(CONFIG_PLATFORM_ARM_SUN4I), y)
-EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN -DCONFIG_PLATFORM_ARM_SUN4I
+ifeq ($(CONFIG_PLATFORM_ARM_SUNxI), y)
+EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN -DCONFIG_PLATFORM_ARM_SUNxI
 ARCH := arm
 CROSS_COMPILE := arm-none-linux-gnueabi-
 KVER  := 3.0.8
 #KSRC:= ../lichee/linux-3.0/
+endif
+
+ifeq ($(CONFIG_PLATFORM_ARM_SUN6I), y)
+EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN -DCONFIG_PLATFORM_ARM_SUN6I
+ARCH := arm
+CROSS_COMPILE := arm-none-linux-gnueabi-
+KVER  := 3.3.0
+#KSRC:= ../lichee/linux-3.3/
+endif
+
+ifneq ($(USER_MODULE_NAME),)
+MODULE_NAME := $(USER_MODULE_NAME)
 endif
 
 ifeq ($(CONFIG_MP_INCLUDED), y)
