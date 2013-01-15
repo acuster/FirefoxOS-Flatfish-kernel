@@ -23,42 +23,47 @@
 
 #define SUN7I_MEM_ON_FPGA
 
-#define PLAT_PHYS_OFFSET		UL(0x40000000)
-#define PLAT_MEM_SIZE			SZ_1G
+#define PLAT_PHYS_OFFSET                UL(0x40000000)
+#define PLAT_MEM_SIZE                   SZ_1G
 
-#define SYS_CONFIG_MEMBASE      (PLAT_PHYS_OFFSET + SZ_32M + SZ_16M)    /* +48M */
-#define SYS_CONFIG_MEMSIZE      (SZ_64K)                                /* 64K */
+#define SYS_CONFIG_MEMBASE             (PLAT_PHYS_OFFSET + SZ_32M + SZ_16M) /* +48M */
+#define SYS_CONFIG_MEMSIZE             (SZ_64K) /* 64K */
 
-#define SW_VE_MEM_BASE     		(PLAT_PHYS_OFFSET + SZ_64M)
-#define SW_VE_MEM_SIZE     		(SZ_64M + SZ_16M)
+#define SW_VE_MEM_BASE                 (PLAT_PHYS_OFFSET + SZ_64M)
+#define SW_VE_MEM_SIZE                 (SZ_64M + SZ_16M)
 
 /*
  * memory reserved areas.
  */
 #ifdef SUN7I_MEM_ON_FPGA
-#define SW_FB_MEM_SIZE     		0x02000000		/* SZ_32M 		*/
-#define SW_GPU_MEM_SIZE    		0x04000000		/* SZ_64M		*/
-#define SW_G2D_MEM_SIZE     		0x01000000		/* SZ_16M 		*/
-#define SW_CSI_MEM_SIZE     		0x02000000		/* SZ_32M 		*/
-#define SUPER_STANDBY_SIZE     		(SZ_64K)
+#define SW_FB_MEM_SIZE                 0x02000000 /* SZ_32M */
+#define SW_GPU_MEM_SIZE                0x04000000 /* SZ_64M */
+#define SW_G2D_MEM_SIZE                0x01000000 /* SZ_16M */
+#define SW_CSI_MEM_SIZE                0x02000000 /* SZ_32M */
 
-#define SUPER_STANDBY_BASE     		(0x52000000)      	/* NOTICE: this addr can not be change */
-#define SW_FB_MEM_BASE     		(PLAT_PHYS_OFFSET + PLAT_MEM_SIZE - SW_FB_MEM_SIZE)
-#define SW_GPU_MEM_BASE    		(SW_FB_MEM_BASE - SW_GPU_MEM_SIZE)
-#define SW_G2D_MEM_BASE     		(SW_GPU_MEM_BASE - SW_G2D_MEM_SIZE)
-#define SW_CSI_MEM_BASE     		(SW_G2D_MEM_BASE - SW_CSI_MEM_SIZE)
+#define SUPER_STANDBY_SIZE             0x00010000 /* SZ_64K */
+
+#define SUPER_STANDBY_BASE             (0x52000000) /* NOTICE: this addr can not be change */
+#define SW_FB_MEM_BASE                 (PLAT_PHYS_OFFSET + PLAT_MEM_SIZE - SW_FB_MEM_SIZE)
+#define SW_GPU_MEM_BASE                (SW_FB_MEM_BASE - SW_GPU_MEM_SIZE)
+#define SW_G2D_MEM_BASE                (SW_GPU_MEM_BASE - SW_G2D_MEM_SIZE)
+#define SW_CSI_MEM_BASE                (SW_G2D_MEM_BASE - SW_CSI_MEM_SIZE)
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+#define ION_CARVEOUT_MEM_BASE           (SUPER_STANDBY_BASE + SUPER_STANDBY_SIZE) /* +332M */
+#define ION_CARVEOUT_MEM_SIZE           (CONFIG_ION_SUNXI_CARVEOUT_SIZE * SZ_1M) /* in Mbytes */
+#endif
 #else
-#define SW_FB_MEM_BASE     		XXX			/* XXX 			*/
-#define SW_FB_MEM_SIZE     		XXX			/* XXX 			*/
+#define SW_FB_MEM_BASE     		XXX /* XXX */
+#define SW_FB_MEM_SIZE     		XXX /* XXX */
 
-#define SW_GPU_MEM_BASE    		XXX			/* XXX 			*/
-#define SW_GPU_MEM_SIZE    		XXX			/* XXX 			*/
+#define SW_GPU_MEM_BASE    		XXX /* XXX */
+#define SW_GPU_MEM_SIZE    		XXX /* XXX */
 
-#define SW_G2D_MEM_BASE     		XXX			/* XXX 			*/
-#define SW_G2D_MEM_SIZE     		XXX			/* XXX 			*/
+#define SW_G2D_MEM_BASE     		XXX /* XXX */
+#define SW_G2D_MEM_SIZE     		XXX /* XXX */
 
-#define SW_CSI_MEM_BASE     		XXX			/* XXX 			*/
-#define SW_CSI_MEM_SIZE     		XXX			/* XXX 			*/
+#define SW_CSI_MEM_BASE     		XXX /* XXX */
+#define SW_CSI_MEM_SIZE     		XXX /* XXX */
 #endif /* SUN7I_MEM_ON_FPGA */
 
 #endif

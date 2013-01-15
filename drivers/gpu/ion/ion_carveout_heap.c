@@ -14,6 +14,7 @@
  *
  */
 #include <linux/spinlock.h>
+#include <linux/module.h>
 
 #include <linux/err.h>
 #include <linux/genalloc.h>
@@ -33,6 +34,17 @@ struct ion_carveout_heap {
 	ion_phys_addr_t base;
 };
 
+void __iomem *sunxi_ioremap(unsigned long phys_addr, size_t size,
+			    unsigned int mtype)
+{
+	//printk(KERN_DEBUG "%s: phys 0x%08x, virt 0x%08x\n", __func__, phys_addr, phys_to_virt(phys_addr));
+	return phys_to_virt(phys_addr);
+}
+
+void sunxi_iounmap(volatile void __iomem *addr)
+{
+}
+
 ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 				      unsigned long size,
 				      unsigned long align)
@@ -44,6 +56,7 @@ ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 	if (!offset)
 		return ION_CARVEOUT_ALLOCATE_FAIL;
 
+    //printk("%s, line %d, addr 0x%08x, size %d\n", __func__, __LINE__, (u32)offset, size);
 	return offset;
 }
 
@@ -55,6 +68,7 @@ void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
 
 	if (addr == ION_CARVEOUT_ALLOCATE_FAIL)
 		return;
+    //printk("%s, line %d, addr 0x%08x, size %d\n", __func__, __LINE__, (u32)addr, size);
 	gen_pool_free(carveout_heap->pool, addr, size);
 }
 
@@ -62,6 +76,7 @@ static int ion_carveout_heap_phys(struct ion_heap *heap,
 				  struct ion_buffer *buffer,
 				  ion_phys_addr_t *addr, size_t *len)
 {
+    //printk("%s, line %d, buffer->priv_phys 0x%08x, size %d\n", __func__, __LINE__, (u32)buffer->priv_phys, buffer->size);
 	*addr = buffer->priv_phys;
 	*len = buffer->size;
 	return 0;
@@ -99,14 +114,14 @@ void ion_carveout_heap_unmap_dma(struct ion_heap *heap,
 void *ion_carveout_heap_map_kernel(struct ion_heap *heap,
 				   struct ion_buffer *buffer)
 {
-	return __arch_ioremap(buffer->priv_phys, buffer->size,
+	return sunxi_ioremap(buffer->priv_phys, buffer->size,
 			      MT_MEMORY_NONCACHED);
 }
 
 void ion_carveout_heap_unmap_kernel(struct ion_heap *heap,
 				    struct ion_buffer *buffer)
 {
-	__arch_iounmap(buffer->vaddr);
+	sunxi_iounmap(buffer->vaddr);
 	buffer->vaddr = NULL;
 	return;
 }
@@ -150,6 +165,7 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 
 	return &carveout_heap->heap;
 }
+EXPORT_SYMBOL(ion_carveout_heap_create);
 
 void ion_carveout_heap_destroy(struct ion_heap *heap)
 {
@@ -160,3 +176,4 @@ void ion_carveout_heap_destroy(struct ion_heap *heap)
 	kfree(carveout_heap);
 	carveout_heap = NULL;
 }
+EXPORT_SYMBOL(ion_carveout_heap_destroy);

@@ -1,12 +1,15 @@
 menuconfig ION
-	tristate "Ion Memory Manager"
+	tristate "Ion Memory Manager && Ion for sunxi"
 	select GENERIC_ALLOCATOR
 	help
-	  Chose this option to enable the ION Memory Manager.
+	  Chose this option to enable the ION Memory Manager and SUNXI ion.
 
-config ION_TEGRA
-	tristate "Ion for Tegra"
-	depends on ARCH_TEGRA && ION
+config ION_SUNXI_CARVEOUT_SIZE
+	int "memory size(in MB) for sunxi carveout ion heap."
+	default 360
+	depends on ION
 	help
-	  Choose this option if you wish to use ion on an nVidia Tegra.
-
+	  Select memory size for sunxi carveout ion heap, the memory is used by gpu.
+	  Examples:
+		     100 => reserve 100M bytes memory for carveout heap.
+		     230 => reserve 230M bytes memory for carveout heap.

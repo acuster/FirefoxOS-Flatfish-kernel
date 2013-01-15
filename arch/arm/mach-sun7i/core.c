@@ -100,7 +100,10 @@ u32 g_mem_resv[][2] = {
 	//{SW_G2D_MEM_BASE, 	SW_G2D_MEM_SIZE		},
 	{SW_CSI_MEM_BASE, 	SW_CSI_MEM_SIZE		},
 	{SW_VE_MEM_BASE, 	SW_VE_MEM_SIZE		},
-	{SUPER_STANDBY_BASE,	SUPER_STANDBY_SIZE	},	//for standby: 0x5200,0000-0x5200,0000+64k;
+	{SUPER_STANDBY_BASE,	SUPER_STANDBY_SIZE	}, /* for standby: 0x5200,0000-0x5200,0000+64k; */
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+	{ION_CARVEOUT_MEM_BASE, ION_CARVEOUT_MEM_SIZE	}, /* reserve for ION */
+#endif
 };
 
 static void __init sun7i_reserve(void)

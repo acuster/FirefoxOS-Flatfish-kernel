@@ -140,4 +140,6 @@ source "drivers/devfreq/Kconfig"
 
 source "drivers/sunxi_gpio/Kconfig"
 
+source "drivers/gpu/Kconfig"
+
 endmenu

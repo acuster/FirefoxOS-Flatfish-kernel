@@ -93,8 +93,6 @@ u32 sched_clock_read(void)
 
 void __init aw_clksrc_init(void)
 {
-	u32 temp, cnt = 0x0fffff;
-
 	pr_info("%s(%d)\n", __func__, __LINE__);
 
 #if 0	/* start counting on booting, so cannot clear it, otherwise systime will be err */

@@ -15,6 +15,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/module.h>
 #include <linux/ion.h>
 #include <linux/memory.h>
 #include <linux/mm.h>
