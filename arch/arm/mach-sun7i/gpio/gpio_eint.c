@@ -623,8 +623,12 @@ u32 sw_gpio_eint_setall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
         /* set mul sel to eint, and set pull and drvlvl */
         mulsel_eint = GPIO_CFG_EINT;
         WARN_ON(0 != pchip->cfg->set_cfg(pchip, offset, mulsel_eint));
-        WARN_ON(0 != pchip->cfg->set_pull(pchip, offset, pcfg->pull));
-        WARN_ON(0 != pchip->cfg->set_drvlevel(pchip, offset, pcfg->drvlvl));
+        if (pcfg->pull != GPIO_PULL_DEFAULT) {
+            WARN_ON(0 != pchip->cfg->set_pull(pchip, offset, pcfg->pull));
+        }
+        if (pcfg->drvlvl != GPIO_DRVLVL_DEFAULT) {
+            WARN_ON(0 != pchip->cfg->set_drvlevel(pchip, offset, pcfg->drvlvl));
+        }
 
         /* PI10 offset is 22 */
         if (__is_gpio_i(pcfg->gpio)) {

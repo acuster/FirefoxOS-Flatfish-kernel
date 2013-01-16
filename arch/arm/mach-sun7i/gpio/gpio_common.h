@@ -25,16 +25,16 @@
 #define PIO_DBG_LEVEL 2
 
 #if (PIO_DBG_LEVEL == 1)
-#define PIO_DBG(format,args...)         printk("[gpio-dbg] "format,##args)
-#define PIO_INF(format,args...)         printk("[gpio-inf] "format,##args)
+#define PIO_DBG(format,args...)         do {} while (0)
+#define PIO_INF(format,args...)         do {} while (0)
 #define PIO_ERR(format,args...)         printk("[gpio-err] "format,##args)
 #elif (PIO_DBG_LEVEL == 2)
 #define PIO_DBG(format,args...)         do {} while (0)
 #define PIO_INF(format,args...)         printk("[gpio-inf] "format,##args)
 #define PIO_ERR(format,args...)         printk("[gpio-err] "format,##args)
 #elif (PIO_DBG_LEVEL == 3)
-#define PIO_DBG(format,args...)         do {} while (0)
-#define PIO_INF(format,args...)         do {} while (0)
+#define PIO_DBG(format,args...)         printk("[gpio-dbg] "format,##args)
+#define PIO_INF(format,args...)         printk("[gpio-inf] "format,##args)
 #define PIO_ERR(format,args...)         printk("[gpio-err] "format,##args)
 #endif
 

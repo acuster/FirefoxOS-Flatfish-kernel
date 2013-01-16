@@ -260,6 +260,11 @@ u32 sw_gpio_setpull(u32 gpio, u32 val)
     unsigned long flags = 0;
     struct aw_gpio_chip *pchip = NULL;
 
+    if (GPIO_PULL_DEFAULT == val) {
+        PIO_DBG("%s: set gpio %d pull state to default omitting\n", __func__, gpio);
+        return 0;
+    }
+
     pchip = gpio_to_aw_gpiochip(gpio);
     PIO_POINTER_CHECK_NULL(pchip, "pchip", (u32)-1);
     PIO_POINTER_CHECK_NULL(pchip->cfg, "cfg", (u32)-1);
@@ -323,6 +328,11 @@ u32 sw_gpio_setdrvlevel(u32 gpio, u32 val)
     bool req_success = 0;
     unsigned long flags = 0;
     struct aw_gpio_chip *pchip = NULL;
+
+    if (GPIO_DRVLVL_DEFAULT == val) {
+        PIO_DBG("%s: set gpio %d driver level to default omitting\n", __func__, gpio);
+        return 0;
+    }
 
     pchip = gpio_to_aw_gpiochip(gpio);
     PIO_POINTER_CHECK_NULL(pchip, "pchip", (u32)-1);
@@ -407,11 +417,16 @@ u32 sw_gpio_setall_range(struct gpio_config *pcfg, u32 cfg_num)
         offset = pcfg->gpio - pchip->chip.base;
         PIO_CHIP_LOCK(&pchip->lock, flags);
         WARN_ON(0 != pchip->cfg->set_cfg(pchip, offset, pcfg->mul_sel));
-        WARN_ON(0 != pchip->cfg->set_pull(pchip, offset, pcfg->pull));
-        WARN_ON(0 != pchip->cfg->set_drvlevel(pchip, offset, pcfg->drv_level));
+        if (pcfg->pull != GPIO_PULL_DEFAULT) {
+            WARN_ON(0 != pchip->cfg->set_pull(pchip, offset, pcfg->pull));
+        }
+        if (pcfg->drv_level != GPIO_DRVLVL_DEFAULT) {
+            WARN_ON(0 != pchip->cfg->set_drvlevel(pchip, offset, pcfg->drv_level));
+        }
         PIO_CHIP_UNLOCK(&pchip->lock, flags);
 
-        if (GPIO_CFG_OUTPUT == pcfg->mul_sel) {
+        if (GPIO_CFG_OUTPUT == pcfg->mul_sel &&
+            pcfg->data != GPIO_DATA_DEFAULT) {
             __gpio_set_value(pcfg->gpio, (pcfg->data ? 1 : 0));
         }
 

@@ -65,8 +65,9 @@ enum sun7i_gpio_number {
 #define GPIOI(n)        (PI_NR_BASE + (n))
 
 /* pio default macro */
-#define GPIO_PULL_DEFAULT   (1               )
-#define GPIO_DRVLVL_DEFAULT (1               )
+#define GPIO_PULL_DEFAULT   ((u32)-1         )
+#define GPIO_DRVLVL_DEFAULT ((u32)-1         )
+#define GPIO_DATA_DEFAULT   ((u32)-1         )
 
 /* pio end, invalid macro */
 #define GPIO_INDEX_END      (GPIOI(PI_NR) + 1)
