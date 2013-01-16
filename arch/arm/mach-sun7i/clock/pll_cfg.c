@@ -1,34 +1,28 @@
 /*
- *  arch/arm/mach-sun7i/clock/ccmu/pll_cfg.c
- *
- * Copyright 2012 (c) Softwinner.
+ * arch/arm/mach-sun7i/clock/ccmu/pll_cfg.c
+ * (c) Copyright 2010-2015
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * James Deng <csjamesdeng@allwinnertech.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+
 #include "ccm_i.h"
 
-struct pll1_freq_cfg_tbl{
-    __u8    FactorN;
-    __u8    FactorK;
-    __u8    FactorM;
-    __u8    FactorP;
-    __u32   Pll;
+struct pll1_freq_cfg_tbl {
+    __u8  FactorN;
+    __u8  FactorK;
+    __u8  FactorM;
+    __u8  FactorP;
+    __u32 Pll;
 };
 
 /* core pll parameter table */
-static struct pll1_freq_cfg_tbl    CorePllTbl[] = {
+static struct pll1_freq_cfg_tbl CorePllTbl[] = {
 
     { 10,    0,    0,    3,    30000000  },   /* freq = (6M * 5  ), index = 0   */
     { 10,    0,    0,    3,    30000000  },   /* freq = (6M * 5  ), index = 1   */
@@ -281,18 +275,15 @@ static struct pll1_freq_cfg_tbl    CorePllTbl[] = {
     { 31,    1,    0,    0,    1488000000},   /* freq = (6M * 248), index = 248 */
 };
 
-
 int ccm_clk_get_pll_para(struct core_pll_factor_t *factor, __u64 rate)
 {
-    int     index;
+    int index;
 
-    if(!factor)
-    {
+    if (!factor) {
         return -1;
     }
 
-    if(rate > 1488000000)
-    {
+    if (rate > 1488000000) {
         rate = 1488000000;
     }
     index = ccu_clk_uldiv(rate, 6000000);
