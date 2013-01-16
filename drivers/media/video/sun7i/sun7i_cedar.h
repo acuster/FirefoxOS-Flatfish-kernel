@@ -56,7 +56,7 @@ struct cedarv_engine_task {
 	unsigned int is_first_task;
 };
 
-/*利用优先级task_prio查询当前运行task的frametime，和比优先级task_prio高的task可能运行的总时间total_time*/
+/* 利用优先级task_prio查询当前运行task的frametime，和比优先级task_prio高的task可能运行的总时间total_time */
 struct cedarv_engine_task_info {
 	int task_prio;
 	unsigned int frametime;
@@ -67,35 +67,25 @@ struct cedarv_regop {
     unsigned int addr;
     unsigned int value;
 };
-/*--------------------------------------------------------------------------------*/
-#define REGS_pBASE			(0x01C00000)	 	      // register base addr
 
-#define SRAM_REGS_pBASE     (REGS_pBASE + 0x00000)    // SRAM Controller
-#define CCMU_REGS_pBASE     (REGS_pBASE + 0x20000)    // clock manager unit
-#define MACC_REGS_pBASE     (REGS_pBASE + 0x0E000)    // media accelerate VE
-#define SS_REGS_pBASE       (REGS_pBASE + 0x15000)    // Security System
-#define SDRAM_REGS_pBASE    (REGS_pBASE + 0x01000)    // SDRAM Controller
-#define AVS_REGS_pBASE      (REGS_pBASE + 0x20c00)
-
-#define SRAM_REGS_BASE      SRAM_REGS_pBASE           // SRAM Controller
-#define CCMU_REGS_BASE      CCMU_REGS_pBASE           // Clock Control manager unit  OK
-#define MACC_REGS_BASE      MACC_REGS_pBASE           // Media ACCelerate
-#define SS_REGS_BASE        SS_REGS_pBASE             // Security System
-#define SDRAM_REGS_BASE		SDRAM_REGS_pBASE          //SDRAM Controller   OK
-#define AVS_REGS_BASE       AVS_REGS_pBASE
-
-#define MPEG_REGS_BASE      (MACC_REGS_BASE + 0x100)  // MPEG engine
-#define H264_REGS_BASE      (MACC_REGS_BASE + 0x200)  // H264 engine
-#define VC1_REGS_BASE       (MACC_REGS_BASE + 0x300)  // VC-1 engine
+/* reg define */
+#define SRAM_REGS_BASE      SW_PA_SRAM_IO_BASE     // SRAM Controller
+#define CCMU_REGS_BASE      SW_PA_CCM_IO_BASE      // Clock Control manager unit  OK
+#define MACC_REGS_BASE      SW_PA_VE_IO_BASE       // Media ACCelerate
+#define SS_REGS_BASE        SW_PA_SS_IO_BASE       // Security System
+#define SDRAM_REGS_BASE	    SW_PA_DRAM_IO_BASE     //SDRAM Controller   OK
+#define AVS_REGS_BASE       SW_PA_TIMERC_IO_BASE
 
 #define SRAM_REGS_SIZE      (4096)  // 4K
 #define CCMU_REGS_SIZE      (1024)  // 1K
 #define MACC_REGS_SIZE      (4096)  // 4K
 #define SS_REGS_SIZE        (4096)  // 4K
-/*--------------------------------------------------------------------------------*/
+
+#define MPEG_REGS_BASE      (MACC_REGS_BASE + 0x100) // MPEG engine
+#define H264_REGS_BASE      (MACC_REGS_BASE + 0x200) // H264 engine
+#define VC1_REGS_BASE       (MACC_REGS_BASE + 0x300) // VC-1 engine
 
 #define SRAM_REG_o_CFG	    (0x00)
 #define SRAM_REG_ADDR_CFG   (SRAM_REGS_BASE + SRAM_REG_o_CFG) // SRAM MAP Cfg Reg 0
-/*--------------------------------------------------------------------------------*/
 
 #endif

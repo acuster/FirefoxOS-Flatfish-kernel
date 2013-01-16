@@ -95,22 +95,22 @@ struct iomap_para{
 
 static DECLARE_WAIT_QUEUE_HEAD(wait_ve);
 struct cedar_dev {
-	struct cdev cdev;	             /* char device struct                 */
-	struct device *dev;              /* ptr to class device struct         */
-	struct class  *class;            /* class for auto create device node  */
+	struct cdev cdev;                       /* char device struct                  */
+	struct device *dev;                     /* ptr to class device struct          */
+	struct class  *class;                   /* class for auto create device node   */
 
-	struct semaphore sem;            /* mutual exclusion semaphore         */
+	struct semaphore sem;                   /* mutual exclusion semaphore          */
 
-	wait_queue_head_t wq;            /* wait queue for poll ops            */
+	wait_queue_head_t wq;                   /* wait queue for poll ops             */
 
-	struct iomap_para iomap_addrs;   /* io remap addrs                     */
+	struct iomap_para iomap_addrs;          /* io remap addrs                      */
 
 	struct timer_list cedar_engine_timer;
 	struct timer_list cedar_engine_timer_rel;
 
-	u32 irq;                         /* cedar video engine irq number      */
-	u32 irq_flag;                    /* flag of video engine irq generated */
-	u32 irq_value;                   /* value of video engine irq          */
+	u32 irq;                                /* cedar video engine irq number       */
+	u32 irq_flag;                           /* flag of video engine irq generated  */
+	u32 irq_value;                          /* value of video engine irq           */
 	u32 irq_has_enable;
 	u32 ref_count;
 };
@@ -124,56 +124,54 @@ u32 int_sta=0,int_value;
  */
 static irqreturn_t VideoEngineInterupt(int irq, void *dev)
 {
-    unsigned int ve_int_ctrl_reg;
-    volatile int val;
-    int modual_sel;
-    struct iomap_para addrs = cedar_devp->iomap_addrs;
+	unsigned int ve_int_ctrl_reg;
+	volatile int val;
+	int modual_sel;
+	struct iomap_para addrs = cedar_devp->iomap_addrs;
 
-    modual_sel = readl(addrs.regs_macc + 0);
-    modual_sel &= 0xf;
+	modual_sel = readl(addrs.regs_macc + 0);
+	modual_sel &= 0xf;
 
 	/* estimate Which video format */
-    switch (modual_sel)
-    {
-        case 0: //mpeg124
-            ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0x100 + 0x14);
-            break;
-        case 1: //h264
-            ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0x200 + 0x20);
-            break;
-        case 2: //vc1
-            ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0x300 + 0x24);
-            break;
-        case 3: //rmvb
-            ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0x400 + 0x14);
-            break;
-        case 0xa: //isp
-            ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0xa00 + 0x08);
-            break;
-        case 0xb: //avc enc
-            ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0xb00 + 0x14);
-            break;
-        default:
-            ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0x100 + 0x14);
-            printk("macc modual sel not defined!\n");
-            break;
-    }
+	switch (modual_sel) {
+	case 0: //mpeg124
+		ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0x100 + 0x14);
+		break;
+	case 1: //h264
+		ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0x200 + 0x20);
+		break;
+	case 2: //vc1
+		ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0x300 + 0x24);
+		break;
+	case 3: //rmvb
+		ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0x400 + 0x14);
+		break;
+	case 0xa: //isp
+		ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0xa00 + 0x08);
+		break;
+	case 0xb: //avc enc
+		ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0xb00 + 0x14);
+		break;
+	default:
+		ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0x100 + 0x14);
+		printk("macc modual sel not defined!\n");
+		break;
+	}
 
-    //disable interrupt
-    if(modual_sel == 0) {
-        val = readl(ve_int_ctrl_reg);
-        writel(val & (~0x7c), ve_int_ctrl_reg);
-    } else {
-        val = readl(ve_int_ctrl_reg);
-        writel(val & (~0xf), ve_int_ctrl_reg);
-    }
+	//disable interrupt
+	if(modual_sel == 0) {
+		val = readl(ve_int_ctrl_reg);
+		writel(val & (~0x7c), ve_int_ctrl_reg);
+	} else {
+		val = readl(ve_int_ctrl_reg);
+		writel(val & (~0xf), ve_int_ctrl_reg);
+	}
 
-    cedar_devp->irq_value = 1;	//hx modify 2011-8-1 16:08:47
-    cedar_devp->irq_flag = 1;
-    //any interrupt will wake up wait queue
-    wake_up_interruptible(&wait_ve);        //ioctl
-
-    return IRQ_HANDLED;
+	cedar_devp->irq_value = 1; //hx modify 2011-8-1 16:08:47
+	cedar_devp->irq_flag = 1;
+	//any interrupt will wake up wait queue
+	wake_up_interruptible(&wait_ve); //ioctl
+	return IRQ_HANDLED;
 }
 
 /*
@@ -278,19 +276,18 @@ void cedardev_insert_task(struct cedarv_engine_task* new_task)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cedar_spin_lock, flags);
-
 	if(list_empty(&run_task_list))
 		new_task->is_first_task = 1;
 
-	/*遍历run_task_list链表，如果插入的任务优先级比链表节点中的任务优先级高，并且当前插入任务不是第一个插入的任务。
-	 *那么就将优先级高的任务放于前面，队列中的任务采取从高到底的优先级队列排队。
+	/*
+	 * 遍历run_task_list链表，如果插入的任务优先级比链表节点中的任务优先级高，并且当前插入任务不是第一个插入的任务。
+	 * 那么就将优先级高的任务放于前面，队列中的任务采取从高到底的优先级队列排队。
 	 */
 	list_for_each_entry(task_entry, &run_task_list, list) {
-		if ((task_entry->is_first_task == 0) && (task_entry->running == 0) && (task_entry->t.task_prio < new_task->t.task_prio)) {
+		if((task_entry->is_first_task == 0) && (task_entry->running == 0)
+			&& (task_entry->t.task_prio < new_task->t.task_prio))
 			break;
-		}
 	}
-
 	list_add(&new_task->list, task_entry->list.prev);
 
 	#ifdef CEDAR_DEBUG
@@ -300,9 +297,9 @@ void cedardev_insert_task(struct cedarv_engine_task* new_task)
 	}
 	printk("\n");
 	#endif
-	/*每次插入一个任务，就将当前的计时器时间重置为系统当前的jiffies*/
-	mod_timer(&cedar_devp->cedar_engine_timer, jiffies + 0);
 
+	/* 每次插入一个任务，就将当前的计时器时间重置为系统当前的jiffies */
+	mod_timer(&cedar_devp->cedar_engine_timer, jiffies + 0);
 	spin_unlock_irqrestore(&cedar_spin_lock, flags);
 }
 
@@ -312,10 +309,10 @@ int cedardev_del_task(int task_id)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cedar_spin_lock, flags);
-
-	/*遍历run_task_list链表
-	*如果找到对应的id号，那么就将run_task_list链表中的任务移到del_task_list链表的表头。
-	*/
+	/*
+	 * 遍历run_task_list链表
+	 * 如果找到对应的id号，那么就将run_task_list链表中的任务移到del_task_list链表的表头。
+	 */
 	list_for_each_entry(task_entry, &run_task_list, list) {
 		if (task_entry->t.ID == task_id && task_entry->status != TASK_RELEASE) {
 			task_entry->status = TASK_RELEASE;
@@ -326,8 +323,7 @@ int cedardev_del_task(int task_id)
 		}
 	}
 	spin_unlock_irqrestore(&cedar_spin_lock, flags);
-
-	//找不到对应 ID
+	/* 找不到对应 ID */
 	return -1;
 }
 
@@ -337,10 +333,11 @@ int cedardev_check_delay(int check_prio)
 	int timeout_total = 0;
 	unsigned long flags;
 
-	/*获取总的等待时间*/
+	/* 获取总的等待时间 */
 	spin_lock_irqsave(&cedar_spin_lock, flags);
 	list_for_each_entry(task_entry, &run_task_list, list) {
-		if ((task_entry->t.task_prio >= check_prio) || (task_entry->running == 1) || (task_entry->is_first_task == 1))
+		if((task_entry->t.task_prio >= check_prio) || (task_entry->running == 1)
+			|| (task_entry->is_first_task == 1))
 			timeout_total = timeout_total + task_entry->t.frametime;
 	}
 
@@ -356,14 +353,12 @@ static void cedar_engine_for_timer_rel(unsigned long arg)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cedar_spin_lock, flags);
-
-	if(list_empty(&run_task_list)){
+	if(list_empty(&run_task_list))
 		disable_cedar_hw_clk();
-	} else {
+	else {
 		printk("Warring: cedar engine timeout for clk disable, but task left, something wrong?\n");
-		mod_timer( &cedar_devp->cedar_engine_timer, jiffies + msecs_to_jiffies(TIMER_CIRCLE));
+		mod_timer(&cedar_devp->cedar_engine_timer, jiffies + msecs_to_jiffies(TIMER_CIRCLE));
 	}
-
 	spin_unlock_irqrestore(&cedar_spin_lock, flags);
 }
 
@@ -374,11 +369,9 @@ static void cedar_engine_for_events(unsigned long arg)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cedar_spin_lock, flags);
-
 	list_for_each_entry_safe(task_entry, task_entry_tmp, &run_task_list, list) {
 		mod_timer(&cedar_devp->cedar_engine_timer_rel, jiffies + msecs_to_jiffies(CLK_REL_TIME));
-		if (task_entry->status == TASK_RELEASE ||
-				time_after(jiffies, task_entry->t.timeout)) {
+		if(task_entry->status == TASK_RELEASE || time_after(jiffies, task_entry->t.timeout)) {
 			if (task_entry->status == TASK_INIT)
 				task_entry->status = TASK_TIMEOUT;
 			list_move(&task_entry->list, &del_task_list);
@@ -388,10 +381,10 @@ static void cedar_engine_for_events(unsigned long arg)
 	list_for_each_entry_safe(task_entry, task_entry_tmp, &del_task_list, list) {
 		info.si_signo = SIG_CEDAR;
 		info.si_code = task_entry->t.ID;
-		if (task_entry->status == TASK_TIMEOUT){//表示任务timeout删除
+		if (task_entry->status == TASK_TIMEOUT) { /* 表示任务timeout删除 */
 			info.si_errno = TASK_TIMEOUT;
 			send_sig_info(SIG_CEDAR, &info, task_entry->task_handle);
-		}else if(task_entry->status == TASK_RELEASE){//表示任务正常运行完毕删除
+		} else if(task_entry->status == TASK_RELEASE) { /* 表示任务正常运行完毕删除 */
 			info.si_errno = TASK_RELEASE;
 			send_sig_info(SIG_CEDAR, &info, task_entry->task_handle);
 		}
@@ -399,20 +392,18 @@ static void cedar_engine_for_events(unsigned long arg)
 		kfree(task_entry);
 	}
 
-	/*激活链表中的task*/
+	/* 激活链表中的task */
 	if(!list_empty(&run_task_list)){
 		task_entry = list_entry(run_task_list.next, struct cedarv_engine_task, list);
 		if(task_entry->running == 0){
 			task_entry->running = 1;
 			info.si_signo = SIG_CEDAR;
 			info.si_code = task_entry->t.ID;
-			info.si_errno = TASK_INIT;	//任务已经启动
+			info.si_errno = TASK_INIT; /* 任务已经启动 */
 			send_sig_info(SIG_CEDAR, &info, task_entry->task_handle);
 		}
-
-		mod_timer( &cedar_devp->cedar_engine_timer, jiffies + msecs_to_jiffies(TIMER_CIRCLE));
+		mod_timer(&cedar_devp->cedar_engine_timer, jiffies + msecs_to_jiffies(TIMER_CIRCLE));
 	}
-
 	spin_unlock_irqrestore(&cedar_spin_lock, flags);
 }
 
@@ -422,7 +413,7 @@ static void cedar_engine_for_events(unsigned long arg)
  *             AVS Counter control,
  *             Physical memory control,
  *             module clock/freq control.
- *				cedar engine
+ *             cedar engine
  */
 long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
@@ -438,296 +429,302 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	unsigned long flags;
 
 	devp = filp->private_data;
-
-	switch (cmd)
-	{
-		case IOCTL_ENGINE_REQ:
-		#ifdef USE_CEDAR_ENGINE
-			if(copy_from_user(&task_ret, (void __user*)arg, sizeof(struct __cedarv_task))){
-				printk("IOCTL_ENGINE_REQ copy_from_user fail\n");
-				return -EFAULT;
-			}
-			spin_lock_irqsave(&cedar_spin_lock, flags);
-			/*如果task为非阻塞状态，请求者可以立即返回*/
-			if(!list_empty(&run_task_list) && ( task_ret.block_mode == CEDAR_NONBLOCK_TASK)){
-				spin_unlock_irqrestore(&cedar_spin_lock, flags);
-				return CEDAR_RUN_LIST_NONULL; //run_task_list里面有任务，返回-1
-			}
+	switch (cmd) {
+	case IOCTL_ENGINE_REQ:
+	#ifdef USE_CEDAR_ENGINE
+		if(copy_from_user(&task_ret, (void __user*)arg, sizeof(struct __cedarv_task))){
+			printk("IOCTL_ENGINE_REQ copy_from_user fail\n");
+			return -EFAULT;
+		}
+		spin_lock_irqsave(&cedar_spin_lock, flags);
+		/* 如果task为非阻塞状态，请求者可以立即返回 */
+		if(!list_empty(&run_task_list) && ( task_ret.block_mode == CEDAR_NONBLOCK_TASK)){
 			spin_unlock_irqrestore(&cedar_spin_lock, flags);
+			return CEDAR_RUN_LIST_NONULL; /* run_task_list里面有任务，返回-1 */
+		}
+		spin_unlock_irqrestore(&cedar_spin_lock, flags);
 
-			/*如果task为阻塞状态，将task插入run_task_list链表中*/
-			task_ptr = kmalloc(sizeof(struct cedarv_engine_task), GFP_KERNEL);
-			if(!task_ptr){
-				printk("get mem for IOCTL_ENGINE_REQ\n");
-				return PTR_ERR(task_ptr);
-			}
-			task_ptr->task_handle = current;
-			task_ptr->t.ID = task_ret.ID;
-			task_ptr->t.timeout = jiffies + msecs_to_jiffies(1000*task_ret.timeout);//ms to jiffies
-			task_ptr->t.frametime = task_ret.frametime;
-			task_ptr->t.task_prio = task_ret.task_prio;
-			task_ptr->running = 0;
-			task_ptr->is_first_task = 0;
-			task_ptr->status = TASK_INIT;
+		/* 如果task为阻塞状态，将task插入run_task_list链表中 */
+		task_ptr = kmalloc(sizeof(struct cedarv_engine_task), GFP_KERNEL);
+		if(!task_ptr){
+			printk("get mem for IOCTL_ENGINE_REQ\n");
+			return PTR_ERR(task_ptr);
+		}
+		task_ptr->task_handle = current;
+		task_ptr->t.ID = task_ret.ID;
+		task_ptr->t.timeout = jiffies + msecs_to_jiffies(1000*task_ret.timeout); /* ms to jiffies */
+		task_ptr->t.frametime = task_ret.frametime;
+		task_ptr->t.task_prio = task_ret.task_prio;
+		task_ptr->running = 0;
+		task_ptr->is_first_task = 0;
+		task_ptr->status = TASK_INIT;
 
-			cedardev_insert_task(task_ptr);
+		cedardev_insert_task(task_ptr);
 
-			enable_cedar_hw_clk();
+		enable_cedar_hw_clk();
+		/*
+		 * 插入run_task_list链表中的任务是第一个任务，返回1，不是第一个任务返回0.
+		 * hx modify 2011-7-28 16:59:16！！！
+		 */
+		return task_ptr->is_first_task;
+	#else
+		enable_cedar_hw_clk();
+		cedar_devp->ref_count++;
+		break;
+	#endif
 
-			return task_ptr->is_first_task;//插入run_task_list链表中的任务是第一个任务，返回1，不是第一个任务返回0. hx modify 2011-7-28 16:59:16！！！
-		#else
-			enable_cedar_hw_clk();
-			cedar_devp->ref_count++;
-			break;
-		#endif
 	case IOCTL_ENGINE_REL:
 	#ifdef USE_CEDAR_ENGINE
-			rel_taskid = (int)arg;
-			/*
-			*	利用任务的id号进行任务的删除操作。返回值意义：找不到对应ID，返回-1;找到对应ID，返回0。
-			*/
-			ret = cedardev_del_task(rel_taskid);
-		#else
-			disable_cedar_hw_clk();
-			cedar_devp->ref_count--;
-		#endif
-			return ret;
-		case IOCTL_ENGINE_CHECK_DELAY:
-			{
-	            struct cedarv_engine_task_info task_info;
-	            /*从用户空间中获取要查询的任务优先级，通过任务优先级，统计需要等待的总时间total_time.
-				* 在这个接口中，同时也给用户传递了当前任务的frametime（这样做可以减少接口，但是用户空间要多设置一个空的frametime值）
-				*对于当前task的frametime，也可以用额外的接口获取，但是这样做，frametime和total_time就处于不同接口中。好处？？？
-				*/
-	            if(copy_from_user(&task_info, (void __user*)arg, sizeof(struct cedarv_engine_task_info))){
-					printk("IOCTL_ENGINE_CHECK_DELAY copy_from_user fail\n");
-					return -EFAULT;
-				}
-				task_info.total_time = cedardev_check_delay(task_info.task_prio);//task_info.task_prio是传递过来的优先级
-				#ifdef CEDAR_DEBUG
-				printk("%s,%d,%d\n", __func__, __LINE__, task_info.total_time);
-				#endif
-				task_info.frametime = 0;
-				spin_lock_irqsave(&cedar_spin_lock, flags);
-				if(!list_empty(&run_task_list)){
-					/*获取run_task_list链表中的第一个任务，也就是当前运行的任务，通过当前运行的任务获取frametime时间*/
-					struct cedarv_engine_task *task_entry;
-					#ifdef CEDAR_DEBUG
-					printk("%s,%d\n",__func__,__LINE__);
-					#endif
-					task_entry = list_entry(run_task_list.next, struct cedarv_engine_task, list);
-					if(task_entry->running == 1)
-						task_info.frametime = task_entry->t.frametime;
-					#ifdef CEDAR_DEBUG
-					printk("%s,%d,%d\n",__func__,__LINE__,task_info.frametime);
-					#endif
-				}
-				spin_unlock_irqrestore(&cedar_spin_lock, flags);
-				/*
-				*将任务优先级，total_time,frametime拷贝到用户空间。任务优先级还是用户设置的值，total_time是需要等待的总时间，
-				*frametime是当前任务的运行时间.其实当前任务的信息最好用另一个接口实现.减少耦合度和接口的拓展性.
-				*/
-				if (copy_to_user((void *)arg, &task_info, sizeof(struct cedarv_engine_task_info))){
-			printk("IOCTL_ENGINE_CHECK_DELAY copy_to_user fail\n");
-	                return -EFAULT;
-	            }
+		rel_taskid = (int)arg;
+		/*
+		 * 利用任务的id号进行任务的删除操作。返回值意义：找不到对应ID，返回-1;找到对应ID，返回0。
+		 */
+		ret = cedardev_del_task(rel_taskid);
+	#else
+		disable_cedar_hw_clk();
+		cedar_devp->ref_count--;
+	#endif
+		return ret;
+
+	case IOCTL_ENGINE_CHECK_DELAY:
+	{
+		struct cedarv_engine_task_info task_info;
+		/*
+		 * 从用户空间中获取要查询的任务优先级，通过任务优先级，统计需要等待的总时间total_time.
+		 * 在这个接口中，同时也给用户传递了当前任务的frametime（这样做可以减少接口，但是用户空间要多设置一个
+		 * 空的frametime值）对于当前task的frametime，也可以用额外的接口获取，但是这样做，
+		 * frametime和total_time就处于不同接口中。好处？？？
+		 */
+		if(copy_from_user(&task_info, (void __user*)arg, sizeof(struct cedarv_engine_task_info))){
+			printk("IOCTL_ENGINE_CHECK_DELAY copy_from_user fail\n");
+			return -EFAULT;
 		}
+		task_info.total_time = cedardev_check_delay(task_info.task_prio); /* task_info.task_prio是传递过来的优先级 */
+		#ifdef CEDAR_DEBUG
+		printk("%s,%d,%d\n", __func__, __LINE__, task_info.total_time);
+		#endif
+		task_info.frametime = 0;
+		spin_lock_irqsave(&cedar_spin_lock, flags);
+		if(!list_empty(&run_task_list)){
+			/*
+			 * 获取run_task_list链表中的第一个任务，也就是当前运行的任务，
+			 * 通过当前运行的任务获取frametime时间
+			 */
+			struct cedarv_engine_task *task_entry;
+			#ifdef CEDAR_DEBUG
+			printk("%s,%d\n",__func__,__LINE__);
+			#endif
+			task_entry = list_entry(run_task_list.next, struct cedarv_engine_task, list);
+			if(task_entry->running == 1)
+				task_info.frametime = task_entry->t.frametime;
+			#ifdef CEDAR_DEBUG
+			printk("%s,%d,%d\n",__func__,__LINE__,task_info.frametime);
+			#endif
+		}
+		spin_unlock_irqrestore(&cedar_spin_lock, flags);
+		/*
+		 * 将任务优先级，total_time,frametime拷贝到用户空间。任务优先级还是用户设置的值，total_time是需要等待的总时间，
+		 * frametime是当前任务的运行时间.其实当前任务的信息最好用另一个接口实现.减少耦合度和接口的拓展性.
+		 */
+		if (copy_to_user((void *)arg, &task_info, sizeof(struct cedarv_engine_task_info))){
+			printk("IOCTL_ENGINE_CHECK_DELAY copy_to_user fail\n");
+			return -EFAULT;
+		}
+		break;
+	}
+
+	case IOCTL_WAIT_VE:
+		//wait_event_interruptible(wait_ve, cedar_devp->irq_flag);
+		ve_timeout = (int)arg;
+		cedar_devp->irq_value = 0;
+
+		spin_lock_irqsave(&cedar_spin_lock, flags);
+		if(cedar_devp->irq_flag)
+			cedar_devp->irq_value = 1;
+		spin_unlock_irqrestore(&cedar_spin_lock, flags);
+
+		wait_event_interruptible_timeout(wait_ve, cedar_devp->irq_flag, ve_timeout*HZ);
+		//printk("%s,%d,ve_timeout:%d,cedar_devp->irq_value:%d\n", __func__, __LINE__, ve_timeout, cedar_devp->irq_value);
+		cedar_devp->irq_flag = 0;
+		/* 返回1，表示中断返回，返回0，表示timeout返回 */
+		return cedar_devp->irq_value;
+
+	case IOCTL_ENABLE_VE:
+		clk_enable(ve_moduleclk);
+		break;
+
+	case IOCTL_DISABLE_VE:
+		clk_disable(ve_moduleclk);
+		break;
+
+	case IOCTL_RESET_VE:
+		clk_disable(dram_veclk);
+		clk_reset(ve_moduleclk, AW_CCU_CLK_RESET);
+		clk_reset(ve_moduleclk, AW_CCU_CLK_NRESET);
+		clk_enable(dram_veclk);
+		break;
+
+	case IOCTL_SET_VE_FREQ:
+	{
+		int arg_rate = (int)arg;
+		if(arg_rate >= 320)
+			clk_set_rate(ve_moduleclk, pll4clk_rate/3); //ve_moduleclk rate is 320khz
+		else if((arg_rate >= 240) && (arg_rate < 320))
+			clk_set_rate(ve_moduleclk, pll4clk_rate/4); //ve_moduleclk rate is 240khz
+		else if((arg_rate >= 160) && (arg_rate < 240))
+			clk_set_rate(ve_moduleclk, pll4clk_rate/6); //ve_moduleclk rate is 160khz
+		else
+			printk("IOCTL_SET_VE_FREQ set ve freq error,%s,%d\n", __func__, __LINE__);
+		break;
+	}
+
+	case IOCTL_GETVALUE_AVS2:
+		/* Return AVS1 counter value */
+		return readl(cedar_devp->iomap_addrs.regs_avs + 0x88);
+
+	case IOCTL_ADJUST_AVS2:
+	{
+		int arg_s = (int)arg;
+		int temp;
+
+		v = readl(cedar_devp->iomap_addrs.regs_avs + 0x8c);
+		temp = v & 0xffff0000;
+		temp =temp + temp*arg_s/100;
+		temp = temp > (244<<16) ? (244<<16) : temp;
+		temp = temp < (234<<16) ? (234<<16) : temp;
+		v = (temp & 0xffff0000) | (v&0x0000ffff);
+		#ifdef CEDAR_DEBUG
+		printk("Kernel AVS ADJUST Print: 0x%x\n", v);
+		#endif
+		writel(v, cedar_devp->iomap_addrs.regs_avs + 0x8c);
+		break;
+	}
+
+	case IOCTL_ADJUST_AVS2_ABS:
+	{
+		int arg_s = (int)arg;
+		int v_dst;
+
+		switch(arg_s) {
+		case -2:
+			v_dst = 234;
 			break;
-        case IOCTL_WAIT_VE:
-            //wait_event_interruptible(wait_ve, cedar_devp->irq_flag);
-            ve_timeout = (int)arg;
-            cedar_devp->irq_value = 0;
-
-            spin_lock_irqsave(&cedar_spin_lock, flags);
-            if(cedar_devp->irq_flag)
-		cedar_devp->irq_value = 1;
-            spin_unlock_irqrestore(&cedar_spin_lock, flags);
-
-            wait_event_interruptible_timeout(wait_ve, cedar_devp->irq_flag, ve_timeout*HZ);
-            //printk("%s,%d,ve_timeout:%d,cedar_devp->irq_value:%d\n", __func__, __LINE__, ve_timeout, cedar_devp->irq_value);
-	        cedar_devp->irq_flag = 0;
-	        /*返回1，表示中断返回，返回0，表示timeout返回*/
-			return cedar_devp->irq_value;
-
-		case IOCTL_ENABLE_VE:
-            clk_enable(ve_moduleclk);
+		case -1:
+			v_dst = 236;
 			break;
-
-		case IOCTL_DISABLE_VE:
-			clk_disable(ve_moduleclk);
+		case 1:
+			v_dst = 242;
 			break;
+		case 2:
+			v_dst = 244;
+			break;
+		default:
+			v_dst = 239;
+			break;
+		}
 
-		case IOCTL_RESET_VE:
-            clk_disable(dram_veclk);
-            clk_reset(ve_moduleclk, AW_CCU_CLK_RESET);
-            clk_reset(ve_moduleclk, AW_CCU_CLK_NRESET);
-            clk_enable(dram_veclk);
+		v = readl(cedar_devp->iomap_addrs.regs_avs + 0x8c);
+		v = (v_dst<<16)  | (v&0x0000ffff);
+		writel(v, cedar_devp->iomap_addrs.regs_avs + 0x8c);
 		break;
+	}
 
-		case IOCTL_SET_VE_FREQ:
-			{
-				int arg_rate = (int)arg;
-				if(arg_rate >= 320){
-					clk_set_rate(ve_moduleclk, pll4clk_rate/3);//ve_moduleclk rate is 320khz
-				}else if((arg_rate >= 240) && (arg_rate < 320)){
-					clk_set_rate(ve_moduleclk, pll4clk_rate/4);//ve_moduleclk rate is 240khz
-				}else if((arg_rate >= 160) && (arg_rate < 240)){
-					clk_set_rate(ve_moduleclk, pll4clk_rate/6);//ve_moduleclk rate is 160khz
-				}else{
-					printk("IOCTL_SET_VE_FREQ set ve freq error,%s,%d\n", __func__, __LINE__);
-				}
-				break;
-			}
-        case IOCTL_GETVALUE_AVS2:
-			/* Return AVS1 counter value */
-            return readl(cedar_devp->iomap_addrs.regs_avs + 0x88);
+	case IOCTL_CONFIG_AVS2:
+		/* Set AVS counter divisor */
+		v = readl(cedar_devp->iomap_addrs.regs_avs + 0x8c);
+		v = 239 << 16 | (v & 0xffff);
+		writel(v, cedar_devp->iomap_addrs.regs_avs + 0x8c);
 
-        case IOCTL_ADJUST_AVS2:
-        {
-            int arg_s = (int)arg;
-            int temp;
-			v = readl(cedar_devp->iomap_addrs.regs_avs + 0x8c);
-            temp = v & 0xffff0000;
-            temp =temp + temp*arg_s/100;
-			temp = temp > (244<<16) ? (244<<16) : temp;
-			temp = temp < (234<<16) ? (234<<16) : temp;
-            v = (temp & 0xffff0000) | (v&0x0000ffff);
-            #ifdef CEDAR_DEBUG
-            printk("Kernel AVS ADJUST Print: 0x%x\n", v);
-            #endif
-            writel(v, cedar_devp->iomap_addrs.regs_avs + 0x8c);
-            break;
-        }
+		/* Enable AVS_CNT1 and Pause it */
+		v = readl(cedar_devp->iomap_addrs.regs_avs + 0x80);
+		v |= 1 << 9 | 1 << 1;
+		writel(v, cedar_devp->iomap_addrs.regs_avs + 0x80);
 
-        case IOCTL_ADJUST_AVS2_ABS:
-        {
-            int arg_s = (int)arg;
-            int v_dst;
-
-            switch(arg_s){
-            case -2:
-		v_dst = 234;
-		break;
-            case -1:
-		v_dst = 236;
-		break;
-            case 1:
-		v_dst = 242;
-		break;
-            case 2:
-		v_dst = 244;
-		break;
-            default:
-		v_dst = 239;
-		break;
-            }
-
-            v = readl(cedar_devp->iomap_addrs.regs_avs + 0x8c);
-            v = (v_dst<<16)  | (v&0x0000ffff);
-            writel(v, cedar_devp->iomap_addrs.regs_avs + 0x8c);
-            break;
-        }
-
-        case IOCTL_CONFIG_AVS2:
-			/* Set AVS counter divisor */
-            v = readl(cedar_devp->iomap_addrs.regs_avs + 0x8c);
-            v = 239 << 16 | (v & 0xffff);
-            writel(v, cedar_devp->iomap_addrs.regs_avs + 0x8c);
-
-			/* Enable AVS_CNT1 and Pause it */
-            v = readl(cedar_devp->iomap_addrs.regs_avs + 0x80);
-            v |= 1 << 9 | 1 << 1;
-            writel(v, cedar_devp->iomap_addrs.regs_avs + 0x80);
-
-			/* Set AVS_CNT1 init value as zero  */
-            writel(0, cedar_devp->iomap_addrs.regs_avs + 0x88);
-
-            break;
-
-        case IOCTL_RESET_AVS2:
-            /* Set AVS_CNT1 init value as zero */
+		/* Set AVS_CNT1 init value as zero  */
 		writel(0, cedar_devp->iomap_addrs.regs_avs + 0x88);
-            break;
+		break;
 
-        case IOCTL_PAUSE_AVS2:
-            /* Pause AVS_CNT1 */
-            v = readl(cedar_devp->iomap_addrs.regs_avs + 0x80);
-            v |= 1 << 9;
-            writel(v, cedar_devp->iomap_addrs.regs_avs + 0x80);
-            break;
+	case IOCTL_RESET_AVS2:
+		/* Set AVS_CNT1 init value as zero */
+		writel(0, cedar_devp->iomap_addrs.regs_avs + 0x88);
+		break;
 
-        case IOCTL_START_AVS2:
+	case IOCTL_PAUSE_AVS2:
+		/* Pause AVS_CNT1 */
+		v = readl(cedar_devp->iomap_addrs.regs_avs + 0x80);
+		v |= 1 << 9;
+		writel(v, cedar_devp->iomap_addrs.regs_avs + 0x80);
+		break;
+
+	case IOCTL_START_AVS2:
 		/* Start AVS_CNT1 : do not pause */
-            v = readl(cedar_devp->iomap_addrs.regs_avs + 0x80);
-            v &= ~(1 << 9);
-            writel(v, cedar_devp->iomap_addrs.regs_avs + 0x80);
-            break;
+		v = readl(cedar_devp->iomap_addrs.regs_avs + 0x80);
+		v &= ~(1 << 9);
+		writel(v, cedar_devp->iomap_addrs.regs_avs + 0x80);
+		break;
 
-        case IOCTL_GET_ENV_INFO:
-        {
-            struct cedarv_env_infomation env_info;
-            env_info.phymem_start = (unsigned int)phys_to_virt(SW_VE_MEM_BASE);//(0x4d000000);
-            env_info.phymem_total_size = SW_VE_MEM_SIZE;//0x05000000;
-	        env_info.address_macc = (unsigned int)cedar_devp->iomap_addrs.regs_macc;
-            if (copy_to_user((char *)arg, &env_info, sizeof(struct cedarv_env_infomation)))
-                return -EFAULT;
-        }
-        break;
-        case IOCTL_GET_IC_VER:
-        {
+	case IOCTL_GET_ENV_INFO:
+	{
+		struct cedarv_env_infomation env_info;
+		env_info.phymem_start = (unsigned int)phys_to_virt(SW_VE_MEM_BASE); // (0x4d000000);
+		env_info.phymem_total_size = SW_VE_MEM_SIZE; // 0x05000000;
+		env_info.address_macc = (unsigned int)cedar_devp->iomap_addrs.regs_macc;
+		if(copy_to_user((char *)arg, &env_info, sizeof(struct cedarv_env_infomation)))
+			return -EFAULT;
+		break;
+	}
+
+	case IOCTL_GET_IC_VER:
 		return 0x0A10000B;
-        }
-        case IOCTL_READ_REG:
-        {
-            struct cedarv_regop reg_para;
 
-			if(copy_from_user(&reg_para, (void __user*)arg, sizeof(struct cedarv_regop)))
-			{
-	            return -EFAULT;
-			}
-            return readl(reg_para.addr);
-        }
+	case IOCTL_READ_REG:
+	{
+		struct cedarv_regop reg_para;
+		if(copy_from_user(&reg_para, (void __user*)arg, sizeof(struct cedarv_regop)))
+			return -EFAULT;
+		return readl(reg_para.addr);
+	}
 
-        case IOCTL_WRITE_REG:
-        {
-            struct cedarv_regop reg_para;
+	case IOCTL_WRITE_REG:
+	{
+		struct cedarv_regop reg_para;
+		if(copy_from_user(&reg_para, (void __user*)arg, sizeof(struct cedarv_regop)))
+			return -EFAULT;
+		writel(reg_para.value, reg_para.addr);
+		break;
+	}
 
-			if(copy_from_user(&reg_para, (void __user*)arg, sizeof(struct cedarv_regop)))
-			{
-                return -EFAULT;
-			}
-            writel(reg_para.value, reg_para.addr);
-            break;
-        }
-        case IOCTL_FLUSH_CACHE:
-        {
+	case IOCTL_FLUSH_CACHE:
+	{
 		struct cedarv_cache_range cache_range;
-		if(copy_from_user(&cache_range, (void __user*)arg, sizeof(struct cedarv_cache_range))){
-				printk("IOCTL_FLUSH_CACHE copy_from_user fail\n");
-				return -EFAULT;
-			}
-			flush_clean_user_range(cache_range.start, cache_range.end);
-        }
-        break;
-        case IOCTL_SET_REFCOUNT:
+		if(copy_from_user(&cache_range, (void __user*)arg, sizeof(struct cedarv_cache_range))) {
+			printk("IOCTL_FLUSH_CACHE copy_from_user fail\n");
+			return -EFAULT;
+		}
+		flush_clean_user_range(cache_range.start, cache_range.end);
+		break;
+	}
+
+	case IOCTL_SET_REFCOUNT:
 		cedar_devp->ref_count = (int)arg;
-        break;
-        default:
-        break;
-    }
-    return ret;
+		break;
+
+	default:
+		break;
+	}
+	return ret;
 }
 
 static int cedardev_open(struct inode *inode, struct file *filp)
 {
 	struct cedar_dev *devp;
+
 	devp = container_of(inode->i_cdev, struct cedar_dev, cdev);
 	filp->private_data = devp;
-	if (down_interruptible(&devp->sem)) {
+	if (down_interruptible(&devp->sem))
 		return -ERESTARTSYS;
-	}
 	/* init other resource here */
-    devp->irq_flag = 0;
+	devp->irq_flag = 0;
 	up(&devp->sem);
 	nonseekable_open(inode, filp);
 	return 0;
@@ -738,11 +735,10 @@ static int cedardev_release(struct inode *inode, struct file *filp)
 	struct cedar_dev *devp;
 
 	devp = filp->private_data;
-	if (down_interruptible(&devp->sem)) {
+	if (down_interruptible(&devp->sem))
 		return -ERESTARTSYS;
-	}
 	/* release other resource here */
-    devp->irq_flag = 1;
+	devp->irq_flag = 1;
 	up(&devp->sem);
 	return 0;
 }
@@ -756,92 +752,83 @@ void cedardev_vma_close(struct vm_area_struct *vma)
 }
 
 static struct vm_operations_struct cedardev_remap_vm_ops = {
-    .open  = cedardev_vma_open,
-    .close = cedardev_vma_close,
+	.open  = cedardev_vma_open,
+	.close = cedardev_vma_close,
 };
 
 static int cedardev_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-    unsigned long temp_pfn;
-    unsigned int  VAddr;
+	unsigned long temp_pfn;
+	unsigned int  VAddr;
 	struct iomap_para addrs;
-
 	unsigned int io_ram = 0;
-    VAddr = vma->vm_pgoff << 12;
+
+	VAddr = vma->vm_pgoff << 12;
 	addrs = cedar_devp->iomap_addrs;
 
-    if (VAddr == (unsigned int)addrs.regs_macc) {
-        temp_pfn = MACC_REGS_BASE >> 12;
-        io_ram = 1;
-    } else {
-        temp_pfn = (__pa(vma->vm_pgoff << 12))>>12;
-        io_ram = 0;
-    }
+	if (VAddr == (unsigned int)addrs.regs_macc) {
+		temp_pfn = MACC_REGS_BASE >> 12;
+		io_ram = 1;
+	} else {
+		temp_pfn = (__pa(vma->vm_pgoff << 12))>>12;
+		io_ram = 0;
+	}
 
-    if (io_ram == 0) {
-        /* Set reserved and I/O flag for the area. */
-        vma->vm_flags |= VM_RESERVED | VM_IO;
+	if (io_ram == 0) {
+		/* Set reserved and I/O flag for the area. */
+		vma->vm_flags |= VM_RESERVED | VM_IO;
 
-        /* Select uncached access. */
-        //vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-        if (remap_pfn_range(vma, vma->vm_start, temp_pfn,
-                            vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
-            return -EAGAIN;
-        }
-    } else {
-        /* Set reserved and I/O flag for the area. */
-        vma->vm_flags |= VM_RESERVED | VM_IO;
-        /* Select uncached access. */
-        vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-        if (io_remap_pfn_range(vma, vma->vm_start, temp_pfn,
-                               vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
-            return -EAGAIN;
-        }
-    }
-
-    vma->vm_ops = &cedardev_remap_vm_ops;
-    cedardev_vma_open(vma);
-
-    return 0;
+		/* Select uncached access. */
+		//vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		if (remap_pfn_range(vma, vma->vm_start, temp_pfn,
+			vma->vm_end - vma->vm_start, vma->vm_page_prot))
+			return -EAGAIN;
+	} else {
+		/* Set reserved and I/O flag for the area. */
+		vma->vm_flags |= VM_RESERVED | VM_IO;
+		/* Select uncached access. */
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		if (io_remap_pfn_range(vma, vma->vm_start, temp_pfn,
+				vma->vm_end - vma->vm_start, vma->vm_page_prot))
+			return -EAGAIN;
+	}
+	vma->vm_ops = &cedardev_remap_vm_ops;
+	cedardev_vma_open(vma);
+	return 0;
 }
 
 #ifdef CONFIG_PM
 static int snd_sw_cedar_suspend(struct platform_device *pdev,pm_message_t state)
 {
 	disable_cedar_hw_clk();
-
 	return 0;
 }
 
 static int snd_sw_cedar_resume(struct platform_device *pdev)
 {
-	if(cedar_devp->ref_count == 0){
+	if(cedar_devp->ref_count == 0)
 		return 0;
-	}
 	enable_cedar_hw_clk();
-
 	return 0;
 }
 #endif
 
 static struct file_operations cedardev_fops = {
-    .owner   = THIS_MODULE,
-    .mmap    = cedardev_mmap,
+	.owner   = THIS_MODULE,
+	.mmap    = cedardev_mmap,
 	.poll    = cedardev_poll,
-    .open    = cedardev_open,
-    .release = cedardev_release,
+	.open    = cedardev_open,
+	.release = cedardev_release,
 	.llseek  = no_llseek,
-    .unlocked_ioctl   = cedardev_ioctl,
+	.unlocked_ioctl = cedardev_ioctl,
 };
 
-/*data relating*/
+/* data relating */
 static struct platform_device sw_device_cedar = {
 	.name = "sun7i-cedar",
 };
 
-/*method relating*/
+/* method relating */
 static struct platform_driver sw_cedar_driver = {
 #ifdef CONFIG_PM
 	.suspend	= snd_sw_cedar_suspend,
@@ -859,14 +846,15 @@ static int __init cedardev_init(void)
 	int devno;
 	unsigned int val;
 	dev_t dev = 0;
+
 	printk("[hx-cedar dev]: install start!!!\n");
 	if((platform_device_register(&sw_device_cedar))<0)
 		return err;
-
-	if ((err = platform_driver_register(&sw_cedar_driver)) < 0)
+	if((err = platform_driver_register(&sw_cedar_driver)) < 0)
 		return err;
+
 	/*register or alloc the device number.*/
-	if (g_dev_major) {
+	if(g_dev_major) {
 		dev = MKDEV(g_dev_major, g_dev_minor);
 		ret = register_chrdev_region(dev, 1, "cedar_dev");
 	} else {
@@ -874,14 +862,14 @@ static int __init cedardev_init(void)
 		g_dev_major = MAJOR(dev);
 		g_dev_minor = MINOR(dev);
 	}
-
-	if (ret < 0) {
+	if(ret < 0) {
 		printk(KERN_WARNING "cedar_dev: can't get major %d\n", g_dev_major);
 		return ret;
 	}
+
 	spin_lock_init(&cedar_spin_lock);
 	cedar_devp = kmalloc(sizeof(struct cedar_dev), GFP_KERNEL);
-	if (cedar_devp == NULL) {
+	if(cedar_devp == NULL) {
 		printk("malloc mem for cedar device err\n");
 		return -ENOMEM;
 	}
@@ -890,20 +878,18 @@ static int __init cedardev_init(void)
 
 	sema_init(&cedar_devp->sem, 1);
 	init_waitqueue_head(&cedar_devp->wq);
-
 	memset(&cedar_devp->iomap_addrs, 0, sizeof(struct iomap_para));
 
-    ret = request_irq(VE_IRQ_NO, VideoEngineInterupt, 0, "cedar_dev", NULL);
-    if (ret < 0) {
-        printk("request irq err\n");
-        return -EINVAL;
-    }
+	ret = request_irq(VE_IRQ_NO, VideoEngineInterupt, 0, "cedar_dev", NULL);
+	if(ret < 0) {
+		printk("request irq err\n");
+		return -EINVAL;
+	}
 	/* map for macc io space */
-    cedar_devp->iomap_addrs.regs_macc = ioremap(MACC_REGS_BASE, 4096);
-    if (!cedar_devp->iomap_addrs.regs_macc){
-        printk("cannot map region for macc");
-    }
-    cedar_devp->iomap_addrs.regs_avs = ioremap(AVS_REGS_BASE, 1024);
+	cedar_devp->iomap_addrs.regs_macc = ioremap(MACC_REGS_BASE, 4096);
+	if(!cedar_devp->iomap_addrs.regs_macc)
+		printk("cannot map region for macc");
+	cedar_devp->iomap_addrs.regs_avs = ioremap(AVS_REGS_BASE, 1024);
 
 	//VE_SRAM mapping to AC320
 	val = readl(0xf1c00000);
@@ -923,9 +909,9 @@ static int __init cedardev_init(void)
 		printk("set parent of ve_moduleclk to ve_pll4clk failed!\n");
 		return -EFAULT;
 	}
-	/*default the ve freq to 160M by lys 2011-12-23 15:25:34*/
+	/* default the ve freq to 160M by lys 2011-12-23 15:25:34 */
 	clk_set_rate(ve_moduleclk, pll4clk_rate/6);
-	/*geting dram clk for ve!*/
+	/* geting dram clk for ve! */
 	dram_veclk = clk_get(NULL, "sdram_ve");
 	hosc_clk = clk_get(NULL,"hosc");
 	avs_moduleclk = clk_get(NULL,"avs");
@@ -934,7 +920,7 @@ static int __init cedardev_init(void)
 		return -EFAULT;
 	}
 	clk_reset(ve_moduleclk, AW_CCU_CLK_NRESET);
-	/*for clk test*/
+	/* for clk test */
 	#ifdef CEDAR_DEBUG
 	printk("PLL4 CLK:0xf1c20018 is:%x\n", *(volatile int *)0xf1c20018);
 	printk("AHB CLK:0xf1c20064 is:%x\n", *(volatile int *)0xf1c20064);
@@ -942,21 +928,22 @@ static int __init cedardev_init(void)
 	printk("SDRAM CLK:0xf1c20100 is:%x\n", *(volatile int *)0xf1c20100);
 	printk("SRAM:0xf1c00000 is:%x\n", *(volatile int *)0xf1c00000);
 	#endif
+
 	/* Create char device */
 	devno = MKDEV(g_dev_major, g_dev_minor);
 	cdev_init(&cedar_devp->cdev, &cedardev_fops);
 	cedar_devp->cdev.owner = THIS_MODULE;
 	cedar_devp->cdev.ops = &cedardev_fops;
 	ret = cdev_add(&cedar_devp->cdev, devno, 1);
-	if (ret) {
+	if(ret)
 		printk(KERN_NOTICE "Err:%d add cedardev", ret);
-	}
-    cedar_devp->class = class_create(THIS_MODULE, "cedar_dev");
-    cedar_devp->dev   = device_create(cedar_devp->class, NULL, devno, NULL, "cedar_dev");
-	/*在cedar drv初始化的时候，初始化定时器并设置它的成员
-	* 在有任务插入run_task_list的时候，启动定时器，并设置定时器的时钟为当前系统的jiffies，参考cedardev_insert_task
-	*/
-    setup_timer(&cedar_devp->cedar_engine_timer, cedar_engine_for_events, (unsigned long)cedar_devp);
+	cedar_devp->class = class_create(THIS_MODULE, "cedar_dev");
+	cedar_devp->dev   = device_create(cedar_devp->class, NULL, devno, NULL, "cedar_dev");
+	/*
+	 * 在cedar drv初始化的时候，初始化定时器并设置它的成员
+	 * 在有任务插入run_task_list的时候，启动定时器，并设置定时器的时钟为当前系统的jiffies，参考cedardev_insert_task
+	 */
+	setup_timer(&cedar_devp->cedar_engine_timer, cedar_engine_for_events, (unsigned long)cedar_devp);
 	setup_timer(&cedar_devp->cedar_engine_timer_rel, cedar_engine_for_timer_rel, (unsigned long)cedar_devp);
 	printk("[cedar dev]: install end!!!\n");
 	return 0;
@@ -966,12 +953,12 @@ module_init(cedardev_init);
 static void __exit cedardev_exit(void)
 {
 	dev_t dev;
-	dev = MKDEV(g_dev_major, g_dev_minor);
 
-    free_irq(VE_IRQ_NO, NULL);
+	dev = MKDEV(g_dev_major, g_dev_minor);
+	free_irq(VE_IRQ_NO, NULL);
 	iounmap(cedar_devp->iomap_addrs.regs_macc);
 	iounmap(cedar_devp->iomap_addrs.regs_avs);
-	/* Destroy char device */
+	/* destroy char device */
 	if(cedar_devp){
 		cdev_del(&cedar_devp->cdev);
 		device_destroy(cedar_devp->class, dev);
@@ -993,9 +980,8 @@ static void __exit cedardev_exit(void)
 
 	unregister_chrdev_region(dev, 1);
 	platform_driver_unregister(&sw_cedar_driver);
-	if (cedar_devp) {
+	if(cedar_devp)
 		kfree(cedar_devp);
-	}
 }
 module_exit(cedardev_exit);
 
