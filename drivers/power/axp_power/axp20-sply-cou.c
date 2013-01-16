@@ -1758,6 +1758,8 @@ static int axp_battery_probe(struct platform_device *pdev)
 	uint8_t val1,val2,tmp,val;
 	uint8_t ocv_cap[31],v[2];
 	int Cur_CoulombCounter,rdc,saved_cap;
+	script_item_u   item_val;
+  script_item_value_type_e  item_type;
 
 	powerkeydev = input_allocate_device();
 	if (!powerkeydev) {
@@ -1893,8 +1895,8 @@ static int axp_battery_probe(struct platform_device *pdev)
 	}
 
 	/* set lowe power warning/shutdown voltage*/
-	var = script_parser_fetch("pmu_para", "pmu_suspendpwroff_vol", &pmu_suspendpwroff_vol, sizeof(int));
-	if (var) {
+	item_type = script_get_item("pmu_para", "pmu_suspendpwroff_vol", &item_val);
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != item_type) {
 		printk("[AXP]axp driver uning configuration failed(%d)\n", __LINE__);
 		pmu_suspendpwroff_vol = 3500;
 		printk("[AXP]pmu_suspendpwroff_vol = %d\n",pmu_suspendpwroff_vol);
@@ -2116,16 +2118,16 @@ static int axp_battery_probe(struct platform_device *pdev)
 		schedule_delayed_work(&usbwork, msecs_to_jiffies(7 * 1000));
 	}
 
-	var = script_parser_fetch("pmu_para", "pmu_earlysuspend_chgcur", &pmu_earlysuspend_chgcur, sizeof(int));
-	if (var) {
+	item_type = script_get_item("pmu_para", "pmu_earlysuspend_chgcur", &item_val);
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != item_type) {
 		printk("axp driver uning configuration failed(%d)\n", __LINE__);
 		pmu_earlysuspend_chgcur = pmu_suspend_chgcur / 1000;
 		printk("pmu_earlysuspend_chgcur = %d\n",pmu_earlysuspend_chgcur);
 	}
 	pmu_earlysuspend_chgcur = pmu_earlysuspend_chgcur * 1000;
 
-	var = script_parser_fetch("pmu_para", "pmu_batdeten", &pmu_batdeten, sizeof(int));
-	if (var) {
+	item_type = script_get_item("pmu_para", "pmu_batdeten", &item_val);
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != item_type) {
 		printk("axp driver uning configuration failed(%d)\n", __LINE__);
 		pmu_batdeten = 1;
 		printk("pmu_batdeten = %d\n",pmu_batdeten);
@@ -2136,8 +2138,8 @@ static int axp_battery_probe(struct platform_device *pdev)
 		axp_set_bits(charger->master,0x32,0x40);
 
 	/*axp usb-pc limite*/
-	var = script_parser_fetch("pmu_para", "pmu_usbvol_pc", &pmu_usbvolnew, sizeof(int));
-	if (var) {
+	item_type = script_get_item("pmu_para", "pmu_usbvol_pc", &item_val);
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != item_type) {
 		printk("axp driver uning configuration failed-pmu_usbvol_pc\n");
 		pmu_usbvolnew = 4000;
 		printk("pmu_usbvolnew = %d\n",pmu_usbvolnew);
@@ -2159,8 +2161,8 @@ static int axp_battery_probe(struct platform_device *pdev)
 
 	}
 
-	var = script_parser_fetch("pmu_para", "pmu_usbcur_pc", &pmu_usbcurnew, sizeof(int));
-	if (var) {
+	item_type = script_get_item("pmu_para", "pmu_usbcur_pc", &item_val);
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != item_type) {
 		printk("axp driver uning configuration failed-pmu_usbcurnew\n");
 		pmu_usbcurnew = 500;
 		printk("pmu_usbcurnew = %d\n",pmu_usbcurnew);
