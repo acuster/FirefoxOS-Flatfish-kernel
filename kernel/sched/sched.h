@@ -925,14 +925,19 @@ extern void cpuacct_charge(struct task_struct *tsk, u64 cputime);
 static inline void cpuacct_charge(struct task_struct *tsk, u64 cputime) {}
 #endif
 
+
+extern void cal_nr_running_avg(struct rq *rq);
+
 static inline void inc_nr_running(struct rq *rq)
 {
 	rq->nr_running++;
+	cal_nr_running_avg(rq);
 }
 
 static inline void dec_nr_running(struct rq *rq)
 {
 	rq->nr_running--;
+	cal_nr_running_avg(rq);
 }
 
 extern void update_rq_clock(struct rq *rq);

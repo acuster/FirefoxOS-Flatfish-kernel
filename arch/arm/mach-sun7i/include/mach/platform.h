@@ -301,8 +301,11 @@
 /*
  * CPUCFG
  */
-#define AW_CPUCFG_P_REG0                  0x01a4
-#define AW_CPUCFG_P_REG1                  0x01a8
+#define CPUX_RESET_CTL(x) (0x40 + (x)*0x40)
+#define AW_CPUCFG_PWR_CLAMP         0x01b0
+#define AW_CPUCFG_PWROFF_REG        0x01b4
+#define AW_CPUCFG_P_REG0            0x01a4
+#define AW_CPUCFG_P_REG1            0x01a8
 
 #endif
 

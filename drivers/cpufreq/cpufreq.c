@@ -526,6 +526,64 @@ static ssize_t show_affected_cpus(struct cpufreq_policy *policy, char *buf)
 	return show_cpus(policy->cpus, buf);
 }
 
+#ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
+/**
+ * show_user_event_notify - user event notify
+ */
+static ssize_t show_user_event_notify(struct cpufreq_policy *policy, char *buf)
+{
+	cpufreq_user_event_notify();
+	return sprintf(buf, "freq up");;
+}
+#endif
+
+#ifdef CONFIG_CPU_FREQ_SETFREQ_DEBUG
+extern int setgetfreq_debug;
+extern unsigned long long setfreq_time_usecs;
+extern unsigned long long getfreq_time_usecs;
+
+static ssize_t show_freq_debug_enable(struct cpufreq_policy *policy, char *buf)
+{
+	return sprintf(buf, "%d\n", setgetfreq_debug);
+}
+
+static ssize_t store_freq_debug_enable(struct cpufreq_policy *policy,
+					const char *buf, size_t count)
+{
+    char value;
+    if(strlen(buf) != 2)
+        return -EINVAL;
+    if(buf[0] < '0' || buf[0] > '1')
+		return -EINVAL;
+    value = buf[0];
+    switch(value)
+    {
+        case '1':
+            setgetfreq_debug = 1;
+            break;
+        case '0':
+            setgetfreq_debug = 0;
+			setfreq_time_usecs = 0;
+			getfreq_time_usecs = 0;
+            break;
+        default:
+            return -EINVAL;
+    }
+	return count;
+}
+
+static ssize_t show_freq_set_time(struct cpufreq_policy *policy, char *buf)
+{
+	return sprintf(buf, "%llu\n", setfreq_time_usecs);
+}
+
+static ssize_t show_freq_get_time(struct cpufreq_policy *policy, char *buf)
+{
+	return sprintf(buf, "%llu\n", getfreq_time_usecs);
+}
+#endif
+
+
 static ssize_t store_scaling_setspeed(struct cpufreq_policy *policy,
 					const char *buf, size_t count)
 {
@@ -581,6 +639,14 @@ cpufreq_freq_attr_rw(scaling_min_freq);
 cpufreq_freq_attr_rw(scaling_max_freq);
 cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
+#ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
+cpufreq_freq_attr_ro(user_event_notify);
+#endif
+#ifdef CONFIG_CPU_FREQ_SETFREQ_DEBUG
+cpufreq_freq_attr_rw(freq_debug_enable);
+cpufreq_freq_attr_ro(freq_set_time);
+cpufreq_freq_attr_ro(freq_get_time);
+#endif
 
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
@@ -594,6 +660,14 @@ static struct attribute *default_attrs[] = {
 	&scaling_driver.attr,
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
+#ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
+	&user_event_notify.attr,
+#endif
+#ifdef CONFIG_CPU_FREQ_SETFREQ_DEBUG
+	&freq_debug_enable.attr,
+	&freq_set_time.attr,
+	&freq_get_time.attr,
+#endif
 	NULL
 };
 
@@ -1301,7 +1375,7 @@ static int cpufreq_bp_suspend(void)
 	if (cpufreq_driver->suspend) {
 		ret = cpufreq_driver->suspend(cpu_policy);
 		if (ret)
-			printk(KERN_ERR "cpufreq: suspend failed in ->suspend "
+			pr_debug(KERN_ERR "cpufreq: suspend failed in ->suspend "
 					"step on CPU %u\n", cpu_policy->cpu);
 	}
 
@@ -1339,7 +1413,7 @@ static void cpufreq_bp_resume(void)
 	if (cpufreq_driver->resume) {
 		ret = cpufreq_driver->resume(cpu_policy);
 		if (ret) {
-			printk(KERN_ERR "cpufreq: resume failed in ->resume "
+			pr_debug(KERN_ERR "cpufreq: resume failed in ->resume "
 					"step on CPU %u\n", cpu_policy->cpu);
 			goto fail;
 		}
@@ -1515,7 +1589,7 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 		if (!gov)
 			return -EINVAL;
 		else {
-			printk(KERN_WARNING "%s governor failed, too long"
+			pr_debug(KERN_WARNING "%s governor failed, too long"
 			       " transition latency of HW, fallback"
 			       " to %s governor\n",
 			       policy->governor->name,
@@ -1897,6 +1971,31 @@ int cpufreq_unregister_driver(struct cpufreq_driver *driver)
 }
 EXPORT_SYMBOL_GPL(cpufreq_unregister_driver);
 
+#ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
+/* user event notification */
+void cpufreq_user_event_notify(void)
+{
+	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
+	if(policy && policy->governor) {
+        policy->governor->governor(policy, CPUFREQ_GOV_USRENET);
+    }
+}
+EXPORT_SYMBOL_GPL(cpufreq_user_event_notify);
+#endif
+
+/* large scale thread event notification */
+void cpufreq_mass_thread_event_notify(void)
+{
+	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
+	if (policy && policy->governor)
+        policy->governor->governor(policy, CPUFREQ_GOV_MASS_THREAD_EVENT);
+}
+EXPORT_SYMBOL_GPL(cpufreq_mass_thread_event_notify);
+
+#ifdef CONFIG_CPU_FREQ_EARLYSUSPEND
+extern int hotplug_early_suspend_init(void);
+#endif
+
 static int __init cpufreq_core_init(void)
 {
 	int cpu;
@@ -1909,6 +2008,10 @@ static int __init cpufreq_core_init(void)
 	cpufreq_global_kobject = kobject_create_and_add("cpufreq", &cpu_subsys.dev_root->kobj);
 	BUG_ON(!cpufreq_global_kobject);
 	register_syscore_ops(&cpufreq_syscore_ops);
+
+    #ifdef CONFIG_CPU_FREQ_EARLYSUSPEND
+    hotplug_early_suspend_init();
+    #endif
 
 	return 0;
 }

@@ -52,7 +52,7 @@ void enable_aw_cpu(int cpu)
 
 	/* let cpus go */
 	if (cpu)
-		writel(1, IO_ADDRESS(SW_PA_CPUCFG_IO_BASE) + 0x80);
+		writel(1, IO_ADDRESS(SW_PA_CPUCFG_IO_BASE) + CPUX_RESET_CTL(cpu));
 }
 
 

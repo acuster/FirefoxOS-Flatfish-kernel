@@ -682,6 +682,7 @@ void __init smp_init(void)
 	smp_cpus_done(setup_max_cpus);
 }
 
+#include <linux/delay.h>
 /*
  * Call a function on all processors.  May be used during early boot while
  * early_boot_irqs_disabled is set.  Use local_irq_save/restore() instead
@@ -691,6 +692,15 @@ int on_each_cpu(void (*func) (void *info), void *info, int wait)
 {
 	unsigned long flags;
 	int ret = 0;
+
+    while(num_online_cpus() != num_active_cpus()) {
+        /* wait all online cpus to be active,
+           if some cpu is online, but not active,
+           it maybe deadlock, kevin, 2012-12-16 14:44
+        */
+        printk("%s: wait some cpu active!\n",__FUNCTION__);
+        msleep(1);
+    }
 
 	preempt_disable();
 	ret = smp_call_function(func, info, wait);

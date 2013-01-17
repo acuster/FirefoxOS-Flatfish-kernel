@@ -27,7 +27,7 @@
 
 #undef CPUFREQ_DBG
 #undef CPUFREQ_ERR
-#if (0)
+#if (1)
     #define CPUFREQ_DBG(format,args...)   printk("[cpu_freq] DBG:"format,##args)
     #define CPUFREQ_INF(format,args...)   printk("[cpu_freq] INF:"format,##args)
 #else
