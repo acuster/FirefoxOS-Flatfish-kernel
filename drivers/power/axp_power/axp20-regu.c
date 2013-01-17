@@ -431,17 +431,21 @@ static int __devinit axp_regulator_probe(struct platform_device *pdev)
 	if(ri->desc.id == AXP20_ID_LDO4)
 		ri->desc.ops = &axp20_ldo4_ops;
 
+
 	if(ri->desc.id == AXP20_ID_LDOIO0)
 		ri->desc.ops = &axp20_ldoio0_ops;
 
 	ri->desc.irq = 32;
-	rdev = regulator_register(&ri->desc, &pdev->dev,pdev->dev.platform_data, ri, NULL);
+	rdev = regulator_register(&ri->desc, &pdev->dev,
+				  pdev->dev.platform_data, ri,NULL);
 	if (IS_ERR(rdev)) {
-		dev_err(&pdev->dev, "failed to register regulator %s\n",ri->desc.name);
+		dev_err(&pdev->dev, "failed to register regulator %s\n",
+				ri->desc.name);
 		return PTR_ERR(rdev);
 	}
 	// rdev->desc->irq = 32;
 	platform_set_drvdata(pdev, rdev);
+
 	if(ri->desc.id == AXP20_ID_BUCK2 ||ri->desc.id == AXP20_ID_BUCK3){
 		ret = axp_regu_create_attrs(pdev);
 		if(ret){
@@ -461,19 +465,17 @@ static int __devexit axp_regulator_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver axp_regulator_driver = {
-	.probe		= axp_regulator_probe,
-	.remove		= axp_regulator_remove,
 	.driver	= {
 		.name	= "axp20-regulator",
 		.owner	= THIS_MODULE,
 	},
+	.probe		= axp_regulator_probe,
+	.remove		= axp_regulator_remove,
 };
 
 static int __init axp_regulator_init(void)
 {
-	int iret = 0;
-	iret = platform_driver_register(&axp_regulator_driver);
-	return iret;
+	return platform_driver_register(&axp_regulator_driver);
 }
 module_init(axp_regulator_init);
 

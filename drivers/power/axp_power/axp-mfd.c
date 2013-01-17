@@ -254,7 +254,8 @@ static void axp_power_off(void)
     printk("[axp] send power-off command!\n");
     mdelay(20);
     if(power_start != 1){
-		axp_read(&axp->dev, POWER20_STATUS, &val);
+	    axp_write(&axp->dev, POWER20_INTSTS3, 0x03);
+        axp_read(&axp->dev, POWER20_STATUS, &val);
 		if(val & 0xF0){
 		axp_read(&axp->dev, POWER20_MODE_CHGSTATUS, &val);
 		if(val & 0x20){
@@ -281,6 +282,8 @@ static int __devinit axp_mfd_probe(struct i2c_client *client,
 {
 	struct axp_platform_data *pdata = client->dev.platform_data;
 	struct axp_mfd_chip *chip;
+	script_item_u   item_val;
+	script_item_value_type_e  item_type;
 	int ret;
 	chip = kzalloc(sizeof(struct axp_mfd_chip), GFP_KERNEL);
 	if (chip == NULL)
@@ -327,7 +330,13 @@ static int __devinit axp_mfd_probe(struct i2c_client *client,
 	}
 
 	/* set ac/usb_in shutdown mean restart */
-	power_start = 1;
+	item_type = script_get_item("target", "power_start", &item_val);
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != item_type)
+	{
+	printk("[AXP]axp driver uning configuration failed(%d)\n", __LINE__);
+	power_start = 0;
+	printk("[AXP]power_start = %d\n",power_start);
+	}
 
 	return 0;
 

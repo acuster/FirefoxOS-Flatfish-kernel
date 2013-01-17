@@ -36,6 +36,7 @@ config AXP_CHGCHANGE
 	bool "AXP charging current set when suspend\resume\shutdown"
 	default y
 
+if AW_AXP20
 choice
 	prompt "AXP calculate type:"
 	default AW_AXP20_COU
@@ -50,5 +51,6 @@ choice
 			AXP driver for ocv
 
 endchoice
+endif # !AW_AXP20
 
 endif # !AW_AXP

@@ -1213,6 +1213,7 @@ static struct device_attribute axp_charger_attrs[] = {
 static void axp_earlysuspend(struct early_suspend *h)
 {
 	uint8_t tmp;
+	int     val;
 	DBG_PSY_MSG("======early suspend=======\n");
 
 #if defined (CONFIG_AXP_CHGCHANGE)
@@ -1227,7 +1228,12 @@ static void axp_earlysuspend(struct early_suspend *h)
 	axp_update(axp_charger->master, AXP20_CHARGE_CONTROL1, tmp,0x0F);
     }
 #endif
-
+	/*standby wake up IRQ voltage level*/
+	if(pmu_suspendpwroff_vol >= 2867200 && pmu_suspendpwroff_vol <= 4200000) {
+		val = (pmu_suspendpwroff_vol - 2867200) / 5600;
+	}
+	axp_write(axp_charger->master, AXP20_APS_WARNING1,(val-0x35));
+	axp_write(axp_charger->master, AXP20_APS_WARNING2,(val-0x58));
 }
 static void axp_lateresume(struct early_suspend *h)
 {
@@ -1403,15 +1409,15 @@ static void axp_charging_monitor(struct work_struct *work)
 	if(axp_debug){
 		DBG_PSY_MSG("Cur_CoulombCounter = %d\n",Cur_CoulombCounter);
 	}
-		axp_reads(charger->master,0xbc,2,v);
-		charger->ocv = ((v[0] << 4) + (v[1] & 0x0f)) * 11 /10 ;
+	axp_reads(charger->master,0xbc,2,v);
+	charger->ocv = ((v[0] << 4) + (v[1] & 0x0f)) * 11 /10 ;
     axp_reads(charger->master,AXP20_IC_TYPE,2,v);
     //DBG_PSY_MSG("v[0] = 0x%x,v[1] = 0x%x\n",v[0],v[1]);
     pre_rest_vol = charger->rest_vol;
     axp_charger_update_state(charger);
     axp_charger_update(charger);
 
-    if(charger->is_on && axp20_icharge_to_mA(charger->adc->ichar_res) > 200 && charger->vbat > 3600 && charger->disvbat != 0){
+    if(charger->is_on && axp20_icharge_to_mA(charger->adc->ichar_res) > 200 && charger->vbat > 3500 && charger->disvbat != 0){
         if((((v[1] >> 7) == 0) || (((v[1] >> 3) & 0x1) == 0)) && count_rdc >= 3){
             axp_set_bits(charger->master,AXP20_CAP,0x80);
             axp_clr_bits(charger->master,0xBA,0x80);
@@ -1448,7 +1454,9 @@ static void axp_charging_monitor(struct work_struct *work)
 		if((charger->bat_det == 0) || (rt_rest_vol == 127) ){
 			rt_rest_vol = 100;
 		}
-
+		if(rt_rest_vol == 0){
+		axp_write(charger->master,AXP20_DATA_BUFFER1,rt_rest_vol | 0x80);
+		}
 	Total_Cap -= Bat_Cap_Buffer[Cap_Index];
 	if(Cap_Index == 0){
 		cap_index_p = AXP20_VOL_MAX - 1;
@@ -1475,7 +1483,7 @@ static void axp_charging_monitor(struct work_struct *work)
 		DBG_PSY_MSG("Before Modify:Cap_Index = %d,val = 0x%x,pre_rest_vol = %d,rest_vol = %d\n",Cap_Index,val,pre_rest_vol,rest_vol);
 		}
 
-	if(charger->is_on && (rest_vol < pre_rest_vol)){
+	if(charger->bat_current_direction && (rest_vol < pre_rest_vol)){
 		rest_vol = pre_rest_vol;
 	}
 		else if(!charger->ext_valid && (rest_vol > pre_rest_vol)){
@@ -1832,7 +1840,7 @@ axp_set_startup_sequence(charger);
 
   /* 3.5552V--%5 close*/
   axp_write(charger->master, AXP20_APS_WARNING1,val);
-  axp_write(charger->master, AXP20_APS_WARNING2,(val - 0x0a));
+  axp_write(charger->master, AXP20_APS_WARNING2,(val - 0x23));
   ocv_cap[0]  = pmu_bat_para1;
   ocv_cap[1]  = 0xC1;
   ocv_cap[2]  = pmu_bat_para2;
@@ -2157,6 +2165,7 @@ static int axp20_suspend(struct platform_device *dev, pm_message_t state)
 {
     uint8_t irq_w[9];
     uint8_t tmp;
+	int 	val;
 
     struct axp_charger *charger = platform_get_drvdata(dev);
 
@@ -2208,7 +2217,13 @@ static int axp20_suspend(struct platform_device *dev, pm_message_t state)
 		tmp &= 0xbf;
 
 		axp_write(charger->master, POWER20_COULOMB_CTL, tmp);
-
+		/*standby wake up IRQ voltage level*/
+	if(pmu_suspendpwroff_vol >= 2867200 && pmu_suspendpwroff_vol <= 4200000) {
+	val = (pmu_suspendpwroff_vol - 2867200) / 5600;
+	}
+	printk("[suspend]pmu_suspendpwroff_vol val = 0x%x\n",val);
+	axp_write(axp_charger->master, AXP20_APS_WARNING1,val);
+	axp_write(axp_charger->master, AXP20_APS_WARNING1,(val-0x23));
     return 0;
 }
 
@@ -2250,7 +2265,7 @@ static int axp20_resume(struct platform_device *dev)
 			charger->rest_vol = --pre_rest_vol;
 		}
 
-    if(charger->is_on && (charger->rest_vol < pre_rest_vol)){
+    if(charger->bat_current_direction && (charger->rest_vol < pre_rest_vol)){
         charger->rest_vol = pre_rest_vol;
     }
 

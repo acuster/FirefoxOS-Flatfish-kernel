@@ -1,5 +1,120 @@
 #include "axp-rw.h"
 
+int ADC_Freq_Get_mfd(struct axp_mfd_chip *chip)
+{
+	uint8_t  temp;
+	int rValue = 25;
+
+	__axp_read(chip->client, POWER20_ADC_SPEED,&temp);
+	temp &= 0xc0;
+	switch(temp >> 6)
+	{
+		case 0:
+			rValue = 25;
+			break;
+		case 1:
+			rValue = 50;
+			break;
+		case 2:
+			rValue = 100;
+			break;
+		case 3:
+			rValue = 200;
+			break;
+		default:
+			break;
+	}
+	return rValue;
+}
+
+void Buffer_Cou_Set_mfd(struct axp_mfd_chip *chip,uint16_t Cou_Counter)
+{
+	uint8_t	temp[3]	= {0,POWER20_DATA_BUFFER4,0};
+	Cou_Counter	|= 0x8000;
+	temp[0]	= ((Cou_Counter	& 0xff00) >> 8);
+	temp[2]	= (Cou_Counter & 0x00ff);
+	__axp_writes(chip->client,POWER20_DATA_BUFFER3,3,temp);
+}
+
+void Set_Rest_Cap_mfd(struct axp_mfd_chip *chip, int rest_cap)
+{
+	uint8_t	val;
+	if(rest_cap	>= 0)
+		val	= rest_cap & 0x7F;
+	else
+		val	= ABS(rest_cap)	| 0x80;
+	__axp_write(chip->client, POWER20_DATA_BUFFER5, val);
+}
+
+
+int Get_Bat_Coulomb_Count_mfd(struct axp_mfd_chip *chip)
+{
+	uint8_t  temp[8];
+	int64_t  rValue1,rValue2,rValue;
+	int Cur_CoulombCounter_tmp,m;
+
+	__axp_reads(chip->client, POWER20_BAT_CHGCOULOMB3,8,temp);
+	rValue1 = ((temp[0] << 24) + (temp[1] << 16) + (temp[2] << 8) + temp[3]);
+	rValue2 = ((temp[4] << 24) + (temp[5] << 16) + (temp[6] << 8) + temp[7]);
+	rValue = (ABS(rValue1 - rValue2)) * 4369;
+	m = ADC_Freq_Get_mfd(chip) * 480;
+	do_div(rValue,m);
+	if(rValue1 >= rValue2)
+		Cur_CoulombCounter_tmp = (int)rValue;
+	else
+		Cur_CoulombCounter_tmp = (int)(0 - rValue);
+	return Cur_CoulombCounter_tmp;				//unit mAh
+}
+
+void Cou_Count_Clear_mfd(struct	axp_mfd_chip *chip)
+{
+	uint8_t	temp = 0xff;
+	__axp_read(chip->client, POWER20_COULOMB_CTL, &temp);
+	temp |=	0x20;
+	temp &=	0xbf;
+	__axp_write(chip->client, POWER20_COULOMB_CTL, temp);
+	temp |=	0x80;
+	temp &=	0xbf;
+	__axp_write(chip->client, POWER20_COULOMB_CTL, temp);
+}
+
+void axp20_correct_restcap(struct axp_mfd_chip *chip)
+{
+	int	Cou_Correction_Flag;
+	uint8_t val[2];
+	uint8_t v[2];
+	int bat_val;
+	int Cur_CoulombCounter;
+	int saved_cap,bat_cap;
+	__axp_read(chip->client, POWER20_INTSTS2, val);
+	if(val[0] &= 0x04){
+		__axp_reads(chip->client, 0xbc, 2,v);
+		bat_val = ((int)((v[0] << 4) | (v[1] & 0x0F))) * 1100 / 1000;
+		if(bat_val > 4080){
+			__axp_read(chip->client, POWER20_DATA_BUFFER1, val);
+			Cou_Correction_Flag	= (val[0]	>> 5) &	0x1;
+			if(Cou_Correction_Flag){
+				printk("[AXP20-MFD] ----------charger finish need to be corrected-----------\n");
+				printk("[AXP20-MFD] ----------correct the coulunb counter-----------\n");
+				__axp_read(chip->client, POWER20_DATA_BUFFER6, val);
+				Cur_CoulombCounter = Get_Bat_Coulomb_Count_mfd(chip);
+				bat_cap	= ABS(Cur_CoulombCounter) / (100 - val[0]) * 100;
+				Buffer_Cou_Set_mfd(chip,bat_cap);
+				Cou_Correction_Flag	= 0;
+				axp_clr_bits(chip->dev,POWER20_DATA_BUFFER1,0x20);
+				saved_cap =	100;
+				Set_Rest_Cap_mfd(chip,saved_cap);
+				Cou_Count_Clear_mfd(chip);
+			}
+			else{
+				printk("[AXP20-MFD] ----------charger finish need to be corrected-----------\n");
+				saved_cap =	100;
+				Set_Rest_Cap_mfd(chip,saved_cap);
+				Cou_Count_Clear_mfd(chip);
+			}
+		}
+	}
+}
 
 static int __devinit axp20_init_chip(struct axp_mfd_chip *chip)
 {
@@ -16,9 +131,14 @@ static int __devinit axp20_init_chip(struct axp_mfd_chip *chip)
 	    printk("[AXP20-MFD] try to read chip id failed!\n");
 		return err;
 	}
-
 	/*enable irqs and clear*/
-	err =  __axp_writes(chip->client, POWER20_INTEN1, 19, v);
+	axp20_correct_restcap(chip);
+	err = __axp_reads(chip->client, POWER20_INTSTS1, 5, v);
+	if (err) {
+	    printk("[AXP20-MFD] try to Read irq failed!\n");
+		return err;
+	}
+	err = __axp_writes(chip->client, POWER20_INTEN1, 19, v);
 	if (err) {
 	    printk("[AXP20-MFD] try to clear irq failed!\n");
 		return err;

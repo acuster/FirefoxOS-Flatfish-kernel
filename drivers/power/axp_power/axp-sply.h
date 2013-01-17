@@ -284,7 +284,7 @@ const unsigned int AXP19_NOTIFIER_ON = 		AXP19_IRQ_USBOV |
 
 #define AXP20_INTTEMP							(0x5E)
 
-const uint64_t AXP20_NOTIFIER_ON = 		//AXP20_IRQ_USBOV |
+const uint64_t AXP20_NOTIFIER_ON = 			//AXP20_IRQ_USBOV |
 											AXP20_IRQ_USBIN |
 										AXP20_IRQ_USBRE |
 										//AXP20_IRQ_USBLO |
@@ -299,8 +299,10 @@ const uint64_t AXP20_NOTIFIER_ON = 		//AXP20_IRQ_USBOV |
 										//AXP20_IRQ_PEKSH |
 										AXP20_IRQ_CHAST	|
 										AXP20_IRQ_PEKFE |
-										AXP20_IRQ_PEKRE |
-										AXP20_IRQ_CHAOV;
+										AXP20_IRQ_CHAOV |
+										AXP20_IRQ_PEKRE ;
+										//AXP20_IRQ_EXTLOWARN1|
+										//AXP20_IRQ_EXTLOWARN2;
 
 
 #define AXP_CHG_ATTR(_name)					\
@@ -407,13 +409,13 @@ struct axp_charger {
 };
 
 static struct task_struct *main_task;
-//static uint8_t coulomb_flag;
+static uint8_t coulomb_flag;
 static struct axp_charger *axp_charger;
-//static int Total_Cap = 0;
-//static int Cap_Index = 0;
+static int Total_Cap = 0;
+static int Cap_Index = 0;
 static int flag_state_change = 0;
-//static int Bat_Cap_Buffer[AXP20_VOL_MAX];
-//static int counter = 0;
+static int Bat_Cap_Buffer[AXP20_VOL_MAX];
+static int counter = 0;
 static int bat_cap = 0;
 
 #endif

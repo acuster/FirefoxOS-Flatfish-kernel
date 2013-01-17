@@ -1,5 +1,5 @@
 /*
- * axp199-gpio.c  --  gpiolib support for Axp PMICs
+ * axp209-gpio.c  --  gpiolib support for Krosspower &axp PMICs
  *
  * Copyright 2011 Krosspower Microelectronics PLC.
  *
@@ -39,6 +39,7 @@ int axp_gpio_set_io(int gpio, int io_state)
 			case 1: return axp_clr_bits(&axp->dev,AXP20_GPIO1_CFG, 0x06);
 			case 2: return axp_clr_bits(&axp->dev,AXP20_GPIO2_CFG, 0x06);
 			case 3: return axp_clr_bits(&axp->dev,AXP20_GPIO3_CFG, 0x04);
+			case 4: return axp_set_bits(&axp->dev,AXP20_GPIO4_CFG, 0x08);
 			default:return -ENXIO;
 		}
 	}
@@ -52,6 +53,7 @@ int axp_gpio_set_io(int gpio, int io_state)
 			case 2: axp_clr_bits(&axp->dev,AXP20_GPIO2_CFG,0x05);
 					return axp_set_bits(&axp->dev,AXP20_GPIO2_CFG,0x02);
 			case 3: return axp_set_bits(&axp->dev,AXP20_GPIO3_CFG,0x04);
+			case 4: return -ENXIO;
 			default:return -ENXIO;
 		}
 	}
@@ -95,6 +97,12 @@ int axp_gpio_get_io(int gpio, int *io_state)
 				else
 					*io_state = 0;
 				break;
+		case 4: axp_read(&axp->dev,AXP20_GPIO4_CFG,&val);val &= 0x08;
+				if(val == 0x0)
+					*io_state = 0;
+				else
+					*io_state = 1;
+				break;
 		default:return -ENXIO;
 	}
 
@@ -119,6 +127,7 @@ int axp_gpio_set_value(int gpio, int value)
 						return axp_set_bits(&axp->dev,AXP20_GPIO1_CFG,0x01);
 				case 2: return axp_set_bits(&axp->dev,AXP20_GPIO2_CFG,0x01);
 				case 3: return axp_set_bits(&axp->dev,AXP20_GPIO3_CFG,0x02);
+				case 4: return axp_clr_bits(&axp->dev,AXP20_GPIO4_CFG,0x30);
 				default:break;
 			}
 		}
@@ -129,6 +138,7 @@ int axp_gpio_set_value(int gpio, int value)
 				case 1: return axp_clr_bits(&axp->dev,AXP20_GPIO1_CFG,0x03);
 				case 2: return axp_clr_bits(&axp->dev,AXP20_GPIO2_CFG,0x03);
 				case 3: return axp_clr_bits(&axp->dev,AXP20_GPIO3_CFG,0x02);
+				case 4: return axp_set_bits(&axp->dev,AXP20_GPIO4_CFG,0x30);
 				default:break;
 			}
 		}
@@ -290,6 +300,7 @@ static int __devinit axp_gpio_probe(struct platform_device *pdev)
 	//struct axp_mfd_chip *axp_chip = dev_get_drvdata(pdev->dev.parent);
 	struct virtual_gpio_data *drvdata;
 	int ret, i;
+
 	drvdata = kzalloc(sizeof(struct virtual_gpio_data), GFP_KERNEL);
 	if (drvdata == NULL) {
 		ret = -ENOMEM;
