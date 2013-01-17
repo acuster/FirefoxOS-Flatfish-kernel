@@ -51,10 +51,11 @@ void clk_dbg_inf(void)
     print_clk_inf(Pll1Ctl, PLLEn);
 
     printk("\nPLL2 infor:\n");
-    print_clk_inf(Pll2Ctl, VCOBias);
+    print_clk_inf(Pll2Ctl, PrevDiv);
     print_clk_inf(Pll2Ctl, FactorN);
     print_clk_inf(Pll2Ctl, PLLBias);
-    print_clk_inf(Pll2Ctl, SigmaOut);
+    print_clk_inf(Pll2Ctl, VcoBias);
+    print_clk_inf(Pll2Ctl, PostDiv);
     print_clk_inf(Pll2Ctl, PLLEn);
 
     printk("\nPLL3 infor:\n");
@@ -139,7 +140,7 @@ void clk_dbg_inf(void)
     print_clk_inf(SysClkDiv, AHBClkDiv);
     print_clk_inf(SysClkDiv, AHBClkSrc);
     print_clk_inf(SysClkDiv, APB0ClkDiv);
-    print_clk_inf(SysClkDiv, ATBClkDiv);
+    print_clk_inf(SysClkDiv, AtbApbClkDiv);
     print_clk_inf(SysClkDiv, AC327ClkSrc);
     print_clk_inf(SysClkDiv, DVFSStart);
 
@@ -171,9 +172,11 @@ void clk_dbg_inf(void)
     print_clk_inf(AhbGate0, Spi1Gate);
     print_clk_inf(AhbGate0, Spi2Gate);
     print_clk_inf(AhbGate0, Spi3Gate);
-    print_clk_inf(AhbGate0, PataGate);
+    /* REMOVED */
+    //print_clk_inf(AhbGate0, PataGate);
     print_clk_inf(AhbGate0, SataGate);
-    print_clk_inf(AhbGate0, GpsGate);
+    /* REMOVED */
+    //print_clk_inf(AhbGate0, GpsGate);
     print_clk_inf(AhbGate0, StmrGate);
 
     printk("\nAhbGate1 clk infor:\n");
@@ -197,7 +200,7 @@ void clk_dbg_inf(void)
     print_clk_inf(Apb0Gate, AddaGate);
     print_clk_inf(Apb0Gate, SpdifGate);
     print_clk_inf(Apb0Gate, Ac97Gate);
-    print_clk_inf(Apb0Gate, IisGate);
+    print_clk_inf(Apb0Gate, Iis0Gate);
     print_clk_inf(Apb0Gate, PioGate);
     print_clk_inf(Apb0Gate, Ir0Gate);
     print_clk_inf(Apb0Gate, Ir1Gate);
@@ -304,9 +307,9 @@ void clk_dbg_inf(void)
     print_clk_inf(Ir1Clk, ClkSrc);
     print_clk_inf(Ir1Clk, SpecClkGate);
 
-    printk("\nI2sClk clk infor:\n");
-    print_clk_inf(I2sClk, ClkDiv);
-    print_clk_inf(I2sClk, SpecClkGate);
+    printk("\nI2s0Clk clk infor:\n");
+    print_clk_inf(I2s0Clk, ClkDiv);
+    print_clk_inf(I2s0Clk, SpecClkGate);
 
 
     printk("\nAc97Clk clk infor:\n");
@@ -331,16 +334,18 @@ void clk_dbg_inf(void)
     print_clk_inf(UsbClk, UsbPhy0Rst);
     print_clk_inf(UsbClk, UsbPhy1Rst);
     print_clk_inf(UsbClk, UsbPhy2Rst);
-    print_clk_inf(UsbClk, OHCIClkSrc);
+    /* REMOVED */
+    //print_clk_inf(UsbClk, OHCIClkSrc);
     print_clk_inf(UsbClk, OHCI0SpecClkGate);
     print_clk_inf(UsbClk, OHCI1SpecClkGate);
     print_clk_inf(UsbClk, PhySpecClkGate);
 
-    printk("\nGpsClk clk infor:\n");
-    print_clk_inf(GpsClk, ClkDivRatio);
-    print_clk_inf(GpsClk, ClkSrc);
-    print_clk_inf(GpsClk, Reset);
-    print_clk_inf(GpsClk, SpecClkGate);
+    /* REMOVED */
+    //printk("\nGpsClk clk infor:\n");
+    //print_clk_inf(GpsClk, ClkDivRatio);
+    //print_clk_inf(GpsClk, ClkSrc);
+    //print_clk_inf(GpsClk, Reset);
+    //print_clk_inf(GpsClk, SpecClkGate);
 
     printk("\nSpi3Clk clk infor:\n");
     print_clk_inf(Spi3Clk, ClkDiv);
@@ -518,10 +523,11 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, Pll1Ctl, PLLEn);
 
     seq_printf(m, "\nPLL2 infor(0x%x):\n", *(volatile __u32 *)&aw_ccu_reg->Pll2Ctl);
-    sprintf_clk_inf(m, Pll2Ctl, VCOBias);
+    sprintf_clk_inf(m, Pll2Ctl, PrevDiv);
     sprintf_clk_inf(m, Pll2Ctl, FactorN);
     sprintf_clk_inf(m, Pll2Ctl, PLLBias);
-    sprintf_clk_inf(m, Pll2Ctl, SigmaOut);
+    sprintf_clk_inf(m, Pll2Ctl, VcoBias);
+    sprintf_clk_inf(m, Pll2Ctl, PostDiv);
     sprintf_clk_inf(m, Pll2Ctl, PLLEn);
 
     seq_printf(m, "\nPLL3 infor:\n");
@@ -606,7 +612,7 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, SysClkDiv, AHBClkDiv);
     sprintf_clk_inf(m, SysClkDiv, AHBClkSrc);
     sprintf_clk_inf(m, SysClkDiv, APB0ClkDiv);
-    sprintf_clk_inf(m, SysClkDiv, ATBClkDiv);
+    sprintf_clk_inf(m, SysClkDiv, AtbApbClkDiv);
     sprintf_clk_inf(m, SysClkDiv, AC327ClkSrc);
     sprintf_clk_inf(m, SysClkDiv, DVFSStart);
 
@@ -638,9 +644,11 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, AhbGate0, Spi1Gate);
     sprintf_clk_inf(m, AhbGate0, Spi2Gate);
     sprintf_clk_inf(m, AhbGate0, Spi3Gate);
-    sprintf_clk_inf(m, AhbGate0, PataGate);
+    /* REMOVED */
+    //sprintf_clk_inf(m, AhbGate0, PataGate);
     sprintf_clk_inf(m, AhbGate0, SataGate);
-    sprintf_clk_inf(m, AhbGate0, GpsGate);
+    /* REMOVED */
+    //sprintf_clk_inf(m, AhbGate0, GpsGate);
     sprintf_clk_inf(m, AhbGate0, StmrGate);
 
     seq_printf(m, "\nAhbGate1 clk infor:\n");
@@ -664,7 +672,7 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, Apb0Gate, AddaGate);
     sprintf_clk_inf(m, Apb0Gate, SpdifGate);
     sprintf_clk_inf(m, Apb0Gate, Ac97Gate);
-    sprintf_clk_inf(m, Apb0Gate, IisGate);
+    sprintf_clk_inf(m, Apb0Gate, Iis0Gate);
     sprintf_clk_inf(m, Apb0Gate, PioGate);
     sprintf_clk_inf(m, Apb0Gate, Ir0Gate);
     sprintf_clk_inf(m, Apb0Gate, Ir1Gate);
@@ -772,8 +780,8 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, Ir1Clk, SpecClkGate);
 
     seq_printf(m, "\nI2sClk clk infor:\n");
-    sprintf_clk_inf(m, I2sClk, ClkDiv);
-    sprintf_clk_inf(m, I2sClk, SpecClkGate);
+    sprintf_clk_inf(m, I2s0Clk, ClkDiv);
+    sprintf_clk_inf(m, I2s0Clk, SpecClkGate);
 
 
     seq_printf(m, "\nAc97Clk clk infor:\n");
@@ -798,16 +806,18 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, UsbClk, UsbPhy0Rst);
     sprintf_clk_inf(m, UsbClk, UsbPhy1Rst);
     sprintf_clk_inf(m, UsbClk, UsbPhy2Rst);
-    sprintf_clk_inf(m, UsbClk, OHCIClkSrc);
+    /* REMOVED */
+    //sprintf_clk_inf(m, UsbClk, OHCIClkSrc);
     sprintf_clk_inf(m, UsbClk, OHCI0SpecClkGate);
     sprintf_clk_inf(m, UsbClk, OHCI1SpecClkGate);
     sprintf_clk_inf(m, UsbClk, PhySpecClkGate);
 
-    seq_printf(m, "\nGpsClk clk infor:\n");
-    sprintf_clk_inf(m, GpsClk, ClkDivRatio);
-    sprintf_clk_inf(m, GpsClk, ClkSrc);
-    sprintf_clk_inf(m, GpsClk, Reset);
-    sprintf_clk_inf(m, GpsClk, SpecClkGate);
+    /* REMOVED */
+    //seq_printf(m, "\nGpsClk clk infor:\n");
+    //sprintf_clk_inf(m, GpsClk, ClkDivRatio);
+    //sprintf_clk_inf(m, GpsClk, ClkSrc);
+    //sprintf_clk_inf(m, GpsClk, Reset);
+    //sprintf_clk_inf(m, GpsClk, SpecClkGate);
 
     seq_printf(m, "\nSpi3Clk clk infor:\n");
     sprintf_clk_inf(m, Spi3Clk, ClkDiv);

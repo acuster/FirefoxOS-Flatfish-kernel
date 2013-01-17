@@ -223,18 +223,19 @@ static __aw_ccu_clk_id_e mod_clk_get_parent(__aw_ccu_clk_id_e id)
         case AW_MOD_CLK_USBOHCI0:
         case AW_MOD_CLK_USBOHCI1:
             return AW_SYS_CLK_PLL62;
-        case AW_MOD_CLK_GPS: {
-            switch (aw_ccu_reg->GpsClk.ClkSrc) {
-                case 0:
-                    return AW_SYS_CLK_HOSC;
-                case 1:
-                    return AW_SYS_CLK_PLL6;
-                case 2:
-                    return AW_SYS_CLK_PLL7;
-                default:
-                    return AW_SYS_CLK_PLL4;
-            }
-        }
+        /* REMOVED */
+        //case AW_MOD_CLK_GPS: {
+        //    switch (aw_ccu_reg->GpsClk.ClkSrc) {
+        //        case 0:
+        //            return AW_SYS_CLK_HOSC;
+        //        case 1:
+        //            return AW_SYS_CLK_PLL6;
+        //        case 2:
+        //            return AW_SYS_CLK_PLL7;
+        //        default:
+        //            return AW_SYS_CLK_PLL4;
+        //    }
+        //}
         case AW_MOD_CLK_SPI3:
             return _parse_module0_clk_src(&aw_ccu_reg->Spi3Clk);
         case AW_MOD_CLK_DEBE0:
@@ -489,14 +490,15 @@ static __aw_ccu_clk_onff_e mod_clk_get_status(__aw_ccu_clk_id_e id)
             return _get_module0_clk_status(&aw_ccu_reg->Spi1Clk);
         case AW_MOD_CLK_SPI2:
             return _get_module0_clk_status(&aw_ccu_reg->Spi2Clk);
-        case AW_MOD_CLK_PATA:
-            return _get_module0_clk_status(&aw_ccu_reg->PataClk);
+        /* REMOVED */
+        //case AW_MOD_CLK_PATA:
+        //    return _get_module0_clk_status(&aw_ccu_reg->PataClk);
         case AW_MOD_CLK_IR0:
             return _get_module0_clk_status(&aw_ccu_reg->Ir0Clk);
         case AW_MOD_CLK_IR1:
             return _get_module0_clk_status(&aw_ccu_reg->Ir1Clk);
         case AW_MOD_CLK_I2S:
-            return aw_ccu_reg->I2sClk.SpecClkGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
+            return aw_ccu_reg->I2s0Clk.SpecClkGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_MOD_CLK_AC97:
             return aw_ccu_reg->Ac97Clk.SpecClkGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_MOD_CLK_SPDIF:
@@ -517,8 +519,9 @@ static __aw_ccu_clk_onff_e mod_clk_get_status(__aw_ccu_clk_id_e id)
             return aw_ccu_reg->UsbClk.OHCI0SpecClkGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_MOD_CLK_USBOHCI1:
             return aw_ccu_reg->UsbClk.OHCI0SpecClkGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
-        case AW_MOD_CLK_GPS:
-            return aw_ccu_reg->GpsClk.SpecClkGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
+        /* REMOVED */
+        //case AW_MOD_CLK_GPS:
+        //    return aw_ccu_reg->GpsClk.SpecClkGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_MOD_CLK_SPI3:
             return _get_module0_clk_status(&aw_ccu_reg->Spi3Clk);
         case AW_MOD_CLK_DEBE0:
@@ -634,12 +637,14 @@ static __aw_ccu_clk_onff_e mod_clk_get_status(__aw_ccu_clk_id_e id)
             return aw_ccu_reg->AhbGate0.Spi2Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_AHB_CLK_SPI3:
             return aw_ccu_reg->AhbGate0.Spi3Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
-        case AW_AHB_CLK_PATA:
-            return aw_ccu_reg->AhbGate0.PataGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
+        /* REMOVED */
+        //case AW_AHB_CLK_PATA:
+        //    return aw_ccu_reg->AhbGate0.PataGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_AHB_CLK_SATA:
             return aw_ccu_reg->AhbGate0.SataGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
-        case AW_AHB_CLK_GPS:
-            return aw_ccu_reg->AhbGate0.GpsGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
+        /* REMOVED */
+        //case AW_AHB_CLK_GPS:
+        //    return aw_ccu_reg->AhbGate0.GpsGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_AHB_CLK_VE:
             return aw_ccu_reg->AhbGate1.VeGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_AHB_CLK_TVD:
@@ -677,7 +682,7 @@ static __aw_ccu_clk_onff_e mod_clk_get_status(__aw_ccu_clk_id_e id)
         case AW_APB_CLK_AC97:
             return aw_ccu_reg->Apb0Gate.Ac97Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_APB_CLK_I2S:
-            return aw_ccu_reg->Apb0Gate.IisGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
+            return aw_ccu_reg->Apb0Gate.Iis0Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_APB_CLK_PIO:
             return aw_ccu_reg->Apb0Gate.PioGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_APB_CLK_IR0:
@@ -786,7 +791,7 @@ static __s64 mod_clk_get_rate(__aw_ccu_clk_id_e id)
         case AW_MOD_CLK_IR1:
             return _get_module0_clk_rate(&aw_ccu_reg->Ir1Clk);
         case AW_MOD_CLK_I2S:
-            return (1 << aw_ccu_reg->I2sClk.ClkDiv);
+            return (1 << aw_ccu_reg->I2s0Clk.ClkDiv);
         case AW_MOD_CLK_AC97:
             return (1 << aw_ccu_reg->Ac97Clk.ClkDiv);
         case AW_MOD_CLK_SPDIF:
@@ -800,8 +805,9 @@ static __s64 mod_clk_get_rate(__aw_ccu_clk_id_e id)
         case AW_MOD_CLK_USBPHY2:
         case AW_MOD_CLK_USBOHCI0:
         case AW_MOD_CLK_USBOHCI1:
-        case AW_MOD_CLK_GPS:
-            return aw_ccu_reg->GpsClk.ClkDivRatio + 1;
+        /* REMOVED */
+        //case AW_MOD_CLK_GPS:
+        //    return aw_ccu_reg->GpsClk.ClkDivRatio + 1;
         case AW_MOD_CLK_SPI3:
             return _get_module0_clk_rate(&aw_ccu_reg->Spi3Clk);
         case AW_MOD_CLK_DEBE0:
@@ -938,10 +944,11 @@ static __s32 mod_clk_set_parent(__aw_ccu_clk_id_e id, __aw_ccu_clk_id_e parent)
         case AW_MOD_CLK_USBPHY2:
         case AW_MOD_CLK_USBOHCI0:
         case AW_MOD_CLK_USBOHCI1: {
-            if (parent == AW_SYS_CLK_PLL62) {
-                aw_ccu_reg->UsbClk.OHCIClkSrc = 0;
-                return 0;
-            }
+            /* REMOVED */
+            //if (parent == AW_SYS_CLK_PLL62) {
+            //    aw_ccu_reg->UsbClk.OHCIClkSrc = 0;
+            //    return 0;
+            //}
 
             return -1;
         }
@@ -1210,25 +1217,26 @@ static __s32 mod_clk_set_parent(__aw_ccu_clk_id_e id, __aw_ccu_clk_id_e parent)
                 return -1;
             return 0;
         }
-        case AW_MOD_CLK_GPS: {
-            switch (parent) {
-                case AW_SYS_CLK_HOSC:
-                    aw_ccu_reg->GpsClk.ClkSrc = 0;
-                    break;
-                case AW_SYS_CLK_PLL6:
-                    aw_ccu_reg->GpsClk.ClkSrc = 1;
-                    break;
-                case AW_SYS_CLK_PLL7:
-                    aw_ccu_reg->GpsClk.ClkSrc = 2;
-                    break;
-                case AW_SYS_CLK_PLL4:
-                    aw_ccu_reg->GpsClk.ClkSrc = 3;
-                    break;
-                default:
-                    return -1;
-            }
-            return 0;
-        }
+        /* REMOVED */
+        //case AW_MOD_CLK_GPS: {
+        //    switch (parent) {
+        //        case AW_SYS_CLK_HOSC:
+        //            aw_ccu_reg->GpsClk.ClkSrc = 0;
+        //            break;
+        //        case AW_SYS_CLK_PLL6:
+        //            aw_ccu_reg->GpsClk.ClkSrc = 1;
+        //            break;
+        //        case AW_SYS_CLK_PLL7:
+        //            aw_ccu_reg->GpsClk.ClkSrc = 2;
+        //            break;
+        //        case AW_SYS_CLK_PLL4:
+        //            aw_ccu_reg->GpsClk.ClkSrc = 3;
+        //            break;
+        //        default:
+        //            return -1;
+        //    }
+        //    return 0;
+        //}
 
         case AW_MOD_CLK_TWI0:
         case AW_MOD_CLK_TWI1:
@@ -1293,7 +1301,7 @@ static __s32 mod_clk_set_status(__aw_ccu_clk_id_e id, __aw_ccu_clk_onff_e status
         case AW_MOD_CLK_IR1:
             return _set_module0_clk_status(&aw_ccu_reg->Ir1Clk, status);
         case AW_MOD_CLK_I2S:
-            aw_ccu_reg->I2sClk.SpecClkGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
+            aw_ccu_reg->I2s0Clk.SpecClkGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
             return 0;
         case AW_MOD_CLK_AC97:
             aw_ccu_reg->Ac97Clk.SpecClkGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
@@ -1333,10 +1341,11 @@ static __s32 mod_clk_set_status(__aw_ccu_clk_id_e id, __aw_ccu_clk_onff_e status
         case AW_MOD_CLK_USBOHCI1:
             aw_ccu_reg->UsbClk.OHCI1SpecClkGate = ((status == AW_CCU_CLK_OFF) ? 0 : 1);
             return 0;
-        case AW_MOD_CLK_GPS: {
-            aw_ccu_reg->GpsClk.SpecClkGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
-            return 0;
-        }
+        /* REMOVED */
+        //case AW_MOD_CLK_GPS: {
+        //    aw_ccu_reg->GpsClk.SpecClkGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
+        //    return 0;
+        //}
         case AW_MOD_CLK_SPI3:
             return _set_module0_clk_status(&aw_ccu_reg->Spi3Clk, status);
         case AW_MOD_CLK_DEBE0:
@@ -1496,15 +1505,17 @@ static __s32 mod_clk_set_status(__aw_ccu_clk_id_e id, __aw_ccu_clk_onff_e status
         case AW_AHB_CLK_SPI3:
             aw_ccu_reg->AhbGate0.Spi3Gate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
             return 0;
-        case AW_AHB_CLK_PATA:
-            aw_ccu_reg->AhbGate0.PataGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
-            return 0;
+        /* REMOVED */
+        //case AW_AHB_CLK_PATA:
+        //    aw_ccu_reg->AhbGate0.PataGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
+        //    return 0;
         case AW_AHB_CLK_SATA:
             aw_ccu_reg->AhbGate0.SataGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
             return 0;
-        case AW_AHB_CLK_GPS:
-            aw_ccu_reg->AhbGate0.GpsGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
-            return 0;
+        /* REMOVED */
+        //case AW_AHB_CLK_GPS:
+        //    aw_ccu_reg->AhbGate0.GpsGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
+        //    return 0;
         case AW_AHB_CLK_STMR:
             aw_ccu_reg->AhbGate0.StmrGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
             return 0;
@@ -1564,7 +1575,7 @@ static __s32 mod_clk_set_status(__aw_ccu_clk_id_e id, __aw_ccu_clk_onff_e status
             aw_ccu_reg->Apb0Gate.Ac97Gate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
             return 0;
         case AW_APB_CLK_I2S:
-            aw_ccu_reg->Apb0Gate.IisGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
+            aw_ccu_reg->Apb0Gate.Iis0Gate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
             return 0;
         case AW_APB_CLK_PIO:
             aw_ccu_reg->Apb0Gate.PioGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
@@ -1709,16 +1720,16 @@ static __s32 mod_clk_set_rate(__aw_ccu_clk_id_e id, __s64 rate)
         case AW_MOD_CLK_I2S: {
             switch (rate) {
                 case 1:
-                    aw_ccu_reg->I2sClk.ClkDiv = 0;
+                    aw_ccu_reg->I2s0Clk.ClkDiv = 0;
                     return 0;
                 case 2:
-                    aw_ccu_reg->I2sClk.ClkDiv = 1;
+                    aw_ccu_reg->I2s0Clk.ClkDiv = 1;
                     return 0;
                 case 4:
-                    aw_ccu_reg->I2sClk.ClkDiv = 2;
+                    aw_ccu_reg->I2s0Clk.ClkDiv = 2;
                     return 0;
                 case 8:
-                    aw_ccu_reg->I2sClk.ClkDiv = 3;
+                    aw_ccu_reg->I2s0Clk.ClkDiv = 3;
                     return 0;
                 default:
                     return -1;
@@ -1908,13 +1919,14 @@ static __s32 mod_clk_set_rate(__aw_ccu_clk_id_e id, __s64 rate)
             aw_ccu_reg->MaliClk.ClkDiv = rate - 1;
             return 0;
         }
-        case AW_MOD_CLK_GPS: {
-            if ((rate > 0) && (rate < 9)) {
-                aw_ccu_reg->GpsClk.ClkDivRatio = rate - 1;
-                return 0;
-            }
-            return -1;
-        }
+        /* REMOVED */
+        //case AW_MOD_CLK_GPS: {
+        //    if ((rate > 0) && (rate < 9)) {
+        //        aw_ccu_reg->GpsClk.ClkDivRatio = rate - 1;
+        //        return 0;
+        //    }
+        //    return -1;
+        //}
         case AW_MOD_CLK_TVDMOD1: {
             if ((rate > 0) && (rate < 17)) {
                 aw_ccu_reg->TvdClk.Clk1Div = rate - 1;
@@ -2098,8 +2110,9 @@ static __aw_ccu_clk_reset_e mod_clk_get_reset(__aw_ccu_clk_id_e id)
             return AW_CCU_CLK_NRESET;
         case AW_MOD_CLK_USBOHCI1:
             return AW_CCU_CLK_NRESET;
-        case AW_MOD_CLK_GPS:
-            return aw_ccu_reg->GpsClk.Reset ? AW_CCU_CLK_NRESET : AW_CCU_CLK_RESET;
+        /* REMOVED */
+        //case AW_MOD_CLK_GPS:
+        //    return aw_ccu_reg->GpsClk.Reset ? AW_CCU_CLK_NRESET : AW_CCU_CLK_RESET;
         case AW_MOD_CLK_SPI3:
             return AW_CCU_CLK_NRESET;
         case AW_MOD_CLK_DEBE0:
@@ -2184,10 +2197,11 @@ static __s32 mod_clk_set_reset(__aw_ccu_clk_id_e id, __aw_ccu_clk_reset_e reset)
         case AW_MOD_CLK_USBPHY1:
         case AW_MOD_CLK_USBPHY2:
             return 0;
-        case AW_MOD_CLK_GPS: {
-            aw_ccu_reg->GpsClk.Reset = (reset == AW_CCU_CLK_RESET) ? 0 : 1;
-            return 0;
-        }
+        /* REMOVED */
+        //case AW_MOD_CLK_GPS: {
+        //    aw_ccu_reg->GpsClk.Reset = (reset == AW_CCU_CLK_RESET) ? 0 : 1;
+        //    return 0;
+        //}
         case AW_MOD_CLK_DEBE0: {
             aw_ccu_reg->DeBe0Clk.Reset = (reset == AW_CCU_CLK_RESET) ? 0 : 1;
             return 0;

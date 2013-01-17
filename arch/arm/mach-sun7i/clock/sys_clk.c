@@ -281,7 +281,17 @@ static __u64 sys_clk_get_rate(__aw_ccu_clk_id_e id)
             return ccu_clk_uldiv(sys_clk_get_rate(AW_SYS_CLK_CPU), (aw_ccu_reg->SysClkDiv.AXIClkDiv + 1));
         }
         case AW_SYS_CLK_ATB: {
-            __u32   div = (1 << aw_ccu_reg->SysClkDiv.ATBClkDiv) == 8 ? 4 : (1 << aw_ccu_reg->SysClkDiv.ATBClkDiv);
+            __u32   div;
+            switch (aw_ccu_reg->SysClkDiv.AtbApbClkDiv) {
+                case 0:
+                    div = 1;
+                    break;
+                case 1:
+                    div = 2;
+                    break;
+                default:
+                    div = 4;
+            }
             return ccu_clk_uldiv(sys_clk_get_rate(AW_SYS_CLK_CPU), div);
         }
         case AW_SYS_CLK_AHB: {
@@ -794,11 +804,11 @@ static int sys_clk_set_rate(__aw_ccu_clk_id_e id, __u64 rate)
                 CCU_ERR("rate (%llu) is invalid when set atb rate\n", rate);
                 return -1;
             } else if ((tmpDiv == 4) || (tmpDiv == 3)) {
-                aw_ccu_reg->SysClkDiv.ATBClkDiv = 2;
+                aw_ccu_reg->SysClkDiv.AtbApbClkDiv = 2;
             } else if (tmpDiv == 2) {
-                aw_ccu_reg->SysClkDiv.ATBClkDiv = 1;
+                aw_ccu_reg->SysClkDiv.AtbApbClkDiv = 1;
             } else {
-                aw_ccu_reg->SysClkDiv.ATBClkDiv = 0;
+                aw_ccu_reg->SysClkDiv.AtbApbClkDiv = 0;
             }
 
             return 0;

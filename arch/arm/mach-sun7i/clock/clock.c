@@ -248,7 +248,7 @@ int clk_reset(struct clk *clk, __aw_ccu_clk_reset_e reset)
     clk->aw_clk->reset = reset;
     CCU_UNLOCK(&clk->lock, flags);
 
-    CCU_DBG("%s: %s reset\n", __func__, clk->aw_clk->name);
+    CCU_DBG("%s: %s reset done\n", __func__, clk->aw_clk->name);
 
     return 0;
 }
