@@ -1551,9 +1551,9 @@ static irqreturn_t sw_udc_irq(int dummy, void *_dev)
 		USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, 0);
 		USBC_Dev_SetAddress_default(g_sw_udc_io.usb_bsp_hdle);
 
-		if(is_udc_support_dma()){
+		/*if(is_udc_support_dma()){
 			sw_udc_stop_dma_work(dev);
-		}
+		}*/
 
         throw_away_all_urb(dev);
 
@@ -2707,7 +2707,7 @@ static void sw_udc_enable(struct sw_udc *dev)
 #ifdef	CONFIG_USB_GADGET_DUALSPEED
 	DMSG_INFO_UDC("CONFIG_USB_GADGET_DUALSPEED\n");
 
-	USBC_Dev_ConfigTransferMode(g_sw_udc_io.usb_bsp_hdle, USBC_TS_TYPE_BULK, USBC_TS_MODE_HS);
+	USBC_Dev_ConfigTransferMode(g_sw_udc_io.usb_bsp_hdle, USBC_TS_TYPE_BULK, USBC_TS_MODE_FS);
 #else
 	USBC_Dev_ConfigTransferMode(g_sw_udc_io.usb_bsp_hdle, USBC_TS_TYPE_BULK, USBC_TS_MODE_FS);
 #endif
@@ -3026,7 +3026,7 @@ int sw_usb_device_enable(void)
 	struct platform_device *pdev = g_udc_pdev;
 	struct sw_udc  	*udc    = &sw_udc;
 	int           	retval  = 0;
-	int            	irq     = SW_INTC_IRQNO_USB0;
+	int            	irq     = AW_IRQ_USB0;
 
 	DMSG_INFO_UDC("sw_usb_device_enable start\n");
 
@@ -3056,14 +3056,14 @@ int sw_usb_device_enable(void)
 	udc->irq_no	 = irq;
 	udc->pdev    = pdev;
 
-	if(is_udc_support_dma()){
+	/*if(is_udc_support_dma()){
 		retval = sw_udc_dma_probe(udc);
 		if(retval != 0){
 			DMSG_PANIC("ERR: sw_udc_dma_probe failef\n");
 			retval = -EBUSY;
 			goto err;
 		}
-	}
+	}*/
 
 	retval = request_irq(irq, sw_udc_irq,
 			     IRQF_DISABLED, gadget_name, udc);
@@ -3083,11 +3083,11 @@ int sw_usb_device_enable(void)
     return 0;
 
 err:
-	if(is_udc_support_dma()){
+	/*if(is_udc_support_dma()){
 		if(udc->sw_udc_dma.dma_hdle >= 0){
 			sw_udc_dma_remove(udc);
 		}
-	}
+	}*/
 
     sw_udc_io_exit(usbd_port_no, pdev, &g_sw_udc_io);
 
@@ -3121,11 +3121,11 @@ __acquires(sw_udc.lock)
 		udc->driver->disconnect(&udc->gadget);
 	}
 
-	if(is_udc_support_dma()){
+	/*if(is_udc_support_dma()){
 		if(udc->sw_udc_dma.dma_hdle >= 0){
 			sw_udc_dma_remove(udc);
 		}
-	}
+	}*/
 
 	free_irq(udc->irq_no, udc);
 
@@ -3242,7 +3242,7 @@ static int sw_udc_probe_device_only(struct platform_device *pdev)
 	struct sw_udc  	*udc    = &sw_udc;
 //	struct device       *dev    = &pdev->dev;
 	int                 retval  = 0;
-	int                 irq     = SW_INTC_IRQNO_USB0;
+	int                 irq     = AW_IRQ_USB0;
 
     memset(&g_sw_udc_io, 0, sizeof(sw_udc_io_t));
 
@@ -3271,14 +3271,14 @@ static int sw_udc_probe_device_only(struct platform_device *pdev)
 	udc->irq_no	 = irq;
 	udc->pdev    = pdev;
 
-	if(is_udc_support_dma()){
+	/*if(is_udc_support_dma()){
 		retval = sw_udc_dma_probe(udc);
 		if(retval != 0){
 			DMSG_PANIC("ERR: sw_udc_dma_probe failef\n");
 			retval = -EBUSY;
 			goto err;
 		}
-	}
+	}*/
 
 	retval = request_irq(irq, sw_udc_irq,
 			     IRQF_DISABLED, gadget_name, udc);
@@ -3297,11 +3297,11 @@ static int sw_udc_probe_device_only(struct platform_device *pdev)
     return 0;
 
 err:
-	if(is_udc_support_dma()){
+	/*if(is_udc_support_dma()){
 		if(udc->sw_udc_dma.dma_hdle >= 0){
 			sw_udc_dma_remove(udc);
 		}
-	}
+	}*/
 
     sw_udc_io_exit(usbd_port_no, pdev, &g_sw_udc_io);
 
@@ -3335,11 +3335,11 @@ static int sw_udc_remove_device_only(struct platform_device *pdev)
 		return -EBUSY;
     }
 
-	if(is_udc_support_dma()){
+	/*if(is_udc_support_dma()){
 		if(udc->sw_udc_dma.dma_hdle >= 0){
 			sw_udc_dma_remove(udc);
 		}
-	}
+	}*/
 
 	free_irq(udc->irq_no, udc);
 

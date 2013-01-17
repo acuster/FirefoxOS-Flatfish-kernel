@@ -113,7 +113,7 @@ static const char *ep0states[]= {
 //---------------------------------------------------------------
 typedef struct sw_udc_dma{
 	char name[32];
-	struct sw_dma_client dma_client;
+	//struct sw_dma_client dma_client;
 
 	int dma_hdle;	/* dma 句柄 */
 }sw_udc_dma_t;

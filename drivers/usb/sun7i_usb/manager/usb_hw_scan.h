@@ -41,10 +41,10 @@ typedef struct usb_scan_info{
 	struct usb_cfg 			*cfg;
 
 	u32                     id_hdle;                /* id handle                */
-	user_gpio_set_t         id_gpio_set;            /* id gpio set              */
+	//user_gpio_set_t         id_gpio_set;            /* id gpio set              */
 
 	u32                     det_vbus_hdle;        	/* detect vbus handle       */
-	user_gpio_set_t         det_vbus_gpio_set;      /* detect vbus gpio set     */
+	//user_gpio_set_t         det_vbus_gpio_set;      /* detect vbus gpio set     */
 
     usb_id_state_t          id_old_state;           /* last id state            */
     usb_det_vbus_state_t    det_vbus_old_state;     /* last detect vbus state   */

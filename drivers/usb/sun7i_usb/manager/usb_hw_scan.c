@@ -35,13 +35,14 @@
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/gpio.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/unaligned.h>
-#include <mach/irqs.h>
+#include <mach/includes.h>
 
 #include  "../include/sw_usb_config.h"
 #include  "usb_manager.h"
@@ -49,7 +50,7 @@
 #include  "usb_msg_center.h"
 
 static struct usb_scan_info g_usb_scan_info;
-
+extern int axp_usb_det(void);
 void (*__usb_hw_scan) (struct usb_scan_info *);
 
 /*
@@ -70,9 +71,9 @@ void (*__usb_hw_scan) (struct usb_scan_info *);
 *
 *******************************************************************************
 */
-static __u32 get_pin_data(u32 id_hdle)
+static __u32 get_pin_data(struct usb_gpio *usb_gpio)
 {
-    return gpio_read_one_pin_value(id_hdle, NULL);
+    return __gpio_get_value(usb_gpio->gpio_set.gpio.gpio);
 }
 
 /*
@@ -80,9 +81,9 @@ static __u32 get_pin_data(u32 id_hdle)
 *                     PIODataIn_debounce
 *
 * Description:
-* 	过滤PIO的毛刺
-* 	取10次，如果10次相同，则认为无抖动，取任意一次的值返回
-* 	如果10次有一次不相同，则本次读取无效
+*   过滤PIO的毛刺
+*   取10次，如果10次相同，则认为无抖动，取任意一次的值返回
+*   如果10次有一次不相同，则本次读取无效
 *
 * Arguments:
 *    phdle  :  input.
@@ -96,44 +97,45 @@ static __u32 get_pin_data(u32 id_hdle)
 *
 *********************************************************************
 */
-static __u32 PIODataIn_debounce(__hdle phdle, __u32 *value)
+static __u32 PIODataIn_debounce(struct usb_gpio *usb_gpio, __u32 *value)
 {
     __u32 retry  = 0;
     __u32 time   = 10;
-	__u32 temp1  = 0;
-	__u32 cnt    = 0;
-	__u32 change = 0;	/* 是否有抖动? */
+    __u32 temp1  = 0;
+    __u32 cnt    = 0;
+    __u32 change = 0;   /* 是否有抖动? */
 
     /* 取 10 次PIO的状态，如果10次的值都一样，说明本次读操作有效，
        否则，认为本次读操作失败。
     */
-    if(phdle){
+    if(usb_gpio->valid){
         retry = time;
-		while(retry--){
-			temp1 = get_pin_data(phdle);
-			if(temp1){
-				cnt++;
-			}
-		}
+        while(retry--){
+            temp1 = get_pin_data(usb_gpio);
+            if(temp1){
+                cnt++;
+            }
+        }
 
         /* 10 次都为0，或者都为1 */
-		if((cnt == time)||(cnt == 0)){
-		    change = 0;
-		}
-	    else{
-	        change = 1;
-	    }
-	}else{
-		change = 1;
-	}
+        if((cnt == time)||(cnt == 0)){
+            change = 0;
+        }
+        else{
+            change = 1;
+        }
+    }else{
+        change = 1;
+    }
 
-	if(!change){
-		*value = temp1;
-	}
+    if(!change){
+        *value = temp1;
+    }
 
-	DMSG_DBG_MANAGER("phdle = %x, cnt = %x, change= %d, temp1 = %x\n", phdle, cnt, change, temp1);
+    DMSG_DBG_MANAGER("usb_gpio->valid = %x, cnt = %x, change= %d, temp1 = %x\n",
+                    usb_gpio->valid, cnt, change, temp1);
 
-	return change;
+    return change;
 }
 
 /*
@@ -156,22 +158,22 @@ static __u32 PIODataIn_debounce(__hdle phdle, __u32 *value)
 */
 static u32 get_id_state(struct usb_scan_info *info)
 {
-	enum usb_id_state id_state = USB_DEVICE_MODE;
-	__u32 pin_data = 0;
+    enum usb_id_state id_state = USB_DEVICE_MODE;
+    __u32 pin_data = 0;
 
-	if(info->id_hdle){
-		if(!PIODataIn_debounce(info->id_hdle, &pin_data)){
-			if(pin_data){
-				id_state = USB_DEVICE_MODE;
-			}else{
-				id_state = USB_HOST_MODE;
-			}
+    if(info->cfg->port[0].id.valid){
+        if(!PIODataIn_debounce(&info->cfg->port[0].id, &pin_data)){
+            if(pin_data){
+                id_state = USB_DEVICE_MODE;
+            }else{
+                id_state = USB_HOST_MODE;
+            }
 
-			info->id_old_state = id_state;
-		}else{
-			id_state = info->id_old_state;
-		}
-	}
+            info->id_old_state = id_state;
+        }else{
+            id_state = info->id_old_state;
+        }
+    }
 
     return id_state;
 }
@@ -196,78 +198,87 @@ static u32 get_id_state(struct usb_scan_info *info)
 */
 static u32 get_detect_vbus_state(struct usb_scan_info *info)
 {
-	enum usb_det_vbus_state det_vbus_state = USB_DET_VBUS_INVALID;
-	__u32 pin_data = 0;
+    enum usb_det_vbus_state det_vbus_state = USB_DET_VBUS_INVALID;
+    __u32 pin_data = 0;
 
-	if(info->det_vbus_hdle){
-		if(!PIODataIn_debounce(info->det_vbus_hdle, &pin_data)){
-			if(pin_data){
-				det_vbus_state = USB_DET_VBUS_VALID;
-			}else{
-				det_vbus_state = USB_DET_VBUS_INVALID;
-			}
+    if(info->cfg->port[0].det_vbus_type == USB_DET_VBUS_TYPE_GIPO){
+        if(info->cfg->port[0].det_vbus.valid){
+            if(!PIODataIn_debounce(&info->cfg->port[0].det_vbus, &pin_data)){
+                if(pin_data){
+                    det_vbus_state = USB_DET_VBUS_VALID;
+                }else{
+                    det_vbus_state = USB_DET_VBUS_INVALID;
+                }
 
-			info->det_vbus_old_state = det_vbus_state;
-		}else{
-			det_vbus_state = info->det_vbus_old_state;
-		}
-	}
-
+                info->det_vbus_old_state = det_vbus_state;
+            }else{
+                det_vbus_state = info->det_vbus_old_state;
+            }
+        }
+    }else if(info->cfg->port[0].det_vbus_type == USB_DET_VBUS_TYPE_AXP){
+        //if(axp_usb_det()){
+        if(1){
+            det_vbus_state = USB_DET_VBUS_VALID;
+        }else{
+            det_vbus_state = USB_DET_VBUS_INVALID;
+        }
+    }else{
+        det_vbus_state = info->det_vbus_old_state;
+    }
     return det_vbus_state;
 }
 
 static u32 get_dp_dm_status_normal(struct usb_scan_info *info)
 {
-	__u32 reg_val = 0;
-	__u32 dp = 0;
-	__u32 dm = 0;
+    __u32 reg_val = 0;
+    __u32 dp = 0;
+    __u32 dm = 0;
 
-	/* USBC_EnableDpDmPullUp */
-	reg_val = USBC_Readl(USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
-	reg_val |= (1 << USBC_BP_ISCR_DPDM_PULLUP_EN);
-	USBC_Writel(reg_val, USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
+    /* USBC_EnableDpDmPullUp */
+    reg_val = USBC_Readl(USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
+    reg_val |= (1 << USBC_BP_ISCR_DPDM_PULLUP_EN);
+    USBC_Writel(reg_val, USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
 
-	/* USBC_EnableIdPullUp */
-	reg_val = USBC_Readl(USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
-	reg_val |= (1 << USBC_BP_ISCR_ID_PULLUP_EN);
-	USBC_Writel(reg_val, USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
+    /* USBC_EnableIdPullUp */
+    reg_val = USBC_Readl(USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
+    reg_val |= (1 << USBC_BP_ISCR_ID_PULLUP_EN);
+    USBC_Writel(reg_val, USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
 
-	reg_val = USBC_Readl(USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
-	dp = (reg_val >> USBC_BP_ISCR_EXT_DP_STATUS) & 0x01;
-	dm = (reg_val >> USBC_BP_ISCR_EXT_DM_STATUS) & 0x01;
+    msleep(10);
 
-	//printk("USBC_REG_ISCR = 0x%x\n", reg_val);
+    reg_val = USBC_Readl(USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
+    dp = (reg_val >> USBC_BP_ISCR_EXT_DP_STATUS) & 0x01;
+    dm = (reg_val >> USBC_BP_ISCR_EXT_DM_STATUS) & 0x01;
 
-	return ((dp << 1) | dm);
+    return ((dp << 1) | dm);
 }
 
 static u32 get_dp_dm_status(struct usb_scan_info *info)
 {
-	u32 ret  = 0;
-	u32 ret0 = 0;
-	u32 ret1 = 0;
-	u32 ret2 = 0;
+    u32 ret  = 0;
+    u32 ret0 = 0;
+    u32 ret1 = 0;
+    u32 ret2 = 0;
 
-	ret0 = get_dp_dm_status_normal(info);
-	ret1 = get_dp_dm_status_normal(info);
-	ret2 = get_dp_dm_status_normal(info);
+    ret0 = get_dp_dm_status_normal(info);
+    ret1 = get_dp_dm_status_normal(info);
+    ret2 = get_dp_dm_status_normal(info);
 
     //连续读3次是为了避开电平的瞬间变化
-	if((ret0 == ret1) && (ret0 == ret2)){
-		ret = ret0;
-	}else if(ret2 == 0x11){
-	    if(get_usb_role() == USB_ROLE_DEVICE){
+    if((ret0 == ret1) && (ret0 == ret2)){
+        ret = ret0;
+    }else if(ret2 == 0x11){
+        if(get_usb_role() == USB_ROLE_DEVICE){
             ret = 0x11;
-			printk("ERR: dp/dm status is continuous(0x11)\n");
-		}
-	}else{
-	    ret = ret2;
-	}
+            DMSG_PANIC("ERR: dp/dm status is continuous(0x11)\n");
+        }
+    }else{
+        ret = ret2;
+    }
 
-	//printk("dp/dm: %d, (%d, %d, %d)\n", ret, ret0, ret1, ret2);
-
-	return ret;
+    return ret;
 }
+
 
 
 /*
@@ -657,76 +668,56 @@ __s32 usb_hw_scan_init(struct usb_cfg *cfg)
 				{
 					__u32 need_pull_pio = 1;
 
-					if((port_info->id.valid == 0) || (port_info->det_vbus.valid == 0)){
-						DMSG_PANIC("ERR: usb detect tpye is vbus/id, but id(%d)/vbus(%d) is invalid\n",
-							       port_info->id.valid, port_info->det_vbus.valid);
-						ret = -1;
-						goto failed;
-					}
-
-                    /* 如果id和vbus的pin相同, 就不需要拉pio了 */
-					if(port_info->id.gpio_set.port_num == port_info->det_vbus.gpio_set.port_num){
-						need_pull_pio = 0;
-					}
-
-					/* request id gpio */
-					switch(port_info->id.group_type){
-						case GPIO_GROUP_TYPE_PIO:
-							/* request gpio */
-							scan_info->id_hdle = gpio_request(&port_info->id.gpio_set, 1);
-							if(scan_info->id_hdle == 0){
-								DMSG_PANIC("ERR: id gpio_request failed\n");
-								ret = -1;
-								goto failed;
-							}
-
-							/* set config, input */
-							gpio_set_one_pin_io_status(scan_info->id_hdle, 0, NULL);
-
-							/* reserved is pull up */
-							if(need_pull_pio){
-								gpio_set_one_pin_pull(scan_info->id_hdle, 1, NULL);
-							}
-						break;
-
-						case GPIO_GROUP_TYPE_POWER:
-							/* not support */
-						break;
-
-						default:
-							DMSG_PANIC("ERR: unkown id gpio group type(%d)\n", port_info->id.group_type);
+					if(port_info->det_vbus_type == USB_DET_VBUS_TYPE_GIPO){
+						if((port_info->id.valid == 0) || (port_info->det_vbus.valid == 0)){
+							DMSG_PANIC("ERR: usb detect tpye is vbus/id, but id(%d)/vbus(%d) is invalid\n",
+								       port_info->id.valid, port_info->det_vbus.valid);
 							ret = -1;
 							goto failed;
+						}
+
+	                    /* 如果id和vbus的pin相同, 就不需要拉pio了 */
+						if(port_info->id.gpio_set.gpio.gpio == port_info->det_vbus.gpio_set.gpio.gpio){
+							need_pull_pio = 0;
+						}
+					}
+
+						/* request id gpio */
+					if(port_info->id.valid){
+						ret = gpio_request(port_info->id.gpio_set.gpio.gpio, "otg_id");
+						if(ret != 0){
+							DMSG_PANIC("ERR: id gpio_request failed\n");
+							ret = -1;
+							port_info->id.valid = 0;
+							goto failed;
+						}
+
+						/* set config, input */
+						sw_gpio_setcfg(port_info->id.gpio_set.gpio.gpio, 0);
+
+						/* reserved is pull up */
+						if(need_pull_pio){
+							sw_gpio_setpull(port_info->id.gpio_set.gpio.gpio, 1);
+						}
 					}
 
 					/* request det_vbus gpio */
-					switch(port_info->det_vbus.group_type){
-						case GPIO_GROUP_TYPE_PIO:
-							/* request gpio */
-							scan_info->det_vbus_hdle = gpio_request(&port_info->det_vbus.gpio_set, 1);
-							if(scan_info->det_vbus_hdle == 0){
-								DMSG_PANIC("ERR: det_vbus gpio_request failed\n");
-								ret = -1;
-								goto failed;
-							}
-
-							/* set config, input */
-							gpio_set_one_pin_io_status(scan_info->det_vbus_hdle, 0, NULL);
-
-							/* reserved is disable */
-							if(need_pull_pio){
-								gpio_set_one_pin_pull(scan_info->det_vbus_hdle, 0, NULL);
-							}
-						break;
-
-						case GPIO_GROUP_TYPE_POWER:
-							/* not support */
-						break;
-
-						default:
-							DMSG_PANIC("ERR: unkown det_vbus gpio group type(%d)\n", port_info->det_vbus.group_type);
+					if(port_info->det_vbus.valid){
+						ret = gpio_request(port_info->det_vbus.gpio_set.gpio.gpio, "otg_det");
+						if(ret != 0){
+							DMSG_PANIC("ERR: det_vbus gpio_request failed\n");
 							ret = -1;
+							port_info->det_vbus.valid = 0;
 							goto failed;
+						}
+
+						/* set config, input */
+						sw_gpio_setcfg(port_info->det_vbus.gpio_set.gpio.gpio, 0);
+
+						/* reserved is disable */
+						if(need_pull_pio){
+							sw_gpio_setpull(port_info->det_vbus.gpio_set.gpio.gpio, 0);
+						}
 					}
 
 					__usb_hw_scan = vbus_id_hw_scan;
@@ -750,14 +741,12 @@ __s32 usb_hw_scan_init(struct usb_cfg *cfg)
 	return 0;
 
 failed:
-	if(scan_info->id_hdle){
-		gpio_release(scan_info->id_hdle, 0);
-		scan_info->id_hdle = 0;
+	if(port_info->id.valid){
+		gpio_free(port_info->id.gpio_set.gpio.gpio);
 	}
 
-	if(scan_info->det_vbus_hdle){
-		gpio_release(scan_info->det_vbus_hdle, 0);
-		scan_info->det_vbus_hdle = 0;
+	if(port_info->det_vbus.valid){
+		gpio_free(port_info->det_vbus.gpio_set.gpio.gpio);
 	}
 
 	__usb_hw_scan = null_hw_scan;
@@ -785,16 +774,12 @@ failed:
 */
 __s32 usb_hw_scan_exit(struct usb_cfg *cfg)
 {
-	struct usb_scan_info *scan_info = &g_usb_scan_info;
-
-	if(scan_info->id_hdle){
-		gpio_release(scan_info->id_hdle, 0);
-		scan_info->id_hdle = 0;
+	if(cfg->port[0].id.valid){
+		gpio_free(cfg->port[0].id.gpio_set.gpio.gpio);
 	}
 
-	if(scan_info->det_vbus_hdle){
-		gpio_release(scan_info->det_vbus_hdle, 0);
-		scan_info->det_vbus_hdle = 0;
+	if(cfg->port[0].det_vbus.valid){
+		gpio_free(cfg->port[0].det_vbus.gpio_set.gpio.gpio);
 	}
 
 	return 0;

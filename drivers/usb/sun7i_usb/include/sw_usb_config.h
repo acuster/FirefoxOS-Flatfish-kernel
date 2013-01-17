@@ -34,24 +34,12 @@
 #include  "sun7i_usb_bsp.h"
 #include  "sun7i_sys_reg.h"
 
-#include <mach/sys_config.h>
+#include <mach/includes.h>
 
 #include  "sw_usb_board.h"
 #include  "sw_udc.h"
 #include  "sw_hcd.h"
 
 #define   SW_USB_FPGA
-
-#ifdef  SW_USB_FPGA
-
-#define  SW_VA_USB0_IO_BASE     0xf1c13000
-#define  SW_VA_USB1_IO_BASE     0xf1c14000
-#define  SW_VA_USB2_IO_BASE     0xf1c1c000
-
-#define  SW_VA_SRAM_IO_BASE     0xf1c00000
-#define  SW_INTC_IRQNO_USB0     (12 + 32)
-
-#endif
-
 
 #endif   //__SW_USB_CONFIG_H__

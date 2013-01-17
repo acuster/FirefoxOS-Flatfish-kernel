@@ -55,8 +55,8 @@ typedef struct sw_hcd_io{
 	struct clk	*phy_clk;				/* PHY gate 			*/
 	struct clk	*phy0_clk;				/* PHY reset 			*/
 
-	unsigned Drv_vbus_Handle;
-	user_gpio_set_t drv_vbus_gpio_set;
+	unsigned drv_vbus_valid;
+	script_item_u drv_vbus_gpio_set;
 	__u32 host_init_state;				/* usb 控制器的初始化状态。0 : 不工作. 1 : 工作 */
 	__u32 usb_enable;
 }sw_hcd_io_t;

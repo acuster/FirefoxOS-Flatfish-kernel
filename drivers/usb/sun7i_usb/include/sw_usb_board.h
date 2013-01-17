@@ -40,8 +40,13 @@
 #define  KEY_USB_ID_GPIO			"usb_id_gpio"
 #define  KEY_USB_DETVBUS_GPIO		"usb_det_vbus_gpio"
 #define  KEY_USB_DRVVBUS_GPIO		"usb_drv_vbus_gpio"
+#define  KEY_USB_RESTRICT_GPIO		"usb_restrict_gpio"
 
 #define  KEY_USB_HOST_INIT_STATE    "usb_host_init_state"
+#define  KEY_USB_USB_RESTRICT_FLAG  "usb_restric_flag"
+#define  KEY_USB_USB_RESTRICT_VOLTAGE   "usb_restric_voltage"
+#define  KEY_USB_USB_RESTRICT_CAPACITY  "usb_restric_capacity"
+
 
 //---------------------------------------------------
 //
@@ -66,12 +71,18 @@ enum usb_detect_type{
     USB_DETECT_TYPE_VBUS_ID,
 };
 
+enum usb_det_vbus_type{
+	USB_DET_VBUS_TYPE_NULL = 0,
+    USB_DET_VBUS_TYPE_GIPO,
+    USB_DET_VBUS_TYPE_AXP,
+};
+
 /* pio信息 */
 typedef struct usb_gpio{
 	__u32 valid;          	/* pio是否可用。 0:无效, !0:有效	*/
 
 	__u32 group_type;		/* pio类型 							*/
-	user_gpio_set_t gpio_set;
+	script_item_u gpio_set;
 }usb_gpio_t;
 
 typedef struct usb_port_info{
@@ -80,10 +91,15 @@ typedef struct usb_port_info{
 	__u32 port_no;						/* usb端口号			*/
 	enum usb_port_type port_type;    	/* usb端口类型			*/
 	enum usb_detect_type detect_type; 	/* usb检测方式			*/
+    enum usb_det_vbus_type det_vbus_type;
 
 	usb_gpio_t id;						/* usb id pin信息 		*/
 	usb_gpio_t det_vbus;				/* usb vbus pin信息 	*/
 	usb_gpio_t drv_vbus;				/* usb drv_vbus pin信息	*/
+	usb_gpio_t restrict_gpio_set;				/* usb drv_vbus pin信息	*/
+	__u32 usb_restrict_flag;						/* usb端口号			*/
+	__u32 voltage;						/* usb端口号			*/
+	__u32 capacity;
 	__u32 host_init_state;				/* usb 控制器的初始化状态。0 : 不工作. 1 : 工作 */
 }usb_port_info_t;
 

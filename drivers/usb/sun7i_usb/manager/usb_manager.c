@@ -42,7 +42,7 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/unaligned.h>
-#include <mach/irqs.h>
+#include <mach/includes.h>
 
 #include  "../include/sw_usb_config.h"
 #include  "usb_manager.h"
@@ -53,7 +53,6 @@
 
 static struct usb_cfg g_usb_cfg;
 
-#ifndef  SW_USB_FPGA
 #ifdef CONFIG_USB_SW_SUN7I_USB0_OTG
 static __u32 thread_run_flag = 1;
 static __u32 thread_stopped_flag = 1;
@@ -124,114 +123,128 @@ static int usb_hardware_scan_thread(void * pArg)
 */
 static __s32 usb_script_parse(struct usb_cfg *cfg)
 {
-	s32 ret = 0;
-	u32 i = 0;
-	char *set_usbc = NULL;
-
-	for(i = 0; i < cfg->usbc_num; i++){
-		if(i == 0){
-			set_usbc = SET_USB0;
-		}else if(i == 1){
-			set_usbc = SET_USB1;
-		}else{
-			set_usbc = SET_USB2;
-		}
-
-		/* usbc enable */
-		ret = script_parser_fetch(set_usbc, KEY_USB_ENABLE, (int *)&(cfg->port[i].enable), 64);
-		if(ret != 0){
-			DMSG_PANIC("ERR: get usbc(%d) enable failed\n", i);
-		}
-
-		/* usbc port type */
-		ret = script_parser_fetch(set_usbc, KEY_USB_PORT_TYPE, (int *)&(cfg->port[i].port_type), 64);
-		if(ret != 0){
-			DMSG_PANIC("ERR: get usbc(%d) port type failed\n", i);
-		}
-
-		/* usbc detect type */
-		ret = script_parser_fetch(set_usbc, KEY_USB_DETECT_TYPE, (int *)&(cfg->port[i].detect_type), 64);
-		if(ret != 0){
-			DMSG_PANIC("ERR: get usbc(%d) detect type failed\n", i);
-		}
-
-		/* usbc id */
-		ret = script_parser_fetch(set_usbc, KEY_USB_ID_GPIO, (int *)&(cfg->port[i].id.gpio_set), 64);
-		if(ret != 0){
-			DMSG_PANIC("ERR: get usbc(%d) id failed\n", i);
-		}
-
-		/* usbc det_vbus */
-		ret = script_parser_fetch(set_usbc, KEY_USB_DETVBUS_GPIO, (int *)&(cfg->port[i].det_vbus.gpio_set), 64);
-		if(ret != 0){
-			DMSG_PANIC("ERR: get usbc(%d) det_vbus failed\n", i);
-		}
-
-		/* usbc drv_vbus */
-		ret = script_parser_fetch(set_usbc, KEY_USB_DRVVBUS_GPIO, (int *)&(cfg->port[i].drv_vbus.gpio_set), 64);
-		if(ret != 0){
-			DMSG_PANIC("ERR: get usbc(%d) drv_vbus failed\n", i);
-		}
-	}
-
-	return 0;
-}
-
-/*
-*******************************************************************************
-*                     modify_usb_borad_info
-*
-* Description:
-*    void
-*
-* Parameters:
-*    void
-*
-* Return value:
-*    void
-*
-* note:
-*    void
-*
-*******************************************************************************
-*/
-static void modify_usb_borad_info(struct usb_cfg *cfg)
-{
     u32 i = 0;
+    char *set_usbc = NULL;
+    script_item_value_type_e type = 0;
+    script_item_u item_temp;
 
-	for(i = 0; i < cfg->usbc_num; i++){
-		if(cfg->port[i].id.gpio_set.port){
-			cfg->port[i].id.valid = 1;
+    for(i = 0; i < cfg->usbc_num; i++){
+        if(i == 0){
+            set_usbc = SET_USB0;
+        }else if(i == 1){
+            set_usbc = SET_USB1;
+        }else{
+            set_usbc = SET_USB2;
+        }
 
-			if(cfg->port[i].id.gpio_set.port == 0xffff){
-				cfg->port[i].id.group_type = GPIO_GROUP_TYPE_POWER;
-			}else{
-				cfg->port[i].id.group_type = GPIO_GROUP_TYPE_PIO;
-			}
-		}
+        /* usbc enable */
+        type = script_get_item(set_usbc, KEY_USB_ENABLE, &item_temp);
+        if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+            cfg->port[i].enable = item_temp.val;
+        }else{
+            DMSG_PANIC("ERR: get usbc(%d) enable failed\n", i);
+            cfg->port[i].enable = 0;
+        }
 
-		if(cfg->port[i].det_vbus.gpio_set.port){
-			cfg->port[i].det_vbus.valid = 1;
+        /* usbc port type */
+        type = script_get_item(set_usbc, KEY_USB_PORT_TYPE, &item_temp);
+        if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+            cfg->port[i].port_type = item_temp.val;
+        }else{
+            DMSG_PANIC("ERR: get usbc(%d) port type failed\n", i);
+            cfg->port[i].port_type = 0;
+        }
 
-			if(cfg->port[i].det_vbus.gpio_set.port == 0xffff){
-				cfg->port[i].det_vbus.group_type = GPIO_GROUP_TYPE_POWER;
-			}else{
-				cfg->port[i].det_vbus.group_type = GPIO_GROUP_TYPE_PIO;
-			}
-		}
+        /* usbc usb_restrict_flag  */
+        type = script_get_item(set_usbc, KEY_USB_USB_RESTRICT_FLAG, &item_temp);
+        if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+            cfg->port[i].usb_restrict_flag = item_temp.val;
+        }else{
+            DMSG_PANIC("ERR: get usbc(%d) usb_restrict_flag failed\n", i);
+            cfg->port[i].usb_restrict_flag = 0;
+        }
 
-		if(cfg->port[i].drv_vbus.gpio_set.port){
-			cfg->port[i].drv_vbus.valid = 1;
+        /* usbc voltage type */
+        type = script_get_item(set_usbc, KEY_USB_USB_RESTRICT_VOLTAGE, &item_temp);
+        if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+            cfg->port[i].voltage = item_temp.val;
+        }else{
+            DMSG_PANIC("ERR: get usbc(%d) voltage  failed\n", i);
+            cfg->port[i].voltage = 0;
+        }
 
-			if(cfg->port[i].drv_vbus.gpio_set.port == 0xffff){
-				cfg->port[i].drv_vbus.group_type = GPIO_GROUP_TYPE_POWER;
-			}else{
-				cfg->port[i].drv_vbus.group_type = GPIO_GROUP_TYPE_PIO;
-			}
-		}
-	}
+        /* usbc capacity type */
+        type = script_get_item(set_usbc, KEY_USB_USB_RESTRICT_CAPACITY, &item_temp);
+        if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+            cfg->port[i].capacity = item_temp.val;
+        }else{
+            DMSG_PANIC("ERR: get usbc(%d)voltage failed\n", i);
+            cfg->port[i].capacity = 0;
+        }
 
-	return;
+        /* usbc detect type */
+        type = script_get_item(set_usbc, KEY_USB_DETECT_TYPE, &item_temp);
+        if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+            cfg->port[i].detect_type = item_temp.val;
+        }else{
+            DMSG_PANIC("ERR: get usbc(%d) detect_type  failed\n", i);
+            cfg->port[i].detect_type = 0;
+        }
+
+        /* usbc id */
+        type = script_get_item(set_usbc, KEY_USB_ID_GPIO, &(cfg->port[i].id.gpio_set));
+        if(type == SCIRPT_ITEM_VALUE_TYPE_PIO){
+            cfg->port[i].id.valid = 1;
+        }else{
+            cfg->port[i].id.valid = 0;
+            DMSG_PANIC("ERR: get usbc(%d) id failed\n", i);
+        }
+
+        /* usbc det_vbus */
+        type = script_get_item(set_usbc, KEY_USB_DETVBUS_GPIO, &(cfg->port[i].det_vbus.gpio_set));
+        if(type == SCIRPT_ITEM_VALUE_TYPE_PIO){
+            cfg->port[i].det_vbus.valid = 1;
+            cfg->port[i].det_vbus_type = USB_DET_VBUS_TYPE_GIPO;
+        }else{
+            cfg->port[i].det_vbus.valid = 0;
+            cfg->port[i].det_vbus_type = USB_DET_VBUS_TYPE_NULL;
+            DMSG_PANIC("ERR: get usbc(%d) det_vbus gpio failed\n", i);
+        }
+
+        if(cfg->port[i].det_vbus.valid == 0){
+            type = script_get_item(set_usbc, KEY_USB_DETVBUS_GPIO, &item_temp);
+            if(type == SCIRPT_ITEM_VALUE_TYPE_STR){
+                if(strncmp(item_temp.str, "axp_ctrl", 8) == 0){
+                    cfg->port[i].det_vbus_type = USB_DET_VBUS_TYPE_AXP;
+                }else{
+                    cfg->port[i].det_vbus_type = USB_DET_VBUS_TYPE_NULL;
+                }
+            }else{
+                    DMSG_PANIC("ERR: get usbc(%d) det_vbus axp failed\n", i);
+                    cfg->port[i].det_vbus_type = USB_DET_VBUS_TYPE_NULL;
+            }
+        }
+
+        /* usbc drv_vbus */
+        type = script_get_item(set_usbc, KEY_USB_DRVVBUS_GPIO, &(cfg->port[i].drv_vbus.gpio_set));
+        if(type == SCIRPT_ITEM_VALUE_TYPE_PIO){
+            cfg->port[i].drv_vbus.valid = 1;
+        }else{
+            cfg->port[i].drv_vbus.valid = 0;
+            DMSG_PANIC("ERR: get usbc(%d) det_vbus failed\n", i);
+        }
+
+        /* usbc usb_restrict */
+        type = script_get_item(set_usbc, KEY_USB_RESTRICT_GPIO, &(cfg->port[i].restrict_gpio_set.gpio_set));
+        if(type == SCIRPT_ITEM_VALUE_TYPE_PIO){
+            cfg->port[i].restrict_gpio_set.valid = 1;
+        }else{
+            DMSG_PANIC("ERR: get usbc0(usb_restrict) failed\n");
+            cfg->port[i].restrict_gpio_set.valid = 0;
+        }
+    }
+
+    return 0;
 }
 
 /*
@@ -263,26 +276,28 @@ static __s32 check_usb_board_info(struct usb_cfg *cfg)
            && cfg->port[0].port_type != USB_PORT_TYPE_HOST
            && cfg->port[0].port_type != USB_PORT_TYPE_OTG){
             DMSG_PANIC("ERR: usbc0 port_type(%d) is unkown\n", cfg->port[0].port_type);
-	    goto err;
+            goto err;
         }
 
         /* 检查USB的插拔检测方式是否合法 */
         if(cfg->port[0].detect_type != USB_DETECT_TYPE_DP_DM
            && cfg->port[0].detect_type != USB_DETECT_TYPE_VBUS_ID){
             DMSG_PANIC("ERR: usbc0 detect_type(%d) is unkown\n", cfg->port[0].detect_type);
-	    goto err;
+            goto err;
         }
 
         /* 如果用VBUS/ID检测方式，就必须检查id/vbus pin 的有效性 */
         if(cfg->port[0].detect_type == USB_DETECT_TYPE_VBUS_ID){
             if(cfg->port[0].id.valid == 0){
                 DMSG_PANIC("ERR: id pin is invaild\n");
-		    goto err;
+                goto err;
             }
 
-            if(cfg->port[0].det_vbus.valid == 0){
-                DMSG_PANIC("ERR: det_vbus pin is invaild\n");
-		    goto err;
+            if(cfg->port[0].det_vbus_type == USB_DET_VBUS_TYPE_GIPO){
+                if(cfg->port[0].det_vbus.valid == 0){
+                    DMSG_PANIC("ERR: det_vbus pin is invaild\n");
+                    goto err;
+                }
             }
         }
     }
@@ -319,15 +334,13 @@ err:
 *
 *******************************************************************************
 */
-static void print_gpio_set(user_gpio_set_t *gpio_set)
+static void print_gpio_set(struct gpio_config *gpio)
 {
-	DMSG_MANAGER_DEBUG("gpio_name            = %s\n", gpio_set->gpio_name);
-	DMSG_MANAGER_DEBUG("port                 = %x\n", gpio_set->port);
-	DMSG_MANAGER_DEBUG("port_num             = %x\n", gpio_set->port_num);
-	DMSG_MANAGER_DEBUG("mul_sel              = %x\n", gpio_set->mul_sel);
-	DMSG_MANAGER_DEBUG("pull                 = %x\n", gpio_set->pull);
-	DMSG_MANAGER_DEBUG("drv_level            = %x\n", gpio_set->drv_level);
-	DMSG_MANAGER_DEBUG("data                 = %x\n", gpio_set->data);
+    DMSG_MANAGER_DEBUG("gpio_name            = %x\n", gpio->gpio);
+    DMSG_MANAGER_DEBUG("mul_sel              = %x\n", gpio->mul_sel);
+    DMSG_MANAGER_DEBUG("pull                 = %x\n", gpio->pull);
+    DMSG_MANAGER_DEBUG("drv_level            = %x\n", gpio->drv_level);
+    DMSG_MANAGER_DEBUG("data                 = %x\n", gpio->data);
 }
 
 /*
@@ -352,210 +365,39 @@ static void print_usb_cfg(struct usb_cfg *cfg)
 {
     u32 i = 0;
 
-	DMSG_MANAGER_DEBUG("\n-----------usb config information--------------\n");
+    DMSG_MANAGER_DEBUG("\n-----------usb config information--------------\n");
 
-	DMSG_MANAGER_DEBUG("controller number    = %x\n", (u32)USBC_MAX_CTL_NUM);
+    DMSG_MANAGER_DEBUG("controller number    = %x\n", (u32)USBC_MAX_CTL_NUM);
 
-	DMSG_MANAGER_DEBUG("usb_global_enable    = %x\n", cfg->usb_global_enable);
-	DMSG_MANAGER_DEBUG("usbc_num             = %x\n", cfg->usbc_num);
+    DMSG_MANAGER_DEBUG("usb_global_enable    = %x\n", cfg->usb_global_enable);
+    DMSG_MANAGER_DEBUG("usbc_num             = %x\n", cfg->usbc_num);
 
     for(i = 0; i < USBC_MAX_CTL_NUM; i++){
-		DMSG_MANAGER_DEBUG("\n");
-		DMSG_MANAGER_DEBUG("port[%d]:\n", i);
-		DMSG_MANAGER_DEBUG("enable               = %x\n", cfg->port[i].enable);
-		DMSG_MANAGER_DEBUG("port_no              = %x\n", cfg->port[i].port_no);
-		DMSG_MANAGER_DEBUG("port_type            = %x\n", cfg->port[i].port_type);
-		DMSG_MANAGER_DEBUG("detect_type          = %x\n", cfg->port[i].detect_type);
+        DMSG_MANAGER_DEBUG("\n");
+        DMSG_MANAGER_DEBUG("port[%d]:\n", i);
+        DMSG_MANAGER_DEBUG("enable               = %x\n", cfg->port[i].enable);
+        DMSG_MANAGER_DEBUG("port_no              = %x\n", cfg->port[i].port_no);
+        DMSG_MANAGER_DEBUG("port_type            = %x\n", cfg->port[i].port_type);
+        DMSG_MANAGER_DEBUG("detect_type          = %x\n", cfg->port[i].detect_type);
 
-		DMSG_MANAGER_DEBUG("id.valid             = %x\n", cfg->port[i].id.valid);
-		DMSG_MANAGER_DEBUG("id.group_type        = %x\n", cfg->port[i].id.group_type);
-		print_gpio_set(&cfg->port[i].id.gpio_set);
+        DMSG_MANAGER_DEBUG("id.valid             = %x\n", cfg->port[i].id.valid);
+        print_gpio_set(&cfg->port[i].id.gpio_set.gpio);
 
-		DMSG_MANAGER_DEBUG("vbus.valid           = %x\n", cfg->port[i].det_vbus.valid);
-		DMSG_MANAGER_DEBUG("vbus.group_type      = %x\n", cfg->port[i].det_vbus.group_type);
-		print_gpio_set(&cfg->port[i].det_vbus.gpio_set);
-
-		DMSG_MANAGER_DEBUG("drv_vbus.valid       = %x\n", cfg->port[i].drv_vbus.valid);
-		DMSG_MANAGER_DEBUG("drv_vbus.group_type  = %x\n", cfg->port[i].drv_vbus.group_type);
-		print_gpio_set(&cfg->port[i].drv_vbus.gpio_set);
-
-		DMSG_MANAGER_DEBUG("\n");
-    }
-
-	DMSG_MANAGER_DEBUG("-------------------------------------------------\n");
-}
-#else
-/*
-*******************************************************************************
-*                     usb_script_parse
-*
-* Description:
-*    void
-*
-* Parameters:
-*    void
-*
-* Return value:
-*    void
-*
-* note:
-*    void
-*
-*******************************************************************************
-*/
-static __s32 usb_script_parse(struct usb_cfg *cfg)
-{
-	/* usbc enable */
-	cfg->port[0].enable = 1;
-
-	/* usbc port type */
-	cfg->port[0].port_type = USB_PORT_TYPE_DEVICE;
-
-	/* usbc detect type */
-	cfg->port[0].detect_type = USB_DETECT_TYPE_VBUS_ID;
-
-	return 0;
-}
-
-/*
-*******************************************************************************
-*                     modify_usb_borad_info
-*
-* Description:
-*    void
-*
-* Parameters:
-*    void
-*
-* Return value:
-*    void
-*
-* note:
-*    void
-*
-*******************************************************************************
-*/
-static void modify_usb_borad_info(struct usb_cfg *cfg)
-{
-	return;
-}
-
-/*
-*******************************************************************************
-*                     check_usb_board_info
-*
-* Description:
-*    void
-*
-* Parameters:
-*    void
-*
-* Return value:
-*    void
-*
-* note:
-*    void
-*
-*******************************************************************************
-*/
-static __s32 check_usb_board_info(struct usb_cfg *cfg)
-{
-    //-------------------------------------
-    // USB0
-    //-------------------------------------
-    if(cfg->port[0].enable){
-        /* 检查port的使用类型是否合法 */
-        if(cfg->port[0].port_type != USB_PORT_TYPE_DEVICE
-           && cfg->port[0].port_type != USB_PORT_TYPE_HOST
-           && cfg->port[0].port_type != USB_PORT_TYPE_OTG){
-            DMSG_PANIC("ERR: usbc0 port_type(%d) is unkown\n", cfg->port[0].port_type);
-	    goto err;
+        if(cfg->port[0].det_vbus_type == USB_DET_VBUS_TYPE_GIPO){
+            DMSG_MANAGER_DEBUG("vbus.valid           = %x\n", cfg->port[i].det_vbus.valid);
+            print_gpio_set(&cfg->port[i].det_vbus.gpio_set.gpio);
         }
-    }
-    return 0;
-err:
-    return -1;
-}
 
-/*
-*******************************************************************************
-*                     print_gpio_set
-*
-* Description:
-*    void
-*
-* Parameters:
-*    void
-*
-* Return value:
-*    void
-*
-* note:
-*    void
-*
-*******************************************************************************
-*/
-static void print_gpio_set(user_gpio_set_t *gpio_set)
-{
-	return;
-}
+        DMSG_MANAGER_DEBUG("drv_vbus.valid       = %x\n", cfg->port[i].drv_vbus.valid);
+        print_gpio_set(&cfg->port[i].drv_vbus.gpio_set.gpio);
 
-/*
-*******************************************************************************
-*                     print_usb_cfg
-*
-* Description:
-*    void
-*
-* Parameters:
-*    void
-*
-* Return value:
-*    void
-*
-* note:
-*    void
-*
-*******************************************************************************
-*/
-static void print_usb_cfg(struct usb_cfg *cfg)
-{
-    u32 i = 0;
-
-	DMSG_MANAGER_DEBUG("\n-----------usb config information--------------\n");
-
-	DMSG_MANAGER_DEBUG("controller number    = %x\n", (u32)USBC_MAX_CTL_NUM);
-
-	DMSG_MANAGER_DEBUG("usb_global_enable    = %x\n", cfg->usb_global_enable);
-	DMSG_MANAGER_DEBUG("usbc_num             = %x\n", cfg->usbc_num);
-
-    for(i = 0; i < USBC_MAX_CTL_NUM; i++){
-		DMSG_MANAGER_DEBUG("\n");
-		DMSG_MANAGER_DEBUG("port[%d]:\n", i);
-		DMSG_MANAGER_DEBUG("enable               = %x\n", cfg->port[i].enable);
-		DMSG_MANAGER_DEBUG("port_no              = %x\n", cfg->port[i].port_no);
-		DMSG_MANAGER_DEBUG("port_type            = %x\n", cfg->port[i].port_type);
-		DMSG_MANAGER_DEBUG("detect_type          = %x\n", cfg->port[i].detect_type);
-
-		DMSG_MANAGER_DEBUG("id.valid             = %x\n", cfg->port[i].id.valid);
-		DMSG_MANAGER_DEBUG("id.group_type        = %x\n", cfg->port[i].id.group_type);
-		print_gpio_set(&cfg->port[i].id.gpio_set);
-
-		DMSG_MANAGER_DEBUG("vbus.valid           = %x\n", cfg->port[i].det_vbus.valid);
-		DMSG_MANAGER_DEBUG("vbus.group_type      = %x\n", cfg->port[i].det_vbus.group_type);
-		print_gpio_set(&cfg->port[i].det_vbus.gpio_set);
-
-		DMSG_MANAGER_DEBUG("drv_vbus.valid       = %x\n", cfg->port[i].drv_vbus.valid);
-		DMSG_MANAGER_DEBUG("drv_vbus.group_type  = %x\n", cfg->port[i].drv_vbus.group_type);
-		print_gpio_set(&cfg->port[i].drv_vbus.gpio_set);
-
-		DMSG_MANAGER_DEBUG("\n");
+        DMSG_MANAGER_DEBUG("\n");
     }
 
-	DMSG_MANAGER_DEBUG("-------------------------------------------------\n");
+    DMSG_MANAGER_DEBUG("-------------------------------------------------\n");
 }
 
-#endif
+
 
 /*
 *******************************************************************************
@@ -586,7 +428,7 @@ static __s32 get_usb_cfg(struct usb_cfg *cfg)
 		return -1;
 	}
 
-	modify_usb_borad_info(cfg);
+	//modify_usb_borad_info(cfg);
 
 	print_usb_cfg(cfg);
 
@@ -621,15 +463,12 @@ static int __init usb_manager_init(void)
 {
 	__s32 ret = 0;
 	bsp_usbc_t usbc;
-	//u32 i = 0;
+	u32 i = 0;
 
-#ifndef  SW_USB_FPGA
+
 #ifdef CONFIG_USB_SW_SUN7I_USB0_OTG
 	struct task_struct *th = NULL;
 #endif
-#endif
-
-
 
     printk("line = %d,%s\n", __LINE__, __func__);
     DMSG_MANAGER_DEBUG("[sw usb]: usb_manager_init\n");
@@ -647,7 +486,7 @@ static int __init usb_manager_init(void)
 
 	memset(&g_usb_cfg, 0, sizeof(struct usb_cfg));
 	g_usb_cfg.usb_global_enable = 1;
-    g_usb_cfg.usbc_num = 0;
+    g_usb_cfg.usbc_num = USBC_MAX_CTL_NUM;
 
 	ret = get_usb_cfg(&g_usb_cfg);
 	if(ret != 0){
@@ -661,7 +500,6 @@ static int __init usb_manager_init(void)
 	}
 
     memset(&usbc, 0, sizeof(bsp_usbc_t));
-#ifndef  SW_USB_FPGA
 	for(i = 0; i < USBC_MAX_CTL_NUM; i++){
 		usbc.usbc_info[i].num = i;
 
@@ -683,16 +521,12 @@ static int __init usb_manager_init(void)
                 usbc.usbc_info[i].base = 0;
         }
 	}
-#endif
-
-	usbc.usbc_info[0].base = SW_VA_USB0_IO_BASE;
 
 	usbc.sram_base = SW_VA_SRAM_IO_BASE;
 	USBC_init(&usbc);
 
     usbc0_platform_device_init(&g_usb_cfg.port[0]);
 
-#ifndef  SW_USB_FPGA
 #ifdef CONFIG_USB_SW_SUN7I_USB0_OTG
     if(g_usb_cfg.port[0].port_type == USB_PORT_TYPE_OTG
        && g_usb_cfg.port[0].detect_type == USB_DETECT_TYPE_VBUS_ID){
@@ -708,7 +542,6 @@ static int __init usb_manager_init(void)
 
 	wake_up_process(th);
 	}
-#endif
 #endif
 
     DMSG_MANAGER_DEBUG("[sw usb]: usb_manager_init end\n");
@@ -758,7 +591,7 @@ static void __exit usb_manager_exit(void)
 
     memset(&usbc, 0, sizeof(bsp_usbc_t));
 	USBC_exit(&usbc);
-#ifndef  SW_USB_FPGA
+
 #ifdef CONFIG_USB_SW_SUN7I_USB0_OTG
     if(g_usb_cfg.port[0].port_type == USB_PORT_TYPE_OTG
        && g_usb_cfg.port[0].detect_type == USB_DETECT_TYPE_VBUS_ID){
@@ -770,7 +603,6 @@ static void __exit usb_manager_exit(void)
 
 	usb_hw_scan_exit(&g_usb_cfg);
     }
-#endif
 #endif
 
     usbc0_platform_device_exit(&g_usb_cfg.port[0]);
