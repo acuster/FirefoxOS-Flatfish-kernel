@@ -18,18 +18,19 @@
 #define MMC_FPGA
 
 #define DRIVER_NAME "sunxi-mmc"
-#define DRIVER_RIVISION "Rev3.0"
+#define DRIVER_RIVISION "Rev3.1"
 #define DRIVER_VERSION " SD/MMC/SDIO Host Controller Driver(" DRIVER_RIVISION ")\n" \
 			" Compatible with SD3.0/eMMC4.5/SDIO2.0\n" \
 			" Compiled in " __DATE__ " at " __TIME__ ""
+
 /*========== platform define ==========*/
 /*---------- for sun6i ----------*/
 #ifdef CONFIG_ARCH_SUN6I
 #define REG_FIFO_OS	(0x200)
 #define SMC_IRQNO(x)	(AW_IRQ_MMC0 + (x))
 
-#define MMC_SRCCLK_HOSC   "sys_hosc"
-#define MMC_SRCCLK_PLL6   "sys_pll6"
+#define MMC_SRCCLK_HOSC   CLK_SYS_HOSC
+#define MMC_SRCCLK_PLL6   CLK_SYS_PLL6
 #define MMC_AHBCLK_PREFIX "ahb_sdmmc"
 #define MMC_MODCLK_PREFIX "mod_sdc"
 #define MMC3_DMA_TL       (0x2007000f)
@@ -248,13 +249,27 @@ struct sunxi_mmc_ctrl_regs {
 };
 
 struct sunxi_mmc_platform_data {
+	/* predefine information */
 	u32 ocr_avail;
 	u32 caps;
 	u32 caps2;
 	u32 f_min;
 	u32 f_max;
+	u32 f_ddr_max;
 	u32 dma_tl;
 	char* regulator;
+
+	/* sys config information */
+	u32 used:8,
+	    cdmode:8,
+	    width:4,
+	    wpmode:4,
+	    has_hwrst:4,
+	    isiodev:4;
+	struct gpio_config mmcio[10];
+	struct gpio_config hwrst;
+	struct gpio_config cd;
+	struct gpio_config wp;
 };
 
 struct sunxi_mmc_host {
@@ -284,31 +299,34 @@ struct sunxi_mmc_host {
 #define SDC_WOLTAGE_1V8 (1)
 #define SDC_WOLTAGE_1V2 (2)
 #define SDC_WOLTAGE_OFF (3)
+	u32 		voltage_switching;
+	struct regulator *regulator;
 	u32 		present;
 
 	/* irq */
 	int 		irq;
-	u32 		int_sum;
+	volatile u32	int_sum;
 
-	u32 		dodma;
-	u32 		dma_done;
+	volatile u32 	trans_done:1;
+	volatile u32 	dma_done:1;
 	dma_addr_t	sg_dma;
 	void		*sg_cpu;
 
 	struct mmc_request *mrq;
-	u32 		error;
-	u32 		ferror;
-	u32 		wait;
+	volatile u32	error;
+	volatile u32	ferror;
+	volatile u32	wait;
 #define SDC_WAIT_NONE		(1<<0)
 #define SDC_WAIT_CMD_DONE	(1<<1)
 #define SDC_WAIT_DATA_OVER	(1<<2)
 #define SDC_WAIT_AUTOCMD_DONE	(1<<3)
-#define SDC_WAIT_READ_DONE	(1<<4)
-#define SDC_WAIT_DMA_ERR	(1<<5)
+#define SDC_WAIT_DMA_DONE	(1<<4)
+#define SDC_WAIT_RXDATA_OVER	(SDC_WAIT_DATA_OVER|SDC_WAIT_DMA_DONE)
+#define SDC_WAIT_RXAUTOCMD_DONE	(SDC_WAIT_AUTOCMD_DONE|SDC_WAIT_DMA_DONE)
 #define SDC_WAIT_ERROR		(1<<6)
 #define SDC_WAIT_SWITCH1V8	(1<<7)
 #define SDC_WAIT_FINALIZE	(1<<8)
-	u32 		state;
+	volatile u32	state;
 #define SDC_STATE_IDLE		(0)
 #define SDC_STATE_SENDCMD	(1)
 #define SDC_STATE_CMDDONE	(2)
@@ -317,10 +335,10 @@ struct sunxi_mmc_host {
 	u32 pio_hdle;
 	s32 cd_hdle;
 	s32 cd_mode;
-#define CARD_DETECT_BY_GPIO     (1)	/* mmc detected by gpio check */
-#define CARD_DETECT_BY_GPIO_IRQ (2)	/* mmc detected by gpio irq */
-#define CARD_ALWAYS_PRESENT     (3)	/* mmc always present, without detect pin */
-#define CARD_DETECT_BY_FS       (4)	/* mmc insert/remove by fs, /proc/sunxi-mmc.x/insert node */
+#define CARD_DETECT_BY_GPIO_POLL (1)	/* mmc detected by gpio check */
+#define CARD_DETECT_BY_GPIO_IRQ  (2)	/* mmc detected by gpio irq */
+#define CARD_ALWAYS_PRESENT      (3)	/* mmc always present, without detect pin */
+#define CARD_DETECT_BY_FS        (4)	/* mmc insert/remove by fs, /proc/sunxi-mmc.x/insert node */
 
 	u32 power_on:8;
 	u32 read_only:8;
@@ -341,23 +359,34 @@ struct sunxi_mmc_host {
 
 	/* backup register structrue */
 	struct sunxi_mmc_ctrl_regs bak_regs;
-	user_gpio_set_t bak_gpios[6];
 };
 
-#define SMC_MSG(d, ...)    do { printk("[mmc]: "__VA_ARGS__); } while(0)
-#define SMC_ERR(d, ...)    do { printk("[mmc]: *** %s(L%d): ", __FUNCTION__, __LINE__); \
-				printk(__VA_ARGS__);} while(0)
+#define SMC_MSG(d, ...) \
+    do { \
+        printk("[mmc-msg] "__VA_ARGS__); \
+    } while(0)
+#define SMC_ERR(d, ...) \
+    do { \
+		printk("[mmc-err] "__VA_ARGS__); \
+    } while(0)
 
 #define SMC_DEBUG_INFO	BIT(0)
 #define SMC_DEBUG_DBG	BIT(1)
+
 #ifdef CONFIG_MMC_DEBUG_SUNXI
-#define SMC_INFO(d, ...)   do {if ((d)->debuglevel & SMC_DEBUG_INFO) 	\
-				SMC_MSG(d, __VA_ARGS__); } while(0)
-#define SMC_DBG(d, ...)    do {if ((d)->debuglevel & SMC_DEBUG_DBG) 	\
-				SMC_MSG(d, __VA_ARGS__); } while(0)
+#define SMC_INFO(d, ...) \
+    do { \
+        if ((d)->debuglevel & SMC_DEBUG_INFO) \
+			printk("[mmc-inf] "__VA_ARGS__); \
+    } while(0)
+#define SMC_DBG(d, ...) \
+    do { \
+        if ((d)->debuglevel & SMC_DEBUG_DBG) \
+			printk("[mmc-dbg] "__VA_ARGS__); \
+    } while(0)
 #else
-#define SMC_INFO(d, ...)
-#define SMC_DBG(d, ...)
+#define SMC_INFO(d, ...)    do {} while (0)
+#define SMC_DBG(d, ...)     do {} while (0)
 #endif
 
 #endif
