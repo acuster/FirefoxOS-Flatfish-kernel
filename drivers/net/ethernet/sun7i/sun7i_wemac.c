@@ -31,6 +31,7 @@
 #include <linux/clk.h>
 #include <linux/ctype.h>
 #include <linux/pm.h>
+#include <linux/gpio.h>
 
 #include <asm/cacheflush.h>
 #include <asm/delay.h>
@@ -124,7 +125,7 @@ typedef struct wemac_board_info {
 #ifndef SYSCONFIG_GPIO
 	void __iomem	*gpio_vbase;	/* gpio I/O base address */
 #else
-	int gpio_hd;
+    script_item_u *gpio_list;
 #endif
 
 #ifndef SYSCONFIG_CCMU
@@ -153,8 +154,8 @@ typedef struct wemac_board_info {
 	u32		msg_enable;
 
 #ifdef PHY_POWER
-	user_gpio_set_t *mos_gpio;
-	u32 mos_pin_handler;
+    script_item_u *mos_gpio;
+
 #endif
 
 	u32 multi_filter[2];
@@ -174,43 +175,21 @@ static void emac_reg_dump(wemac_board_info_t *db);
 static void phy_reg_dump(wemac_board_info_t *db);
 static void pkt_dump(unsigned char *buf, int len);
 
-struct sw_dma_client emacrx_dma_client = {
-	.name="EMACRX_DMA",
-};
 
-struct sw_dma_client emactx_dma_client = {
-	.name="EMACTX_DMA",
-};
-
-int ch_rx, ch_tx;
 static int emacrx_dma_completed_flag = 1;
 static int emactx_dma_completed_flag = 1;
 static int emacrx_completed_flag = 1;
 
-void emacrx_dma_buffdone(struct sw_dma_chan * ch, void *buf
-							,int size,enum sw_dma_buffresult result)
-{
-	struct net_device *dev = ch->dev_id;
-	wemac_rx(dev);
+dma_hdl_t ch_rx = NULL;
+dma_hdl_t ch_tx = NULL;
+
+void emacrx_dma_buffdone(dma_hdl_t hdma, void *dev){
+    wemac_rx((struct net_device*)dev);
 }
 
-int  emacrx_dma_opfn(struct sw_dma_chan *ch, enum sw_chan_op op_code){
-	if(op_code == SW_DMAOP_START)
-		emacrx_dma_completed_flag = 0;
-	return 0;
+void emactx_dma_buffdone(dma_hdl_t hdma, void *arg ) {
+    emactx_dma_completed_flag = 1;
 }
-
-void emactx_dma_buffdone(struct sw_dma_chan *ch, void *buf
-							,int size,enum sw_dma_buffresult result){
-	emactx_dma_completed_flag = 1;
-}
-
-int  emactx_dma_opfn(struct sw_dma_chan *ch, enum sw_chan_op op_code){
-	if(op_code == SW_DMAOP_START)
-		emactx_dma_completed_flag = 0;
-	return 0;
-}
-
 #if 0
 __hdle emac_RequestDMA  (__u32 dmatype)
 {
@@ -233,73 +212,90 @@ void eLIBs_CleanFlushDCacheRegion(void *adr, __u32 bytes)
 	__cpuc_flush_dcache_area(adr, bytes + (1 << 5) * 2 - 2);
 }
 
-int seq_rx=0;
-__s32 emacrx_DMAEqueueBuf(int hDma,  void * buff_addr, __u32 len)
+__s32 emacrx_DMAEqueueBuf(dma_hdl_t hDma,  void * buff_addr, __u32 len)
 {
 	eLIBs_CleanFlushDCacheRegion((void *)buff_addr, len);
 
 	emacrx_dma_completed_flag = 0;
-	return sw_dma_enqueue(hDma, (void*)(seq_rx++), (dma_addr_t)buff_addr, len);
+	return sw_dma_enqueue(hDma, 0x01C0B04C, (u32)buff_addr, len);
 }
 
-int seq_tx=0;
-__s32 emactx_DMAEqueueBuf(int hDma, void *buff_addr, __u32 len)
+__s32 emactx_DMAEqueueBuf(dma_hdl_t hDma, void *buff_addr, __u32 len)
 {
 	eLIBs_CleanFlushDCacheRegion(buff_addr, len);
 
 	emactx_dma_completed_flag = 0;
-	return sw_dma_enqueue(hDma, (void*)(seq_tx++), (dma_addr_t)buff_addr, len);
+	return sw_dma_enqueue(hDma, (u32)buff_addr, 0x01C0B024, len);
 }
+
 
 int wemac_dma_config_start(__u8 rw, void *buff_addr, __u32 len)
 {
 	int ret;
-	if(rw == 0){
-		struct dma_hw_conf emac_hwconf = {
-			.xfer_type = DMAXFER_D_SWORD_S_SWORD,
-			.hf_irq = SW_DMA_IRQ_FULL,
-			.cmbk = 0x03030303,
-			.dir = SW_DMA_RDEV,
-			.from = 0x01C0B04C,
-			.address_type = DMAADDRT_D_LN_S_IO,
-			.drqsrc_type = DRQ_TYPE_EMAC
-		};
 
-		ret = sw_dma_setflags(ch_rx, SW_DMAF_AUTOSTART);
-		if(ret!=0)
-			return ret;
-		ret = sw_dma_config(ch_rx, &emac_hwconf);
-		if(ret!=0)
-			return ret;
-		ret = emacrx_DMAEqueueBuf(ch_rx, buff_addr, len);
-		if(ret!=0)
-			return ret;
-		ret = sw_dma_ctrl(ch_rx, SW_DMAOP_START);
-	} else {
-		struct dma_hw_conf emac_hwconf = {
-			.xfer_type = DMAXFER_D_SWORD_S_SWORD,
-			.hf_irq = SW_DMA_IRQ_FULL,
-			.cmbk = 0x03030303,
-			.dir = SW_DMA_WDEV,
-			.to = 0x01C0B024,
-			.address_type = DMAADDRT_D_IO_S_LN,
-			.drqdst_type = DRQ_TYPE_EMAC
-		};
+    if (rw == 0) {
+        dma_config_t dma_cfg = {
+            .xfer_type = {
+                .src_data_width = DATA_WIDTH_32BIT,
+                .src_bst_len    = DATA_BRST_4,
+                .dst_data_width = DATA_WIDTH_32BIT,
+                .dst_bst_len    = DATA_BRST_4
+            },
+            .address_type = {
+                .src_addr_mode  = DDMA_ADDR_IO,
+                .dst_addr_mode  = DDMA_ADDR_LINEAR
+            },
+            .bconti_mode    = false,
+            .src_drq_type   = D_SRC_EMAC_RX,
+            .dst_drq_type   = D_DST_SRAM,
+            .irq_spt        = CHAN_IRQ_FD
+        };
 
-		ret = sw_dma_setflags(ch_tx, SW_DMAF_AUTOSTART);
-		if(ret!=0)
-			return ret;
-		ret = sw_dma_config(ch_tx, &emac_hwconf);
-		if(ret!=0)
-			return ret;
-		ret = emactx_DMAEqueueBuf(ch_tx, buff_addr, len);
-		if(ret!=0)
-			return ret;
-		ret = sw_dma_ctrl(ch_tx, SW_DMAOP_START);
-	}
+        ret = sw_dma_config(ch_rx, &dma_cfg);
+        if(ret)
+            goto err_out;
+        ret = emacrx_DMAEqueueBuf(ch_rx, buff_addr, len );
+        if(ret)
+            goto err_out;
+        ret = sw_dma_ctl(ch_rx, DMA_OP_START, NULL);
+        if(ret)
+            goto err_out;
+
+    } else {
+        dma_config_t dma_cfg = {
+            .xfer_type = {
+                .src_data_width = DATA_WIDTH_32BIT,
+                .src_bst_len    = DATA_BRST_4,
+                .dst_data_width = DATA_WIDTH_32BIT,
+                .dst_bst_len    = DATA_BRST_4
+            },
+            .address_type = {
+                .src_addr_mode  = DDMA_ADDR_LINEAR,
+                .dst_addr_mode  = DDMA_ADDR_IO
+            },
+            .bconti_mode    = false,
+            .src_drq_type   = D_SRC_SRAM,
+            .dst_drq_type   = D_DST_EMAC_TX,
+            .irq_spt        = CHAN_IRQ_FD
+        };
+
+        ret = sw_dma_config(ch_tx, &dma_cfg);
+        if(ret)
+            goto err_out;
+        ret = emactx_DMAEqueueBuf(ch_tx, buff_addr, len );
+        if(ret)
+            goto err_out;
+        ret = sw_dma_ctl(ch_tx, DMA_OP_START, NULL);
+        if(ret)
+            goto err_out;
+    }
+
 	return 0;
+err_out:
+    printk(KERN_ERR "WEMAC set dma config failed!ret code:%d\n", ret);
+    return ret;
 }
-
+/*
 __s32 emacrx_WaitDmaFinish(void)
 {
 	unsigned long flags;
@@ -327,7 +323,7 @@ __s32 emactx_WaitDmaFinish(void)
 
 	return 0;
 }
-
+*/
 /* WEMAC network board routine ---------------------------- */
 static void wemac_reset(wemac_board_info_t * db)
 {
@@ -471,9 +467,11 @@ static const struct ethtool_ops wemac_ethtool_ops = {
 	.set_eeprom			= wemac_set_eeprom,
 };
 
+unsigned int  gpio_num = 0;
 void emac_sys_setup(wemac_board_info_t * db)
 {
 	unsigned int reg_val;
+    unsigned int i;
 
 	/*  map SRAM to EMAC  */
 	reg_val = readl(db->sram_vbase + SRAMC_CFG_REG);
@@ -499,14 +497,28 @@ void emac_sys_setup(wemac_board_info_t * db)
 	reg_val |= 0x00000022;
 	writel(reg_val, db->gpio_vbase + PA_CFG2_REG);
 #else
-	db->gpio_hd = gpio_request_ex("emac_para", NULL);
-	if(!db->gpio_hd)
-		printk(KERN_ERR "ERROR: Request gpio resources is failed!!!\n");
+    gpio_num =  script_get_pio_list("emac_para", &db->gpio_list);
+    if(!gpio_num){
+       printk(KERN_ERR "ERROR: emac get  gpio resources from sysconfig failed!!!\n");
+    } else {
+        for(i = 0; i < gpio_num; i++) {
+            if (0 != gpio_request(db->gpio_list[i].gpio.gpio, NULL)){
+                printk(KERN_ERR"----------------------EMAC---------------------\n\n");
+                printk(KERN_ERR "ERROR: emac request gpio failed!\n");
+                script_dump_mainkey("emac_para");
+                printk(KERN_ERR "---------------------EMAC---------------------\n\n");
+                db->gpio_list = NULL;
+                break;
+            }
+        }
+        if(sw_gpio_setall_range(db->gpio_list, gpio_num))
+            printk(KERN_ERR "ERROR: emac  set gpio list failed!!\n");
+    }
 #endif
 
 #ifdef SYSCONFIG_CCMU
 	/*  set up clock gating  */
-	db->emac_clk = clk_get(db->dev, "ahb_emac");
+	db->emac_clk = clk_get(db->dev, CLK_AHB_EMAC);
 	if(db->emac_clk != NULL)
 		clk_enable(db->emac_clk);
 #else
@@ -724,6 +736,7 @@ static void wemac_release_board(struct platform_device *pdev,
 {
 	/* unmap our resources */
 	struct resource *iomem;
+    unsigned int i;
 
 	/* release the resources */
 	if(db->emac_vbase){
@@ -758,15 +771,22 @@ static void wemac_release_board(struct platform_device *pdev,
 		release_mem_region(iomem->start, resource_size(iomem));
 	}
 #else
-	if(db->gpio_hd)
-		gpio_release(db->gpio_hd, 0);
+
+    if (db->gpio_list){
+        for(i = 0; i < gpio_num; i++) {
+            gpio_free(db->gpio_list[i].gpio.gpio);
+        }
+        db->gpio_list = NULL;
+    }
 #endif
 
 #ifdef PHY_POWER
-	if(db->mos_pin_handler)
-		gpio_release(db->mos_pin_handler, 0);
-	if(db->mos_gpio)
-		kfree(db->mos_gpio);
+
+    if (db->mos_gpio){
+        gpio_free(db->mos_gpio->gpio.gpio);
+        kfree(db->mos_gpio);
+        db->mos_gpio = NULL;
+    }
 #endif
 }
 
@@ -872,10 +892,12 @@ static int wemac_phy_init(wemac_board_info_t *db)
 	u32 reg_val;
 
 #ifdef PHY_POWER
-	if(db->mos_pin_handler){
-		db->mos_gpio->data = 1;
-		gpio_set_one_pin_status(db->mos_pin_handler, db->mos_gpio, "emac_power", 1);
-	}
+
+    if (db->mos_gpio){
+        db->mos_gpio->gpio.data = 1;
+        __gpio_set_value(db->mos_gpio->gpio.gpio, db->mos_gpio->gpio.data);
+    }
+
 #endif
 
 	reg_val = readl(db->emac_vbase + EMAC_MAC_SUPP_REG);
@@ -1462,10 +1484,11 @@ static void wemac_shutdown(struct net_device *dev)
 	wemac_board_info_t *db = netdev_priv(dev);
 
 #ifdef PHY_POWER
-	if(db->mos_pin_handler){
-		db->mos_gpio->data = 0;
-		gpio_set_one_pin_status(db->mos_pin_handler, db->mos_gpio, "emac_power", 1);
-	}
+    if (db->mos_gpio){
+        db->mos_gpio->gpio.data = 0;
+        __gpio_set_value(db->mos_gpio->gpio.gpio, db->mos_gpio->gpio.data);
+    }
+
 #endif
 
 	/* Disable RX TX Ctl */
@@ -1591,24 +1614,23 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 	db = netdev_priv(ndev);
 	memset(db, 0, sizeof(*db));
 
-	ch_rx = sw_dma_request(DMACH_DEMACR, &emacrx_dma_client, ndev);
-	if(ch_rx < 0){
-		printk("error when request dma for emac rx\n");
-		return ch_rx;
-	}
+    ch_rx = sw_dma_request("EMAC_RX", CHAN_DEDICATE);
+    if(!ch_rx) {
+        printk(KERN_ERR "ERROR: emac request rx dma failed!\n");
+        return -EINVAL;
+    } else {
+        dma_cb_t rx_done_cb = {
+            .func = emacrx_dma_buffdone,
+            .parg = ndev
+        };
 
-	sw_dma_set_opfn(ch_rx, emacrx_dma_opfn);
-	sw_dma_set_buffdone_fn(ch_rx, emacrx_dma_buffdone);
-
-	ch_tx = sw_dma_request(DMACH_DEMACT, &emactx_dma_client, ndev);
-	if(ch_tx < 0){
-		printk("error when request dma for emac tx\n");
-		sw_dma_free(DMACH_DEMACR, &emacrx_dma_client);
-		return ch_tx;
-	}
-
-	sw_dma_set_opfn(ch_tx, emactx_dma_opfn);
-	sw_dma_set_buffdone_fn(ch_tx, emactx_dma_buffdone);
+       if (0 != sw_dma_ctl(ch_rx, DMA_OP_SET_FD_CB, &rx_done_cb)){
+            printk(KERN_ERR "error: dma set rx cb failed!\n");
+            sw_dma_release(ch_rx);
+            return -EINVAL;
+       }
+    }
+/* now we do not use dma for tx , TODO*/
 
 	db->dev = &pdev->dev;
 	db->ndev = ndev;
@@ -1686,24 +1708,23 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 #endif
 
 #ifdef PHY_POWER
-	db->mos_gpio = kmalloc(sizeof(user_gpio_set_t), GFP_KERNEL);
-	db->mos_pin_handler = 0;
+
+	db->mos_gpio = kmalloc(sizeof(script_item_u), GFP_KERNEL);
 	if(NULL == db->mos_gpio){
-		printk(KERN_ERR "can't request memory for mos_gpio\n");
-	}else{
-		if(SCRIPT_PARSER_OK != script_parser_fetch("emac_para", "emac_power",
-					(int *)(db->mos_gpio), sizeof(user_gpio_set_t)/sizeof(int))){
-			printk(KERN_ERR "can't get information emac_power gpio\n");
-			kfree(db->mos_gpio);
-		}else{
-			db->mos_pin_handler = gpio_request(db->mos_gpio, 1);
-			if(0 == db->mos_pin_handler){
-				printk(KERN_ERR "can't request gpio_port %d, port_num %d\n",
-						db->mos_gpio->port, db->mos_gpio->port_num);
-				kfree(db->mos_gpio);
-			}
-		}
-	}
+        printk(KERN_ERR "can't request memory for mos_gpio!!\n");
+    } else {
+        if(SCIRPT_ITEM_VALUE_TYPE_PIO != script_get_item("emac_para", "emac_power", db->mos_gpio)){
+            printk(KERN_ERR "can't get item for emac_power gpio !\n");
+            kfree(db->mos_gpio);
+            db->mos_gpio = NULL;
+        } else {
+            if(gpio_request(db->mos_gpio->gpio.gpio, "emac_power")){
+                printk(KERN_ERR "GPIO request for emac_power failed!\n");
+                kfree(db->mos_gpio);
+                db->mos_gpio = NULL;
+            }
+        }
+    }
 #endif
 
 #ifndef SYSCONFIG_CCMU
@@ -1830,19 +1851,20 @@ static void wemac_get_macaddr(wemac_board_info_t *db)
 		ndev->dev_addr[i] = simple_strtoul(p, &p, 16);
 
 #ifdef DYNAMIC_MAC_SYSCONFIG
-	char emac_mac[13]={'\0'};
 
-	if(SCRIPT_PARSER_OK != script_parser_fetch("dynamic", "MAC", (int *)emac_mac, 3)){
-		printk(KERN_WARNING "In sysconfig.fex emac MAC_ADDRESS isn't valid!\n");
-	}else if(!is_valid_ether_addr(ndev->dev_addr)){
-		emac_mac[12]='\0';
-		for(i=0; i<6; i++){
+    script_item_u emac_mac;
+    if(SCIRPT_ITEM_VALUE_TYPE_STR != script_get_item("dynameic", "MAC", &emac_mac)){
+        printk(KERN_WARNING "In sysconfig.fex emac mac address is not valid!\n");
+    } else if(!is_valid_ether_addr(ndev->dev_addr)){
+        emac_mac.str[12] = '\0';
+        for (i=0; i < 6; i++){
 			char emac_tmp[3]=":::";
-			memcpy(emac_tmp, (char *)(emac_mac+i*2), 2);
+			memcpy(emac_tmp, (char *)(emac_mac.str+i*2), 2);
 			emac_tmp[2]=':';
 			ndev->dev_addr[i] = simple_strtoul(emac_tmp, NULL, 16);
-		}
-	}
+        }
+    }
+
 #endif
 
 	if (!is_valid_ether_addr(ndev->dev_addr)){
@@ -1900,10 +1922,14 @@ static int __devexit wemac_drv_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	unregister_netdev(ndev);
-	if(ch_rx > 0)
-		sw_dma_free(ch_rx, &emacrx_dma_client);
-	if(ch_tx > 0)
-		sw_dma_free(ch_tx, &emactx_dma_client);
+	if(ch_rx){
+        sw_dma_ctl(ch_rx, DMA_OP_STOP, NULL);
+		sw_dma_release(ch_rx);
+    }
+	if(ch_tx){
+        sw_dma_ctl(ch_tx, DMA_OP_STOP, NULL);
+		sw_dma_release(ch_tx);
+    }
 	wemac_release_board(pdev, (wemac_board_info_t *) netdev_priv(ndev));
 
 	/* free device structure */

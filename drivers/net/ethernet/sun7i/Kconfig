@@ -17,4 +17,4 @@ config SUN7I_EMAC
 	---help---
 	  This is the driver for the Sun7i Ethernet.
 
-endif # NET_VENDOR_SUN6I
+endif # NET_VENDOR_SUN7I

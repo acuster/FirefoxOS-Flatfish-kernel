@@ -37,17 +37,17 @@ _mali_osk_errcode_t mali_platform_init(void)
     script_item_value_type_e  type;
 
 	//get mali ahb clock
-	h_ahb_mali = clk_get(NULL, "ahb_mali");
+    h_ahb_mali = clk_get(NULL, CLK_AHB_MALI);
 	if(!h_ahb_mali){
 		MALI_PRINT(("try to get ahb mali clock failed!\n"));
 	}
 	//get mali clk
-	h_mali_clk = clk_get(NULL, "mali");
+	h_mali_clk = clk_get(NULL, CLK_MOD_MALI);
 	if(!h_mali_clk){
 		MALI_PRINT(("try to get mali clock failed!\n"));
 	}
 
-	h_ve_pll = clk_get(NULL, "ve_pll");
+	h_ve_pll = clk_get(NULL, CLK_SYS_PLL4);
 	if(!h_ve_pll){
 		MALI_PRINT(("try to get ve pll clock failed!\n"));
 	}
