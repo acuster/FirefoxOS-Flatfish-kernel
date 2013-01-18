@@ -162,22 +162,22 @@ static int timer_set_next_clkevt(unsigned long delta, struct clock_event_device 
 		spin_lock_irqsave(&timer0_spin_lock, flags);
 
 		/* disable timer and clear pending first    */
-		temp = readl(TMR0_CTRL_REG);
+		temp = readl(timer_cpu_base + TMR0_CTRL_REG_OFF);
 		temp &= ~(1<<0);
-		writel(temp, TMR0_CTRL_REG);
+		writel(temp, timer_cpu_base + TMR0_CTRL_REG_OFF);
 		udelay(1);
 		/* set timer intervalue         */
-		writel(delta, TMR0_INTV_VALUE_REG);
+		writel(delta, timer_cpu_base + TMR0_INTV_VALUE_REG_OFF);
 
 		/* reload the timer intervalue  */
-		temp = readl(TMR0_CTRL_REG);
+		temp = readl(timer_cpu_base + TMR0_CTRL_REG_OFF);
 		temp |= (1<<1);
-		writel(temp, TMR0_CTRL_REG);
+		writel(temp, timer_cpu_base + TMR0_CTRL_REG_OFF);
 
 		/* enable timer */
-		temp = readl(TMR0_CTRL_REG);
+		temp = readl(timer_cpu_base + TMR0_CTRL_REG_OFF);
 		temp |= (1<<0);
-		writel(temp, TMR0_CTRL_REG);
+		writel(temp, timer_cpu_base + TMR0_CTRL_REG_OFF);
 
 		spin_unlock_irqrestore(&timer0_spin_lock, flags);
 	} else {
