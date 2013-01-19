@@ -1711,7 +1711,7 @@ static int axp_battery_probe(struct platform_device *pdev)
 		}
 	else
 		{
-			axp_clr_bits(charger->master,0x8F,0x08); //enable
+			axp_clr_bits(charger->master,0x8F,0x08); //disable
 		}
 		
 		/*Init IRQ wakeup en*/
@@ -1721,7 +1721,7 @@ static int axp_battery_probe(struct platform_device *pdev)
 		}
 		else
 		{
-			axp_clr_bits(charger->master,0x8F,0x80); //enable
+			axp_clr_bits(charger->master,0x8F,0x80); //disable
 		}
 		
 		/*Init N_VBUSEN status*/
@@ -1757,11 +1757,11 @@ static int axp_battery_probe(struct platform_device *pdev)
 		/*set CHGLED Indication Type*/
 		if(pmu_chgled_type)
 		{
-			axp_set_bits(charger->master,0x32,0x08); //control by charger
+			axp_set_bits(charger->master,0x45,0x10); //Type A
 		}
 		else
 		{
-			axp_clr_bits(charger->master,0x32,0x08); //drive MOTO
+			axp_clr_bits(charger->master,0x45,0x10); //Type B
 		}
 		
 		/*Init PMU Over Temperature protection*/
@@ -1782,6 +1782,15 @@ static int axp_battery_probe(struct platform_device *pdev)
 		else
 		{
 			axp_clr_bits(charger->master,0xb8,0x20); //disable
+		}
+		/* Init battery regulator enable or not when charge finish*/
+		if(pmu_bat_regu_en)
+		{
+			axp_set_bits(charger->master,0x34,0x20); //enable
+		}
+		else
+		{
+			axp_clr_bits(charger->master,0x34,0x20); //disable
 		}
  
   if(!pmu_batdeten)

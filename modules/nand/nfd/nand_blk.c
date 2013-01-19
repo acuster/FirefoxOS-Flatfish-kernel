@@ -1836,6 +1836,13 @@ static int nand_suspend(struct platform_device *plat_dev, pm_message_t state)
 	}else{
 		down(&mytr.nand_ops_mutex);
 
+		#ifdef NAND_CACHE_RW
+			NAND_CacheFlush();
+			LML_FlushPageCache();
+		#else
+			LML_FlushPageCache();
+		#endif
+
 		//NAND_ClkDisable();
 		//NAND_PIORelease();
 	}
@@ -1854,6 +1861,13 @@ static int nand_suspend(struct platform_device *plat_dev, pm_message_t state)
 				return -EBUSY;
 			}else{
 			down(&mytr.nand_ops_mutex);
+
+			#ifdef NAND_CACHE_RW
+				NAND_CacheFlush();
+				LML_FlushPageCache();
+			#else
+				LML_FlushPageCache();
+			#endif
 
 			
 		}

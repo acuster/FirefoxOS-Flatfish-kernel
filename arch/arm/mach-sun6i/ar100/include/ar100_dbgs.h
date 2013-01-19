@@ -43,15 +43,15 @@ extern unsigned int ar100_debug_level;
 	if(DEBUG_LEVEL_INF & (0xf0 >> (ar100_debug_level +1))) 	\
 	printk(__VA_ARGS__)
 
-#define	AR100_WRN(...)							\
+#define	AR100_WRN(format, args...)							\
 	if(DEBUG_LEVEL_WRN & (0xf0 >> (ar100_debug_level +1)))	\
-	printk(__VA_ARGS__)
+	printk(KERN_ERR "AR100 WARING :"format,##args);
 
-#define	AR100_ERR(...)							\
+#define	AR100_ERR(format, args...)                          \
 	if(DEBUG_LEVEL_ERR & (0xf0 >> (ar100_debug_level +1)))	\
-	printk(__VA_ARGS__)
+	printk(KERN_ERR "AR100 ERROR :"format,##args);
 
-#define	AR100_LOG(...)							\
+#define	AR100_LOG(...)                                      \
 	if(DEBUG_LEVEL_LOG & (0xf0 >> (ar100_debug_level +1)))	\
 	printk(__VA_ARGS__)
 

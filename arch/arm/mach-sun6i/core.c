@@ -58,6 +58,13 @@ static struct map_desc sun6i_io_desc[] __initdata = {
 	{IO_ADDRESS(AW_BROM_BASE),    __phys_to_pfn(AW_BROM_BASE),     AW_BROM_SIZE, MT_DEVICE_NONSHARED},
 };
 
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+static struct tag_mem32 ion_mem __initdata = {
+	.start	= ION_CARVEOUT_MEM_BASE,
+	.size	= ION_CARVEOUT_MEM_SIZE,
+};
+#endif
+
 static void __init sun6i_map_io(void)
 {
 	iotable_init(sun6i_io_desc, ARRAY_SIZE(sun6i_io_desc));
@@ -110,7 +117,7 @@ static void __init sun6i_fixup(struct tag *tags, char **from,
 	meminfo->nr_banks = 1;
 
 	pr_debug("nr_banks: %d, bank.start: 0x%08x, bank.size: 0x%08lx\n",
-			meminfo->nr_banks, meminfo->bank[0].start, 
+			meminfo->nr_banks, meminfo->bank[0].start,
 			meminfo->bank[0].size);
 }
 
@@ -119,7 +126,7 @@ void __init sun6i_reserve(void)
 	/* reserve for sys_config */
 	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
 
-	/* 
+	/*
 	 * reserve for DE and VE
 	 * Here, we must use memblock_remove, because it be allocated using genalloc.
 	 */
@@ -130,9 +137,31 @@ void __init sun6i_reserve(void)
 
 #if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
 	/* reserve for ION */
-	memblock_reserve(ION_CARVEOUT_MEM_BASE, ION_CARVEOUT_MEM_SIZE);
+	memblock_reserve(ion_mem.start, ion_mem.size);
 #endif
 }
+
+#if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
+/*
+ * Pick out the ion memory size.  We look for ion_reserve=size@start,
+ * where start and size are "size[KkMm]"
+ */
+static int __init early_ion_reserve(char *p)
+{
+	char *endp;
+
+	ion_mem.start= ION_CARVEOUT_MEM_BASE;
+	ion_mem.size  = memparse(p, &endp);
+	if (*endp == '@')
+		ion_mem.start = memparse(endp + 1, NULL);
+
+	pr_debug("[%s]: ION memory reserve: [0x%016x - 0x%016x]\n",
+			__func__, ion_mem.start, ion_mem.size);
+
+	return 0;
+}
+early_param("ion_reserve", early_ion_reserve);
+#endif
 
 static void sun6i_restart(char mode, const char *cmd)
 {

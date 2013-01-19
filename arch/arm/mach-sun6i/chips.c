@@ -3,6 +3,7 @@
 
 #define CCMU_REG_BASE   0xf1c20000
 #define SSCTL_REG_BASE  0xf1c15000
+#define RTC_REG_BASE    0xf1f00000
 #undef uint32
 
 typedef unsigned int uint32;
@@ -43,8 +44,17 @@ enum sw_ic_ver sw_get_ic_ver(void)
     reg_val &= ~0x1;
     mctl_write_w(SSCTL_REG_BASE + 0x00,reg_val);
 
-    if(id == 0)
-        return MAGIC_VER_A31;
+    if(id == 0) {
+        reg_val = mctl_read_w(RTC_REG_BASE + 0x20c);
+        reg_val |= 0x01;
+        mctl_write_w(RTC_REG_BASE + 0x20c,reg_val);
+        reg_val = mctl_read_w(RTC_REG_BASE + 0x20c);
+        if(reg_val & 0x01){
+            return MAGIC_VER_A31A;
+        } else {
+            return MAGIC_VER_A31B;
+        }
+    }
     else if(id == 1)
         return MAGIC_VER_A31S;
     else if(id == 2)

@@ -1992,6 +1992,47 @@ void cpufreq_mass_thread_event_notify(void)
 }
 EXPORT_SYMBOL_GPL(cpufreq_mass_thread_event_notify);
 
+
+#include <linux/reboot.h>
+#ifdef CONFIG_CPU_FREQ_GOV_FANTASYS
+extern int cpufreq_fantasys_cpu_lock(int num_core);
+#endif
+static int reboot_notifier_call(struct notifier_block *this, unsigned long code, void *_cmd)
+{
+    struct cpufreq_policy policy;
+    int cpu;
+
+    printk("%s:%s: stop none boot cpus\n", __FILE__, __func__);
+
+    #ifdef CONFIG_CPU_FREQ_GOV_FANTASYS
+    if (cpufreq_get_policy(&policy, 0)) {
+        printk("%s:%s try to get policy failed!\n", __FILE__, __func__);
+        return NOTIFY_DONE;
+    }
+    if (!strcmp(policy.governor->name, "fantasys")) {
+        cpufreq_fantasys_cpu_lock(1);
+        while (num_online_cpus() != 1) {
+            msleep(20);
+        }
+        return NOTIFY_DONE;
+    }
+    #endif
+
+    for_each_online_cpu(cpu) {
+        if (cpu == 0)
+            continue;
+
+        cpu_down(cpu);
+    }
+
+    return NOTIFY_DONE;
+}
+
+static struct notifier_block reboot_notifier = {
+	.notifier_call = reboot_notifier_call,
+};
+
+
 #ifdef CONFIG_CPU_FREQ_EARLYSUSPEND
 extern int hotplug_early_suspend_init(void);
 #endif
@@ -2009,9 +2050,11 @@ static int __init cpufreq_core_init(void)
 	BUG_ON(!cpufreq_global_kobject);
 	register_syscore_ops(&cpufreq_syscore_ops);
 
-    #ifdef CONFIG_CPU_FREQ_EARLYSUSPEND
-    hotplug_early_suspend_init();
-    #endif
+	#ifdef CONFIG_CPU_FREQ_EARLYSUSPEND
+	hotplug_early_suspend_init();
+	#endif
+	/* register reboot notifier for process cpus when reboot */
+	register_reboot_notifier(&reboot_notifier);
 
 	return 0;
 }

@@ -25,7 +25,7 @@
 #include <mach/hardware.h>
 #include <mach/platform.h>
 #include <asm/delay.h>
-#include <asm/io.h> 
+#include <asm/io.h>
 #include <linux/kernel.h>
 static inline void arch_idle(void)
 {
@@ -49,11 +49,13 @@ static inline void arch_reset(char mode, const char *cmd)
  * define chip version
  */
 enum sw_ic_ver {
-	MAGIC_VER_NULL      = 0,        /* invalid value        */
-	MAGIC_VER_UNKNOWN   = 1,        /* unknown version      */
-	MAGIC_VER_A31       = 0xA310,   /* chip version a31     */
-	MAGIC_VER_A31S      = 0xA315,   /* chip version a31s    */
-	MAGIC_VER_A3XP      = 0xA388,   /* chip versiion a3x    */
+	MAGIC_VER_NULL      = 0,        /* invalid value            */
+	MAGIC_VER_UNKNOWN   = 1,        /* unknown version          */
+	MAGIC_VER_A31A      = 0xA311,   /* chip version a31 ver. A  */
+	MAGIC_VER_A31B      = 0xA312,   /* chip version a31 ver. B  */
+	MAGIC_VER_A31C      = 0xA313,   /* chip version a31 ver. C  */
+	MAGIC_VER_A31S      = 0xA320,   /* chip version a31s        */
+	MAGIC_VER_A3XP      = 0xA340,   /* chip versiion a3x        */
 };
 enum sw_ic_ver sw_get_ic_ver(void);
 

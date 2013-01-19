@@ -24,7 +24,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/threads.h>
-#include <linux/reboot.h>
 #include <linux/suspend.h>
 #include <linux/delay.h>
 
@@ -1182,16 +1181,6 @@ static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
     cancel_work_sync(&dbs_info->down_work);
 }
 
-static int reboot_notifier_call(struct notifier_block *this,
-                unsigned long code, void *_cmd)
-{
-    atomic_set(&g_hotplug_lock, 1);
-    return NOTIFY_DONE;
-}
-static struct notifier_block reboot_notifier = {
-    .notifier_call = reboot_notifier_call,
-};
-
 
 /*
  * cpufreq dbs governor
@@ -1235,9 +1224,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int even
             }
             mutex_unlock(&dbs_mutex);
 
-            /* register reboot notifier for process cpus when reboot */
-            register_reboot_notifier(&reboot_notifier);
-
             mutex_init(&this_dbs_info->timer_mutex);
             dbs_timer_init(this_dbs_info);
 
@@ -1250,8 +1236,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int even
 
             mutex_lock(&dbs_mutex);
             mutex_destroy(&this_dbs_info->timer_mutex);
-
-            unregister_reboot_notifier(&reboot_notifier);
 
             dbs_enable--;
             mutex_unlock(&dbs_mutex);

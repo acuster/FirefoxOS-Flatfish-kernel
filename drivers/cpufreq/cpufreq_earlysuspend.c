@@ -156,6 +156,7 @@ int hotplug_early_suspend_exit(void)
         earlysuspend_workqueue = NULL;
     }
 
+    unregister_early_suspend(&hotplug_earlysuspend);
     wake_unlock(&ealysuspend_hotplug_work);
     wake_lock_destroy(&ealysuspend_hotplug_work);
     return 0;

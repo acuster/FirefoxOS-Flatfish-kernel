@@ -54,13 +54,13 @@ int ar100_message_manager_init(void)
 	for (i = 0; i < AR100_MESSAGE_CACHED_MAX; i++) {
 		message_cache.cache[i] = NULL;
 	}
-	message_cache.number = 0;
+	atomic_set(&(message_cache.number), 0);
 	
 	/* initialzie semaphore allocator */
 	for (i = 0; i < AR100_SEM_CACHE_MAX; i++) {
 		sem_cache.cache[i] = NULL;
 	}
-	sem_cache.number = 0;
+	atomic_set(&(sem_cache.number), 0);
 	
 	/* initialize message manager spinlock */
 	spin_lock_init(&(msg_mgr_lock));
@@ -80,44 +80,73 @@ int ar100_message_manager_exit(void)
 	return 0;
 }
 
+static int ar100_semaphore_invalid(struct semaphore *psemaphore)
+{
+	/* semaphore use system kmalloc, valid range check */
+	//if ((psemaphore >= ((struct semaphore *)(0xC0000000))) &&
+	//	(psemaphore <  ((struct semaphore *)(0xF0000000))))
+	if (psemaphore) {
+		/* valid ar100 semaphore */
+		return 0;
+	}
+	/* invalid ar100 semaphore */
+	return 1;
+}
+
 static struct semaphore *ar100_semaphore_allocate(void)
 {
 	struct semaphore *sem = NULL;
 	
-	if (sem_cache.number) {
-		/* allocate from cache first */
-		spin_lock_irqsave(&(msg_mgr_lock), msg_mgr_flag);
-		sem_cache.number--;
-		sem = sem_cache.cache[sem_cache.number];
-		sem_cache.cache[sem_cache.number] = NULL;
-		spin_unlock_irqrestore(&(msg_mgr_lock), msg_mgr_flag);
+	/* try to allocate from cache first */
+	spin_lock_irqsave(&(msg_mgr_lock), msg_mgr_flag);
+	if (atomic_read(&(sem_cache.number))) {
+		atomic_dec(&(sem_cache.number));
+		sem = sem_cache.cache[atomic_read(&(sem_cache.number))];
+		sem_cache.cache[atomic_read(&(sem_cache.number))] = NULL;
+		if (ar100_semaphore_invalid(sem)) {
+			AR100_ERR("allocate cache semaphore [%x] invalid\n", (u32)sem);
+		}
 	}
-	if (sem == NULL) {
+	spin_unlock_irqrestore(&(msg_mgr_lock), msg_mgr_flag);
+	
+	if (ar100_semaphore_invalid(sem)) {
 		/* cache allocate fail, allocate from kmem */
 		sem = kmalloc(sizeof(struct semaphore), GFP_KERNEL);
 	}
-	if (sem) {
-		/* initialize allocated semaphore */
-		sema_init(sem, 0);
+	/* check allocate semaphore valid or not */
+	if (ar100_semaphore_invalid(sem)) {
+		AR100_ERR("allocate semaphore [%x] invalid\n", (u32)sem);
+		return NULL;
 	}
+	
+	/* initialize allocated semaphore */
+	sema_init(sem, 0);
+	
 	return sem;
 }
 
 static int ar100_semaphore_free(struct semaphore *sem)
 {
-	if (sem == NULL) {
-		AR100_WRN("free null semaphore\n");
-		return -EINVAL;
+	struct semaphore *free_sem = sem;
+	
+	if (ar100_semaphore_invalid(free_sem)) {
+		AR100_ERR("free semaphore [%x] invalid\n", (u32)free_sem);
+		return -1;
 	}
-	if (sem_cache.number < AR100_SEM_CACHE_MAX) {
-		/* free to cache */
-		spin_lock_irqsave(&(msg_mgr_lock), msg_mgr_flag);
-		sem_cache.cache[sem_cache.number] = sem;
-		sem_cache.number++;
-		spin_unlock_irqrestore(&(msg_mgr_lock), msg_mgr_flag);
-	} else {
+	
+	/* try to free semaphore to cache */
+	spin_lock_irqsave(&(msg_mgr_lock), msg_mgr_flag);
+	if (atomic_read(&(sem_cache.number)) < AR100_SEM_CACHE_MAX) {
+		sem_cache.cache[atomic_read(&(sem_cache.number))] = free_sem;
+		atomic_inc(&(sem_cache.number));
+		free_sem = NULL;
+	}
+	spin_unlock_irqrestore(&(msg_mgr_lock), msg_mgr_flag);
+	
+	/* try to free semaphore to kmem if free to cache fail */
+	if (free_sem) {
 		/* free to kmem */
-		kfree(sem);
+		kfree(free_sem);
 	}
 	return 0;
 }
@@ -125,8 +154,7 @@ static int ar100_semaphore_free(struct semaphore *sem)
 static int ar100_message_invalid(struct ar100_message *pmessage)
 {
 	if ((pmessage >= message_start) &&
-		(pmessage < message_end))
-	{
+		(pmessage < message_end)) {
 		/* valid ar100 message */
 		return 0;
 	}
@@ -147,14 +175,17 @@ struct ar100_message *ar100_message_allocate(unsigned int msg_attr)
 	struct ar100_message *palloc   = NULL;
 	
 	/* first find in message_cache */
-	if (message_cache.number) {
-		AR100_INF("ar100 message_cache.number = 0x%x.\n", message_cache.number);
-		spin_lock_irqsave(&(msg_mgr_lock), msg_mgr_flag);
-		message_cache.number--;
-		palloc = message_cache.cache[message_cache.number];
-		spin_unlock_irqrestore(&(msg_mgr_lock), msg_mgr_flag);
+	spin_lock_irqsave(&(msg_mgr_lock), msg_mgr_flag);
+	if (atomic_read(&(message_cache.number))) {
+		AR100_INF("ar100 message_cache.number = 0x%x.\n", atomic_read(&(message_cache.number)));
+		atomic_dec(&(message_cache.number));
+		palloc = message_cache.cache[atomic_read(&(message_cache.number))];
 		AR100_INF("message [%x] allocate from message_cache\n", (u32)palloc);
+		if (ar100_message_invalid(palloc)) {
+			AR100_ERR("allocate cache message [%x] invalid\n", (u32)palloc);
+		}
 	}
+	spin_unlock_irqrestore(&(msg_mgr_lock), msg_mgr_flag);
 	if (ar100_message_invalid(palloc)) {
 		/*
 		 * cached message_cache finded fail, 
@@ -179,7 +210,7 @@ struct ar100_message *ar100_message_allocate(unsigned int msg_attr)
 		ar100_hwspin_unlock(0);
 	}
 	if (ar100_message_invalid(palloc)) {
-		AR100_ERR("allocate message frame is invalid\n");
+		AR100_ERR("allocate message [%x] frame is invalid\n", (u32)palloc);
 		return NULL;
 	}
 	/* initialize messgae frame */
@@ -203,35 +234,38 @@ struct ar100_message *ar100_message_allocate(unsigned int msg_attr)
  */
 void ar100_message_free(struct ar100_message *pmessage)
 {
+	struct ar100_message *free_message = pmessage;
+	
 	/* check this message valid or not */
-	if (ar100_message_invalid(pmessage)) {
-		AR100_WRN("free invalid ar100 message\n");
+	if (ar100_message_invalid(free_message)) {
+		AR100_ERR("free invalid ar100 message [%x]\n", (u32)free_message);
 		return;
 	}
-	if (pmessage->attr & AR100_MESSAGE_ATTR_SOFTSYN) {
+	if (free_message->attr & AR100_MESSAGE_ATTR_SOFTSYN) {
 		/* free message semaphore first */
-		ar100_semaphore_free((struct semaphore *)(pmessage->private));
-		pmessage->private = NULL;
+		ar100_semaphore_free((struct semaphore *)(free_message->private));
+		free_message->private = NULL;
 	}
-	/* try to add free_list first */
-	if (message_cache.number < AR100_MESSAGE_CACHED_MAX) {
-		AR100_INF("insert message [%x] to message_cache\n", (unsigned int)pmessage);
-		AR100_INF("message_cache number : %d\n", message_cache.number);
+	/* try to free to free_list first */
+	spin_lock_irqsave(&(msg_mgr_lock), msg_mgr_flag);
+	if (atomic_read(&(message_cache.number)) < AR100_MESSAGE_CACHED_MAX) {
+		AR100_INF("insert message [%x] to message_cache\n", (unsigned int)free_message);
+		AR100_INF("message_cache number : %d\n", atomic_read(&(message_cache.number)));
 		/* cached this message, message state: ALLOCATED */
-		spin_lock_irqsave(&(msg_mgr_lock), msg_mgr_flag);
-		message_cache.cache[message_cache.number] = pmessage;
-		message_cache.number++;
-		pmessage->next = NULL;
-		pmessage->state = AR100_MESSAGE_ALLOCATED;
-		spin_unlock_irqrestore(&(msg_mgr_lock), msg_mgr_flag);
-	} else {
-		/*
-		 * free to message pool,
-		 * set message state as FREED.
-		 */
+		message_cache.cache[atomic_read(&(message_cache.number))] = free_message;
+		atomic_inc(&(message_cache.number));
+		free_message->next = NULL;
+		free_message->state = AR100_MESSAGE_ALLOCATED;
+		free_message = NULL;
+	}
+	spin_unlock_irqrestore(&(msg_mgr_lock), msg_mgr_flag);
+	
+	/* 	try to free message to pool if free to cache fail */
+	if (free_message) {
+		/* free to message pool,set message state as FREED. */
 		ar100_hwspin_lock_timeout(0, AR100_SPINLOCK_TIMEOUT);
-		pmessage->state = AR100_MESSAGE_FREED;
-		pmessage->next  = NULL;
+		free_message->state = AR100_MESSAGE_FREED;
+		free_message->next  = NULL;
 		ar100_hwspin_unlock(0);
 	}
 }

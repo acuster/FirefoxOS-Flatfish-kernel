@@ -23,13 +23,14 @@
 #define	__AR100_MESSAGE_MANAGER_I_H
 
 #include "../include/ar100_includes.h"
+#include <asm/atomic.h>
 
 #define AR100_SEM_CACHE_MAX	(8)
 
 struct ar100_semaphore_cache
 {
-	volatile unsigned int number;
-	struct semaphore     *cache[AR100_SEM_CACHE_MAX];
+	atomic_t          number;
+	struct semaphore *cache[AR100_SEM_CACHE_MAX];
 };
 
 /*
@@ -38,7 +39,7 @@ struct ar100_semaphore_cache
  */
 typedef struct ar100_message_cache
 {
-	volatile unsigned int number;							/* valid message number */
+	atomic_t              number;							/* valid message number */
 	struct ar100_message *cache[AR100_MESSAGE_CACHED_MAX];	/* message cache table */
 } ar100_message_cache_t;
 

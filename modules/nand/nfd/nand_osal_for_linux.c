@@ -510,6 +510,7 @@ __s32 NAND_WaitDmaFinish(void)
 	}
 	else
 	{
+		NAND_ClearDMAInt();
 		printk("NAND_WaitDmaFinish, error nand_index: 0x%x\n", nand_index);
 	}
     	
@@ -652,8 +653,11 @@ __s32 NAND_WaitRbReady(void)
 			dbg_rbint("nand wait rb ready ok\n");
 		}
 	}
+	else
+	{
+		NAND_ClearRbInt();
+	}
 		
-	
     return 0;
 }
 #else

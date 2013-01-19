@@ -32,6 +32,7 @@ int		pmu_init_adcts_freq;
 int		pmu_init_chg_pretime;      
 int		pmu_init_chg_csttime;
 int		pmu_batt_cap_correct;
+int		pmu_bat_regu_en;
 
                           
 int		pmu_bat_para1;             
@@ -809,6 +810,13 @@ static int __init axp22_board_init(void)
  //           printk("axp driver uning configuration failed(%d)\n", __LINE__);
             pmu_batt_cap_correct = 1;
         }
+
+	ret = axp_script_parser_fetch("pmu_para", "pmu_bat_regu_en", &pmu_bat_regu_en, sizeof(int));
+        if (ret)
+        {
+ //           printk("axp driver uning configuration failed(%d)\n", __LINE__);
+            pmu_bat_regu_en = 0;
+        }	
 
         ret = axp_script_parser_fetch("pmu_para", "pmu_bat_para1", &pmu_bat_para1, sizeof(int));
         if (ret)
