@@ -13,40 +13,38 @@
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-mediabus.h>//linux-3.0
 #include <linux/io.h>
-//#include <mach/gpio_v2.h>
+
+//add by heyihang.Jan 15, 2013
+#include <linux/gpio.h>
+
 #include <mach/sys_config.h>
 #include <linux/regulator/consumer.h>
 #include <mach/system.h>
 //#include "../../../../power/axp_power/axp-gpio.h"
-#if defined CONFIG_ARCH_SUN4I
-#include "../include/sun4i_csi_core.h"
-#include "../include/sun4i_dev_csi.h"
-#elif defined CONFIG_ARCH_SUN5I
-#include "../include/sun5i_csi_core.h"
-#include "../include/sun5i_dev_csi.h"
-#else
 #include "../include/sunxi_csi_core.h"
 #include "../include/sunxi_dev_csi.h"
-#endif
 
 MODULE_AUTHOR("raymonxiu");
 MODULE_DESCRIPTION("A low-level driver for OV ov5640 sensors");
 MODULE_LICENSE("GPL");
 
+
+
 //for internel driver debug
 #define DEV_DBG_EN   		0
 #if(DEV_DBG_EN == 1)
-#define csi_dev_dbg(x,arg...) printk(KERN_INFO"[CSI_DEBUG][OV5640]"x,##arg)
+#define csi_dev_dbg(x,arg...) printk("[CSI_DEBUG][OV5640]"x,##arg)
 #else
 #define csi_dev_dbg(x,arg...)
 #endif
-#define csi_dev_err(x,arg...) printk(KERN_INFO"[CSI_ERR][OV5640]"x,##arg)
-#define csi_dev_print(x,arg...) printk(KERN_INFO"[CSI][OV5640]"x,##arg)
+#define csi_dev_err(x,arg...) printk("[CSI_ERR][OV5640]"x,##arg)
+#define csi_dev_print(x,arg...) printk("[CSI][OV5640]"x,##arg)
 
 #define MCLK (24*1000*1000)
 #define VREF_POL	CSI_HIGH
 #define HREF_POL	CSI_HIGH
 #define CLK_POL		CSI_RISING
+
 #define IO_CFG		0						//0 for csi0
 #define V4L2_IDENT_SENSOR 0x5640
 
@@ -69,6 +67,21 @@ MODULE_LICENSE("GPL");
 #define REG_STEP 			(REG_ADDR_STEP+REG_DATA_STEP)
 
 #define CONTINUEOUS_AF
+#define AUTO_FPS
+#define DENOISE_LV_AUTO
+#define SHARPNESS 0x10
+
+#ifdef AUTO_FPS
+//#define AF_FAST
+#endif
+
+#ifndef DENOISE_LV_AUTO
+#define DENOISE_LV 0x8
+#endif
+
+
+#define CSI_VER_FOR_FPGA
+
 
 /*
  * Basic window sizes.  These probably belong somewhere more globally
@@ -104,8 +117,11 @@ MODULE_LICENSE("GPL");
 /*
  * Our nominal (default) frame rate.
  */
+#ifdef CSI_VER_FOR_FPGA
+#define SENSOR_FRAME_RATE 15
+#else
 #define SENSOR_FRAME_RATE 30
-
+#endif
 /*
  * The ov5640 sits on i2c with ID 0x78
  */
@@ -141,6 +157,7 @@ struct sensor_info {
 	unsigned int init_first_flag;
 	unsigned int preview_first_flag;
 	unsigned int focus_status;		//0:idle 1:busy
+	unsigned int low_speed;		//0:high speed 1:low speed
 	int brightness;
 	int	contrast;
 	int saturation;
@@ -185,11 +202,11 @@ static struct regval_list sensor_default_regs[] = {
 	{{0xff,0xff},{0x1e}},//delay 30ms
 //	{{0x30,0x08},{0x42}},//power down
 	{{0x31,0x03},{0x03}},//
-	{{0x30,0x17},{0xff}},//
-	{{0x30,0x18},{0xff}},//
+	{{0x30,0x17},{0x00}},//
+	{{0x30,0x18},{0x00}},//
 	//pll and clock setting
-	{{0x30,0x34},{0x1a}},//
-	{{0x30,0x35},{0x11}},//
+	{{0x30,0x34},{0x18}},//
+	{{0x30,0x35},{0x21}},//
 	{{0x30,0x36},{0x46}},//0x46->30fps
 	{{0x30,0x37},{0x13}},//////div
 	{{0x31,0x08},{0x01}},//
@@ -261,7 +278,7 @@ static struct regval_list sensor_default_regs[] = {
 	{{0x37,0x08},{0x64}},//
 	{{0x37,0x09},{0x52}},//
 	{{0x37,0x0c},{0x03}},//
-	{{0x3a,0x00},{0x78}},
+	{{0x3a,0x00},{0x78}},//night mode bit2
 	{{0x3a,0x02},{0x03}},//
 	{{0x3a,0x03},{0xd8}},//
 	{{0x3a,0x08},{0x01}},//
@@ -330,7 +347,6 @@ static struct regval_list sensor_default_regs[] = {
 	{{0x51,0x9c},{0x06}},
 	{{0x51,0x9d},{0x79}},
 	{{0x51,0x9e},{0x38}},
-
 	 //Color
 	{{0x53,0x81},{0x1e}},
 	{{0x53,0x82},{0x5b}},
@@ -348,6 +364,7 @@ static struct regval_list sensor_default_regs[] = {
 	{{0x53,0x01},{0x30}},
 	{{0x53,0x02},{0x2c}},
 	{{0x53,0x03},{0x1c}},
+	{{0x53,0x08},{0x25}}, //sharpness/noise auto
 	{{0x53,0x04},{0x08}},
 	{{0x53,0x05},{0x30}},
 	{{0x53,0x06},{0x1c}},
@@ -358,23 +375,23 @@ static struct regval_list sensor_default_regs[] = {
 	{{0x53,0x0c},{0x06}},
 
 	//Gamma
-	{{0x54,0x80},{0x01}},
-	{{0x54,0x81},{0x06 }},
-	{{0x54,0x82},{0x15}},
-	{{0x54,0x83},{0x28}},
-	{{0x54,0x84},{0x3b}},
-	{{0x54,0x85},{0x50}},
-	{{0x54,0x86},{0x5d}},
-	{{0x54,0x87},{0x6a}},
-	{{0x54,0x88},{0x75}},
-	{{0x54,0x89},{0x80}},
-	{{0x54,0x8a},{0x8a}},
-	{{0x54,0x8b},{0x9b}},
-	{{0x54,0x8c},{0xaa}},
-	{{0x54,0x8d},{0xc0}},
-	{{0x54,0x8e},{0xd5}},
-	{{0x54,0x8f},{0xe8}},
-	{{0x54,0x90},{0x20}},
+	{{0x54,0x80},{0x01}},  // LA     ORG
+	{{0x54,0x81},{0x08}},  // 0x08     0x06
+	{{0x54,0x82},{0x14}},  // 0x14     0x15
+	{{0x54,0x83},{0x28}},  // 0x28     0x28
+	{{0x54,0x84},{0x51}},  // 0x51     0x3b
+	{{0x54,0x85},{0x65}},  // 0x65     0x50
+	{{0x54,0x86},{0x71}},  // 0x71     0x5d
+	{{0x54,0x87},{0x7d}},  // 0x7d     0x6a
+	{{0x54,0x88},{0x87}},  // 0x87     0x75
+	{{0x54,0x89},{0x91}},  // 0x91     0x80
+	{{0x54,0x8a},{0x9a}},  // 0x9a     0x8a
+	{{0x54,0x8b},{0xaa}},  // 0xaa     0x9b
+	{{0x54,0x8c},{0xb8}},  // 0xb8     0xaa
+	{{0x54,0x8d},{0xcd}},  // 0xcd     0xc0
+	{{0x54,0x8e},{0xdd}},  // 0xdd     0xd5
+	{{0x54,0x8f},{0xea}},  // 0xea     0xe8
+	{{0x54,0x90},{0x1d}},  // 0x1d     0x20
 
 	//UV
 	{{0x55,0x80},{0x04}},
@@ -461,6 +478,8 @@ static struct regval_list sensor_default_regs[] = {
 	{{0x3a,0x11},{0x70}},
 	{{0x3a,0x1f},{0x14}},
 
+	{{0x30,0x31},{0x08}}, //disable internal LDO
+
 //	//power down release
 //	{{0x30,0x08},{0x02}},
 };
@@ -471,10 +490,14 @@ static struct regval_list sensor_qsxga_regs[] = { //qsxga: 2592*1936
 	//power down
 //	{{0x30,0x08},{0x42}},
 	//pll and clock setting
-	{{0x30,0x34},{0x1a}},
-	{{0x30,0x35},{0x11}},
-	{{0x30,0x36},{0x46}},
-	{{0x30,0x37},{0x14}},
+	{{0x30,0x34},{0x18}},
+#ifndef CSI_VER_FOR_FPGA
+	{{0x30,0x35},{0x21}},
+#else
+  {{0x30,0x35},{0x41}},
+#endif
+	{{0x30,0x36},{0x54}},
+	{{0x30,0x37},{0x13}},
 	{{0x31,0x08},{0x01}},
 	{{0x38,0x24},{0x01}},
 	{{0xff,0xff},{0x05}},//delay 5ms
@@ -488,14 +511,23 @@ static struct regval_list sensor_qsxga_regs[] = { //qsxga: 2592*1936
 	{{0x38,0x0d},{0x1c}}, //HTS LSB
 	{{0x38,0x0e},{0x07}}, //VTS MSB
 	{{0x38,0x0f},{0xb0}}, //LSB
+#ifndef CSI_VER_FOR_FPGA
 	//banding step
 	{{0x3a,0x08},{0x00}}, //50HZ step MSB
-	{{0x3a,0x09},{0x62}}, //50HZ step LSB
+	{{0x3a,0x09},{0x93}}, //50HZ step LSB
 	{{0x3a,0x0a},{0x00}}, //60HZ step MSB
-	{{0x3a,0x0b},{0x52}}, //60HZ step LSB
-	{{0x3a,0x0e},{0x14}}, //50HZ step max
-	{{0x3a,0x0d},{0x18}}, //60HZ step max
-
+	{{0x3a,0x0b},{0x7b}}, //60HZ step LSB
+	{{0x3a,0x0e},{0x0d}}, //50HZ step max
+	{{0x3a,0x0d},{0x10}}, //60HZ step max
+#else
+	//banding step
+	{{0x3a,0x08},{0x00}}, //50HZ step MSB
+	{{0x3a,0x09},{0x49}}, //50HZ step LSB
+	{{0x3a,0x0a},{0x00}}, //60HZ step MSB
+	{{0x3a,0x0b},{0x3d}}, //60HZ step LSB
+	{{0x3a,0x0e},{0x1a}}, //50HZ step max
+	{{0x3a,0x0d},{0x20}}, //60HZ step max
+#endif
 //	{{0x35,0x03},{0x07}}, //AEC disable
 	{{0x35,0x0c},{0x00}},
 	{{0x35,0x0d},{0x00}},
@@ -547,10 +579,14 @@ static struct regval_list sensor_qxga_regs[] = { //qxga: 2048*1536
 	//power down
 //	{{0x30,0x08},{0x42}},
 	//pll and clock setting
-	{{0x30,0x34},{0x1a}},
-	{{0x30,0x35},{0x11}},
-	{{0x30,0x36},{0x46}},
-	{{0x30,0x37},{0x14}},
+	{{0x30,0x34},{0x18}},
+#ifndef CSI_VER_FOR_FPGA
+	{{0x30,0x35},{0x21}},
+#else
+  {{0x30,0x35},{0x41}},
+#endif
+	{{0x30,0x36},{0x54}},
+	{{0x30,0x37},{0x13}},
 	{{0x31,0x08},{0x01}},
 	{{0x38,0x24},{0x01}},
 	{{0xff,0xff},{0x05}},//delay 5ms
@@ -564,13 +600,23 @@ static struct regval_list sensor_qxga_regs[] = { //qxga: 2048*1536
 	{{0x38,0x0d},{0x1c}}, //HTS LSB
 	{{0x38,0x0e},{0x07}}, //VTS MSB
 	{{0x38,0x0f},{0xb0}}, //LSB
+#ifndef CSI_VER_FOR_FPGA
 	//banding step
 	{{0x3a,0x08},{0x00}}, //50HZ step MSB
-	{{0x3a,0x09},{0x62}}, //50HZ step LSB
+	{{0x3a,0x09},{0x93}}, //50HZ step LSB
 	{{0x3a,0x0a},{0x00}}, //60HZ step MSB
-	{{0x3a,0x0b},{0x52}}, //60HZ step LSB
-	{{0x3a,0x0e},{0x14}}, //50HZ step max
-	{{0x3a,0x0d},{0x18}}, //60HZ step max
+	{{0x3a,0x0b},{0x7b}}, //60HZ step LSB
+	{{0x3a,0x0e},{0x0d}}, //50HZ step max
+	{{0x3a,0x0d},{0x10}}, //60HZ step max
+#else
+	//banding step
+	{{0x3a,0x08},{0x00}}, //50HZ step MSB
+	{{0x3a,0x09},{0x49}}, //50HZ step LSB
+	{{0x3a,0x0a},{0x00}}, //60HZ step MSB
+	{{0x3a,0x0b},{0x3d}}, //60HZ step LSB
+	{{0x3a,0x0e},{0x1a}}, //50HZ step max
+	{{0x3a,0x0d},{0x20}}, //60HZ step max
+#endif
 
 //	{{0x35,0x03},{0x07}}, //AEC disable
 	{{0x35,0x0c},{0x00}},
@@ -621,10 +667,14 @@ static struct regval_list sensor_uxga_regs[] = { //UXGA: 1600*1200
 	//power down
 //	{{0x30,0x08},{0x42}},
 	//pll and clock setting
-	{{0x30,0x34},{0x1a}},
-	{{0x30,0x35},{0x11}},
-	{{0x30,0x36},{0x46}},
-	{{0x30,0x37},{0x14}},
+	{{0x30,0x34},{0x18}},
+#ifndef CSI_VER_FOR_FPGA
+	{{0x30,0x35},{0x21}},
+#else
+  {{0x30,0x35},{0x41}},
+#endif
+	{{0x30,0x36},{0x54}},
+	{{0x30,0x37},{0x13}},
 	{{0x31,0x08},{0x01}},
 	{{0x38,0x24},{0x01}},
 	{{0xff,0xff},{0x05}},//delay 5ms
@@ -638,13 +688,23 @@ static struct regval_list sensor_uxga_regs[] = { //UXGA: 1600*1200
 	{{0x38,0x0d},{0x1c}}, //HTS LSB
 	{{0x38,0x0e},{0x07}}, //VTS MSB
 	{{0x38,0x0f},{0xb0}}, //LSB
+#ifndef CSI_VER_FOR_FPGA
 	//banding step
 	{{0x3a,0x08},{0x00}}, //50HZ step MSB
-	{{0x3a,0x09},{0x62}}, //50HZ step LSB
+	{{0x3a,0x09},{0x93}}, //50HZ step LSB
 	{{0x3a,0x0a},{0x00}}, //60HZ step MSB
-	{{0x3a,0x0b},{0x52}}, //60HZ step LSB
-	{{0x3a,0x0e},{0x14}}, //50HZ step max
-	{{0x3a,0x0d},{0x18}}, //60HZ step max
+	{{0x3a,0x0b},{0x7b}}, //60HZ step LSB
+	{{0x3a,0x0e},{0x0d}}, //50HZ step max
+	{{0x3a,0x0d},{0x10}}, //60HZ step max
+#else
+	//banding step
+	{{0x3a,0x08},{0x00}}, //50HZ step MSB
+	{{0x3a,0x09},{0x49}}, //50HZ step LSB
+	{{0x3a,0x0a},{0x00}}, //60HZ step MSB
+	{{0x3a,0x0b},{0x3d}}, //60HZ step LSB
+	{{0x3a,0x0e},{0x1a}}, //50HZ step max
+	{{0x3a,0x0d},{0x20}}, //60HZ step max
+#endif
 
 //	{{0x35,0x03},{0x07}}, //AEC disable
 	{{0x35,0x0c},{0x00}},
@@ -691,15 +751,20 @@ static struct regval_list sensor_uxga_regs[] = { //UXGA: 1600*1200
 //	{{0xff,0xff},{0x32}},//delay 50ms
 };
 
+#if 0
 static struct regval_list sensor_sxga_regs[] = { //SXGA: 1280*960
 	//capture 1.3Mega 7.5fps
 	//power down
 //	{{0x30,0x08},{0x42}},
 	//pll and clock setting
-	{{0x30,0x34},{0x1a}},
-	{{0x30,0x35},{0x11}},
-	{{0x30,0x36},{0x46}},
-	{{0x30,0x37},{0x14}},
+	{{0x30,0x34},{0x18}},
+#ifndef CSI_VER_FOR_FPGA
+	{{0x30,0x35},{0x21}},
+#else
+  {{0x30,0x35},{0x41}},
+#endif
+	{{0x30,0x36},{0x54}},
+	{{0x30,0x37},{0x13}},
 	{{0x31,0x08},{0x01}},
 	{{0x38,0x24},{0x01}},
 	{{0xff,0xff},{0x05}},//delay 5ms
@@ -713,13 +778,23 @@ static struct regval_list sensor_sxga_regs[] = { //SXGA: 1280*960
 	{{0x38,0x0d},{0x1c}}, //HTS LSB
 	{{0x38,0x0e},{0x07}}, //VTS MSB
 	{{0x38,0x0f},{0xb0}}, //LSB
+#ifndef CSI_VER_FOR_FPGA
 	//banding step
 	{{0x3a,0x08},{0x00}}, //50HZ step MSB
-	{{0x3a,0x09},{0x62}}, //50HZ step LSB
+	{{0x3a,0x09},{0x93}}, //50HZ step LSB
 	{{0x3a,0x0a},{0x00}}, //60HZ step MSB
-	{{0x3a,0x0b},{0x52}}, //60HZ step LSB
-	{{0x3a,0x0e},{0x14}}, //50HZ step max
-	{{0x3a,0x0d},{0x18}}, //60HZ step max
+	{{0x3a,0x0b},{0x7b}}, //60HZ step LSB
+	{{0x3a,0x0e},{0x0d}}, //50HZ step max
+	{{0x3a,0x0d},{0x10}}, //60HZ step max
+#else
+	//banding step
+	{{0x3a,0x08},{0x00}}, //50HZ step MSB
+	{{0x3a,0x09},{0x49}}, //50HZ step LSB
+	{{0x3a,0x0a},{0x00}}, //60HZ step MSB
+	{{0x3a,0x0b},{0x3d}}, //60HZ step LSB
+	{{0x3a,0x0e},{0x1a}}, //50HZ step max
+	{{0x3a,0x0d},{0x20}}, //60HZ step max
+#endif
 
 //	{{0x35,0x03},{0x07}}, //AEC disable
 	{{0x35,0x0c},{0x00}},
@@ -764,16 +839,110 @@ static struct regval_list sensor_sxga_regs[] = { //SXGA: 1280*960
 //	{{0x30,0x08},{0x02}},
 //	{{0xff,0xff},{0x32}},//delay 50ms
 };
+#else
+static struct regval_list sensor_sxga_regs[] = { //1280*960
+  //for video
+//	//power down
+//	{{0x30,0x08},{0x42}},
+//	//pll and clock setting
+	{{0x30,0x34},{0x14}},
+#ifndef CSI_VER_FOR_FPGA
+	{{0x30,0x35},{0x31}},	//0x11:60fps 0x21:30fps 0x41:15fps
+#else
+	{{0x30,0x35},{0x61}},	//0x11:60fps 0x21:30fps 0x41:15fps 0xa1:7.5fps
+#endif
+	{{0x30,0x36},{0x54}},
+	{{0x30,0x37},{0x13}},
+	{{0x31,0x08},{0x01}},
+	{{0x38,0x24},{0x01}},
+	{{0xff,0xff},{0x05}},//delay 5ms
+	//timing
+	//1280x960
+	{{0x38,0x08},{0x05}},	//H size MSB
+	{{0x38,0x09},{0x00}},	//H size LSB
+	{{0x38,0x0a},{0x03}},	//V size MSB
+	{{0x38,0x0b},{0xc0}},	//V size LSB
+	{{0x38,0x0c},{0x07}},	//HTS MSB
+	{{0x38,0x0d},{0x64}},	//HTS LSB
+	{{0x38,0x0e},{0x03}},	//VTS MSB
+	{{0x38,0x0f},{0xd8}},	//LSB
+#ifndef CSI_VER_FOR_FPGA
+	//banding step
+	{{0x3a,0x08},{0x01}},//50HZ step MSB
+	{{0x3a,0x09},{0x27}},//50HZ step LSB
+	{{0x3a,0x0a},{0x00}},//60HZ step MSB
+	{{0x3a,0x0b},{0xf6}},//60HZ step LSB
+	{{0x3a,0x0e},{0x03}},//50HZ step max
+	{{0x3a,0x0d},{0x04}},//60HZ step max
+#else
+	//banding step
+	{{0x3a,0x08},{0x00}},//50HZ step MSB
+	{{0x3a,0x09},{0x93}},//50HZ step LSB
+	{{0x3a,0x0a},{0x00}},//60HZ step MSB
+	{{0x3a,0x0b},{0x7b}},//60HZ step LSB
+	{{0x3a,0x0e},{0x06}},//50HZ step max
+	{{0x3a,0x0d},{0x08}},//60HZ step max
+#endif
+	{{0x3c,0x07},{0x07}}, //light meter 1 thereshold
+	{{0x38,0x14},{0x31}}, //horizton subsample
+	{{0x38,0x15},{0x31}}, //vertical subsample
+	{{0x38,0x00},{0x00}}, //x address start high byte
+	{{0x38,0x01},{0x00}}, //x address start low byte
+	{{0x38,0x02},{0x00}},	//y address start high byte
+	{{0x38,0x03},{0x04}}, //y address start low byte
+	{{0x38,0x04},{0x0a}}, //x address end high byte
+	{{0x38,0x05},{0x3f}}, //x address end low byte
+	{{0x38,0x06},{0x07}}, //y address end high byte
+	{{0x38,0x07},{0x9b}}, //y address end low byte
+	{{0x38,0x10},{0x00}}, //isp hortizontal offset high byte
+	{{0x38,0x11},{0x10}}, //isp hortizontal offset low byte
+	{{0x38,0x12},{0x00}}, //isp vertical offset high byte
+	{{0x38,0x13},{0x06}},	//isp vertical offset low byte
+
+//	{{0x53,0x08},{0x65}},		//sharpen manual
+//	{{0x53,0x02},{0x00}},		//sharpen offset 1
+	{{0x40,0x02},{0x45}},		//BLC related
+	{{0x40,0x05},{0x18}},		//BLC related
+
+	{{0x36,0x18},{0x00}},
+	{{0x36,0x12},{0x29}},
+	{{0x37,0x09},{0x52}},
+	{{0x37,0x0c},{0x03}},
+	{{0x3a,0x02},{0x02}}, //60HZ max exposure limit MSB
+	{{0x3a,0x03},{0xe0}}, //60HZ max exposure limit LSB
+	{{0x3a,0x14},{0x02}}, //50HZ max exposure limit MSB
+	{{0x3a,0x15},{0xe0}}, //50HZ max exposure limit LSB
+
+	{{0x40,0x04},{0x02}}, //BLC line number
+	{{0x30,0x02},{0x1c}}, //reset JFIFO SFIFO JPG
+	{{0x30,0x06},{0xc3}}, //enable xx clock
+	{{0x46,0x0b},{0x37}},	//debug mode
+	{{0x46,0x0c},{0x20}}, //PCLK Manuale
+	{{0x48,0x37},{0x16}}, //PCLK period
+	{{0x50,0x01},{0x83}}, //ISP effect
+//	{{0x35,0x03},{0x00}},//AEC enable
+
+	{{0x30,0x2c},{0xc2}},//bit[7:6]: output drive capability
+						//00: 1x   01: 2x  10: 3x  11: 4x
+//	//power down release
+//	{{0x30,0x08},{0x02}},
+//	{{0xff,0xff},{0x32}},//delay 50ms
+};
+#endif
 
 static struct regval_list sensor_xga_regs[] = { //XGA: 1024*768
 	//capture 1Mega 7.5fps
 	//power down
 //	{{0x30,0x08},{0x42}},
 	//pll and clock setting
-	{{0x30,0x34},{0x1a}},
-	{{0x30,0x35},{0x11}},
-	{{0x30,0x36},{0x46}},
-	{{0x30,0x37},{0x14}},
+	{{0x30,0x34},{0x18}},
+#ifndef CSI_VER_FOR_FPGA
+	{{0x30,0x35},{0x21}},
+#else
+  {{0x30,0x35},{0x41}},
+#endif
+	{{0x30,0x36},{0x54}},
+	{{0x30,0x37},{0x13}},
 	{{0x31,0x08},{0x01}},
 	{{0x38,0x24},{0x01}},
 	{{0xff,0xff},{0x05}},//delay 5ms
@@ -787,14 +956,23 @@ static struct regval_list sensor_xga_regs[] = { //XGA: 1024*768
 	{{0x38,0x0d},{0x1c}}, //HTS LSB
 	{{0x38,0x0e},{0x07}}, //VTS MSB
 	{{0x38,0x0f},{0xb0}}, //LSB
+#ifndef CSI_VER_FOR_FPGA
 	//banding step
-	{{0x3a,0x08},{0x00}},//50HZ step MSB
-	{{0x3a,0x09},{0x62}},//50HZ step LSB
-	{{0x3a,0x0a},{0x00}},//60HZ step MSB
-	{{0x3a,0x0b},{0x52}},//60HZ step LSB
-	{{0x3a,0x0e},{0x14}},//50HZ step max
-	{{0x3a,0x0d},{0x18}},//60HZ step max
-
+	{{0x3a,0x08},{0x00}}, //50HZ step MSB
+	{{0x3a,0x09},{0x93}}, //50HZ step LSB
+	{{0x3a,0x0a},{0x00}}, //60HZ step MSB
+	{{0x3a,0x0b},{0x7b}}, //60HZ step LSB
+	{{0x3a,0x0e},{0x0d}}, //50HZ step max
+	{{0x3a,0x0d},{0x10}}, //60HZ step max
+#else
+	//banding step
+	{{0x3a,0x08},{0x00}}, //50HZ step MSB
+	{{0x3a,0x09},{0x49}}, //50HZ step LSB
+	{{0x3a,0x0a},{0x00}}, //60HZ step MSB
+	{{0x3a,0x0b},{0x3d}}, //60HZ step LSB
+	{{0x3a,0x0e},{0x1a}}, //50HZ step max
+	{{0x3a,0x0d},{0x20}}, //60HZ step max
+#endif
 //	{{0x35,0x03},{0x07}}, //AEC disable
 	{{0x35,0x0c},{0x00}},
 	{{0x35,0x0d},{0x00}},
@@ -858,9 +1036,13 @@ static struct regval_list sensor_1080p_regs[] = { //1080: 1920*1080
 	//power down
 //	{{0x30,0x08},{0x42}},
 	//pll and clock setting
-	{{0x30,0x34},{0x1a}},
-	{{0x30,0x35},{0x11}},	//0x11:30fps 0x21:15fps
-	{{0x30,0x36},{0x69}},
+	{{0x30,0x34},{0x18}},
+#ifndef CSI_VER_FOR_FPGA
+	{{0x30,0x35},{0x21}},	//0x11:30fps 0x21:15fps
+#else
+	{{0x30,0x35},{0x41}},	//0x11:30fps 0x21:15fps 0x41:7.5fps
+#endif
+	{{0x30,0x36},{0x54}},
 	{{0x30,0x37},{0x13}},
 	{{0x31,0x08},{0x01}},
 	{{0x38,0x24},{0x01}},
@@ -875,14 +1057,23 @@ static struct regval_list sensor_1080p_regs[] = { //1080: 1920*1080
 	{{0x38,0x0d},{0xc4}},	//HTS LSB
 	{{0x38,0x0e},{0x04}},	//VTS MSB
 	{{0x38,0x0f},{0x60}},	//VTS LSB
+#ifndef CSI_VER_FOR_FPGA
 	//banding step
-	{{0x3a,0x08},{0x01}}, //50HZ step MSB
-	{{0x3a,0x09},{0x50}}, //50HZ step LSB
-	{{0x3a,0x0a},{0x01}}, //60HZ step MSB
-	{{0x3a,0x0b},{0x18}}, //60HZ step LSB
-	{{0x3a,0x0e},{0x03}}, //50HZ step max
-	{{0x3a,0x0d},{0x04}}, //60HZ step max
-
+	{{0x3a,0x08},{0x00}}, //50HZ step MSB
+	{{0x3a,0x09},{0xa8}}, //50HZ step LSB
+	{{0x3a,0x0a},{0x00}}, //60HZ step MSB
+	{{0x3a,0x0b},{0x8c}}, //60HZ step LSB
+	{{0x3a,0x0e},{0x06}}, //50HZ step max
+	{{0x3a,0x0d},{0x08}}, //60HZ step max
+#else
+	//banding step
+	{{0x3a,0x08},{0x00}}, //50HZ step MSB
+	{{0x3a,0x09},{0x54}}, //50HZ step LSB
+	{{0x3a,0x0a},{0x00}}, //60HZ step MSB
+	{{0x3a,0x0b},{0x46}}, //60HZ step LSB
+	{{0x3a,0x0e},{0x0d}}, //50HZ step max
+	{{0x3a,0x0d},{0x10}}, //60HZ step max
+#endif
 	{{0x3c,0x07},{0x07}}, //light meter 1 thereshold
 	{{0x38,0x14},{0x11}}, //horizton subsample
 	{{0x38,0x15},{0x11}}, //vertical subsample
@@ -933,9 +1124,13 @@ static struct regval_list sensor_720p_regs[] = { //1280*720
 //	//power down
 //	{{0x30,0x08},{0x42}},
 //	//pll and clock setting
-	{{0x30,0x34},{0x1a}},
+	{{0x30,0x34},{0x18}},
+#ifndef CSI_VER_FOR_FPGA
 	{{0x30,0x35},{0x21}},	//0x11:60fps 0x21:30fps 0x41:15fps
-	{{0x30,0x36},{0x69}},
+#else
+	{{0x30,0x35},{0x41}},	//0x11:60fps 0x21:30fps 0x41:15fps 0xa1:7.5fps
+#endif
+	{{0x30,0x36},{0x54}},
 	{{0x30,0x37},{0x13}},
 	{{0x31,0x08},{0x01}},
 	{{0x38,0x24},{0x01}},
@@ -950,6 +1145,7 @@ static struct regval_list sensor_720p_regs[] = { //1280*720
 	{{0x38,0x0d},{0x64}},	//HTS LSB
 	{{0x38,0x0e},{0x02}},	//VTS MSB
 	{{0x38,0x0f},{0xe4}},	//LSB
+#ifndef CSI_VER_FOR_FPGA
 	//banding step
 	{{0x3a,0x08},{0x00}}, //50HZ step MSB
 	{{0x3a,0x09},{0xdd}}, //50HZ step LSB
@@ -957,7 +1153,15 @@ static struct regval_list sensor_720p_regs[] = { //1280*720
 	{{0x3a,0x0b},{0xb8}}, //60HZ step LSB
 	{{0x3a,0x0e},{0x03}}, //50HZ step max
 	{{0x3a,0x0d},{0x04}}, //60HZ step max
-
+#else
+	//banding step
+	{{0x3a,0x08},{0x00}}, //50HZ step MSB
+	{{0x3a,0x09},{0x6e}}, //50HZ step LSB
+	{{0x3a,0x0a},{0x00}}, //60HZ step MSB
+	{{0x3a,0x0b},{0x5c}}, //60HZ step LSB
+	{{0x3a,0x0e},{0x06}}, //50HZ step max
+	{{0x3a,0x0d},{0x08}}, //60HZ step max
+#endif
 	{{0x3c,0x07},{0x07}}, //light meter 1 thereshold
 	{{0x38,0x14},{0x31}}, //horizton subsample
 	{{0x38,0x15},{0x31}}, //vertical subsample
@@ -1008,9 +1212,13 @@ static struct regval_list sensor_svga_regs[] = { //SVGA: 800*600
 //	//power down
 //	{{0x30,0x08},{0x42}},
 //	//pll and clock setting
-	{{0x30,0x34},{0x1a}},
-	{{0x30,0x35},{0x11}},
-	{{0x30,0x36},{0x46}},
+	{{0x30,0x34},{0x14}},
+#ifndef CSI_VER_FOR_FPGA
+	{{0x30,0x35},{0x31}},
+#else
+	{{0x30,0x35},{0x61}}, //0x31:30fps 0x61:15fps
+#endif
+	{{0x30,0x36},{0x54}},
 	{{0x30,0x37},{0x13}},
 	{{0x31,0x08},{0x01}},
 	{{0x38,0x24},{0x01}},
@@ -1025,6 +1233,7 @@ static struct regval_list sensor_svga_regs[] = { //SVGA: 800*600
 	{{0x38,0x0d},{0x68}}, //HTS LSB
 	{{0x38,0x0e},{0x03}}, //VTS MSB
 	{{0x38,0x0f},{0xd8}}, //LSB
+#ifndef CSI_VER_FOR_FPGA
 	//banding step
 	{{0x3a,0x08},{0x01}},//50HZ step MSB
 	{{0x3a,0x09},{0x27}},//50HZ step LSB
@@ -1032,6 +1241,15 @@ static struct regval_list sensor_svga_regs[] = { //SVGA: 800*600
 	{{0x3a,0x0b},{0xf6}},//60HZ step LSB
 	{{0x3a,0x0e},{0x03}},//50HZ step max
 	{{0x3a,0x0d},{0x04}},//60HZ step max
+#else
+	//banding step
+	{{0x3a,0x08},{0x00}},//50HZ step MSB
+	{{0x3a,0x09},{0x93}},//50HZ step LSB
+	{{0x3a,0x0a},{0x00}},//60HZ step MSB
+	{{0x3a,0x0b},{0x7b}},//60HZ step LSB
+	{{0x3a,0x0e},{0x06}},//50HZ step max
+	{{0x3a,0x0d},{0x08}},//60HZ step max
+#endif
 
 //	{{0x35,0x03},{0x00}},  //AEC enable
 	{{0x3c,0x07},{0x08}},   //light meter 1 thereshold
@@ -1084,7 +1302,13 @@ static struct regval_list sensor_vga_regs[] = { //VGA:  640*480
 //	{{0x30,0x08},{0x42}},
 //	//pll and clock setting
 	{{0x30,0x34},{0x1a}},
+#ifndef CSI_VER_FOR_FPGA
 	{{0x30,0x35},{0x11}},
+#else
+	{{0x30,0x35},{0x21}},
+	//modified by heyihang.Jan 19, 2013
+	//{{0x30,0x35},{0x41}},
+#endif
 	{{0x30,0x36},{0x46}},
 	{{0x30,0x37},{0x13}},
 	{{0x31,0x08},{0x01}},
@@ -1099,6 +1323,8 @@ static struct regval_list sensor_vga_regs[] = { //VGA:  640*480
 	{{0x38,0x0d},{0x68}}, //HTS LSB
 	{{0x38,0x0e},{0x03}}, //VTS MSB
 	{{0x38,0x0f},{0xd8}}, //LSB
+
+#ifndef CSI_VER_FOR_FPGA
 	//banding step
 	{{0x3a,0x08},{0x01}},//50HZ step MSB
 	{{0x3a,0x09},{0x27}},//50HZ step LSB
@@ -1106,7 +1332,15 @@ static struct regval_list sensor_vga_regs[] = { //VGA:  640*480
 	{{0x3a,0x0b},{0xf6}},//60HZ step LSB
 	{{0x3a,0x0e},{0x03}},//50HZ step max
 	{{0x3a,0x0d},{0x04}},//60HZ step max
-
+#else
+	//banding step
+	{{0x3a,0x08},{0x00}},//50HZ step MSB
+	{{0x3a,0x09},{0x93}},//50HZ step LSB
+	{{0x3a,0x0a},{0x00}},//60HZ step MSB
+	{{0x3a,0x0b},{0x7b}},//60HZ step LSB
+	{{0x3a,0x0e},{0x06}},//50HZ step max
+	{{0x3a,0x0d},{0x08}},//60HZ step max
+#endif
 	{{0x36,0x18},{0x00}},
 	{{0x36,0x12},{0x29}},
 	{{0x37,0x09},{0x52}},
@@ -1152,6 +1386,24 @@ static struct regval_list sensor_vga_regs[] = { //VGA:  640*480
 //	{{0xff,0xff},{0x32}},//delay 50ms
 };
 
+#ifdef AUTO_FPS
+//auto framerate mode
+static struct regval_list sensor_auto_fps_mode[] = {
+	{{0x30,0x08},{0x42}},
+	{{0x3a,0x00},{0x7c}},  //night mode bit2
+	{{0x3a,0x02},{0x07}},  //60HZ max exposure limit MSB
+	{{0x3a,0x03},{0xb0}},  //60HZ max exposure limit LSB
+	{{0x3a,0x14},{0x07}},  //50HZ max exposure limit MSB
+	{{0x3a,0x15},{0xb0}},  //50HZ max exposure limit LSB
+	{{0x30,0x08},{0x02}},
+};
+
+//auto framerate mode
+static struct regval_list sensor_fix_fps_mode[] = {
+	{{0x3a,0x00},{0x78}},//night mode bit2
+};
+#endif
+
 //misc
 static struct regval_list sensor_oe_disable_regs[] = {
 {{0x30,0x17},{0x00}},
@@ -1159,8 +1411,8 @@ static struct regval_list sensor_oe_disable_regs[] = {
 };
 
 static struct regval_list sensor_oe_enable_regs[] = {
-{{0x30,0x17},{0xff}},
-{{0x30,0x18},{0xff}},
+{{0x30,0x17},{0x7f}},
+{{0x30,0x18},{0xfc}},
 };
 
 static char sensor_af_fw_regs[] = {
@@ -1460,7 +1712,7 @@ static struct regval_list sensor_wb_auto_regs[] = {
 };
 
 static struct regval_list sensor_wb_cloud_regs[] = {
-//	{{0x34,0x06},{0x1 }},
+	{{0x34,0x06},{0x1 }},
 	{{0x34,0x00},{0x6 }},
 	{{0x34,0x01},{0x48}},
 	{{0x34,0x02},{0x4 }},
@@ -1471,7 +1723,7 @@ static struct regval_list sensor_wb_cloud_regs[] = {
 
 static struct regval_list sensor_wb_daylight_regs[] = {
 	//tai yang guang
-//	{{0x34,0x06},{0x1 }},
+	{{0x34,0x06},{0x1 }},
 	{{0x34,0x00},{0x6 }},
 	{{0x34,0x01},{0x1c}},
 	{{0x34,0x02},{0x4 }},
@@ -1482,7 +1734,7 @@ static struct regval_list sensor_wb_daylight_regs[] = {
 
 static struct regval_list sensor_wb_incandescence_regs[] = {
 	//bai re guang
-//	{{0x34,0x06},{0x1 }},
+	{{0x34,0x06},{0x1 }},
 	{{0x34,0x00},{0x4 }},
 	{{0x34,0x01},{0x10}},
 	{{0x34,0x02},{0x4 }},
@@ -1493,7 +1745,7 @@ static struct regval_list sensor_wb_incandescence_regs[] = {
 
 static struct regval_list sensor_wb_fluorescent_regs[] = {
 	//ri guang deng
-//	{{0x34,0x06},{0x1 }},
+	{{0x34,0x06},{0x1 }},
 	{{0x34,0x00},{0x5 }},
 	{{0x34,0x01},{0x48}},
 	{{0x34,0x02},{0x4 }},
@@ -1511,52 +1763,52 @@ static struct regval_list sensor_wb_tungsten_regs[] = {
  * The color effect settings
  */
 static struct regval_list sensor_colorfx_none_regs[] = {
-	{{0x50,0x01},{0x7f}},
+//	{{0x50,0x01},{0x7f}},
 	{{0x55,0x80},{0x04}},
 };
 
 static struct regval_list sensor_colorfx_bw_regs[] = {
-	{{0x50,0x01},{0xff}},
+//	{{0x50,0x01},{0xff}},
 	{{0x55,0x80},{0x18}},
 	{{0x55,0x83},{0x80}},
 	{{0x55,0x84},{0x80}},
 };
 
 static struct regval_list sensor_colorfx_sepia_regs[] = {
-	{{0x50,0x01},{0xff}},
+//	{{0x50,0x01},{0xff}},
 	{{0x55,0x80},{0x18}},
 	{{0x55,0x83},{0x40}},
 	{{0x55,0x84},{0xa0}},
 };
 
 static struct regval_list sensor_colorfx_negative_regs[] = {
-	{{0x50,0x01},{0xff}},
+//	{{0x50,0x01},{0xff}},
 	{{0x55,0x80},{0x40}},
 };
 
 static struct regval_list sensor_colorfx_emboss_regs[] = {
-	{{0x50,0x01},{0xff}},
+//	{{0x50,0x01},{0xff}},
 	{{0x55,0x80},{0x18}},
 	{{0x55,0x83},{0x80}},
 	{{0x55,0x84},{0xc0}},
 };
 
 static struct regval_list sensor_colorfx_sketch_regs[] = {
-	{{0x50,0x01},{0xff}},
+//	{{0x50,0x01},{0xff}},
 	{{0x55,0x80},{0x18}},
 	{{0x55,0x83},{0x80}},
 	{{0x55,0x84},{0xc0}},
 };
 
 static struct regval_list sensor_colorfx_sky_blue_regs[] = {
-	{{0x50,0x01},{0xff}},
+//	{{0x50,0x01},{0xff}},
 	{{0x55,0x80},{0x18}},
 	{{0x55,0x83},{0xa0}},
 	{{0x55,0x84},{0x40}},
 };
 
 static struct regval_list sensor_colorfx_grass_green_regs[] = {
-	{{0x50,0x01},{0xff}},
+//	{{0x50,0x01},{0xff}},
 	{{0x55,0x80},{0x18}},
 	{{0x55,0x83},{0x60}},
 	{{0x55,0x84},{0x60}},
@@ -1570,9 +1822,9 @@ static struct regval_list sensor_colorfx_vivid_regs[] = {
 //NULL
 };
 
-#if 0
+#if 1
 static struct regval_list sensor_sharpness_auto_regs[] = {
-	{{0x53,0x08},{0x25}},
+//	{{0x53,0x08},{0x25}},
 	{{0x53,0x00},{0x08}},
 	{{0x53,0x01},{0x30}},
 	{{0x53,0x02},{0x10}},
@@ -1584,6 +1836,14 @@ static struct regval_list sensor_sharpness_auto_regs[] = {
 };
 #endif
 
+#if 1
+static struct regval_list sensor_denoise_auto_regs[] = {
+  {{0x53,0x04},{0x08}},
+	{{0x53,0x05},{0x30}},
+	{{0x53,0x06},{0x1c}},
+	{{0x53,0x07},{0x2c}},
+};
+#endif
 /*
  * The brightness setttings
  */
@@ -1877,7 +2137,9 @@ static int sensor_read_im(struct v4l2_subdev *sd, unsigned int addr,
 	u8 data[REG_STEP];
 	struct i2c_msg msg;
 	int ret,i,j;
+	unsigned int retry_cnt = 0;
 
+sensor_read_retry:
 	for(i = 0, j = REG_ADDR_STEP-1; i < REG_ADDR_STEP; i++,j--)
 		data[i] = (addr&(0xff<<(j*8)))>>(j*8);
 
@@ -1893,7 +2155,7 @@ static int sensor_read_im(struct v4l2_subdev *sd, unsigned int addr,
 	ret = i2c_transfer(client->adapter, &msg, 1);
 	if (ret < 0) {
 		csi_dev_err("Error %d on register write\n", ret);
-		return ret;
+		goto sensor_read_end;
 	}
 	/*
 	 * ...then read back the result.
@@ -1913,6 +2175,14 @@ static int sensor_read_im(struct v4l2_subdev *sd, unsigned int addr,
 	else {
 		csi_dev_err("Error %d on register read\n", ret);
 	}
+sensor_read_end:
+  if(ret < 0) {
+    if(retry_cnt < 3) {
+      csi_dev_err("sensor_read retry %d\n",retry_cnt);
+      retry_cnt++;
+      goto sensor_read_retry;
+    }
+  }
 	return ret;
 }
 
@@ -1953,6 +2223,7 @@ static int sensor_write_im(struct v4l2_subdev *sd, unsigned int addr,
 	struct i2c_msg msg;
 	unsigned char data[REG_STEP];
 	int ret;
+	unsigned int retry=0;
 
 	data[0] = (addr&0xff00)>>8;
 	data[1] = addr&0x00ff;
@@ -1963,11 +2234,18 @@ static int sensor_write_im(struct v4l2_subdev *sd, unsigned int addr,
 	msg.len = REG_STEP;
 	msg.buf = data;
 
+sensor_write_im_transfer:
 	ret = i2c_transfer(client->adapter, &msg, 1);
 	if (ret > 0) {
 		ret = 0;
 	}
 	else if (ret < 0) {
+		if(retry<3) {
+			retry++;
+			csi_dev_err("sensor_write retry %d!\n",retry);
+			goto sensor_write_im_transfer;
+		}
+
 		csi_dev_err("addr = 0x%4x, value = 0x%4x\n ",addr,value);
 		csi_dev_err("sensor_write error!\n");
 	}
@@ -1980,9 +2258,10 @@ static int sensor_write_im(struct v4l2_subdev *sd, unsigned int addr,
 static int sensor_write_array(struct v4l2_subdev *sd, struct regval_list *vals , uint size)
 {
 	int i,ret;
+	unsigned int cnt;
 //	unsigned char rd;
 	if (size == 0)
-		return -EINVAL;
+		return 0;
 
 	for(i = 0; i < size ; i++)
 	{
@@ -1990,12 +2269,20 @@ static int sensor_write_array(struct v4l2_subdev *sd, struct regval_list *vals ,
 			mdelay(vals->value[0]);
 		}
 		else {
+			cnt=0;
 			ret = sensor_write(sd, vals->reg_num, vals->value);
-			if (ret < 0)
+			while( ret < 0 && cnt < 3)
 			{
-				csi_dev_err("sensor_write_err!\n");
-				return ret;
+				if(ret<0)
+					csi_dev_err("sensor_write_err!\n");
+				ret = sensor_write(sd, vals->reg_num, vals->value);
+				cnt++;
 			}
+			if(cnt>0)
+				csi_dev_err("csi i2c retry cnt=%d\n",cnt);
+
+			if(ret<0 && cnt >=3)
+				return ret;
 		}
 		vals++;
 	}
@@ -2063,33 +2350,46 @@ static int sensor_write_continuous(struct v4l2_subdev *sd, int addr, char vals[]
 }
 #endif
 
+//modified by heyihang.Jan 15, 2013
 /*
  * CSI GPIO control
  */
-static void csi_gpio_write(struct v4l2_subdev *sd, user_gpio_set_t *gpio, int status)
+static void csi_gpio_write(struct v4l2_subdev *sd, struct gpio_config *gpio, int level)
+{
+//	struct csi_dev *dev=(struct csi_dev *)dev_get_drvdata(sd->v4l2_dev->dev);
+  if(gpio->gpio==GPIO_INDEX_INVALID)
+  {
+    csi_dev_dbg("invalid gpio\n");
+    return;
+  }
+
+	if(gpio->mul_sel==1)
+	{
+	  gpio_direction_output(gpio->gpio, level);
+	  gpio->data=level;
+	} else {
+	  csi_dev_dbg("gpio is not in output function\n");
+	}
+}
+
+static void csi_gpio_set_status(struct v4l2_subdev *sd, struct gpio_config *gpio, int status)
 {
 //	struct csi_dev *dev=(struct csi_dev *)dev_get_drvdata(sd->v4l2_dev->dev);
 
-//  if(gpio->port == 0xffff) {
-//    axp_gpio_set_io(gpio->port_num, 1);
-//    axp_gpio_set_value(gpio->port_num, status);
-//  } else {
-//    gpio_write_one_pin_value(dev->csi_pin_hd,status,(char *)&gpio->gpio_name);
-//  }
+	if(1 == status && gpio->gpio!=0) {  /* output */
+		if(0 != gpio_direction_output(gpio->gpio, gpio->data))
+			csi_dev_dbg("gpio_direction_output failed\n");
+		else {
+		  csi_dev_dbg("gpio_direction_output gpio[%d]=%d\n",gpio->gpio, gpio->data);
+			gpio->mul_sel=status;
+		}
+	} else if(0 == status && gpio->gpio!=0) {  /* input */
+	  if(0 != gpio_direction_input(gpio->gpio) )
+	    csi_dev_dbg("gpio_direction_input failed\n");
+	  else
+	    gpio->mul_sel=status;
+	}
 }
-
-#if 1
-static void csi_gpio_set_status(struct v4l2_subdev *sd, user_gpio_set_t *gpio, int status)
-{
-//	struct csi_dev *dev=(struct csi_dev *)dev_get_drvdata(sd->v4l2_dev->dev);
-
-//  if(gpio->port == 0xffff) {
-//    axp_gpio_set_io(gpio->port_num, status);
-//  } else {
-//    gpio_set_one_pin_io_status(dev->csi_pin_hd,status,(char *)&gpio->gpio_name);
-//  }
-}
-#endif
 
 
 /*
@@ -2484,6 +2784,10 @@ static int sensor_s_band_filter(struct v4l2_subdev *sd,
 			sensor_read_im(sd,0x3a00,&rdval);
 			ret = sensor_write_im(sd,0x3a00,rdval|0x20);//turn on band filter
 		  break;
+		case V4L2_CID_POWER_LINE_FREQUENCY_AUTO:
+			break;
+		default:
+			break;
 	}
 	//msleep(10);
 	info->band_filter = value;
@@ -2491,49 +2795,62 @@ static int sensor_s_band_filter(struct v4l2_subdev *sd,
 }
 
 /* stuff about exposure when capturing image and video*/
-
+static int sensor_s_denoise_value(struct v4l2_subdev *sd, unsigned char value);
 unsigned char ogain,oexposurelow,oexposuremid,oexposurehigh;
+unsigned int preview_exp_line,preview_fps;
+unsigned long preview_pclk;
 
 static int sensor_set_capture_exposure(struct v4l2_subdev *sd)
 {
-	unsigned int lines_10ms;
-	unsigned int capture_maxLines;
-	unsigned int preview_maxlines;
+	unsigned long lines_10ms;
+	unsigned int capture_expLines;
+	unsigned int preview_explines;
 	unsigned long previewExposure;
 	unsigned long capture_Exposure;
 	unsigned long capture_exposure_gain;
 	unsigned long capture_gain;
 	unsigned char gain,exposurelow,exposuremid,exposurehigh;
-	unsigned int capture_fps = 750;
-	unsigned int preview_fps = 3000;
+#ifndef CSI_VER_FOR_FPGA
+	unsigned int capture_fps = 75;
+//	unsigned int preview_fps = 3000;
+#else
+	unsigned int capture_fps = 25;
+//	unsigned int preview_fps = 750;
+#endif
 	struct sensor_info *info = to_state(sd);
 	unsigned char rdval;
 
 	csi_dev_dbg("sensor_set_capture_exposure\n");
 
-	if(info->tpf.numerator!=0)
-		preview_fps = info->tpf.denominator/info->tpf.numerator*100;
+//	if(info->tpf.numerator!=0)
+//		preview_fps = info->tpf.denominator/info->tpf.numerator*100;
 
-	if(info->tpf.denominator/info->tpf.numerator < 30) {
-		capture_fps = 500;
+	preview_fps = preview_fps*10;
+
+	if(info->low_speed == 1) {
+	  //preview_fps = preview_fps/2;
+		capture_fps = capture_fps/2;
 	}
 
-	preview_maxlines = 984;
-	capture_maxLines = 1968;
-	lines_10ms = capture_fps * capture_maxLines/10000*13/12;
+	preview_explines = preview_exp_line;//984;
+	capture_expLines = 1968;
+	lines_10ms = capture_fps * capture_expLines *1000/10000;//*12/12;
 
 	previewExposure = ((unsigned int)(oexposurehigh))<<12 ;
 	previewExposure += ((unsigned int)oexposuremid)<<4 ;
 	previewExposure += (oexposurelow >>4);
 
-	if(0 == preview_maxlines || 0== lines_10ms)
+	if(0 == preview_explines || 0== lines_10ms)
 	{
 		return 0;
 	}
 
+	if(preview_explines == 0 || preview_fps == 0)
+	  return -EFAULT;
+
 	capture_Exposure =
-		((previewExposure*(capture_fps)*(capture_maxLines))/
-	(((preview_maxlines)*(preview_fps))))*5/5;
+		((previewExposure*(capture_fps)*(capture_expLines))/
+	(((preview_explines)*(preview_fps))))*5/5;
 
 	capture_gain = ogain ;
 
@@ -2545,16 +2862,20 @@ static int sensor_set_capture_exposure(struct v4l2_subdev *sd)
 
 	csi_dev_dbg("capture_exposure_gain = %lx\n",capture_exposure_gain);
 
-	if(capture_exposure_gain < ((signed int)(capture_maxLines)*16)) {
+	if(capture_exposure_gain < ((signed int)(capture_expLines)*16)) {
 		capture_Exposure = capture_exposure_gain/16;
-		if (capture_Exposure > lines_10ms)
-		{
-			capture_Exposure /= lines_10ms;
-			capture_Exposure *= lines_10ms;
-		}
 	} else {
-		capture_Exposure = capture_maxLines;
+		capture_Exposure = capture_expLines;
 	}
+
+	//banding
+	capture_Exposure = capture_Exposure * 1000;
+	if (capture_Exposure  > lines_10ms)
+	{
+		capture_Exposure /= lines_10ms;
+		capture_Exposure *= lines_10ms;
+	}
+	capture_Exposure = capture_Exposure / 1000;
 
 	if(capture_Exposure == 0)
 		capture_Exposure = 1;
@@ -2571,6 +2892,12 @@ static int sensor_set_capture_exposure(struct v4l2_subdev *sd)
 	csi_dev_dbg("capture:agc/aec:0x%x,gain:0x%x,exposurelow:0x%x,exposuremid:0x%x,exposurehigh:0x%x\n",\
 									rdval,gain,exposurelow,exposuremid,exposurehigh);
 
+#ifdef DENOISE_LV_AUTO
+	sensor_s_denoise_value(sd,gain*gain/0x100); //denoise via gain
+#else
+  sensor_s_denoise_value(sd,DENOISE_LV); //denoise fix value
+#endif
+
 	sensor_write_im(sd, 0x350b, gain);
 	sensor_write_im(sd, 0x3502, exposurelow);
 	sensor_write_im(sd, 0x3501, exposuremid);
@@ -2579,12 +2906,103 @@ static int sensor_set_capture_exposure(struct v4l2_subdev *sd)
 	return 0;
 }
 
+static int sensor_get_pclk(struct v4l2_subdev *sd)
+{
+  unsigned long pclk;
+  unsigned char pre_div,mul,sys_div,pll_rdiv,bit_div,sclk_rdiv;
+
+  sensor_read_im(sd, 0x3037, &pre_div);
+  pre_div = pre_div & 0x0f;
+
+  if(pre_div == 0)
+    pre_div = 1;
+
+  sensor_read_im(sd, 0x3036, &mul);
+  if(mul < 128)
+    mul = mul;
+  else
+    mul = mul/2*2;
+
+  sensor_read_im(sd, 0x3035, &sys_div);
+  sys_div = (sys_div & 0xf0) >> 4;
+
+  sensor_read_im(sd, 0x3037, &pll_rdiv);
+  pll_rdiv = (pll_rdiv & 0x10) >> 4;
+  pll_rdiv = pll_rdiv + 1;
+
+  sensor_read_im(sd, 0x3034, &bit_div);
+  bit_div = (bit_div & 0x0f);
+
+  sensor_read_im(sd, 0x3108, &sclk_rdiv);
+  sclk_rdiv = (sclk_rdiv & 0x03);
+  sclk_rdiv = sclk_rdiv << sclk_rdiv;
+
+  csi_dev_dbg("pre_div = %d,mul = %d,sys_div = %d,pll_rdiv = %d,sclk_rdiv = %d\n",\
+          pre_div,mul,sys_div,pll_rdiv,sclk_rdiv);
+
+  if((pre_div&&sys_div&&pll_rdiv&&sclk_rdiv) == 0)
+    return -EFAULT;
+
+  if(bit_div == 8)
+    pclk = MCLK / pre_div * mul / sys_div / pll_rdiv / 2 / sclk_rdiv;
+  else if(bit_div == 10)
+    pclk = MCLK / pre_div * mul / sys_div / pll_rdiv * 2 / 5 / sclk_rdiv;
+  else
+    pclk = MCLK / pre_div * mul / sys_div / pll_rdiv / 1 / sclk_rdiv;
+
+  csi_dev_dbg("pclk = %ld\n",pclk);
+
+  preview_pclk = pclk;
+  return 0;
+}
+
+static int sensor_get_fps(struct v4l2_subdev *sd)
+{
+  unsigned char vts_low,vts_high,hts_low,hts_high,vts_extra_high,vts_extra_low;
+  unsigned long vts,hts,vts_extra;
+
+  sensor_read_im(sd, 0x380c, &hts_high);
+  sensor_read_im(sd, 0x380d, &hts_low);
+  sensor_read_im(sd, 0x380e, &vts_high);
+  sensor_read_im(sd, 0x380f, &vts_low);
+  sensor_read_im(sd, 0x350c, &vts_extra_high);
+  sensor_read_im(sd, 0x350d, &vts_extra_low);
+
+  hts = hts_high * 256 + hts_low;
+  vts = vts_high * 256 + vts_low;
+  vts_extra = vts_extra_high * 256 + vts_extra_low;
+
+  if((hts&&(vts+vts_extra)) == 0)
+    return -EFAULT;
+
+  if(sensor_get_pclk(sd))
+    csi_dev_err("get pclk error!\n");
+
+  preview_fps = preview_pclk / ((vts_extra+vts) * hts);
+  csi_dev_dbg("preview fps = %d\n",preview_fps);
+
+  return 0;
+}
+
 static int sensor_get_preview_exposure(struct v4l2_subdev *sd)
 {
+	unsigned char vts_low,vts_high,vts_extra_high,vts_extra_low;
+	unsigned long vts,vts_extra;
+
 	sensor_read_im(sd, 0x350b, &ogain);
 	sensor_read_im(sd, 0x3502, &oexposurelow);
 	sensor_read_im(sd, 0x3501, &oexposuremid);
 	sensor_read_im(sd, 0x3500, &oexposurehigh);
+	sensor_read_im(sd, 0x380e, &vts_high);
+  sensor_read_im(sd, 0x380f, &vts_low);
+	sensor_read_im(sd, 0x350c, &vts_extra_high);
+	sensor_read_im(sd, 0x350d, &vts_extra_low);
+
+	vts = vts_high * 256 + vts_low;
+	vts_extra = vts_extra_high * 256 + vts_extra_low;
+	preview_exp_line = vts + vts_extra;
+
+	csi_dev_dbg("preview_exp_line = %d\n",preview_exp_line);
 
 	csi_dev_dbg("preview:gain:0x%x,exposurelow:0x%x,exposuremid:0x%x,exposurehigh:0x%x\n",\
 									ogain,oexposurelow,oexposuremid,oexposurehigh);
@@ -2605,19 +3023,19 @@ static int sensor_set_preview_exposure(struct v4l2_subdev *sd)
 	csi_dev_dbg("preview:agc/aec:0x%x,gain:0x%x,exposurelow:0x%x,exposuremid:0x%x,exposurehigh:0x%x\n",\
 									rdval,ogain,oexposurelow,oexposuremid,oexposurehigh);
 
-	sensor_read_im(sd, 0x3001, &rdval);
-	sensor_write_im(sd, 0x3001, rdval|0x3);	//reset AE
-	msleep(10);
-	sensor_write_im(sd, 0x3001, rdval);	//release reset AE
+//	sensor_read_im(sd, 0x3001, &rdval);
+//	sensor_write_im(sd, 0x3001, rdval|0x3);	//reset AE
+//	msleep(10);
+//	sensor_write_im(sd, 0x3001, rdval);	//release reset AE
 
 	sensor_write_im(sd, 0x350b, ogain);
 	sensor_write_im(sd, 0x3502, oexposurelow);
 	sensor_write_im(sd, 0x3501, oexposuremid);
 	sensor_write_im(sd, 0x3500, oexposurehigh);
 
-	sensor_write_im(sd, 0x3a05, 0x3f);//max aec ratio
-	csi_dev_dbg("set max aec ratio\n");
-	schedule_delayed_work(&sensor_s_ae_ratio_work, msecs_to_jiffies(500));
+//	sensor_write_im(sd, 0x3a05, 0x3f);//max aec ratio
+//	csi_dev_dbg("set max aec ratio\n");
+//	schedule_delayed_work(&sensor_s_ae_ratio_work, msecs_to_jiffies(500));
 	return 0;
 }
 
@@ -2627,6 +3045,9 @@ static int sensor_download_af_fw(struct v4l2_subdev *sd)
 {
 	int ret,cnt;
 	unsigned char rdval;
+	int reload_cnt = 0;
+	struct csi_dev *dev=(struct csi_dev *)dev_get_drvdata(sd->v4l2_dev->dev);
+
 	struct regval_list af_fw_reset_reg[] = {
 		{{0x30,0x00},{0x20}},
 	};
@@ -2666,8 +3087,9 @@ static int sensor_download_af_fw(struct v4l2_subdev *sd)
 	//check the af firmware status
 	rdval = 0xff;
 	cnt = 0;
+
+recheck_af_fw:
 	while(rdval!=0x70) {
-		msleep(5);
 		ret = sensor_read_im(sd, 0x3029, &rdval);
 		if (ret < 0)
 		{
@@ -2675,10 +3097,20 @@ static int sensor_download_af_fw(struct v4l2_subdev *sd)
 			return ret;
 		}
 		cnt++;
-		if(cnt > 200) {
+		if(cnt > 3) {
 			csi_dev_err("AF firmware check status time out !\n");
+			reload_cnt++;
+			if(reload_cnt <= 2) {
+				csi_dev_err("AF firmware check status retry cnt = %d!\n",reload_cnt);
+				csi_gpio_write(sd,&dev->standby_io,CSI_STBY_ON);
+				mdelay(10);
+				csi_gpio_write(sd,&dev->standby_io,CSI_STBY_OFF);
+				mdelay(10);
+				goto recheck_af_fw;
+			}
 			return -EFAULT;
 		}
+		mdelay(5);
 	}
 	csi_dev_print("AF firmware check status complete,0x3029 = 0x%x\n",rdval);
 
@@ -2710,6 +3142,7 @@ static int sensor_g_single_af(struct v4l2_subdev *sd)
 	if (ret < 0)
 	{
 		csi_dev_err("sensor get af focused status err !\n");
+		info->focus_status = 0;	//idle
 		return ret;
 	}
 
@@ -2717,6 +3150,9 @@ static int sensor_g_single_af(struct v4l2_subdev *sd)
 	{
 		info->focus_status = 0;	//idle
 		csi_dev_print("Single AF focus ok,value = 0x%x\n",rdval);
+#ifdef AF_FAST
+		sensor_write_array(sd, sensor_auto_fps_mode , ARRAY_SIZE(sensor_auto_fps_mode));
+#endif
 		return 0;
 	}
 
@@ -2766,6 +3202,10 @@ static int sensor_s_single_af(struct v4l2_subdev *sd)
 	}
 
 	csi_dev_print("Single AF is complete\n");
+#endif
+
+#ifdef AF_FAST
+  sensor_write_array(sd, sensor_fix_fps_mode , ARRAY_SIZE(sensor_fix_fps_mode));
 #endif
 
 	info->focus_status = 1;	//busy
@@ -2826,7 +3266,7 @@ static int sensor_s_af_zone(struct v4l2_subdev *sd, unsigned int xc, unsigned in
 	struct sensor_info *info = to_state(sd);
 	int ret;
 
-	csi_dev_print("sensor_s_af_zone\n");
+	//csi_dev_print("sensor_s_af_zone\n");
 	csi_dev_dbg("af zone input xc=%d,yc=%d\n",xc,yc);
 
 	if(info->width == 0 || info->height == 0) {
@@ -2877,10 +3317,9 @@ static int sensor_s_af_zone(struct v4l2_subdev *sd, unsigned int xc, unsigned in
 	return 0;
 }
 
-#if 0
+#if 1
 static int sensor_s_relaunch_af_zone(struct v4l2_subdev *sd)
 {
-	struct regval_list regs;
 	int ret;
 	//relaunch defalut af zone
 	csi_dev_print("sensor_s_relaunch_af_zone\n");
@@ -2895,17 +3334,40 @@ static int sensor_s_relaunch_af_zone(struct v4l2_subdev *sd)
 }
 #endif
 
-#if 0
+#if 1
 static int sensor_s_sharpness_auto(struct v4l2_subdev *sd)
 {
+	unsigned char rdval;
+	sensor_read_im(sd,0x5308,&rdval);
+	sensor_write_im(sd,0x5308,rdval&0xbf); //bit6 is sharpness manual enable
 	return sensor_write_array(sd, sensor_sharpness_auto_regs, ARRAY_SIZE(sensor_sharpness_auto_regs));
 }
 #endif
 
 static int sensor_s_sharpness_value(struct v4l2_subdev *sd, unsigned char value)
 {
-	sensor_write_im(sd,0x5308,0x65);
+	unsigned char rdval;
+	sensor_read_im(sd,0x5308,&rdval);
+	sensor_write_im(sd,0x5308,rdval|0x40); //bit6 is sharpness manual enable
 	return sensor_write_im(sd,0x5302,value);
+}
+
+#if 1
+static int sensor_s_denoise_auto(struct v4l2_subdev *sd)
+{
+	unsigned char rdval;
+	sensor_read_im(sd,0x5308,&rdval);
+	sensor_write_im(sd,0x5308,rdval&0xef); //bit4 is denoise manual enable
+	return sensor_write_array(sd, sensor_denoise_auto_regs, ARRAY_SIZE(sensor_denoise_auto_regs));
+}
+#endif
+
+static int sensor_s_denoise_value(struct v4l2_subdev *sd, unsigned char value)
+{
+	unsigned char rdval;
+	sensor_read_im(sd,0x5308,&rdval);
+	sensor_write_im(sd,0x5308,rdval|0x10); //bit4 is denoise manual enable
+	return sensor_write_im(sd,0x5306,value);
 }
 
 /* *********************************************end of ******************************************** */
@@ -3396,19 +3858,14 @@ static int sensor_s_autofocus_ctrl(struct v4l2_subdev *sd,
 
 	switch(af_ctrl) {
 		case V4L2_AF_INIT:
-			if(info->ccm_info->stby_mode == 0) {
-				if(info->af_first_flag == 1) {
-					csi_dev_print("af first flag true\n");
-					csi_dev_print("sensor_download_af_fw start\n");
-					info->af_first_flag = 0;
-					return sensor_download_af_fw(sd);
-				} else {
-					csi_dev_print("af first flag false\n");
-					return 0;
-				}
-			} else {
+			if(info->af_first_flag == 1) {
+				csi_dev_print("af first flag true\n");
 				csi_dev_print("sensor_download_af_fw start\n");
+				info->af_first_flag = 0;
 				return sensor_download_af_fw(sd);
+			} else {
+				csi_dev_print("af first flag false\n");
+				return 0;
 			}
 		case V4L2_AF_RELEASE:
 			return sensor_s_release_af(sd);
@@ -3440,6 +3897,7 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 	struct csi_dev *dev=(struct csi_dev *)dev_get_drvdata(sd->v4l2_dev->dev);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
+	struct sensor_info *info = to_state(sd);
 
   //insure that clk_disable() and clk_enable() are called in pair
   //when calling CSI_SUBDEV_STBY_ON/OFF and CSI_SUBDEV_PWR_ON/OFF
@@ -3495,6 +3953,8 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			break;
 		case CSI_SUBDEV_PWR_ON:
 			csi_dev_dbg("CSI_SUBDEV_PWR_ON!\n");
+			info->af_first_flag = 1;
+			info->init_first_flag=1;
 			//make sure that no device can access i2c bus during sensor initial or power down
 			//when using i2c_lock_adpater function, the following codes must not access i2c bus before calling i2c_unlock_adapter
 			i2c_lock_adapter(client->adapter);
@@ -3513,11 +3973,11 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			if(dev->iovdd) {
 				regulator_enable(dev->iovdd);
 			}
-			if(dev->dvdd) {
-				regulator_enable(dev->dvdd);
-			}
 			if(dev->avdd) {
 				regulator_enable(dev->avdd);
+			}
+			if(dev->dvdd) {
+				regulator_enable(dev->dvdd);
 			}
 			csi_gpio_write(sd,&dev->af_power_io,CSI_AF_PWR_ON);
 			mdelay(10);
@@ -3642,12 +4102,15 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 		return ret;
 	}
 
-	if(info->ccm_info->stby_mode == 0 && info->init_first_flag == 0) {
-		csi_dev_print("stby_mode and init_first_flag = 0\n");
+	if(info->init_first_flag == 0) {
+		csi_dev_print("init_first_flag = 0\n");
 		return 0;
+	} else {
+		csi_dev_print("init_first_flag = 1\n");
 	}
 
 	info->focus_status = 0;
+	info->low_speed = 0;
 	info->width = 0;
 	info->height = 0;
 	info->brightness = 0;
@@ -3676,12 +4139,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	}
 
 	sensor_s_band_filter(sd, V4L2_CID_POWER_LINE_FREQUENCY_50HZ);
-
-	if(info->ccm_info->stby_mode == 0)
-	{
-		info->init_first_flag = 0;
-	}
-
+	info->init_first_flag = 0;
 	info->preview_first_flag = 1;
 
 	INIT_DELAYED_WORK(&sensor_s_ae_ratio_work, sensor_s_ae_ratio);
@@ -3726,7 +4184,7 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			info->ccm_info->href 	=	ccm_info->href 	;
 			info->ccm_info->clock	=	ccm_info->clock	;
 			info->ccm_info->iocfg	=	ccm_info->iocfg	;
-			info->ccm_info->stby_mode	=	ccm_info->stby_mode	;
+			info->ccm_info->stby_mode	=	0 ;
 
 			csi_dev_dbg("ccm_info.mclk=%d\n ",info->ccm_info->mclk);
 			csi_dev_dbg("ccm_info.vref=%x\n ",info->ccm_info->vref);
@@ -3734,6 +4192,11 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			csi_dev_dbg("ccm_info.clock=%x\n ",info->ccm_info->clock);
 			csi_dev_dbg("ccm_info.iocfg=%x\n ",info->ccm_info->iocfg);
 			csi_dev_dbg("ccm_info.stby_mode=%x\n ",info->ccm_info->stby_mode);
+			break;
+		}
+		case CSI_SUBDEV_CMD_DETECT:
+		{
+			ret=sensor_detect(sd);
 			break;
 		}
 		default:
@@ -3963,6 +4426,12 @@ static int sensor_try_fmt(struct v4l2_subdev *sd,
 	return sensor_try_fmt_internal(sd, fmt, NULL, NULL);
 }
 
+static int sensor_g_mbus_config(struct v4l2_subdev *sd,
+			     struct v4l2_mbus_config *cfg)
+{
+	return 0;
+}
+
 /*
  * Set fps
  */
@@ -4107,6 +4576,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
 	struct sensor_format_struct *sensor_fmt;
 	struct sensor_win_size *wsize;
 	struct sensor_info *info = to_state(sd);
+	unsigned char rdval;
 
 	csi_dev_dbg("sensor_s_fmt\n");
 
@@ -4138,6 +4608,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
 
 		if (wsize->width > SVGA_WIDTH) {
 			sensor_get_preview_exposure(sd);
+			sensor_get_fps(sd);
 			ret = sensor_set_capture_exposure(sd);
 			if (ret < 0)
 				csi_dev_err("sensor_set_capture_exposure err !\n");
@@ -4148,7 +4619,9 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
 			csi_dev_err("sensor_s_autowb off err when capturing image!\n");
 	}
 
-	if(info->tpf.denominator/info->tpf.numerator < 30) {
+
+#if 0
+	if(info->low_speed == 1) {
 		//power down
 		csi_dev_print("power down\n");
 		ret = sensor_write_im(sd, 0x3008, 0x42);
@@ -4157,6 +4630,8 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
 			return ret;
 		}
 	}
+#endif
+	sensor_write_array(sd, sensor_oe_disable_regs , ARRAY_SIZE(sensor_oe_disable_regs));
 
 	sensor_write_array(sd, sensor_fmt->regs , sensor_fmt->regs_size);
 
@@ -4175,13 +4650,16 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
 			return ret;
 	}
 
+	sensor_write_array(sd, sensor_oe_enable_regs , ARRAY_SIZE(sensor_oe_enable_regs));
+
 	info->fmt = sensor_fmt;
 	info->width = wsize->width;
 	info->height = wsize->height;
 
 	csi_dev_print("s_fmt set width = %d, height = %d\n",wsize->width,wsize->height);
 
-	if(info->tpf.denominator/info->tpf.numerator < 30) {
+#if 0
+	if(info->low_speed == 1) {
 		//release power down
 		csi_dev_print("release power down\n");
 		ret = sensor_write_im(sd, 0x3008, 0x02);
@@ -4190,10 +4668,21 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
 			return ret;
 		}
 	}
+#endif
 
-	if(info->capture_mode == V4L2_MODE_VIDEO)
+	if(info->capture_mode == V4L2_MODE_VIDEO || info->capture_mode == V4L2_MODE_PREVIEW)
 	{
 		//video
+	sensor_s_fps(sd);
+
+#ifdef AUTO_FPS
+		if(info->capture_mode == V4L2_MODE_PREVIEW) {
+	      sensor_write_array(sd, sensor_auto_fps_mode , ARRAY_SIZE(sensor_auto_fps_mode));
+	    } else {
+	      sensor_write_array(sd, sensor_fix_fps_mode , ARRAY_SIZE(sensor_fix_fps_mode));
+	    }
+#endif
+
 		ret = sensor_set_preview_exposure(sd);
 		if (ret < 0)
 			csi_dev_err("sensor_set_preview_exposure err !\n");
@@ -4212,8 +4701,19 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
 				csi_dev_err("sensor_s_autowb on err when capturing image!\n");
 		}
 
-		sensor_s_fps(sd);
-//		msleep(100);
+		msleep(100);
+
+		ret = sensor_s_relaunch_af_zone(sd);
+		if (ret < 0) {
+			csi_dev_err("sensor_s_relaunch_af_zone err !\n");
+			return ret;
+		}
+
+		ret = sensor_write_im(sd, 0x3022, 0x03);		//sensor_s_single_af
+		if (ret < 0) {
+			csi_dev_err("sensor_s_single_af err !\n");
+			return ret;
+		}
 
 		if(info->af_mode != V4L2_AF_FIXED) {
 
@@ -4238,11 +4738,16 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
 #endif
 		}
 
-		//sensor_s_sharpness_auto(sd); //sharpness auto
-		sensor_s_sharpness_value(sd,0x20); //sharpness 0x20
+    if(info->capture_mode == V4L2_MODE_VIDEO) {
+		sensor_s_sharpness_auto(sd); //sharpness auto
+		sensor_s_denoise_auto(sd);
+	} else if(info->capture_mode == V4L2_MODE_PREVIEW) {
+	  sensor_s_sharpness_value(sd,SHARPNESS); //sharpness fix value
+	  sensor_s_denoise_value(sd,8);
+	}
 
 
-		if(info->tpf.denominator/info->tpf.numerator < 30) {
+		if(info->low_speed == 1) {
 			if(info->preview_first_flag == 1) {
 				info->preview_first_flag = 0;
 				msleep(600);
@@ -4253,12 +4758,13 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
 		msleep(200);
 	} else {
 		//capture image
-		sensor_s_sharpness_value(sd,0x20); //sharpness 0x20
+		sensor_s_sharpness_value(sd,SHARPNESS); //sharpness 0x0
 		//sensor_s_sharpness_auto(sd); //sharpness auto
 
-		if(info->tpf.denominator/info->tpf.numerator < 30) {
-			sensor_write_im(sd,0x3035,0x21);
-			sensor_write_im(sd,0x3037,0x14);
+		if(info->low_speed == 1) {
+			sensor_read_im(sd,0x3035,&rdval);
+			sensor_write_im(sd,0x3035,(rdval&0x0f)|((rdval&0xf0)*2));
+			//sensor_write_im(sd,0x3037,0x14);
 		}
 
 		msleep(200);
@@ -4318,11 +4824,18 @@ static int sensor_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
 	csi_dev_dbg("sensor_s_parm\n");
 
 	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	  {
+	  csi_dev_dbg("sensor_s_parm not correct type\n");
+
 		return -EINVAL;
+	}
 
 	if (info->tpf.numerator == 0)
-		return -EINVAL;
+	  {
+	  csi_dev_dbg("sensor_s_parm tpf.numerator == 0\n");
 
+		return -EINVAL;
+	}
 	info->capture_mode = cp->capturemode;
 
 	if (info->capture_mode == V4L2_MODE_IMAGE) {
@@ -4332,18 +4845,25 @@ static int sensor_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
 
 	if (tpf->numerator == 0 || tpf->denominator == 0)	{
 		tpf->numerator = 1;
-		tpf->denominator = 30;/* Reset to full rate */
+		tpf->denominator = SENSOR_FRAME_RATE;/* Reset to full rate */
 		csi_dev_err("sensor frame rate reset to full rate!\n");
 	}
 
 	div = SENSOR_FRAME_RATE/(tpf->denominator/tpf->numerator);
-	if(div > 15)
+	if(div > 15 || div == 0)
+	  {
+	  csi_dev_dbg("div=%d\n",div);
 		return -EINVAL;
+	}
 
 	csi_dev_dbg("set frame rate %d\n",tpf->denominator/tpf->numerator);
 
 	info->tpf.denominator = SENSOR_FRAME_RATE;
 	info->tpf.numerator = div;
+
+	if(info->tpf.denominator/info->tpf.numerator < 30)
+		info->low_speed = 1;
+
 	return 0;
 }
 
@@ -4354,7 +4874,6 @@ static int sensor_queryctrl(struct v4l2_subdev *sd,
 	/* Fill in min, max, step and default value for these controls. */
 	/* see include/linux/videodev2.h for details */
 	/* see sensor_s_parm and sensor_g_parm for the meaning of value */
-
 	switch (qc->id) {
 //	case V4L2_CID_BRIGHTNESS:
 //		return v4l2_ctrl_query_fill(qc, -4, 4, 1, 1);
@@ -4384,10 +4903,21 @@ static int sensor_queryctrl(struct v4l2_subdev *sd,
 	case V4L2_CID_CAMERA_FLASH_MODE:
 	  return v4l2_ctrl_query_fill(qc, 0, 4, 1, 0);
 	case V4L2_CID_CAMERA_AF_MODE:
-	  return v4l2_ctrl_query_fill(qc, 0, 5, 1, 0);
-	case V4L2_CID_CAMERA_AF_CTRL:
-	  return v4l2_ctrl_query_fill(qc, 0, 6, 1, 0);
+	{
+		int ret = 0;
+		csi_dev_dbg("V4L2_CID_CAMERA_AF_MODE\n");
+		ret = v4l2_ctrl_query_fill(qc, 0, 5, 1, 0);
+	  return ret;
 	}
+	case V4L2_CID_CAMERA_AF_CTRL:
+	{
+		int ret = 0;
+		csi_dev_dbg("V4L2_CID_CAMERA_AF_CTRL\n");
+		ret = v4l2_ctrl_query_fill(qc, 0, 6, 1, 0);
+	  return ret;
+	}
+	}
+	csi_dev_dbg("no id\n");
 	return -EINVAL;
 }
 
@@ -4434,6 +4964,7 @@ static int sensor_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 static int sensor_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
+
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
 		return sensor_s_brightness(sd, ctrl->value);
@@ -4508,6 +5039,7 @@ static const struct v4l2_subdev_video_ops sensor_video_ops = {
 	.s_mbus_fmt = sensor_s_fmt,//linux-3.0
 	.s_parm = sensor_s_parm,//linux-3.0
 	.g_parm = sensor_g_parm,//linux-3.0
+	.g_mbus_config = sensor_g_mbus_config,//linux-3.3
 };
 
 static const struct v4l2_subdev_ops sensor_ops = {
@@ -4524,6 +5056,7 @@ static int sensor_probe(struct i2c_client *client,
 	struct sensor_info *info;
 //	int ret;
 
+  csi_dev_dbg("sensor_probe");
 	info = kzalloc(sizeof(struct sensor_info), GFP_KERNEL);
 	if (info == NULL)
 		return -ENOMEM;

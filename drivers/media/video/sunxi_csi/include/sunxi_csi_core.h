@@ -303,14 +303,27 @@ struct ccm_config {
 	int stby_mode;
 	int interface;
 	int flash_pol;
-	user_gpio_set_t reset_io;
-	user_gpio_set_t standby_io;
-	user_gpio_set_t power_io;
-	user_gpio_set_t flash_io;
-	user_gpio_set_t af_power_io;
+//	user_gpio_set_t reset_io;
+//	user_gpio_set_t standby_io;
+//	user_gpio_set_t power_io;
+//	user_gpio_set_t flash_io;
+//	user_gpio_set_t af_power_io;
+	//modified to 33
+	struct gpio_config reset_io;
+	struct gpio_config standby_io;
+	struct gpio_config power_io;
+	struct gpio_config flash_io;
+	struct gpio_config af_power_io;
+
 	struct regulator 	 *iovdd;		  /*interface voltage source of sensor module*/
 	struct regulator 	 *avdd;			/*anlog voltage source of sensor module*/
 	struct regulator 	 *dvdd;			/*core voltage source of sensor module*/
+
+    //add by heyihang.Jan 15, 2013
+	uint vol_iovdd;
+	uint vol_avdd;
+	uint vol_dvdd;
+
 	__csi_subdev_info_t ccm_info;
 	struct v4l2_subdev			*sd;
 };
@@ -351,6 +364,11 @@ struct csi_dev {
 
 	/*pin,clock,irq resource*/
 	int							csi_pin_hd;
+
+    //add by heyihang.Jan 17, 2013
+    script_item_u     *csi_pin_list;
+	int               csi_pin_cnt;
+
 	struct clk				*csi_clk_src;
 	struct clk				*csi_ahb_clk;
 	struct clk				*csi_module_clk;
@@ -368,6 +386,11 @@ struct csi_dev {
   struct regulator 	 *avdd;			/*anlog voltage source of sensor module*/
   struct regulator 	 *dvdd;			/*core voltage source of sensor module*/
 
+    //add by heyihang.Jan 15, 2013
+    uint vol_iovdd;
+	uint vol_avdd;
+	uint vol_dvdd;
+
 	/* attribution */
 	int interface;
 	int vflip;
@@ -375,11 +398,17 @@ struct csi_dev {
 	int flash_pol;
 
 	/* csi io */
-	user_gpio_set_t reset_io;
-	user_gpio_set_t standby_io;
-	user_gpio_set_t power_io;
-	user_gpio_set_t flash_io;
-	user_gpio_set_t af_power_io;
+//	user_gpio_set_t reset_io;
+//	user_gpio_set_t standby_io;
+//	user_gpio_set_t power_io;
+//	user_gpio_set_t flash_io;
+//	user_gpio_set_t af_power_io;
+	//modified to 33
+	struct gpio_config reset_io;
+	struct gpio_config standby_io;
+	struct gpio_config power_io;
+	struct gpio_config flash_io;
+	struct gpio_config af_power_io;
 
 	/*parameters*/
 	__csi_conf_t			csi_mode;

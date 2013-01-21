@@ -22,6 +22,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <media/videobuf-dma-contig.h>
+#include <linux/sunxi_physmem.h>
 
 struct videobuf_dma_contig_memory {
 	u32 magic;
@@ -39,15 +40,17 @@ struct videobuf_dma_contig_memory {
 
 // #define USE_DMA_CONTIG
 #define FPGA
+// #define USE_PHY_ADDR_DIRECT
+#define USE_SUNXI_MEM_ALLOCATOR
+#define USE_SUNXI_MEM_ALLOCATOR
 
 #ifndef USE_DMA_CONTIG
 #ifndef FPGA
 extern unsigned long ve_start;
 extern unsigned long ve_size;
 #else
-#include <arch/arm/mach-sun7i/include/mach/memory.h>
-unsigned long ve_start = SW_CSI_MEM_BASE;
-unsigned long ve_size = SW_CSI_MEM_SIZE;
+unsigned long ve_start = 0x44000000;
+unsigned long ve_size = 80*1024*1024;
 #endif
 #endif
 
@@ -108,6 +111,11 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 #ifdef USE_DMA_CONTIG
 				dma_free_coherent(q->dev, mem->size,
 						  mem->vaddr, mem->dma_handle);
+#endif // USE_DMA_CONTIG
+
+#ifdef USE_SUNXI_MEM_ALLOCATOR
+				//printk("videobuf_vm_close: 0x%08x\n", mem->dma_handle);
+				sunxi_mem_free(mem->dma_handle);
 #endif // USE_DMA_CONTIG
 				mem->vaddr = NULL;
 			}
@@ -302,11 +310,26 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 #ifdef USE_DMA_CONTIG
 	mem->vaddr = dma_alloc_coherent(q->dev, mem->size,
 					&mem->dma_handle, GFP_KERNEL);
-#else
+#endif
 
+#ifdef USE_PHY_ADDR_DIRECT
 	mem->dma_handle = (ve_start + ve_size - 24*1024*1024 + buf->i * mem->size + 4095) & (~(4095));	//4k aligned
 	mem->vaddr = (void *)(mem->dma_handle + 0x80000000);	// not used
+#endif
 
+#ifdef USE_SUNXI_MEM_ALLOCATOR
+	mem->dma_handle = sunxi_mem_alloc(mem->size);
+	//printk("sunxi_mem_alloc phy addr: 0x%08x\n", mem->dma_handle);
+	if (mem->dma_handle)
+	{
+		mem->vaddr = (void *)(mem->dma_handle + 0x80000000);	// not used
+		//mem->vaddr =  (void*)ioremap((unsigned long)mem->dma_handle, mem->size);//ioremap_nocache
+		//printk("sunxi_mem_alloc vir addr: 0x%08x\n", mem->vaddr);
+	}
+	else
+	{
+		mem->vaddr = NULL;
+	}
 #endif
 
 	if (!mem->vaddr) {
@@ -321,15 +344,24 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 
 	size = vma->vm_end - vma->vm_start;
 	size = (size < mem->size) ? size : mem->size;
-
+#if 0	//modify by raymonxiu, buffer need cached
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+#endif
 	retval = remap_pfn_range(vma, vma->vm_start,
 				 mem->dma_handle >> PAGE_SHIFT,
 				 size, vma->vm_page_prot);
 	if (retval) {
 		dev_err(q->dev, "mmap: remap failed with error %d. ", retval);
+#ifdef USE_DMA_CONTIG
 		dma_free_coherent(q->dev, mem->size,
 				  mem->vaddr, mem->dma_handle);
+#endif // USE_DMA_CONTIG
+
+#ifdef USE_SUNXI_MEM_ALLOCATOR
+		// printk("__videobuf_mmap_mapper: 0x%08x\n", mem->dma_handle);
+		sunxi_mem_free(mem->dma_handle);
+		//iounmap(mem->vaddr);
+#endif
 		goto error;
 	}
 
@@ -413,7 +445,15 @@ void videobuf_dma_contig_free(struct videobuf_queue *q,
 
 	/* read() method */
 	if (mem->vaddr) {
+#ifdef USE_DMA_CONTIG
 		dma_free_coherent(q->dev, mem->size, mem->vaddr, mem->dma_handle);
+#endif // USE_DMA_CONTIG
+
+#ifdef USE_SUNXI_MEM_ALLOCATOR
+		// printk("videobuf_dma_contig_free: 0x%08x\n", mem->dma_handle);
+		sunxi_mem_free(mem->dma_handle);
+		//iounmap(mem->vaddr);
+#endif
 		mem->vaddr = NULL;
 	}
 }

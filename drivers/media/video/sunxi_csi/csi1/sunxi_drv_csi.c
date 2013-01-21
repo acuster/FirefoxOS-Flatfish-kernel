@@ -65,6 +65,9 @@
 #define MAX_HEIGHT (4096)
 #define CAPTURE_FRAME 1
 
+//add by heyihang.Jan 15, 2013
+#define CSI_ISP_SCLK_RATE	(297*1000*1000)
+
 static unsigned video_nr = 1;
 static unsigned first_flag = 0;
 
@@ -579,53 +582,49 @@ static inline void csi_set_addr(struct csi_dev *dev,struct csi_buffer *buffer)
 
 static int csi_clk_get(struct csi_dev *dev)
 {
-//	int ret;
+	int ret;
 
-	dev->csi_ahb_clk=clk_get(NULL, "ahb_csi1");
-	if (dev->csi_ahb_clk == NULL) {
-	csi_err("get csi1 ahb clk error!\n");
+	dev->csi_ahb_clk=clk_get(NULL, CLK_AHB_CSI1);//"ahb_csi1"
+	if (dev->csi_ahb_clk == NULL || IS_ERR(dev->csi_ahb_clk)) {
+    csi_err("get csi1 ahb clk error!\n");
+		return -1;
+    }
+
+    // for csi mclk output
+	dev->csi_module_clk=clk_get(NULL,CLK_MOD_CSI1); //"csi1"
+	if(dev->csi_module_clk == NULL || IS_ERR(dev->csi_module_clk)) {
+    csi_err("get csi1 module clk error!\n");
+		return -1;
+    }
+
+    dev->csi_dram_clk = clk_get(NULL, CLK_DRAM_CSI1);//"sdram_csi1"
+	if (dev->csi_dram_clk == NULL || IS_ERR(dev->csi_dram_clk)) {
+    csi_err("get csi1 dram clk error!\n");
+		return -1;
+    }
+
+    //del by heyihang.Jan 16, 2013
+    #if 0
+	dev->csi_isp_src_clk=clk_get(NULL,"sys_pll7");//"sys_pll7"
+	if (dev->csi_isp_src_clk == NULL || IS_ERR(dev->csi_isp_src_clk)) {
+    csi_err("get csi_isp source clk error!\n");
 		return -1;
     }
 
 
-	dev->csi_module_clk=clk_get(NULL,"csi1");
-	if(dev->csi_module_clk == NULL) {
-	csi_err("get csi1 module clk error!\n");
+    //mod_csi0 clk is module clock
+	dev->csi_isp_clk=clk_get(NULL,"mod_csi1s");
+	if(dev->csi_isp_clk == NULL || IS_ERR(dev->csi_isp_clk)) {
+    csi_err("get csi/isp sclk error!\n");
 		return -1;
     }
 
-
-//	dev->csi_isp_src_clk=clk_get(NULL,"video_pll0");
-//	if (dev->csi_isp_src_clk == NULL) {
-//       	csi_err("get csi_isp source clk error!\n");
-//		return -1;
-//    }
-//
-//  dev->csi_isp_clk=clk_get(NULL,"csi_isp");
-//	if(dev->csi_isp_clk == NULL) {
-//       	csi_err("get csi_isp clk error!\n");
-//		return -1;
-//    }
-//
-//	ret = clk_set_parent(dev->csi_isp_clk, dev->csi_isp_src_clk);
-//	if (ret == -1) {
-//        csi_err(" csi_isp set parent failed \n");
-//	    return -1;
-//    }
-//
-//	clk_put(dev->csi_isp_src_clk);
-//
-//  ret = clk_set_rate(dev->csi_isp_clk, CSI_ISP_RATE);
-//	if (ret == -1) {
-//        csi_err("set csi_isp clock error\n");
-//		return -1;
-//   	}
-
-	dev->csi_dram_clk = clk_get(NULL, "sdram_csi1");
-	if (dev->csi_dram_clk == NULL) {
-	csi_err("get csi1 dram clk error!\n");
-		return -1;
+	ret = clk_set_parent(dev->csi_isp_clk, dev->csi_isp_src_clk);
+	if (ret != 0) {
+    csi_err(" csi_isp set parent failed \n");
+	  return -1;
     }
+    #endif
 
 	return 0;
 }
@@ -636,23 +635,23 @@ static int csi_clk_out_set(struct csi_dev *dev)
 
 	if(dev->ccm_info->mclk==24000000 || dev->ccm_info->mclk==12000000 || dev->ccm_info->mclk==6000000)
 	{
-		dev->csi_clk_src=clk_get(NULL,"hosc");
+		dev->csi_clk_src=clk_get(NULL,CLK_SYS_HOSC);//"hosc"
 		if (dev->csi_clk_src == NULL) {
 	    csi_err("get csi0 hosc source clk error!\n");
 			return -1;
-	  }
+	    }
 	}
 	else
 	{
-		dev->csi_clk_src=clk_get(NULL,"video_pll1");
+		dev->csi_clk_src=clk_get(NULL,CLK_SYS_PLL7);//"video_pll1"
 		if (dev->csi_clk_src == NULL) {
 	    csi_err("get csi0 video pll1 source clk error!\n");
 			return -1;
-	  }
+	    }
 	}
 
 	ret = clk_set_parent(dev->csi_module_clk, dev->csi_clk_src);
-	if (ret == -1) {
+	if (ret != 0) {
 	  csi_err(" csi set parent failed \n");
 	  return -1;
 	}
@@ -660,7 +659,7 @@ static int csi_clk_out_set(struct csi_dev *dev)
 	clk_put(dev->csi_clk_src);
 
 	ret = clk_set_rate(dev->csi_module_clk, dev->ccm_info->mclk);
-	if (ret == -1) {
+	if (ret != 0) {
 		csi_err("set csi1 module clock error\n");
 		return -1;
 	}
@@ -670,36 +669,59 @@ static int csi_clk_out_set(struct csi_dev *dev)
 
 static void csi_reset_enable(struct csi_dev *dev)
 {
-	clk_reset(dev->csi_module_clk, 1);
+	csi_dbg(2,"csi_reset_enable\n");
+
+    //del by heyihang.Jan 16, 2013
+    #if 0
+	clk_reset(dev->csi_isp_clk, AW_CCU_CLK_RESET);
+    #endif
+
+	clk_reset(dev->csi_ahb_clk, AW_CCU_CLK_RESET);
 }
 
 static void csi_reset_disable(struct csi_dev *dev)
 {
-	clk_reset(dev->csi_module_clk, 0);
+	csi_dbg(2,"csi_reset_disable\n");
+
+    //del by heyihang.Jan 16, 2013
+    #if 0
+	clk_reset(dev->csi_isp_clk, AW_CCU_CLK_NRESET);
+    #endif
+
+	clk_reset(dev->csi_ahb_clk, AW_CCU_CLK_NRESET);
 }
 
 static int csi_clk_enable(struct csi_dev *dev)
 {
+	csi_dbg(2,"csi_clk_enable\n");
 	clk_enable(dev->csi_ahb_clk);
-//	clk_enable(dev->csi_module_clk);
-	clk_enable(dev->csi_isp_clk);
 	clk_enable(dev->csi_dram_clk);
+
+    //del by heyihang.Jan 16, 2013
+    #if 0
+	clk_enable(dev->csi_isp_clk);
+    #endif
 
 	return 0;
 }
 
 static int csi_clk_disable(struct csi_dev *dev)
 {
+	csi_dbg(2,"csi_clk_disable\n");
 	clk_disable(dev->csi_ahb_clk);
-//	clk_disable(dev->csi_module_clk);
-	clk_disable(dev->csi_isp_clk);
 	clk_disable(dev->csi_dram_clk);
+
+    //del by heyihang.Jan 16, 2013
+    #if 0
+	clk_disable(dev->csi_isp_clk);
+    #endif
 
 	return 0;
 }
 
 static int csi_clk_release(struct csi_dev *dev)
 {
+	csi_dbg(2,"csi_clk_release\n");
 	clk_put(dev->csi_ahb_clk);
     dev->csi_ahb_clk = NULL;
 
@@ -708,6 +730,12 @@ static int csi_clk_release(struct csi_dev *dev)
 
 	clk_put(dev->csi_dram_clk);
     dev->csi_dram_clk = NULL;
+
+    //del by heyihang.Jan 16, 2013
+    #if 0
+	clk_put(dev->csi_isp_clk);
+    dev->csi_isp_clk = NULL;
+    #endif
 
 	return 0;
 }
@@ -741,6 +769,9 @@ static int update_ccm_info(struct csi_dev *dev , struct ccm_config *ccm_cfg)
 	 dev->iovdd = ccm_cfg->iovdd;
 	 dev->avdd = ccm_cfg->avdd;
 	 dev->dvdd = ccm_cfg->dvdd;
+	 dev->vol_iovdd = ccm_cfg->vol_iovdd;
+	 dev->vol_avdd =  ccm_cfg->vol_avdd;
+	 dev->vol_dvdd =  ccm_cfg->vol_dvdd;
 	 dev->reset_io    = ccm_cfg->reset_io;
 	 dev->standby_io  = ccm_cfg->standby_io;
 	 dev->power_io    = ccm_cfg->power_io;
@@ -1826,20 +1857,32 @@ static struct video_device csi_template = {
 	.release	= video_device_release,
 };
 
+//modified by heyihang.Jan 15, 2013
 static int fetch_config(struct csi_dev *dev)
 {
+//#ifndef CSI_VER_FOR_FPGA
 	int input_num,ret;
+	script_item_u   val;
+  script_item_value_type_e  type;
+  //int req_status;
+  //int pio_idx;
 
 	/* fetch device quatity issue */
-	ret = script_parser_fetch("csi1_para","csi_dev_qty", &dev->dev_qty , sizeof(int));
-	if (ret) {
-		csi_err("fetch csi_dev_qty from sys_config failed\n");
+	type = script_get_item("csi1_para","csi_dev_qty", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	  dev->dev_qty=1;
+		csi_dbg(0,"fetch csi_dev_qty from sys_config failed, default =1\n");
+	} else {
+	  dev->dev_qty=val.val;
 	}
 
 	/* fetch standby mode */
-	ret = script_parser_fetch("csi1_para","csi_stby_mode", &dev->stby_mode , sizeof(int));
-	if (ret) {
-		csi_err("fetch csi_stby_mode from sys_config failed\n");
+	type = script_get_item("csi1_para","csi_stby_mode", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	  dev->stby_mode=0;
+		csi_dbg(0,"fetch csi_stby_mode from sys_config failed, default =0\n");
+	} else {
+	  dev->stby_mode=val.val;
 	}
 
 	for(input_num=0; input_num<dev->dev_qty; input_num++)
@@ -1854,93 +1897,173 @@ static int fetch_config(struct csi_dev *dev)
 		strcpy(dev->ccm_cfg[0]->ccm,ccm);
 
 		/* fetch i2c and module name*/
-		ret = script_parser_fetch("csi1_para","csi_twi_id", &dev->ccm_cfg[0]->twi_id , sizeof(int));
-		if (ret) {
-		}
+		type = script_get_item("csi1_para","csi_twi_id", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	    dev->ccm_cfg[0]->twi_id=0;
+		  csi_dbg(0,"fetch csi_twi_id from sys_config failed, default =0\n");
+		} else {
+	    dev->ccm_cfg[0]->twi_id=val.val;
+	  }
 
 		ret = strcmp(dev->ccm_cfg[0]->ccm,"");
 		if((dev->ccm_cfg[0]->i2c_addr == 0xff) && (ret == 0))	//when insmod without parm
 		{
-			ret = script_parser_fetch("csi1_para","csi_twi_addr", &dev->ccm_cfg[0]->i2c_addr , sizeof(int));
-			if (ret) {
-				csi_err("fetch csi_twi_addr from sys_config failed\n");
-			}
+			type = script_get_item("csi1_para","csi_twi_addr", &val);
+			if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	      dev->ccm_cfg[0]->i2c_addr=0x78;
+				csi_dbg(0,"fetch csi_twi_addr from sys_config failed, default =0x78\n");
+			} else {
+	      dev->ccm_cfg[0]->i2c_addr=val.val;
+	    }
 
-			ret = script_parser_fetch("csi1_para","csi_mname", (int *)&dev->ccm_cfg[0]->ccm , I2C_NAME_SIZE*sizeof(char));
-			if (ret) {
-				csi_err("fetch csi_mname from sys_config failed\n");
-			}
+			type = script_get_item("csi1_para","csi_mname", &val);
+			if (SCIRPT_ITEM_VALUE_TYPE_STR != type) {
+			  char tmp_str[]="ov5640";
+			  strcpy(dev->ccm_cfg[0]->ccm,tmp_str);
+				csi_dbg(0,"fetch csi_mname from sys_config failed, default ov5640\n");
+			} else {
+			  strcpy(dev->ccm_cfg[0]->ccm,val.str);
+	    }
 		}
 
 		/* fetch interface issue*/
-		ret = script_parser_fetch("csi1_para","csi_if", &dev->ccm_cfg[0]->interface , sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_if from sys_config failed\n");
-		}
+		type = script_get_item("csi1_para","csi_if", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	    dev->ccm_cfg[0]->interface=0;
+			csi_dbg(0,"fetch csi_if from sys_config failed, default =0\n");
+		} else {
+	    dev->ccm_cfg[0]->interface=val.val;
+	  }
 
 		/* fetch power issue*/
-
-		ret = script_parser_fetch("csi1_para","csi_iovdd", (int *)&dev->ccm_cfg[0]->iovdd_str , 32*sizeof(char));
-		if (ret) {
-			csi_err("fetch csi_iovdd from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_iovdd", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_STR != type) {
+		  char null_str[]="";
+		  strcpy(dev->ccm_cfg[0]->iovdd_str,null_str);
+			csi_dbg(0,"fetch csi_iovdd from sys_config failed\n");
+		} else {
+		  strcpy(dev->ccm_cfg[0]->iovdd_str,val.str);
 		}
 
-		ret = script_parser_fetch("csi1_para","csi_avdd", (int *)&dev->ccm_cfg[0]->avdd_str , 32*sizeof(char));
-		if (ret) {
-			csi_err("fetch csi_avdd from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_avdd", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_STR != type) {
+		  char null_str[]="";
+		  strcpy(dev->ccm_cfg[0]->avdd_str,null_str);
+			csi_dbg(0,"fetch csi_avdd from sys_config failed\n");
+		} else {
+		  strcpy(dev->ccm_cfg[0]->avdd_str,val.str);
 		}
 
-		ret = script_parser_fetch("csi1_para","csi_dvdd", (int *)&dev->ccm_cfg[0]->dvdd_str , 32*sizeof(char));
-		if (ret) {
-			csi_err("fetch csi_dvdd from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_dvdd", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_STR != type) {
+		  char null_str[]="";
+		  strcpy(dev->ccm_cfg[0]->dvdd_str,null_str);
+			csi_dbg(0,"fetch csi_dvdd from sys_config failed\n");
+		} else {
+		  strcpy(dev->ccm_cfg[0]->dvdd_str,val.str);
 		}
 
-		/* fetch standby mode */
-		ret = script_parser_fetch("csi0_para","csi_stby_mode", &dev->ccm_cfg[0]->stby_mode , sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_stby_mode from sys_config failed\n");
-		}
+		type = script_get_item("csi1_para","csi_vol_iovdd", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	    dev->ccm_cfg[0]->vol_iovdd=0;
+			csi_dbg(0,"fetch csi_vol_iovdd from sys_config failed, default =0\n");
+		} else {
+	    dev->ccm_cfg[0]->vol_iovdd=val.val;
+	  }
+		type = script_get_item("csi1_para","csi_vol_dvdd", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	    dev->ccm_cfg[0]->vol_dvdd=0;
+			csi_dbg(0,"fetch csi_vol_dvdd from sys_config failed, default =0\n");
+		} else {
+	    dev->ccm_cfg[0]->vol_dvdd=val.val;
+	  }
+		type = script_get_item("csi1_para","csi_vol_avdd", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	    dev->ccm_cfg[0]->vol_avdd=0;
+			csi_dbg(0,"fetch csi_vol_avdd from sys_config failed, default =0\n");
+		} else {
+	    dev->ccm_cfg[0]->vol_avdd=val.val;
+	  }
+	  /* fetch power issue*/
+
+//		/* fetch standby mode */
+//		type = script_get_item("csi0_para","csi_stby_mode", &dev->ccm_cfg[0]->stby_mode , sizeof(int));
+//		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+//			csi_dbg(0,"fetch csi_stby_mode from sys_config failed\n");
+//		} else {
+//
+//		}
+
 		/* fetch flip issue */
-		ret = script_parser_fetch("csi1_para","csi_vflip", &dev->ccm_cfg[0]->vflip , sizeof(int));
-		if (ret) {
-			csi_err("fetch vflip from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_vflip", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+		  dev->ccm_cfg[0]->vflip=0;
+			csi_dbg(0,"fetch vflip from sys_config failed, default=0\n");
+		} else {
+		  dev->ccm_cfg[0]->vflip=val.val;
 		}
 
-		ret = script_parser_fetch("csi1_para","csi_hflip", &dev->ccm_cfg[0]->hflip , sizeof(int));
-		if (ret) {
-			csi_err("fetch hflip from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_hflip", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+		  dev->ccm_cfg[0]->hflip=0;
+			csi_dbg(0,"fetch hflip from sys_config failed, default=0\n");
+		} else {
+		  dev->ccm_cfg[0]->hflip=val.val;
 		}
 
 		/* fetch flash light issue */
-		ret = script_parser_fetch("csi1_para","csi_flash_pol", &dev->ccm_cfg[0]->flash_pol , sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_flash_pol from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_flash_pol", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+		  dev->ccm_cfg[0]->flash_pol=0;
+			csi_dbg(0,"fetch csi_flash_pol from sys_config failed, default=0\n");
+		} else {
+		  dev->ccm_cfg[0]->flash_pol=val.val;
 		}
 
 		/* fetch reset/power/standby/flash/af io issue */
-		ret = script_parser_fetch("csi1_para","csi_reset", (int *)&dev->ccm_cfg[0]->reset_io , sizeof(user_gpio_set_t)/sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_reset from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_reset", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
+		  dev->ccm_cfg[0]->reset_io.gpio=GPIO_INDEX_INVALID;
+			csi_dbg(0,"not using csi_reset in sys_config\n");
+		} else {
+		  dev->ccm_cfg[0]->reset_io.gpio=val.gpio.gpio;
+		  dev->ccm_cfg[0]->reset_io.mul_sel=val.gpio.mul_sel;
 		}
 
-		ret = script_parser_fetch("csi1_para","csi_stby", (int *)&dev->ccm_cfg[0]->standby_io , sizeof(user_gpio_set_t)/sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_stby from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_stby", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
+		  dev->ccm_cfg[0]->standby_io.gpio=GPIO_INDEX_INVALID;
+			csi_dbg(0,"not using csi_stby in sys_config\n");
+		} else {
+		  dev->ccm_cfg[0]->standby_io.gpio=val.gpio.gpio;
+		  dev->ccm_cfg[0]->standby_io.mul_sel=val.gpio.mul_sel;
 		}
 
-		ret = script_parser_fetch("csi1_para","csi_power_en", (int *)&dev->ccm_cfg[0]->power_io , sizeof(user_gpio_set_t)/sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_power_en from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_power_en", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
+		  dev->ccm_cfg[0]->power_io.gpio=GPIO_INDEX_INVALID;
+			csi_dbg(0,"not using csi_power_en in sys_config\n");
+		} else {
+		  dev->ccm_cfg[0]->power_io.gpio=val.gpio.gpio;
+		  dev->ccm_cfg[0]->power_io.mul_sel=val.gpio.mul_sel;
 		}
 
-		ret = script_parser_fetch("csi1_para","csi_flash", (int *)&dev->ccm_cfg[0]->flash_io , sizeof(user_gpio_set_t)/sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_flash from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_flash", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
+			csi_dbg(0,"not using csi_flash in sys_config\n");
+			dev->ccm_cfg[0]->flash_io.gpio=GPIO_INDEX_INVALID;
+		} else {
+		  dev->ccm_cfg[0]->flash_io.gpio=val.gpio.gpio;
+		  dev->ccm_cfg[0]->flash_io.mul_sel=val.gpio.mul_sel;
 		}
 
-		ret = script_parser_fetch("csi1_para","csi_af_en", (int *)&dev->ccm_cfg[0]->af_power_io , sizeof(user_gpio_set_t)/sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_af_en from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_af_en", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
+			dev->ccm_cfg[0]->af_power_io.gpio=GPIO_INDEX_INVALID;
+			csi_dbg(0,"not using csi_af_en in sys_config\n");
+		} else {
+		  dev->ccm_cfg[0]->af_power_io.gpio=val.gpio.gpio;
+		  dev->ccm_cfg[0]->af_power_io.mul_sel=val.gpio.mul_sel;
 		}
 	}
 
@@ -1950,97 +2073,173 @@ static int fetch_config(struct csi_dev *dev)
 		strcpy(dev->ccm_cfg[1]->ccm,ccm_b);
 
 		/* fetch i2c and module name*/
-		ret = script_parser_fetch("csi1_para","csi_twi_id_b", &dev->ccm_cfg[1]->twi_id , sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_twi_id_b from sys_config failed\n");
-		}
+		type = script_get_item("csi1_para","csi_twi_id_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	    dev->ccm_cfg[1]->twi_id=0;
+		  csi_dbg(0,"fetch csi_twi_id_b from sys_config failed, default =0\n");
+		} else {
+	    dev->ccm_cfg[1]->twi_id=val.val;
+	  }
 
 		ret = strcmp(dev->ccm_cfg[1]->ccm,"");
 		if((dev->ccm_cfg[1]->i2c_addr == 0xff) && (ret == 0))	//when insmod without parm
 		{
-			ret = script_parser_fetch("csi1_para","csi_twi_addr_b", &dev->ccm_cfg[1]->i2c_addr , sizeof(int));
-			if (ret) {
-				csi_err("fetch csi_twi_addr_b from sys_config failed\n");
-			}
+			type = script_get_item("csi1_para","csi_twi_addr_b", &val);
+			if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	      dev->ccm_cfg[1]->i2c_addr=0x78;
+				csi_dbg(0,"fetch csi_twi_addr_b from sys_config failed, default =0x78\n");
+			} else {
+	      dev->ccm_cfg[1]->i2c_addr=val.val;
+	    }
 
-			ret = script_parser_fetch("csi1_para","csi_mname_b", (int *)&dev->ccm_cfg[1]->ccm , I2C_NAME_SIZE*sizeof(char));
-			if (ret) {
-				csi_err("fetch csi_mname_b from sys_config failed\n");;
-			}
+			type = script_get_item("csi1_para","csi_mname_b", &val);
+			if (SCIRPT_ITEM_VALUE_TYPE_STR != type) {
+			  char tmp_str[]="ov5640";
+			  strcpy(dev->ccm_cfg[1]->ccm,tmp_str);
+				csi_dbg(0,"fetch csi_mname_b from sys_config failed, default ov5640\n");
+			} else {
+			  strcpy(dev->ccm_cfg[1]->ccm,val.str);
+	    }
 		}
 
 		/* fetch interface issue*/
-		ret = script_parser_fetch("csi1_para","csi_if_b", &dev->ccm_cfg[1]->interface , sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_if_b from sys_config failed\n");
-		}
+		type = script_get_item("csi1_para","csi_if_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	    dev->ccm_cfg[1]->interface=0;
+			csi_dbg(0,"fetch csi_if_b from sys_config failed, default =0\n");
+		} else {
+	    dev->ccm_cfg[1]->interface=val.val;
+	  }
 
 		/* fetch power issue*/
-		ret = script_parser_fetch("csi1_para","csi_iovdd_b", (int *)&dev->ccm_cfg[1]->iovdd_str , 32*sizeof(char));
-		if (ret) {
-			csi_err("fetch csi_iovdd_b from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_iovdd_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_STR != type) {
+		  char null_str[]="";
+		  strcpy(dev->ccm_cfg[1]->iovdd_str,null_str);
+			csi_dbg(0,"fetch csi_iovdd_b from sys_config failed\n");
+		} else {
+		  strcpy(dev->ccm_cfg[1]->iovdd_str,val.str);
 		}
 
-		ret = script_parser_fetch("csi1_para","csi_avdd_b", (int *)&dev->ccm_cfg[1]->avdd_str , 32*sizeof(char));
-		if (ret) {
-			csi_err("fetch csi_avdd_b from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_avdd_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_STR != type) {
+		  char null_str[]="";
+		  strcpy(dev->ccm_cfg[1]->avdd_str,null_str);
+			csi_dbg(0,"fetch csi_avdd_b from sys_config failed\n");
+		} else {
+		  strcpy(dev->ccm_cfg[1]->avdd_str,val.str);
 		}
 
-		ret = script_parser_fetch("csi1_para","csi_dvdd_b", (int *)&dev->ccm_cfg[1]->dvdd_str , 32*sizeof(char));
-		if (ret) {
-			csi_err("fetch csi_dvdd_b from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_dvdd_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_STR != type) {
+		  char null_str[]="";
+		  strcpy(dev->ccm_cfg[1]->dvdd_str,null_str);
+			csi_dbg(0,"fetch csi_dvdd_b from sys_config failed\n");
+		} else {
+		  strcpy(dev->ccm_cfg[1]->dvdd_str,val.str);
 		}
 
-		/* fetch standby mode */
-		ret = script_parser_fetch("csi0_para","csi_stby_mode", &dev->ccm_cfg[1]->stby_mode , sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_stby_mode from sys_config failed\n");
-		}
+		type = script_get_item("csi1_para","csi_vol_iovdd_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	    dev->ccm_cfg[1]->vol_iovdd=0;
+			csi_dbg(0,"fetch csi_vol_iovdd_b from sys_config failed, default =0\n");
+		} else {
+	    dev->ccm_cfg[1]->vol_iovdd=val.val;
+	  }
+		type = script_get_item("csi1_para","csi_vol_dvdd_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	    dev->ccm_cfg[1]->vol_dvdd=0;
+			csi_dbg(0,"fetch csi_vol_dvdd_b from sys_config failed, default =0\n");
+		} else {
+	    dev->ccm_cfg[1]->vol_dvdd=val.val;
+	  }
+		type = script_get_item("csi1_para","csi_vol_avdd_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	    dev->ccm_cfg[1]->vol_avdd=0;
+			csi_dbg(0,"fetch csi_vol_avdd_b from sys_config failed, default =0\n");
+		} else {
+	    dev->ccm_cfg[1]->vol_avdd=val.val;
+	  }
+//		/* fetch standby mode */
+//		type = script_get_item("csi0_para","csi_stby_mode", &dev->ccm_cfg[0]->stby_mode , sizeof(int));
+//		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+//			csi_dbg(0,"fetch csi_stby_mode from sys_config failed\n");
+//		} else {
+//
+//		}
 
 		/* fetch flip issue */
-		ret = script_parser_fetch("csi1_para","csi_vflip_b", &dev->ccm_cfg[1]->vflip , sizeof(int));
-		if (ret) {
-			csi_err("fetch vflip_b from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_vflip_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+		  dev->ccm_cfg[1]->vflip=0;
+			csi_dbg(0,"fetch vflip_b from sys_config failed, default=0\n");
+		} else {
+		  dev->ccm_cfg[1]->vflip=val.val;
 		}
 
-		ret = script_parser_fetch("csi1_para","csi_hflip_b", &dev->ccm_cfg[1]->hflip , sizeof(int));
-		if (ret) {
-			csi_err("fetch hflip_b from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_hflip_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+		  dev->ccm_cfg[1]->hflip=0;
+			csi_dbg(0,"fetch hflip_b from sys_config failed, default=0\n");
+		} else {
+		  dev->ccm_cfg[1]->hflip=val.val;
 		}
 
 		/* fetch flash light issue */
-		ret = script_parser_fetch("csi1_para","csi_flash_pol_b", &dev->ccm_cfg[1]->flash_pol , sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_flash_pol_b from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_flash_pol_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+		  dev->ccm_cfg[1]->flash_pol=0;
+			csi_dbg(0,"fetch csi_flash_pol_b from sys_config failed, default=0\n");
+		} else {
+		  dev->ccm_cfg[1]->flash_pol=val.val;
 		}
 
 		/* fetch reset/power/standby/flash/af io issue */
-		ret = script_parser_fetch("csi1_para","csi_reset_b", (int *)&dev->ccm_cfg[1]->reset_io , sizeof(user_gpio_set_t)/sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_reset_b from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_reset_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
+		  dev->ccm_cfg[1]->reset_io.gpio=GPIO_INDEX_INVALID;
+			csi_dbg(0,"not using csi_reset_b in sys_config\n");
+		} else {
+		  dev->ccm_cfg[1]->reset_io.gpio=val.gpio.gpio;
+		  dev->ccm_cfg[1]->reset_io.mul_sel=val.gpio.mul_sel;
 		}
 
-		ret = script_parser_fetch("csi1_para","csi_stby_b", (int *)&dev->ccm_cfg[1]->standby_io , sizeof(user_gpio_set_t)/sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_stby_b from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_stby_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
+		  dev->ccm_cfg[1]->standby_io.gpio=GPIO_INDEX_INVALID;
+			csi_dbg(0,"not using csi_stby_b in sys_config\n");
+		} else {
+		  dev->ccm_cfg[1]->standby_io.gpio=val.gpio.gpio;
+		  dev->ccm_cfg[1]->standby_io.mul_sel=val.gpio.mul_sel;
 		}
 
-		ret = script_parser_fetch("csi1_para","csi_power_en_b", (int *)&dev->ccm_cfg[1]->power_io , sizeof(user_gpio_set_t)/sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_power_en_b from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_power_en_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
+		  dev->ccm_cfg[1]->power_io.gpio=GPIO_INDEX_INVALID;
+			csi_dbg(0,"not using csi_power_en_b in sys_config\n");
+		} else {
+		  dev->ccm_cfg[1]->power_io.gpio=val.gpio.gpio;
+		  dev->ccm_cfg[1]->power_io.mul_sel=val.gpio.mul_sel;
 		}
 
-		ret = script_parser_fetch("csi1_para","csi_flash_b", (int *)&dev->ccm_cfg[1]->flash_io , sizeof(user_gpio_set_t)/sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_flash_b from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_flash_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
+		  dev->ccm_cfg[1]->flash_io.gpio=GPIO_INDEX_INVALID;
+			csi_dbg(0,"not using csi_flash_b in sys_config\n");
+		} else {
+		  dev->ccm_cfg[1]->flash_io.gpio=val.gpio.gpio;
+		  dev->ccm_cfg[1]->flash_io.mul_sel=val.gpio.mul_sel;
 		}
 
-		ret = script_parser_fetch("csi1_para","csi_af_en_b", (int *)&dev->ccm_cfg[1]->af_power_io , sizeof(user_gpio_set_t)/sizeof(int));
-		if (ret) {
-			csi_err("fetch csi_af_en_b from sys_config failed\n");
+		type = script_get_item("csi1_para","csi_af_en_b", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
+		  dev->ccm_cfg[1]->af_power_io.gpio=GPIO_INDEX_INVALID;
+			csi_dbg(0,"not using csi_af_en_b in sys_config\n");
+		} else {
+		  dev->ccm_cfg[1]->af_power_io.gpio=val.gpio.gpio;
+		  dev->ccm_cfg[1]->af_power_io.mul_sel=val.gpio.mul_sel;
 		}
 	}
-
 
 	for(input_num=0; input_num<dev->dev_qty; input_num++)
 	{
@@ -2053,8 +2252,43 @@ static int fetch_config(struct csi_dev *dev)
 		csi_dbg(0,"dev->ccm_cfg[%d]->iovdd_str = %s\n",input_num,dev->ccm_cfg[input_num]->iovdd_str);
 		csi_dbg(0,"dev->ccm_cfg[%d]->avdd_str = %s\n",input_num,dev->ccm_cfg[input_num]->avdd_str);
 		csi_dbg(0,"dev->ccm_cfg[%d]->dvdd_str = %s\n",input_num,dev->ccm_cfg[input_num]->dvdd_str);
-		csi_dbg(0,"dev->ccm_cfg[%d]->flash_pol = %x\n",input_num,dev->ccm_cfg[input_num]->flash_pol);
+		csi_dbg(0,"dev->ccm_cfg[%d]->flash_pol = %d\n",input_num,dev->ccm_cfg[input_num]->flash_pol);
+//		csi_dbg(0,"dev->ccm_cfg[%d]->reset_io.gpio = %d\n",input_num,dev->ccm_cfg[input_num]->reset_io.gpio);
+//		csi_dbg(0,"dev->ccm_cfg[%d]->standby_io.gpio = %d\n",input_num,dev->ccm_cfg[input_num]->standby_io.gpio);
+//		csi_dbg(0,"dev->ccm_cfg[%d]->power_io.gpio = %d\n",input_num,dev->ccm_cfg[input_num]->power_io.gpio);
 	}
+//#else
+//	dev->dev_qty = 1;
+//  dev->stby_mode = 0;
+//	dev->ccm_cfg[0] = &ccm_cfg[0];
+//	dev->ccm_cfg[0]->twi_id = 1;
+//	dev->ccm_cfg[0]->i2c_addr = 0x78;
+//  strcpy(dev->ccm_cfg[0]->ccm,"ov5640");
+////	dev->ccm_cfg[0]->i2c_addr = 0x5a;
+////  strcpy(dev->ccm_cfg[0]->ccm,"s5k4ec");
+////	dev->ccm_cfg[0]->i2c_addr = 0x78;
+////  strcpy(dev->ccm_cfg[0]->ccm,"gc2035");
+//	dev->ccm_cfg[0]->interface = 0x00;
+//	dev->ccm_cfg[0]->stby_mode = 0;
+//	dev->ccm_cfg[0]->vflip = 0;
+//	dev->ccm_cfg[0]->hflip = 1;
+//
+////	dev->dev_qty = 2;
+////  dev->stby_mode = 0;
+////	dev->ccm_cfg[1] = &ccm_cfg[1];
+////	dev->ccm_cfg[1]->twi_id = 1;
+////	dev->ccm_cfg[1]->i2c_addr = 0x42;
+////  strcpy(dev->ccm_cfg[1]->ccm,"gc0308");
+//////	dev->ccm_cfg[1]->i2c_addr = 0x5a;
+//////  strcpy(dev->ccm_cfg[1]->ccm,"s5k4ec");
+//////	dev->ccm_cfg[1]->i2c_addr = 0x42;
+//////  strcpy(dev->ccm_cfg[1]->ccm,"gc0308");
+////	dev->ccm_cfg[1]->interface = 0x0;
+////	dev->ccm_cfg[1]->stby_mode = 0;
+////	dev->ccm_cfg[1]->vflip = 0;
+////	dev->ccm_cfg[1]->hflip = 1;
+//#endif
+//	dev->ccm_cfg[0]->twi_id = 1;
 
 	return 0;
 }
@@ -2334,7 +2568,7 @@ reg_sd:
 	/* initial state */
 	dev->capture_mode = V4L2_MODE_VIDEO;
 
-#ifdef AJUST_DRAM_PRIORITY
+#if 0
 {
         void __iomem *regs_dram;
         volatile unsigned int tmpval = 0;
@@ -2570,15 +2804,19 @@ static struct platform_device csi_device[] = {
 
 static int __init csi_init(void)
 {
-	u32 ret;
+    u32 ret;
 	int csi_used;
+	script_item_u   val;
+    script_item_value_type_e  type;
 	csi_print("Welcome to CSI driver\n");
 	csi_print("csi_init\n");
 
-	ret = script_parser_fetch("csi1_para","csi_used", &csi_used , sizeof(int));
-	if (ret) {
+	type = script_get_item("csi1_para","csi_used", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
 		csi_err("fetch csi_used from sys_config failed\n");
 		return -1;
+	} else {
+	  csi_used=val.val;
 	}
 
 	if(!csi_used)
@@ -2605,13 +2843,16 @@ static int __init csi_init(void)
 static void __exit csi_exit(void)
 {
 	int csi_used,ret;
-
+	script_item_u   val;
+  script_item_value_type_e  type;
 	csi_print("csi_exit\n");
 
-	ret = script_parser_fetch("csi1_para","csi_used", &csi_used , sizeof(int));
-	if (ret) {
+	type = script_get_item("csi1_para","csi_used", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
 		csi_err("fetch csi_used from sys_config failed\n");
 		return;
+	} else {
+	  csi_used=val.val;
 	}
 
 	if(csi_used)

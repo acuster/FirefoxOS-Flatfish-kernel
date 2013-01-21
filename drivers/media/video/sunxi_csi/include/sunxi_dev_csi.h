@@ -9,6 +9,9 @@ typedef enum tag_CSI_SUBDEV_CMD
 {
 	CSI_SUBDEV_CMD_GET_INFO = 0x01,
 	CSI_SUBDEV_CMD_SET_INFO = 0x02,
+
+    //add by heyihang.Jan 15, 2013
+    CSI_SUBDEV_CMD_DETECT   = 0x03,
 }__csi_subdev_cmd_t;
 
 /*
