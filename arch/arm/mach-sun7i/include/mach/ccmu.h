@@ -261,7 +261,7 @@ typedef struct __CCMU_APB1CLK_GATE_REG006C {
     __u32   Ps20Gate: 1;        //bit6,  gating APB clock for PS2-0, 0-mask, 1-pass
     __u32   Ps21Gate: 1;        //bit7,  gating APB clock for PS2-1, 0-mask, 1-pass
     __u32   reserved0: 7;       //bit8,  reserved
-    __u32   Twi4Gate: 7;        //bit15, gating AHB clock for TWI4, 0-mask, 1-pass
+    __u32   Twi4Gate: 1;        //bit15, gating AHB clock for TWI4, 0-mask, 1-pass
     __u32   Uart0Gate: 1;       //bit16, gating APB clock for UART0, 0-mask, 1-pass
     __u32   Uart1Gate: 1;       //bit17, gating APB clock for UART1, 0-mask, 1-pass
     __u32   Uart2Gate: 1;       //bit18, gating APB clock for UART2, 0-mask, 1-pass
