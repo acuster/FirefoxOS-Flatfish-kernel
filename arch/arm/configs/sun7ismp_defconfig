@@ -276,6 +276,7 @@ CONFIG_ARCH_SUN7I=y
 # CONFIG_PLAT_SPEAR is not set
 # CONFIG_ARCH_VT8500 is not set
 # CONFIG_ARCH_ZYNQ is not set
+# CONFIG_GPIO_PCA953X is not set
 
 #
 # System MMU
@@ -609,14 +610,31 @@ CONFIG_EXTRA_FIRMWARE=""
 # Misc devices
 #
 # CONFIG_SENSORS_LIS3LV02D is not set
+# CONFIG_AD525X_DPOT is not set
 # CONFIG_ATMEL_PWM is not set
+# CONFIG_ICS932S401 is not set
 # CONFIG_ENCLOSURE_SERVICES is not set
+# CONFIG_APDS9802ALS is not set
+# CONFIG_ISL29003 is not set
+# CONFIG_ISL29020 is not set
+# CONFIG_SENSORS_TSL2550 is not set
+# CONFIG_SENSORS_BH1780 is not set
+# CONFIG_SENSORS_BH1770 is not set
+# CONFIG_SENSORS_APDS990X is not set
+# CONFIG_HMC6352 is not set
+# CONFIG_SENSORS_AK8975 is not set
+# CONFIG_DS1682 is not set
 # CONFIG_UID_STAT is not set
+# CONFIG_BMP085 is not set
+# CONFIG_USB_SWITCH_FSA9480 is not set
 # CONFIG_C2PORT is not set
 
 #
 # EEPROM support
 #
+# CONFIG_EEPROM_AT24 is not set
+# CONFIG_EEPROM_LEGACY is not set
+# CONFIG_EEPROM_MAX6875 is not set
 # CONFIG_EEPROM_93CX6 is not set
 # CONFIG_IWMC3200TOP is not set
 
@@ -624,10 +642,12 @@ CONFIG_EXTRA_FIRMWARE=""
 # Texas Instruments shared transport line discipline
 #
 # CONFIG_TI_ST is not set
+# CONFIG_SENSORS_LIS3_I2C is not set
 
 #
 # Altera FPGA firmware download module
 #
+# CONFIG_ALTERA_STAPL is not set
 
 #
 # SCSI device support
@@ -880,7 +900,45 @@ CONFIG_SUN7I_GPIO_TEST=y
 # CONFIG_SUNXI_TIMER_TEST is not set
 CONFIG_SUNXI_PHYS_MEM_ALLOCATOR=y
 # CONFIG_SUNXI_MEM_TEST is not set
-# CONFIG_I2C is not set
+CONFIG_I2C=y
+CONFIG_I2C_BOARDINFO=y
+CONFIG_I2C_COMPAT=y
+# CONFIG_I2C_CHARDEV is not set
+# CONFIG_I2C_MUX is not set
+CONFIG_I2C_HELPER_AUTO=y
+
+#
+# I2C Hardware Bus support
+#
+
+#
+# I2C system bus drivers (mostly embedded / system-on-chip)
+#
+# CONFIG_I2C_DESIGNWARE_PLATFORM is not set
+# CONFIG_I2C_GPIO is not set
+# CONFIG_I2C_OCORES is not set
+# CONFIG_I2C_PCA_PLATFORM is not set
+# CONFIG_I2C_PXA_PCI is not set
+# CONFIG_I2C_SIMTEC is not set
+CONFIG_I2C_SUN7I=y
+# CONFIG_SUN7I_I2C_PRINT_TRANSFER_INFO is not set
+# CONFIG_I2C_XILINX is not set
+
+#
+# External I2C/SMBus adapter drivers
+#
+# CONFIG_I2C_DIOLAN_U2C is not set
+# CONFIG_I2C_PARPORT_LIGHT is not set
+# CONFIG_I2C_TAOS_EVM is not set
+# CONFIG_I2C_TINY_USB is not set
+
+#
+# Other I2C/SMBus bus drivers
+#
+# CONFIG_I2C_STUB is not set
+# CONFIG_I2C_DEBUG_CORE is not set
+# CONFIG_I2C_DEBUG_ALGO is not set
+# CONFIG_I2C_DEBUG_BUS is not set
 # CONFIG_SPI is not set
 
 #
@@ -914,6 +972,11 @@ CONFIG_GPIO_GENERIC_PLATFORM=y
 #
 # I2C GPIO expanders:
 #
+# CONFIG_GPIO_MAX7300 is not set
+# CONFIG_GPIO_MAX732X is not set
+# CONFIG_GPIO_PCF857X is not set
+# CONFIG_GPIO_SX150X is not set
+# CONFIG_GPIO_ADP5588 is not set
 
 #
 # PCI GPIO expanders:
@@ -922,6 +985,7 @@ CONFIG_GPIO_GENERIC_PLATFORM=y
 #
 # SPI GPIO expanders:
 #
+# CONFIG_GPIO_MCP23S08 is not set
 
 #
 # AC97 GPIO expanders:
@@ -969,15 +1033,40 @@ CONFIG_BCMA_POSSIBLE=y
 # Multifunction device drivers
 #
 # CONFIG_MFD_CORE is not set
+# CONFIG_MFD_88PM860X is not set
 # CONFIG_MFD_SM501 is not set
 # CONFIG_MFD_ASIC3 is not set
 # CONFIG_HTC_EGPIO is not set
 # CONFIG_HTC_PASIC3 is not set
+# CONFIG_HTC_I2CPLD is not set
+# CONFIG_TPS6105X is not set
+# CONFIG_TPS65010 is not set
+# CONFIG_TPS6507X is not set
+# CONFIG_MFD_TPS6586X is not set
+# CONFIG_MFD_TPS65910 is not set
+# CONFIG_MFD_TPS65912_I2C is not set
+# CONFIG_TWL4030_CORE is not set
+# CONFIG_MFD_STMPE is not set
+# CONFIG_MFD_TC3589X is not set
 # CONFIG_MFD_TMIO is not set
 # CONFIG_MFD_T7L66XB is not set
 # CONFIG_MFD_TC6387XB is not set
 # CONFIG_MFD_TC6393XB is not set
+# CONFIG_PMIC_DA903X is not set
+# CONFIG_MFD_DA9052_I2C is not set
+# CONFIG_PMIC_ADP5520 is not set
+# CONFIG_MFD_MAX8925 is not set
+# CONFIG_MFD_MAX8997 is not set
+# CONFIG_MFD_MAX8998 is not set
+# CONFIG_MFD_S5M_CORE is not set
+# CONFIG_MFD_WM8400 is not set
+# CONFIG_MFD_WM831X_I2C is not set
+# CONFIG_MFD_WM8350_I2C is not set
+# CONFIG_MFD_WM8994 is not set
+# CONFIG_MFD_PCF50633 is not set
 # CONFIG_ABX500_CORE is not set
+# CONFIG_MFD_WL1273_CORE is not set
+# CONFIG_MFD_AAT2870_CORE is not set
 # CONFIG_REGULATOR is not set
 CONFIG_MEDIA_SUPPORT=y
 
@@ -985,9 +1074,10 @@ CONFIG_MEDIA_SUPPORT=y
 # Multimedia core support
 #
 # CONFIG_MEDIA_CONTROLLER is not set
-# CONFIG_VIDEO_DEV is not set
+CONFIG_VIDEO_DEV=y
+CONFIG_VIDEO_V4L2_COMMON=y
 # CONFIG_DVB_CORE is not set
-# CONFIG_VIDEO_MEDIA is not set
+CONFIG_VIDEO_MEDIA=y
 
 #
 # Multimedia drivers
@@ -1010,9 +1100,173 @@ CONFIG_IR_LIRC_CODEC=y
 # CONFIG_IR_REDRAT3 is not set
 # CONFIG_IR_STREAMZAP is not set
 # CONFIG_RC_LOOPBACK is not set
+# CONFIG_MEDIA_ATTACH is not set
+CONFIG_MEDIA_TUNER=y
+# CONFIG_MEDIA_TUNER_CUSTOMISE is not set
+CONFIG_MEDIA_TUNER_SIMPLE=y
+CONFIG_MEDIA_TUNER_TDA8290=y
+CONFIG_MEDIA_TUNER_TDA827X=y
+CONFIG_MEDIA_TUNER_TDA18271=y
+CONFIG_MEDIA_TUNER_TDA9887=y
+CONFIG_MEDIA_TUNER_TEA5761=y
+CONFIG_MEDIA_TUNER_TEA5767=y
+CONFIG_MEDIA_TUNER_MT20XX=y
+CONFIG_MEDIA_TUNER_XC2028=y
+CONFIG_MEDIA_TUNER_XC5000=y
+CONFIG_MEDIA_TUNER_XC4000=y
+CONFIG_MEDIA_TUNER_MC44S803=y
+CONFIG_VIDEO_V4L2=y
+CONFIG_VIDEOBUF_GEN=m
+CONFIG_VIDEOBUF_DMA_CONTIG=m
+CONFIG_VIDEO_CAPTURE_DRIVERS=y
+# CONFIG_VIDEO_ADV_DEBUG is not set
+# CONFIG_VIDEO_FIXED_MINOR_RANGES is not set
+CONFIG_VIDEO_HELPER_CHIPS_AUTO=y
+CONFIG_VIDEO_IR_I2C=y
+
+#
+# Audio decoders, processors and mixers
+#
+
+#
+# RDS decoders
+#
+
+#
+# Video decoders
+#
+
+#
+# Video and audio decoders
+#
+
+#
+# MPEG video encoders
+#
+
+#
+# Video encoders
+#
+
+#
+# Camera sensor devices
+#
+
+#
+# Flash devices
+#
+
+#
+# Video improvement chips
+#
+
+#
+# Miscelaneous helper chips
+#
+CONFIG_V4L_USB_DRIVERS=y
+# CONFIG_USB_VIDEO_CLASS is not set
+CONFIG_USB_VIDEO_CLASS_INPUT_EVDEV=y
+CONFIG_USB_GSPCA=m
+# CONFIG_USB_M5602 is not set
+# CONFIG_USB_STV06XX is not set
+# CONFIG_USB_GL860 is not set
+# CONFIG_USB_GSPCA_BENQ is not set
+# CONFIG_USB_GSPCA_CONEX is not set
+# CONFIG_USB_GSPCA_CPIA1 is not set
+# CONFIG_USB_GSPCA_ETOMS is not set
+# CONFIG_USB_GSPCA_FINEPIX is not set
+# CONFIG_USB_GSPCA_JEILINJ is not set
+# CONFIG_USB_GSPCA_JL2005BCD is not set
+# CONFIG_USB_GSPCA_KINECT is not set
+# CONFIG_USB_GSPCA_KONICA is not set
+# CONFIG_USB_GSPCA_MARS is not set
+# CONFIG_USB_GSPCA_MR97310A is not set
+# CONFIG_USB_GSPCA_NW80X is not set
+# CONFIG_USB_GSPCA_OV519 is not set
+# CONFIG_USB_GSPCA_OV534 is not set
+# CONFIG_USB_GSPCA_OV534_9 is not set
+# CONFIG_USB_GSPCA_PAC207 is not set
+# CONFIG_USB_GSPCA_PAC7302 is not set
+# CONFIG_USB_GSPCA_PAC7311 is not set
+# CONFIG_USB_GSPCA_SE401 is not set
+# CONFIG_USB_GSPCA_SN9C2028 is not set
+# CONFIG_USB_GSPCA_SN9C20X is not set
+# CONFIG_USB_GSPCA_SONIXB is not set
+# CONFIG_USB_GSPCA_SONIXJ is not set
+# CONFIG_USB_GSPCA_SPCA500 is not set
+# CONFIG_USB_GSPCA_SPCA501 is not set
+# CONFIG_USB_GSPCA_SPCA505 is not set
+# CONFIG_USB_GSPCA_SPCA506 is not set
+# CONFIG_USB_GSPCA_SPCA508 is not set
+# CONFIG_USB_GSPCA_SPCA561 is not set
+# CONFIG_USB_GSPCA_SPCA1528 is not set
+# CONFIG_USB_GSPCA_SQ905 is not set
+# CONFIG_USB_GSPCA_SQ905C is not set
+# CONFIG_USB_GSPCA_SQ930X is not set
+# CONFIG_USB_GSPCA_STK014 is not set
+# CONFIG_USB_GSPCA_STV0680 is not set
+# CONFIG_USB_GSPCA_SUNPLUS is not set
+# CONFIG_USB_GSPCA_T613 is not set
+# CONFIG_USB_GSPCA_TOPRO is not set
+# CONFIG_USB_GSPCA_TV8532 is not set
+# CONFIG_USB_GSPCA_VC032X is not set
+# CONFIG_USB_GSPCA_VICAM is not set
+# CONFIG_USB_GSPCA_XIRLINK_CIT is not set
+# CONFIG_USB_GSPCA_ZC3XX is not set
+# CONFIG_VIDEO_PVRUSB2 is not set
+# CONFIG_VIDEO_HDPVR is not set
+# CONFIG_VIDEO_EM28XX is not set
+# CONFIG_VIDEO_CX231XX is not set
+# CONFIG_VIDEO_TM6000 is not set
+# CONFIG_VIDEO_USBVISION is not set
+# CONFIG_USB_ET61X251 is not set
+# CONFIG_USB_SN9C102 is not set
+# CONFIG_USB_PWC is not set
+# CONFIG_VIDEO_CPIA2 is not set
+# CONFIG_USB_ZR364XX is not set
+# CONFIG_USB_STKWEBCAM is not set
+# CONFIG_USB_S2255 is not set
+# CONFIG_V4L_PLATFORM_DRIVERS is not set
+# CONFIG_V4L_MEM2MEM_DRIVERS is not set
 CONFIG_VIDEO_SUN7I_CEDAR=y
 CONFIG_VIDEO_DECODER_SUN7I=y
+CONFIG_VIDEO_CSI_SUNXI=y
+CONFIG_CSI_DEV_SEL=m
+CONFIG_CSI0_SUNXI=m
+CONFIG_CSI1_SUNXI=m
+CONFIG_CSI_OV7670=m
+CONFIG_CSI_GT2005=m
+CONFIG_CSI_GC0308=m
+CONFIG_CSI_HI704=m
+CONFIG_CSI_SP0838=m
+CONFIG_CSI_MT9M112=m
+CONFIG_CSI_MT9M113=m
+CONFIG_CSI_OV2655=m
+CONFIG_CSI_HI253=m
+CONFIG_CSI_MT9D112=m
+CONFIG_CSI_GC0307=m
+CONFIG_CSI_OV5640=m
+CONFIG_CSI_GC2015=m
+CONFIG_CSI_OV2643=m
+CONFIG_CSI_GC0329=m
+CONFIG_CSI_GC0309=m
+CONFIG_CSI_TVP5150=m
+CONFIG_CSI_S5K4EC=m
 # CONFIG_AW_TSC is not set
+CONFIG_RADIO_ADAPTERS=y
+# CONFIG_RADIO_SI470X is not set
+# CONFIG_USB_MR800 is not set
+# CONFIG_USB_DSBR is not set
+# CONFIG_I2C_SI4713 is not set
+# CONFIG_RADIO_SI4713 is not set
+# CONFIG_RADIO_TEA5764 is not set
+# CONFIG_RADIO_SAA7706H is not set
+# CONFIG_RADIO_TEF6862 is not set
+# CONFIG_RADIO_WL1273 is not set
+
+#
+# Texas Instruments WL128x FM driver (ST based)
+#
 # CONFIG_PA_CONTROL is not set
 
 #
@@ -1194,6 +1448,7 @@ CONFIG_USB_FILE_STORAGE_TEST=y
 # CONFIG_USB_G_MULTI is not set
 # CONFIG_USB_G_HID is not set
 # CONFIG_USB_G_DBGP is not set
+# CONFIG_USB_G_WEBCAM is not set
 
 #
 # OTG and related infrastructure
@@ -1261,6 +1516,29 @@ CONFIG_RTC_INTF_PROC=y
 CONFIG_RTC_INTF_DEV=y
 # CONFIG_RTC_INTF_DEV_UIE_EMUL is not set
 # CONFIG_RTC_DRV_TEST is not set
+
+#
+# I2C RTC drivers
+#
+# CONFIG_RTC_DRV_DS1307 is not set
+# CONFIG_RTC_DRV_DS1374 is not set
+# CONFIG_RTC_DRV_DS1672 is not set
+# CONFIG_RTC_DRV_DS3232 is not set
+# CONFIG_RTC_DRV_MAX6900 is not set
+# CONFIG_RTC_DRV_RS5C372 is not set
+# CONFIG_RTC_DRV_ISL1208 is not set
+# CONFIG_RTC_DRV_ISL12022 is not set
+# CONFIG_RTC_DRV_X1205 is not set
+# CONFIG_RTC_DRV_PCF8563 is not set
+# CONFIG_RTC_DRV_PCF8583 is not set
+# CONFIG_RTC_DRV_M41T80 is not set
+# CONFIG_RTC_DRV_BQ32K is not set
+# CONFIG_RTC_DRV_S35390A is not set
+# CONFIG_RTC_DRV_FM3130 is not set
+# CONFIG_RTC_DRV_RX8581 is not set
+# CONFIG_RTC_DRV_RX8025 is not set
+# CONFIG_RTC_DRV_EM3027 is not set
+# CONFIG_RTC_DRV_RV3029C2 is not set
 
 #
 # SPI RTC drivers
