@@ -597,7 +597,7 @@ static int sw_mci_set_clk(struct sunxi_mmc_host* smc_host, u32 clk)
 		sclk = clk_get(&smc_host->pdev->dev, MMC_SRCCLK_HOSC);
 	} else {
 		mod_clk = smc_host->mod_clk;
-#ifdef MMC_FPGA
+#ifdef CONFIG_AW_FPGA_PLATFORM
         sclk = clk_get(&smc_host->pdev->dev, MMC_SRCCLK_HOSC);
 #else
 		sclk = clk_get(&smc_host->pdev->dev, MMC_SRCCLK_PLL6);
@@ -1360,7 +1360,7 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		else
 			smc_host->mod_clk = ios->clock;
 		smc_host->card_clk = ios->clock;
-		#ifdef MMC_FPGA
+		#ifdef CONFIG_AW_FPGA_PLATFORM
         if (smc_host->mod_clk > 24000000)
 		    smc_host->mod_clk = 24000000;
 		if (smc_host->card_clk > smc_host->mod_clk)
@@ -2256,7 +2256,7 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 			| MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50
 			| MMC_CAP_UHS_DDR50
 			| MMC_CAP_1_8V_DDR
-			#ifndef MMC_FPGA
+			#ifndef CONFIG_AW_FPGA_PLATFORM
 			| MMC_CAP_8_BIT_DATA
 			#endif
 			| MMC_CAP_SDIO_IRQ

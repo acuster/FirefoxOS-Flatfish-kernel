@@ -15,8 +15,6 @@
 #ifndef _SW_HOST_OP_H_
 #define _SW_HOST_OP_H_ "host_op.h"
 
-#define MMC_FPGA
-
 #define DRIVER_NAME "sunxi-mmc"
 #define DRIVER_RIVISION "Rev3.1"
 #define DRIVER_VERSION " SD/MMC/SDIO Host Controller Driver(" DRIVER_RIVISION ")\n" \
@@ -26,37 +24,37 @@
 /*========== platform define ==========*/
 /*---------- for sun6i ----------*/
 #ifdef CONFIG_ARCH_SUN6I
-#define REG_FIFO_OS	(0x200)
-#define SMC_IRQNO(x)	(AW_IRQ_MMC0 + (x))
+#define REG_FIFO_OS	            (0x200)
+#define SMC_IRQNO(x)	        (AW_IRQ_MMC0 + (x))
 
-#define MMC_SRCCLK_HOSC   CLK_SYS_HOSC
-#define MMC_SRCCLK_PLL6   CLK_SYS_PLL6
-#define MMC_AHBCLK_PREFIX "ahb_sdmmc"
-#define MMC_MODCLK_PREFIX "mod_sdc"
-#define MMC3_DMA_TL       (0x2007000f)
+#define MMC_SRCCLK_HOSC         CLK_SYS_HOSC
+#define MMC_SRCCLK_PLL6         CLK_SYS_PLL6
+#define MMC_AHBCLK_PREFIX       "ahb_sdmmc"
+#define MMC_MODCLK_PREFIX       "mod_sdc"
+#define MMC3_DMA_TL             (0x2007000f)
 
-#ifdef MMC_FPGA
+#ifdef CONFIG_AW_FPGA_PLATFORM
 #undef SMC_IRQNO
-#define SMC_IRQNO(x)	((x) & 2 ? AW_IRQ_MMC2 : AW_IRQ_MMC0)
+#define SMC_IRQNO(x)	        ((x) & 2 ? AW_IRQ_MMC2 : AW_IRQ_MMC0)
 #define SMC_FPGA_MMC_PREUSED(x)	((x) == 2 || (x) == 0)
 #endif
 #endif
 
 /*---------- for sun7i ----------*/
 #ifdef CONFIG_ARCH_SUN7I
-#define REG_FIFO_OS	(0x100)
-#define SMC_IRQNO(x)	(AW_IRQ_MMC0 + (x))
+#define REG_FIFO_OS	            (0x100)
+#define SMC_IRQNO(x)	        (AW_IRQ_MMC0 + (x))
 
-#define MMC_SRCCLK_HOSC   "hosc"
-#define MMC_SRCCLK_PLL5   "sdram_pll_p"
-#define MMC_SRCCLK_PLL6   "sata_pll_2"
-#define MMC_AHBCLK_PREFIX "ahb_sdc"
-#define MMC_MODCLK_PREFIX "sdc"
-#define MMC3_DMA_TL       (0x20070008)
+#define MMC_SRCCLK_HOSC         "hosc"
+#define MMC_SRCCLK_PLL5         "sdram_pll_p"
+#define MMC_SRCCLK_PLL6         "sata_pll_2"
+#define MMC_AHBCLK_PREFIX       "ahb_sdc"
+#define MMC_MODCLK_PREFIX       "sdc"
+#define MMC3_DMA_TL             (0x20070008)
 
-#ifdef MMC_FPGA
+#ifdef CONFIG_AW_FPGA_PLATFORM
 #undef SMC_IRQNO
-#define SMC_IRQNO(x)	((x) & 2 ? AW_IRQ_MMC2 : AW_IRQ_MMC0)
+#define SMC_IRQNO(x)	        ((x) & 2 ? AW_IRQ_MMC2 : AW_IRQ_MMC0)
 #define SMC_FPGA_MMC_PREUSED(x)	((x) == 0 || (x) == 2)
 #endif
 #endif
