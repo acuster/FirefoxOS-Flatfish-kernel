@@ -7,184 +7,183 @@
 
 __s32 Image_init(__u32 sel)
 {
-
-    image_clk_init(sel);
+        image_clk_init(sel);
 	image_clk_on(sel);	//when access image registers, must open MODULE CLOCK of image
 	DE_BE_Reg_Init(sel);
 
-    BSP_disp_sprite_init(sel);
+        BSP_disp_sprite_init(sel);
 
-    Image_open(sel);
+        Image_open(sel);
 
-    DE_BE_EnableINT(sel, DE_IMG_REG_LOAD_FINISH);
-    DE_BE_reg_auto_load_en(sel, 0);
+        DE_BE_EnableINT(sel, DE_IMG_REG_LOAD_FINISH);
+        DE_BE_reg_auto_load_en(sel, 0);
 
-    return DIS_SUCCESS;
+        return DIS_SUCCESS;
 }
 
 __s32 Image_exit(__u32 sel)
 {
-    DE_BE_DisableINT(sel, DE_IMG_REG_LOAD_FINISH);
-    BSP_disp_sprite_exit(sel);
-    image_clk_exit(sel);
+        DE_BE_DisableINT(sel, DE_IMG_REG_LOAD_FINISH);
+        BSP_disp_sprite_exit(sel);
+        image_clk_exit(sel);
 
-    return DIS_SUCCESS;
+        return DIS_SUCCESS;
 }
 
 __s32 Image_open(__u32  sel)
 {
-   DE_BE_Enable(sel);
+        DE_BE_Enable(sel);
 
-   return DIS_SUCCESS;
+        return DIS_SUCCESS;
 }
 
 
 __s32 Image_close(__u32 sel)
 {
-   DE_BE_Disable(sel);
+        DE_BE_Disable(sel);
 
-   gdisp.screen[sel].status &= IMAGE_USED_MASK;
+        gdisp.screen[sel].status &= IMAGE_USED_MASK;
 
-   return DIS_SUCCESS;
+        return DIS_SUCCESS;
 }
 
 
 __s32 BSP_disp_set_bright(__u32 sel, __u32 bright)
 {
-    gdisp.screen[sel].bright = bright;
-   DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, gdisp.screen[sel].enhance_en,
-            gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
+        gdisp.screen[sel].bright = bright;
+        DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, gdisp.screen[sel].enhance_en,
+        gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
 
-    return DIS_SUCCESS;
+        return DIS_SUCCESS;
 }
 
 __s32 BSP_disp_get_bright(__u32 sel)
 {
-    return gdisp.screen[sel].bright;
+                return gdisp.screen[sel].bright;
 }
 
 __s32 BSP_disp_set_contrast(__u32 sel, __u32 contrast)
 {
-    gdisp.screen[sel].contrast = contrast;
-   DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, gdisp.screen[sel].enhance_en,
-            gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
+        gdisp.screen[sel].contrast = contrast;
+        DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, gdisp.screen[sel].enhance_en,
+        gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
 
-    return DIS_SUCCESS;
+        return DIS_SUCCESS;
 }
 
 __s32 BSP_disp_get_contrast(__u32 sel)
 {
-    return gdisp.screen[sel].contrast;
+        return gdisp.screen[sel].contrast;
 }
 
 __s32 BSP_disp_set_saturation(__u32 sel, __u32 saturation)
 {
-    gdisp.screen[sel].saturation = saturation;
-   DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, gdisp.screen[sel].enhance_en,
-            gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
+        gdisp.screen[sel].saturation = saturation;
+        DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, gdisp.screen[sel].enhance_en,
+        gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
 
-    return DIS_SUCCESS;
+        return DIS_SUCCESS;
 }
 
 __s32 BSP_disp_get_saturation(__u32 sel)
 {
-    return gdisp.screen[sel].saturation;
+        return gdisp.screen[sel].saturation;
 }
 
 __s32 BSP_disp_set_hue(__u32 sel, __u32 hue)
 {
-    gdisp.screen[sel].hue = hue;
-   DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, gdisp.screen[sel].enhance_en,
-            gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
+        gdisp.screen[sel].hue = hue;
+        DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, gdisp.screen[sel].enhance_en,
+        gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
 
-    return DIS_SUCCESS;
+        return DIS_SUCCESS;
 }
 
 __s32 BSP_disp_get_hue(__u32 sel)
 {
-    return gdisp.screen[sel].hue;
+        return gdisp.screen[sel].hue;
 }
 
 __s32 BSP_disp_enhance_enable(__u32 sel, __bool enable)
 {
-    gdisp.screen[sel].enhance_en = enable;
+        gdisp.screen[sel].enhance_en = enable;
 
-   DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, gdisp.screen[sel].enhance_en,
-            gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
+        DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, gdisp.screen[sel].enhance_en,
+        gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
 
-    return DIS_SUCCESS;
+        return DIS_SUCCESS;
 }
 
 __s32 BSP_disp_get_enhance_enable(__u32 sel)
 {
-    return gdisp.screen[sel].enhance_en;
+        return gdisp.screen[sel].enhance_en;
 }
 
 
 __s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t * size)
 {
-    DE_BE_set_display_size(sel, size->width, size->height);
+        DE_BE_set_display_size(sel, size->width, size->height);
 
-    gdisp.screen[sel].screen_width = size->width;
-    gdisp.screen[sel].screen_height= size->height;
+        gdisp.screen[sel].screen_width = size->width;
+        gdisp.screen[sel].screen_height= size->height;
 
-    return DIS_SUCCESS;
+        return DIS_SUCCESS;
 }
 
 __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type)
 {
-    __disp_color_range_t out_color_range = DISP_COLOR_RANGE_0_255;
-    __u32 out_csc = 0;
-    __u32 enhance_en, bright, contrast, saturation, hue;
+        __disp_color_range_t out_color_range = DISP_COLOR_RANGE_0_255;
+        __u32 out_csc = 0;
+        __u32 enhance_en, bright, contrast, saturation, hue;
 
-    enhance_en = gdisp.screen[sel].enhance_en;
-    bright = gdisp.screen[sel].bright;
-    contrast = gdisp.screen[sel].contrast;
-    saturation = gdisp.screen[sel].saturation;
-    hue = gdisp.screen[sel].hue;
+        enhance_en = gdisp.screen[sel].enhance_en;
+        bright = gdisp.screen[sel].bright;
+        contrast = gdisp.screen[sel].contrast;
+        saturation = gdisp.screen[sel].saturation;
+        hue = gdisp.screen[sel].hue;
 
-    if(type == DISP_OUTPUT_TYPE_HDMI)
-    {
-        __s32 ret = 0;
-        __s32 value = 0;
-
-        out_color_range = DISP_COLOR_RANGE_16_255;
-
-        ret = OSAL_Script_FetchParser_Data("disp_init", "screen0_out_color_range", &value, 1);
-        if(ret < 0)
+        if(type == DISP_OUTPUT_TYPE_HDMI)
         {
-            DE_INF("fetch script data disp_init.screen0_out_color_range fail\n");
+                __s32 ret = 0;
+                __s32 value = 0;
+
+                out_color_range = DISP_COLOR_RANGE_16_255;
+
+                ret = OSAL_Script_FetchParser_Data("disp_init", "screen0_out_color_range", &value, 1);
+                if(ret < 0)
+                {
+                        DE_INF("fetch script data disp_init.screen0_out_color_range fail\n");
+                }
+                else
+                {
+                        out_color_range = value;
+                        DE_INF("screen0_out_color_range = %d\n", value);
+                }
+                out_csc = 2;
         }
-        else
+        else if(type == DISP_OUTPUT_TYPE_TV)
         {
-            out_color_range = value;
-            DE_INF("screen0_out_color_range = %d\n", value);
+                out_csc = 1;
         }
-        out_csc = 2;
-    }
-    else if(type == DISP_OUTPUT_TYPE_TV)
-    {
-        out_csc = 1;
-    }
-    else if(type == DISP_OUTPUT_TYPE_LCD)
-    {
-        if(enhance_en == 0)
+        else if(type == DISP_OUTPUT_TYPE_LCD)
         {
-            enhance_en = 1;
+                if(enhance_en == 0)
+                {
+                        enhance_en = 1;
 
-            bright = gdisp.screen[sel].lcd_cfg.lcd_bright;
-            contrast = gdisp.screen[sel].lcd_cfg.lcd_contrast;
-            saturation = gdisp.screen[sel].lcd_cfg.lcd_saturation;
-            hue = gdisp.screen[sel].lcd_cfg.lcd_hue;
+                        bright = gdisp.screen[sel].lcd_cfg.lcd_bright;
+                        contrast = gdisp.screen[sel].lcd_cfg.lcd_contrast;
+                        saturation = gdisp.screen[sel].lcd_cfg.lcd_saturation;
+                        hue = gdisp.screen[sel].lcd_cfg.lcd_hue;
+                }
         }
-    }
 
-   gdisp.screen[sel].out_color_range = out_color_range;
-   gdisp.screen[sel].out_csc = out_csc;
+        gdisp.screen[sel].out_color_range = out_color_range;
+        gdisp.screen[sel].out_csc = out_csc;
 
-   DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, enhance_en, bright, contrast, saturation, hue);
+        DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, enhance_en, bright, contrast, saturation, hue);
 
-    return DIS_SUCCESS;
+        return DIS_SUCCESS;
 }
 
 __s32 BSP_disp_de_flicker_enable(__u32 sel, __bool b_en)
@@ -210,42 +209,42 @@ __s32 Disp_set_out_interlace(__u32 sel)
 	    (gdisp.screen[sel].tv_mode==DISP_TV_MOD_PAL || gdisp.screen[sel].tv_mode==DISP_TV_MOD_PAL_M ||
 	    gdisp.screen[sel].tv_mode==DISP_TV_MOD_PAL_NC || gdisp.screen[sel].tv_mode==DISP_TV_MOD_NTSC))
 	{
-	    b_cvbs_out = 1;
+	        b_cvbs_out = 1;
 	}
 
-    gdisp.screen[sel].de_flicker_status |= DE_FLICKER_REQUIRED;
+        gdisp.screen[sel].de_flicker_status |= DE_FLICKER_REQUIRED;
 
-    BSP_disp_cfg_start(sel);
+        BSP_disp_cfg_start(sel);
 
 	if((gdisp.screen[sel].de_flicker_status & DE_FLICKER_REQUIRED) && b_cvbs_out)	//when output device is cvbs
 	{
 		DE_BE_deflicker_enable(sel, TRUE);
-        for(i=0; i<2; i++)
-        {
-            if((gdisp.scaler[i].status & SCALER_USED) && (gdisp.scaler[i].screen_index == sel))
-            {
+                for(i=0; i<2; i++)
+                {
+                        if((gdisp.scaler[i].status & SCALER_USED) && (gdisp.scaler[i].screen_index == sel))
+                        {
 				Scaler_Set_Outitl(i, FALSE);
 				gdisp.scaler[i].b_reg_change = TRUE;
-			}
+                        }
 		}
 		gdisp.screen[sel].de_flicker_status |= DE_FLICKER_USED;
 	}
 	else
 	{
-	    DE_BE_deflicker_enable(sel, FALSE);
-        for(i=0; i<2; i++)
-        {
-            if((gdisp.scaler[i].status & SCALER_USED) && (gdisp.scaler[i].screen_index == sel))
-		{
-			Scaler_Set_Outitl(i, gdisp.screen[sel].b_out_interlace);
-			gdisp.scaler[i].b_reg_change = TRUE;
+	        DE_BE_deflicker_enable(sel, FALSE);
+                for(i=0; i<2; i++)
+                {
+                        if((gdisp.scaler[i].status & SCALER_USED) && (gdisp.scaler[i].screen_index == sel))
+			{
+				Scaler_Set_Outitl(i, gdisp.screen[sel].b_out_interlace);
+				gdisp.scaler[i].b_reg_change = TRUE;
+			}
 		}
-	}
-	gdisp.screen[sel].de_flicker_status &= DE_FLICKER_USED_MASK;
-    }
+	        gdisp.screen[sel].de_flicker_status &= DE_FLICKER_USED_MASK;
+        }
 	DE_BE_Set_Outitl_enable(sel, gdisp.screen[sel].b_out_interlace);
 
-    BSP_disp_cfg_finish(sel);
+        BSP_disp_cfg_finish(sel);
 
 	return DIS_SUCCESS;
 }

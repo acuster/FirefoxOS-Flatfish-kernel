@@ -29,38 +29,38 @@ typedef struct
 	__u32                   base_hdmi;
 	__u32                   base_ccmu;
 	__u32                   base_sdram;
-    __u32                   base_pioc;
+        __u32                   base_pioc;
 	__u32                   base_pwm;
 
-    __disp_init_t           disp_init;
+        __disp_init_t           disp_init;
 
-    __bool                  fb_enable[FB_MAX];
-    __fb_mode_t             fb_mode[FB_MAX];
-    __u32                   layer_hdl[FB_MAX][2];//[fb_id][0]:screen0 layer handle;[fb_id][1]:screen1 layer handle
-    struct fb_info *        fbinfo[FB_MAX];
-    __disp_fb_create_para_t fb_para[FB_MAX];
+        __bool                  fb_enable[FB_MAX];
+        __fb_mode_t             fb_mode[FB_MAX];
+        __u32                   layer_hdl[FB_MAX][2];//[fb_id][0]:screen0 layer handle;[fb_id][1]:screen1 layer handle
+        struct fb_info *        fbinfo[FB_MAX];
+        __disp_fb_create_para_t fb_para[FB_MAX];
 	wait_queue_head_t       wait[2];
 	unsigned long           wait_count[2];
 }fb_info_t;
 
 typedef struct
 {
-    __u32         	    mid;
-    __u32         	    used;
-    __u32         	    status;
-    __u32    		    exit_mode;//0:clean all  1:disable interrupt
-    __bool              b_cache[2];
-	__bool			    b_lcd_open[2];
-    struct timer_list      disp_timer[2];
+        __u32                   mid;
+        __u32                   used;
+        __u32                   status;
+        __u32                   exit_mode;//0:clean all  1:disable interrupt
+        __bool                  b_cache[2];
+	__bool	                b_lcd_open[2];
+        struct timer_list       disp_timer[2];
 }__disp_drv_t;
 
 
 struct alloc_struct_t
 {
-    __u32 address;                      //申请内存的地址
-    __u32 size;                         //分配的内存大小，用户实际得到的内存大小
-    __u32 o_size;                       //用户申请的内存大小
-    struct alloc_struct_t *next;
+        __u32 address;                      //申请内存的地址
+        __u32 size;                         //分配的内存大小，用户实际得到的内存大小
+        __u32 o_size;                       //用户申请的内存大小
+        struct alloc_struct_t *next;
 };
 
 int disp_open(struct inode *inode, struct file *file);

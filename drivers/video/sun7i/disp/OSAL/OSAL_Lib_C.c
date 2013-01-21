@@ -50,13 +50,13 @@ void OSAL_PhyFree(void *pAddr, __u32 Size)
 unsigned int OSAL_VAtoPA(void *va)
 {
 	return (unsigned int)va;
-    //return virt_to_phys(va);
+        //return virt_to_phys(va);
 }
 
 void *OSAL_PAtoVA(unsigned int pa)
 {
 	return (void *)pa;
-    //return phys_to_virt(pa);
+        //return phys_to_virt(pa);
 }
 
 
@@ -82,7 +82,7 @@ void *OSAL_PAtoVA(unsigned int pa)
 */
 void *	 OSAL_io_remap(u32 phy_addr , u32 size)
 {
-    return ioremap(phy_addr,  size);
+        return ioremap(phy_addr,  size);
 }
 
 int OSAL_printf(const char *fmt, ...)

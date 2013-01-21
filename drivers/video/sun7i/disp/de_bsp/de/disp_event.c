@@ -35,9 +35,6 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
 {
     __u32 cur_line = 0, start_delay = 0;
     __u32 i = 0;
-    static __u32 count = 0;
-
-
 	Video_Operation_In_Vblanking(sel, tcon_index);
 
     cur_line = LCDC_get_cur_line(sel, tcon_index);

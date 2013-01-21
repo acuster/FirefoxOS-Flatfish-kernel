@@ -272,21 +272,6 @@ config LYCHEE_LCD_SUN7I
         ---help---
         default m
 
-choice
-prompt "select lcd"
-depends on LYCHEE_LCD_SUN7I
-default LYCHEE_LCD_DEFAULT
-
-config LYCHEE_LCD_DEFAULT
-        bool "lcd_default"
-        select LCD_DEFAULT
-
-config LYCHEE_LCD_AINOL_AUROTA
-        bool "ainol_aurota"
-        select LCD_AINOL_AUROTA
-
-endchoice
-
 config LYCHEE_HDMI_SUN7I
         tristate "HDMI Driver Support(sun7i)"
         ---help---

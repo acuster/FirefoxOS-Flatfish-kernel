@@ -2772,35 +2772,35 @@ __s32 DE_SCAL_Vpp_Set_Black_Level_Extension(__u8 sel, __u32 level)
 
 	switch(level)
 	{
-		case	0x0:
+		case 0x0:
 			scal_dev[sel]->vpp_ble.bits.ble_gain = 0;
 			scal_dev[sel]->vpp_ble.bits.ble_en = 0x0;
-		break;
+		        break;
 
-		case	0x1:
+		case 0x1:
 			scal_dev[sel]->vpp_ble.bits.ble_gain = 9;
 			scal_dev[sel]->vpp_ble.bits.ble_en = 0x1;
-		break;
+		        break;
 
-		case	0x2:
+		case 0x2:
 			scal_dev[sel]->vpp_ble.bits.ble_gain = 16;
 			scal_dev[sel]->vpp_ble.bits.ble_en = 0x1;
-		break;
+		        break;
 
-		case	0x3:
+		case 0x3:
 			scal_dev[sel]->vpp_ble.bits.ble_gain = 32;
 			scal_dev[sel]->vpp_ble.bits.ble_en = 0x1;
-		break;
+		        break;
 
-		case	0x4:
+		case 0x4:
 			scal_dev[sel]->vpp_ble.bits.ble_gain = 64;
 			scal_dev[sel]->vpp_ble.bits.ble_en = 0x0;
-		break;
+		        break;
 
 		default:
 			scal_dev[sel]->vpp_ble.bits.ble_gain = 0;
 			scal_dev[sel]->vpp_ble.bits.ble_en = 0x0;
-		break;
+		        break;
 
 	}
 
@@ -2851,7 +2851,7 @@ __u32 DE_SCAL_ClearINT(__u8 sel,__u32 irqsrc)
 __s32 DE_SCAL_Set_Writeback_Addr_ex(__u32 sel, __scal_buf_addr_t *addr, __scal_out_size_t *size,
                          __scal_out_type_t *type)
 {
-    __u8 w_shift, h_shift;
+        __u8 w_shift, h_shift;
 	__u32 image_w0, image_w1;
 	__u32 x_off0, y_off0, x_off1, y_off1;
 	__u32 in_w0, in_h0, in_w1, in_h1;
@@ -2862,8 +2862,8 @@ __s32 DE_SCAL_Set_Writeback_Addr_ex(__u32 sel, __scal_buf_addr_t *addr, __scal_o
 	x_off0 = size->x_off;
 	y_off0 = size->y_off;  //scan mod enable or deinterlace, odd dy un-support
 
-//    if(sel == 0)   //scaler 0 scaler 1
-    {
+        //    if(sel == 0)   //scaler 0 scaler 1
+        {
         if(type->fmt == DE_SCAL_OUTPYUV422 || type->fmt == DE_SCAL_OUTPYUV420)
         {
             w_shift = 1;
@@ -2907,9 +2907,9 @@ __s32 DE_SCAL_Set_Writeback_Addr_ex(__u32 sel, __scal_buf_addr_t *addr, __scal_o
 		in_h1 = in_h0;
 		y_off1 = y_off0;
         }
-    }
-    //added no-zero limited
-    in_h0 = (in_h0!=0) ? in_h0 : 1;
+        }
+        //added no-zero limited
+        in_h0 = (in_h0!=0) ? in_h0 : 1;
 	in_h1 = (in_h1!=0) ? in_h1 : 1;
 	in_w0 = (in_w0!=0) ? in_w0 : 1;
 	in_w1 = (in_w1!=0) ? in_w1 : 1;
@@ -2947,5 +2947,5 @@ __s32 DE_SCAL_Set_Writeback_Addr_ex(__u32 sel, __scal_buf_addr_t *addr, __scal_o
         DE_SCAL_Set_Writeback_Addr(sel,addr);
 	}
 
-    return 0;
+        return 0;
 }

@@ -21,6 +21,74 @@
 
 #ifndef  __OSAL_CLOCK_H__
 #define  __OSAL_CLOCK_H__
+
+//#define __OSAL_CLOCK_MASK__
+
+
+typedef enum
+{
+        SYS_CLK_PLL3,
+        SYS_CLK_PLL7,
+        SYS_CLK_PLL3X2,
+        SYS_CLK_PLL5P,
+        SYS_CLK_PLL6,
+        SYS_CLK_PLL6M,
+        SYS_CLK_PLL7X2,
+
+        MOD_CLK_DEBE0,
+        MOD_CLK_DEBE1,
+        MOD_CLK_DEFE0,
+        MOD_CLK_DEFE1,
+        MOD_CLK_DEMIX,
+        MOD_CLK_LCD0CH0,
+        MOD_CLK_LCD0CH1_S1,
+        MOD_CLK_LCD0CH1_S2,
+        MOD_CLK_LCD1CH0,
+        MOD_CLK_LCD1CH1_S1,
+        MOD_CLK_LCD1CH1_S2,
+        MOD_CLK_HDMI,
+        MOD_CLK_HDMI_DDC,
+        MOD_CLK_MIPIDSIS,
+        MOD_CLK_MIPIDSIP,
+        MOD_CLK_IEPDRC0,
+        MOD_CLK_IEPDRC1,
+        MOD_CLK_IEPDEU0,
+        MOD_CLK_IEPDEU1,
+        MOD_CLK_LVDS,
+
+        AHB_CLK_MIPIDSI,
+        AHB_CLK_LCD0,
+        AHB_CLK_LCD1,
+        AHB_CLK_CSI0,
+        AHB_CLK_CSI1,
+        AHB_CLK_HDMI,
+        AHB_CLK_DEBE0,
+        AHB_CLK_DEBE1,
+        AHB_CLK_DEFE0,
+        AHB_CLK_DEFE1,
+        AHB_CLK_DEU0,
+        AHB_CLK_DEU1,
+        AHB_CLK_DRC0,
+        AHB_CLK_DRC1,
+        AHB_CLK_TVE0,
+        AHB_CLK_TVE1,
+
+        DRAM_CLK_DRC0,
+        DRAM_CLK_DRC1,
+        DRAM_CLK_DEU0,
+        DRAM_CLK_DEU1,
+        DRAM_CLK_DEFE0,
+        DRAM_CLK_DEFE1,
+        DRAM_CLK_DEBE0,
+        DRAM_CLK_DEBE1,
+}__disp_clk_id_t;
+
+typedef struct
+{
+        __disp_clk_id_t       id;     /* clock id         */
+        char        *name;  /* clock name       */
+}__disp_clk_t;
+
 /*
 *********************************************************************************************************
 *                                   SET SOURCE CLOCK FREQUENCY

@@ -55,7 +55,7 @@ __s32 BSP_disp_init(__disp_bsp_init_para * para)
     BSP_disp_close_lcd_backlight(0);
     BSP_disp_close_lcd_backlight(1);
 
-	disp_pll_init();
+    disp_pll_init();
 
     Scaler_Init(0);
     Scaler_Init(1);
@@ -122,12 +122,12 @@ __s32 BSP_disp_close(void)
         }
         if(gdisp.screen[sel].lcdc_status & LCDC_TCON0_USED)
         {
-            TCON0_close(sel);
+            tcon0_close(sel);
             LCDC_close(sel);
         }
         else if(gdisp.screen[sel].lcdc_status & LCDC_TCON1_USED)
         {
-	    TCON1_close(sel);
+	    tcon1_close(sel);
 	    LCDC_close(sel);
         }
         else if(gdisp.screen[sel].status & (TV_ON | VGA_ON))

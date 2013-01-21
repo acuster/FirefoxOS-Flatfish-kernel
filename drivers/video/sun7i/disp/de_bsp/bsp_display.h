@@ -4,7 +4,6 @@
 
 #define __FPGA_DEBUG__
 
-
 #define __LINUX_OSAL__
 //#define __MELIS_OSAL__
 //#define __WINCE_OSAL__
@@ -40,10 +39,15 @@
 #include <mach/sys_config.h>
 #include <mach/clock.h>
 //#include <mach/aw_ccu.h>
+#include <mach/gpio.h>
 #include <mach/system.h>
 #include <linux/types.h>
 #include <linux/timer.h>
-#include <mach/gpio.h>
+#include <mach/irqs.h>
+#include <linux/sunxi_physmem.h>
+#include <linux/gpio.h>
+#include <linux/regulator/consumer.h>
+
 
 
 typedef unsigned int __hdle;
@@ -63,6 +67,7 @@ typedef unsigned int __hdle;
 #define __msg(msg...)       {printk(KERN_WARNING "[DISP] file:%s,line:%d:    ",__FILE__,__LINE__);printk(msg);}
 #define __wrn(msg...)       {printk(KERN_WARNING "[DISP WRN] file:%s,line:%d:    ",__FILE__,__LINE__);printk(msg);}
 #define __here__            {printk(KERN_WARNING "[DISP] file:%s,line:%d\n",__FILE__,__LINE__);}
+#define __debug(msg...)     {printk(KERN_WARNING "[DISP] ");printk(msg);}
 #endif
 
 
@@ -231,6 +236,7 @@ extern __s32 pwm_get_para(__u32 channel, __pwm_info_t * pwm_info);
 extern __s32 BSP_disp_get_timming(__u32 sel, __disp_tcon_timing_t * tt);
 extern __u32 BSP_disp_get_cur_line(__u32 sel);
 extern __s32 BSP_disp_close_lcd_backlight(__u32 sel);
+extern __s32 BSP_disp_lcd_used(__u32 sel);
 
 extern __s32 BSP_disp_tv_open(__u32 sel);
 extern __s32 BSP_disp_tv_close(__u32 sel);

@@ -19,6 +19,9 @@
 *************************************************************************************
 */
 #include "OSAL.h"
+#include "asm/cacheflush.h"
+#include <asm/system.h>
+
 
 /* 刷新标记位 */
 #define  CACHE_FLUSH_I_CACHE_REGION				0  /* 清除I-cache中代表主存中一块区域的cache行 			*/
@@ -64,6 +67,7 @@ void OSAL_CacheRangeFlush(void*Address, __u32 Length, __u32 Flags)
             break;
 
         case CACHE_FLUSH_D_CACHE_REGION:
+            //__cpuc_flush_dcache_area(phys_to_virt((phys_addr_t)Address), Length);
            // flush_cach
             break;
 
@@ -76,7 +80,9 @@ void OSAL_CacheRangeFlush(void*Address, __u32 Length, __u32 Flags)
             break;
 
         case CACHE_CLEAN_FLUSH_D_CACHE_REGION:
-
+            //__cpuc_flush_dcache_area(phys_to_virt((phys_addr_t)Address), Length);
+            //smp_mb();
+            //mb();
             break;
 
         case CACHE_CLEAN_FLUSH_CACHE_REGION:

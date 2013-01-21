@@ -85,8 +85,8 @@ static __s32 video_enhancement_start(__u32 sel, __u32 id)
 		break;
         }
 
-        //TCON1_set_gamma_Enable(sel, 1);
-        //TCON1_set_gamma_table(sel,(__u32)gamma_tab, 1024);
+        //tcon1_set_gamma_Enable(sel, 1);
+        //tcon1_set_gamma_table(sel,(__u32)gamma_tab, 1024);
 
         gdisp.screen[sel].layer_manage[id].video_enhancement_en = 1;
     }
@@ -107,7 +107,7 @@ static __s32 video_enhancement_stop(__u32 sel, __u32 id)
 
         if(gdisp.screen[sel].output_type != DISP_OUTPUT_TYPE_LCD)
         {
-            TCON1_set_gamma_Enable(sel, 0);
+            tcon1_set_gamma_Enable(sel, 0);
         }
 
         gdisp.screen[sel].layer_manage[id].video_enhancement_en = 0;;

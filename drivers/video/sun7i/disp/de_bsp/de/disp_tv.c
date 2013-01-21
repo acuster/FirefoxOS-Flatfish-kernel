@@ -202,27 +202,23 @@ __s32 BSP_disp_tv_open(__u32 sel)
         DE_BE_set_display_size(sel, tv_mode_to_width(tv_mod), tv_mode_to_height(tv_mod));
         DE_BE_Output_Select(sel, sel);
 
-        TCON1_set_tv_mode(sel,tv_mod);
+        tcon1_set_tv_mode(sel,tv_mod);
         TVE_set_tv_mode(sel, tv_mod);
         Disp_TVEC_DacCfg(sel, tv_mod);
 
-        TCON1_open(sel);
+        tcon1_open(sel);
         Disp_TVEC_Open(sel);
 
         Disp_Switch_Dram_Mode(DISP_OUTPUT_TYPE_TV, tv_mod);
 #ifdef __LINUX_OSAL__
         {
-            user_gpio_set_t  gpio_info[1];
+            disp_gpio_set_t  gpio_info[1];
             __hdle gpio_pa_shutdown;
             __s32 ret;
 
-            memset(gpio_info, 0, sizeof(user_gpio_set_t));
-            ret = OSAL_Script_FetchParser_Data("audio_para","audio_pa_ctrl", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
-            if(ret < 0)
-            {
-                DE_WRN("fetch script data audio_para.audio_pa_ctrl fail\n");
-            }
-            else
+            memset(gpio_info, 0, sizeof(disp_gpio_set_t));
+            ret = OSAL_Script_FetchParser_Data("audio_para","audio_pa_ctrl", (int *)gpio_info, sizeof(disp_gpio_set_t)/sizeof(int));
+            if(ret == 0)
             {
                 gpio_pa_shutdown = OSAL_GPIO_Request(gpio_info, 1);
                 if(!gpio_pa_shutdown)
@@ -255,7 +251,7 @@ __s32 BSP_disp_tv_close(__u32 sel)
     if(gdisp.screen[sel].status & TV_ON)
     {
         Image_close(sel);
-        TCON1_close(sel);
+        tcon1_close(sel);
         Disp_TVEC_Close(sel);
 
         tve_clk_off(sel);
@@ -264,12 +260,12 @@ __s32 BSP_disp_tv_close(__u32 sel)
 
 #ifdef __LINUX_OSAL__
         {
-            user_gpio_set_t  gpio_info[1];
+            disp_gpio_set_t  gpio_info[1];
             __hdle gpio_pa_shutdown;
             __s32 ret;
 
-            memset(gpio_info, 0, sizeof(user_gpio_set_t));
-            ret = OSAL_Script_FetchParser_Data("audio_para","audio_pa_ctrl", (int *)gpio_info, sizeof(user_gpio_set_t)/sizeof(int));
+            memset(gpio_info, 0, sizeof(disp_gpio_set_t));
+            ret = OSAL_Script_FetchParser_Data("audio_para","audio_pa_ctrl", (int *)gpio_info, sizeof(disp_gpio_set_t)/sizeof(int));
             if(ret < 0)
             {
                 DE_WRN("fetch script data audio_para.audio_pa_ctrl fail\n");
@@ -401,15 +397,15 @@ __s32 BSP_disp_tv_set_src(__u32 sel, __disp_lcdc_src_t src)
     switch (src)
     {
         case DISP_LCDC_SRC_DE_CH1:
-            TCON1_select_src(sel, LCDC_SRC_DE1);
+            tcon1_src_select(sel, LCDC_SRC_BE0);
             break;
 
         case DISP_LCDC_SRC_DE_CH2:
-            TCON1_select_src(sel, LCDC_SRC_DE2);
+            tcon1_src_select(sel, LCDC_SRC_BE1);
             break;
 
-        case DISP_LCDC_SRC_BLUT:
-            TCON1_select_src(sel, LCDC_SRC_BLUE);
+        case DISP_LCDC_SRC_BLUE:
+            tcon1_src_select(sel, LCDC_SRC_BLUE);
             break;
 
         default:
