@@ -138,6 +138,7 @@ source "drivers/virt/Kconfig"
 
 source "drivers/devfreq/Kconfig"
 
+source "drivers/gsensor/Kconfig"
 source "drivers/sunxi_gpio/Kconfig"
 
 source "drivers/gpu/Kconfig"

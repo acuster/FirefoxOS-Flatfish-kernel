@@ -785,9 +785,30 @@ config TOUCHSCREEN_TPS6507X
 	  To compile this driver as a module, choose M here: the
 	  module will be called tps6507x_ts.
 
-config  TOUCHSCREEN_SW_TS
-       tristate  "softwinnner (sw-ts) touchscreen driver"
+config TOUCHSCREEN_FT5X_TS
+       tristate  "ft5x touchscreen driver"
+       default m
+       depends on INPUT && I2C
        help
-           sw-ts touchscreen driver
+         ft5x touchscreen driver
+
+config  TOUCHSCREEN_GSLX680
+       tristate  "gslX680 touchscreen driver"
+       default m
+       depends on INPUT && I2C
+       help
+         gslX3680,gslX2680,gsl1680 touchscreen driver ,
+
+config  TOUCHSCREEN_GT82X
+       tristate  "gt82x touchscreen driver"
+       default m
+       depends on INPUT && I2C
+       help
+         gt813,gt827,gt828 touchscreen driver
+
+config  TOUCHSCREEN_SUN7I_TS
+       tristate  "sun7i-ts touchscreen driver"
+       help
+           sun7i-ts touchscreen driver
 
 endif

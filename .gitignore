@@ -55,6 +55,7 @@ modules.builtin
 #
 !.gitignore
 !.mailmap
+!/drivers/input/touchscreen/ft_app.i
 
 #
 # Generated include files
