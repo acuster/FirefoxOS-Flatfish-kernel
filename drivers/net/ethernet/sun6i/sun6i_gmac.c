@@ -1566,7 +1566,7 @@ int gmac_suspend(struct net_device *ndev)
 				     dis_ic);
 	desc_init_tx(priv->dma_tx, priv->dma_tx_size);
 
-	gmac_set_mac(priv->ioaddr, false);
+	gmac_set_tx_rx(priv->ioaddr, false);
 
 	spin_unlock(&priv->lock);
 	return 0;
@@ -1584,7 +1584,7 @@ int gmac_resume(struct net_device *ndev)
 	netif_device_attach(ndev);
 
 	/* Enable the MAC and DMA */
-	gmac_set_mac(priv->ioaddr, true);
+	gmac_set_tx_rx(priv->ioaddr, true);
 	dma_start_tx(priv->ioaddr);
 	dma_start_rx(priv->ioaddr);
 

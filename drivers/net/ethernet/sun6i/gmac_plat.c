@@ -33,6 +33,13 @@
 #include "sun6i_gmac.h"
 #include "mach/hardware.h"
 
+#ifdef CONFIG_PM
+int gmac_suspend(struct net_device *ndev);
+int gmac_resume(struct net_device *ndev);
+int gmac_freeze(struct net_device *ndev);
+int gmac_restore(struct net_device *ndev);
+
+#endif
 static int gmac_system_init(struct gmac_priv *priv)
 {
 	int reg_value;
