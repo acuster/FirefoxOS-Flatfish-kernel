@@ -374,7 +374,7 @@ struct sunxi_mmc_host {
 #define SMC_DEBUG_DBG	BIT(1)
 
 #ifdef CONFIG_MMC_DEBUG_SUNXI
-#define SMC_INFO(d, ...) \
+#define SMC_INF(d, ...) \
     do { \
         if ((d)->debuglevel & SMC_DEBUG_INFO) \
 			printk("[mmc-inf] "__VA_ARGS__); \
@@ -385,7 +385,7 @@ struct sunxi_mmc_host {
 			printk("[mmc-dbg] "__VA_ARGS__); \
     } while(0)
 #else
-#define SMC_INFO(d, ...)    do {} while (0)
+#define SMC_INF(d, ...)     do {} while (0)
 #define SMC_DBG(d, ...)     do {} while (0)
 #endif
 

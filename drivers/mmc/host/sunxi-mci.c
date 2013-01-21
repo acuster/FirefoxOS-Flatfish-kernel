@@ -386,7 +386,7 @@ static void sw_mci_init_idma_des(struct sunxi_mmc_host* smc_host, struct mmc_dat
 				pdes[des_idx].buf_addr_ptr2 = (u32)&pdes_pa[des_idx+1];
 			}
 			pdes[des_idx].config = config;
-			SMC_INFO(smc_host, "sg %d, frag %d, remain %d, des[%d](%08x): "
+			SMC_INF(smc_host, "sg %d, frag %d, remain %d, des[%d](%08x): "
 				"[0] = %08x, [1] = %08x, [2] = %08x, [3] = %08x\n", i, j, remain,
 				des_idx, (u32)&pdes[des_idx],
 				(u32)((u32*)&pdes[des_idx])[0], (u32)((u32*)&pdes[des_idx])[1],
@@ -597,7 +597,11 @@ static int sw_mci_set_clk(struct sunxi_mmc_host* smc_host, u32 clk)
 		sclk = clk_get(&smc_host->pdev->dev, MMC_SRCCLK_HOSC);
 	} else {
 		mod_clk = smc_host->mod_clk;
+#ifdef MMC_FPGA
+        sclk = clk_get(&smc_host->pdev->dev, MMC_SRCCLK_HOSC);
+#else
 		sclk = clk_get(&smc_host->pdev->dev, MMC_SRCCLK_PLL6);
+#endif
 	}
 	if (IS_ERR(sclk)) {
 		SMC_ERR(smc_host, "Error to get source clock for clk %dHz\n", clk);
@@ -1184,7 +1188,7 @@ static irqreturn_t sw_mci_irq(int irq, void *dev_id)
 	}
 
 	smc_host->int_sum |= raw_int;
-	SMC_INFO(smc_host, "smc %d irq, ri %08x(%08x) mi %08x ie %08x idi %08x\n",
+	SMC_INF(smc_host, "smc %d irq, ri %08x(%08x) mi %08x ie %08x idi %08x\n",
 		smc_host->pdev->id, raw_int, smc_host->int_sum,
 		msk_int, idma_inte, idma_int);
 
@@ -1357,7 +1361,8 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			smc_host->mod_clk = ios->clock;
 		smc_host->card_clk = ios->clock;
 		#ifdef MMC_FPGA
-		smc_host->mod_clk = 24000000;
+        if (smc_host->mod_clk > 24000000)
+		    smc_host->mod_clk = 24000000;
 		if (smc_host->card_clk > smc_host->mod_clk)
 			smc_host->card_clk = smc_host->mod_clk;
 		#endif
@@ -2417,7 +2422,6 @@ static int __init sw_mci_init(void)
 
 	SMC_MSG(NULL, "sw_mci_init\n");
 	/* get devices information from sys_config.fex */
-    SMC_DBG(NULL, "get devices information from sys_config.fex\n");
 	if (sw_mci_get_devinfo()) {
 		SMC_MSG(NULL, "parse sys_cofnig.fex info failed\n");
 		return 0;
