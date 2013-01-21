@@ -306,23 +306,23 @@ config ARCH_SUN6I
 	  This enables support for AllWinner Ltd develop boards.
 
 config ARCH_SUN7I
-        bool "Allwinner Ltd. AW165x family"
-        select ARM_AMBA
-        select CLKDEV_LOOKUP
-        select ARM_GIC
-        select CPU_V7
-        select HAVE_SMP
-        select HAVE_MACH_CLKDEV
-        select GENERIC_CLOCKEVENTS
-        select NEED_MACH_MEMORY_H
-        select MIGHT_HAVE_CACHE_L2X0
-        select ARCH_HAS_BARRIERS if SMP
-        select ZONE_DMA
-        select HAVE_SCHED_CLOCK
-        select ARCH_REQUIRE_GPIOLIB
-        select ARCH_HAS_CPUFREQ
-        help
-          This enables support for AllWinner Ltd develop boards.
+    bool "Allwinner Ltd. AW165x family"
+    select ARM_AMBA
+    select CLKDEV_LOOKUP
+    select ARM_GIC
+    select CPU_V7
+    select HAVE_SMP
+    select HAVE_MACH_CLKDEV
+    select GENERIC_CLOCKEVENTS
+    select NEED_MACH_MEMORY_H
+    select MIGHT_HAVE_CACHE_L2X0
+    select ARCH_HAS_BARRIERS if SMP
+    select ZONE_DMA
+    select HAVE_SCHED_CLOCK
+    select ARCH_REQUIRE_GPIOLIB
+    select ARCH_HAS_CPUFREQ
+    help
+      This enables support for AllWinner Ltd develop boards.
 
 config ARCH_VERSATILE
 	bool "ARM Ltd. Versatile family"
@@ -1126,6 +1126,10 @@ source "arch/arm/mach-s5pv210/Kconfig"
 source "arch/arm/mach-exynos/Kconfig"
 
 source "arch/arm/mach-shmobile/Kconfig"
+
+if ARCH_SUN7I
+source "arch/arm/mach-sun7i/Kconfig"
+endif
 
 source "arch/arm/mach-tegra/Kconfig"
 

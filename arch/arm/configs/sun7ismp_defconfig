@@ -283,6 +283,12 @@ CONFIG_ARCH_SUN7I=y
 #
 
 #
+# Allwinner Platform Type
+#
+CONFIG_AW_FPGA_PLATFORM=y
+# CONFIG_AW_ASIC_PLATFORM is not set
+
+#
 # Processor Type
 #
 CONFIG_CPU_V7=y
