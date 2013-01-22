@@ -644,7 +644,7 @@ static int twi_send_clk_9pulse(void *base_addr, int bus_num)
                 twi_disable_lcr(base_addr, twi_scl);
                 return SUN7I_I2C_OK;
         } else {
-                I2C_DBG("[i2c%d] SDA is still Stuck Low, failed. \n", bus_num);
+        I2C_ERR("[i2c%d] SDA is still Stuck Low, failed. \n", bus_num);
                 twi_disable_lcr(base_addr, twi_scl);
                 return SUN7I_I2C_FAIL;
         }
@@ -734,7 +734,7 @@ static int sun7i_i2c_core_process(struct sun7i_i2c *i2c)
 #endif
 
     if(i2c->msg == NULL) {
-        I2C_DBG("[i2c%d] i2c message is NULL, err_code = 0xfe\n", i2c->bus_num);
+        I2C_ERR("[i2c%d] i2c message is NULL, err_code = 0xfe\n", i2c->bus_num);
         err_code = 0xfe;
         goto msg_null;
     }
@@ -955,15 +955,12 @@ static int sun7i_i2c_do_xfer(struct sun7i_i2c *i2c, struct i2c_msg *msgs, int nu
 	       TWI_STAT_BUS_ERR != twi_query_irq_status(i2c->base_addr) &&
 	       TWI_STAT_ARBLOST_SLAR_ACK != twi_query_irq_status(i2c->base_addr) ) {
 		I2C_DBG("[i2c%d] bus is busy, status = %x\n", i2c->bus_num, twi_query_irq_status(i2c->base_addr));
-        if( SUN7I_I2C_OK == twi_send_clk_9pulse(i2c->base_addr, i2c->bus_num) )
-        {
-            break;
-        }
-        else
-        {
-            ret = SUN7I_I2C_RETRY;
-            goto out;
-        }
+                if( SUN7I_I2C_OK == twi_send_clk_9pulse(i2c->base_addr, i2c->bus_num) ) {
+                        break;
+                } else {
+                        ret = SUN7I_I2C_RETRY;
+                        goto out;
+                }
 	}
 
 	/* may conflict with xfer_complete */
@@ -973,7 +970,7 @@ static int sun7i_i2c_do_xfer(struct sun7i_i2c *i2c, struct i2c_msg *msgs, int nu
 	i2c->msg_ptr = 0;
 	i2c->msg_idx = 0;
 	i2c->status  = I2C_XFER_START;
-    twi_enable_irq(i2c->base_addr);  /* enable irq */
+        twi_enable_irq(i2c->base_addr);  /* enable irq */
 	twi_disable_ack(i2c->base_addr); /* disabe ACK */
 	twi_set_efr(i2c->base_addr, 0);  /* set the special function register,default:0. */
 	spin_unlock_irq(&i2c->lock);
@@ -1003,11 +1000,10 @@ static int sun7i_i2c_do_xfer(struct sun7i_i2c *i2c, struct i2c_msg *msgs, int nu
 	/* return code,if(msg_idx == num) succeed */
 	ret = i2c->msg_idx;
 
-	if (timeout == 0){
+	if (timeout == 0) {
 		I2C_ERR("[i2c%d] xfer timeout (dev addr:0x%x)\n", i2c->bus_num, msgs->addr);
 		ret = -ETIME;
-	}
-	else if (ret != num){
+	} else if (ret != num) {
 		I2C_ERR("[i2c%d] incomplete xfer (status: 0x%x, dev addr: 0x%x)\n", i2c->bus_num, ret, msgs->addr);
 		ret = -ECOMM;
 	}
@@ -1036,6 +1032,7 @@ static int sun7i_i2c_clk_init(struct sun7i_i2c *i2c)
 		I2C_ERR("[i2c%d] enable apb_twi clock failed!\n", i2c->bus_num);
 		return -1;
 	}
+
 	if (clk_enable(i2c->mclk)) {
 		I2C_ERR("[i2c%d] enable mod_twi clock failed!\n", i2c->bus_num);
 		return -1;
@@ -1363,7 +1360,7 @@ static int __exit sun7i_i2c_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int sun7i_i2c_suspend(struct device *dev)
 {
-#ifdef CONFIG_AW_FPAG_PLATFORM
+#ifndef CONFIG_AW_FPAG_PLATFORM
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sun7i_i2c *i2c = platform_get_drvdata(pdev);
 	int count = 10;
@@ -1586,7 +1583,7 @@ static void __exit sun7i_i2c_adap_exit(void)
 #endif
 
 
-module_init(sun7i_i2c_adap_init);
+subsys_initcall(sun7i_i2c_adap_init);
 module_exit(sun7i_i2c_adap_exit);
 
 MODULE_LICENSE("GPL");

@@ -196,6 +196,7 @@ static ssize_t afa750_enable_store(struct device *dev,struct device_attribute *a
 		                  const char *buf, size_t count)
 {
 	unsigned long data;
+	int en, old_en;
 	int error;
 
 	error = strict_strtoul(buf, 10, &data);
@@ -207,7 +208,13 @@ static ssize_t afa750_enable_store(struct device *dev,struct device_attribute *a
 
 	dprintk(DEBUG_CONTROL_INFO, "enable store %ld\n", data);
 
-	if(data) {
+        en = data ? 1 : 0;
+        old_en = atomic_read(&afa750_data.suspended);
+
+        if(en == old_en)
+                return count;
+
+	if(en) {
 	        atomic_set(&afa750_data.suspended,1);
 		assert(error==0);
 	} else {
@@ -242,6 +249,9 @@ static ssize_t afa750_delay_store(struct device *dev,struct device_attribute *at
 		return error;
 	if (data > POLL_INTERVAL_MAX)
 		data = POLL_INTERVAL_MAX;
+
+        if(afa750_idev->poll_interval == data)
+                return count;
 
          afa750_idev->poll_interval = data;
 
@@ -408,6 +418,7 @@ static int __devexit afa750_remove(struct i2c_client *client)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&afa750_data.early_suspend);
 #endif
+        sysfs_remove_group(&afa750_idev->input->dev.kobj, &afa750_attribute_group);
 	afa750_idev->input->close(afa750_idev->input);
 	input_unregister_polled_device(afa750_idev);
 	input_free_polled_device(afa750_idev);
@@ -469,7 +480,6 @@ static int __init afa750_init(void)
 static void __exit afa750_exit(void)
 {
 	printk("remove afa750 i2c driver.\n");
-	sysfs_remove_group(&afa750_idev->input->dev.kobj, &afa750_attribute_group);
 	i2c_del_driver(&afa750_driver);
 }
 

@@ -594,15 +594,21 @@ static ssize_t DMT_enable_acc_show(struct device *dev, struct device_attribute *
 	return sprintf(buf, "%s\n", str[flag]);
 }
 
-static ssize_t DMT_enable_acc_store( struct device *dev, struct device_attribute *attr, char const *buf, size_t count)
+static ssize_t DMT_enable_acc_store( struct device *dev, struct device_attribute *attr,
+                                     char const *buf, size_t count)
 {
-	int en;
+	int en, old_en;
 	dprintk(DEBUG_INT,"%s:buf=%x %x\n",__func__,buf[0],buf[1]);
         if (false == get_value_as_int(buf, count, &en))
 		return -EINVAL;
 	en = en ? 1 : 0;
-	atomic_set(&enable,en);
-	DMT_sysfs_update_active_status(en);
+	old_en = atomic_read(&enable);
+	if(en == old_en) {
+	        return count;
+	}else {
+	        atomic_set(&enable,en);
+	        DMT_sysfs_update_active_status(en);
+	}
 	return 1;
 }
 
@@ -612,15 +618,21 @@ static ssize_t DMT_delay_acc_show( struct device *dev, struct device_attribute *
 	return sprintf(buf, "%d\n", atomic_read(&delay));
 }
 
-static ssize_t DMT_delay_acc_store( struct device *dev, struct device_attribute *attr,char const *buf, size_t count)
+static ssize_t DMT_delay_acc_store( struct device *dev, struct device_attribute *attr,
+                                   char const *buf, size_t count)
 {
-	long long data;
+	long long data, old_data;
 	if (false == get_value_as_int64(buf, count, &data))
 		return -EINVAL;
 
-	atomic_set(&delay, (unsigned int) data);
-
 	dmtprintk("Driver attribute set delay =%llu\n",data);
+	old_data = atomic_read(&delay);
+
+	if(old_data == data) {
+	        return count;
+	} else {
+	        atomic_set(&delay, (unsigned int) data);
+	}
 
 	return count;
 }

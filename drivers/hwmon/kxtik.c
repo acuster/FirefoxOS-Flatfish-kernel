@@ -251,6 +251,9 @@ static ssize_t kxtik_delay_store(struct device *dev,
 	if (data > POLL_INTERVAL_MAX)
 		data = POLL_INTERVAL_MAX;
 
+	if(kxtik->pollDev->poll_interval == data)
+	        return count;
+
         mutex_lock(&kxtik->interval_mutex);
         kxtik->pollDev->poll_interval = data;
         mutex_unlock(&kxtik->interval_mutex);
@@ -272,6 +275,7 @@ static ssize_t kxtik_enable_store(struct device *dev,
 		const char *buf, size_t count)
 {
 	unsigned long data;
+	int en, old_en;
 	int error;
 
 	error = strict_strtoul(buf, 10, &data);
@@ -281,7 +285,13 @@ static ssize_t kxtik_enable_store(struct device *dev,
 		goto exit;
 	}
 
-	if(data) {
+	en = data ? 1 : 0;
+	old_en = atomic_read(&kxtik_data.enable);
+
+	if(en == old_en)
+	        return count;
+
+	if(en) {
 	        atomic_set(&kxtik_data.enable,1);
                 error = i2c_smbus_write_byte_data(kxtik_i2c_client,ACCEL_GRP2_CTRL_REG1,
                 accel_registers[accel_grp2_ctrl_reg1] | ACCEL_GRP2_PC1_ON);
@@ -477,6 +487,7 @@ static int __devexit kxtik_remove(struct i2c_client *client)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	  unregister_early_suspend(&kxtik_data.early_suspend);
 #endif
+        sysfs_remove_group(&kxtik_idev->input->dev.kobj, &kxtik_attribute_group);
 	input_unregister_polled_device(kxtik_idev);
 	input_free_polled_device(kxtik_idev);
 	i2c_set_clientdata(kxtik_i2c_client, NULL);
@@ -547,7 +558,6 @@ static int __init kxtik_init(void)
 static void __exit kxtik_exit(void)
 {
 	printk(KERN_INFO "remove kxtik i2c driver.\n");
-	sysfs_remove_group(&kxtik_idev->input->dev.kobj, &kxtik_attribute_group);
 	i2c_del_driver(&kxtik_driver);
 }
 
