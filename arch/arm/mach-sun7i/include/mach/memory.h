@@ -21,8 +21,6 @@
 #ifndef __ASM_ARCH_MEMORY_H
 #define __ASM_ARCH_MEMORY_H
 
-#define SUN7I_MEM_ON_FPGA
-
 #define PLAT_PHYS_OFFSET                UL(0x40000000)
 #define PLAT_MEM_SIZE                   SZ_1G
 
@@ -35,7 +33,7 @@
 /*
  * memory reserved areas.
  */
-#ifdef SUN7I_MEM_ON_FPGA
+#if defined(CONFIG_AW_FPGA_PLATFORM)
 #define SW_FB_MEM_SIZE                 0x02000000 /* SZ_32M */
 #define SW_GPU_MEM_SIZE                0x04000000 /* SZ_64M */
 #define SW_G2D_MEM_SIZE                0x01000000 /* SZ_16M */
@@ -49,10 +47,10 @@
 #define SW_G2D_MEM_BASE                (SW_GPU_MEM_BASE - SW_G2D_MEM_SIZE)
 #define SW_CSI_MEM_BASE                (SW_G2D_MEM_BASE - SW_CSI_MEM_SIZE)
 #if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
-#define ION_CARVEOUT_MEM_BASE           (SUPER_STANDBY_BASE + SUPER_STANDBY_SIZE) /* +332M */
-#define ION_CARVEOUT_MEM_SIZE           (CONFIG_ION_SUNXI_CARVEOUT_SIZE * SZ_1M) /* in Mbytes */
+#define ION_CARVEOUT_MEM_BASE          (SUPER_STANDBY_BASE + SUPER_STANDBY_SIZE) /* +332M */
+#define ION_CARVEOUT_MEM_SIZE          (CONFIG_ION_SUNXI_CARVEOUT_SIZE * SZ_1M)  /* in Mbytes */
 #endif
-#else
+#elif defined(CONFIG_AW_ASIC_PLATFORM)
 #define SW_FB_MEM_BASE     		XXX /* XXX */
 #define SW_FB_MEM_SIZE     		XXX /* XXX */
 
@@ -64,6 +62,8 @@
 
 #define SW_CSI_MEM_BASE     		XXX /* XXX */
 #define SW_CSI_MEM_SIZE     		XXX /* XXX */
-#endif /* SUN7I_MEM_ON_FPGA */
+#else
+#error "fatal err: please select a platform!"
+#endif
 
 #endif

@@ -1,6 +1,7 @@
 #ifndef _PM_CONFIG_H
 #define _PM_CONFIG_H
 
+#include <generated/autoconf.h> /* liugang,for CONFIG_AW_FPGA_PLATFORM,2013-1-22 */
 #include "mach/memory.h"
 #include "asm-generic/sizes.h"
 /*

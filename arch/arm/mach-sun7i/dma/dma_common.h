@@ -19,7 +19,7 @@
 #include <linux/spinlock.h>
 
 /* dma print macro */
-#define DMA_DBG_LEVEL		2
+#define DMA_DBG_LEVEL		3
 
 #if (DMA_DBG_LEVEL == 1)
 	#define DMA_DBG(format,args...)   printk("[dma-dbg] "format,##args)
