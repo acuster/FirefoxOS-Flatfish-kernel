@@ -61,6 +61,8 @@ static unsigned int nr_uarts = CONFIG_SERIAL_8250_RUNTIME_UARTS;
 
 static struct uart_driver serial8250_reg;
 
+static u32 debug_mask = 0;
+
 static int serial_index(struct uart_port *port)
 {
 	return (serial8250_reg.minor - 64) + port->line;
@@ -567,6 +569,7 @@ static void serial_icr_write(struct uart_8250_port *up, int offset, int value)
 	serial_out(up, UART_ICR, value);
 }
 
+#ifndef CONFIG_SERIAL_8250_SUNXI
 static unsigned int serial_icr_read(struct uart_8250_port *up, int offset)
 {
 	unsigned int value;
@@ -578,6 +581,7 @@ static unsigned int serial_icr_read(struct uart_8250_port *up, int offset)
 
 	return value;
 }
+#endif
 
 /*
  * FIFO support.
@@ -689,6 +693,7 @@ static void disable_rsa(struct uart_8250_port *up)
  */
 static int size_fifo(struct uart_8250_port *up)
 {
+#ifndef CONFIG_SERIAL_8250_SUNXI
 	unsigned char old_fcr, old_mcr, old_lcr;
 	unsigned short old_dl;
 	int count;
@@ -717,8 +722,12 @@ static int size_fifo(struct uart_8250_port *up)
 	serial_outp(up, UART_LCR, old_lcr);
 
 	return count;
+#else
+	return 64;
+#endif
 }
 
+#ifndef CONFIG_SERIAL_8250_SUNXI
 /*
  * Read UART ID using the divisor method - set DLL and DLM to zero
  * and the revision will be in DLL and device type in DLM.  We
@@ -746,6 +755,7 @@ static unsigned int autoconfig_read_divisor_id(struct uart_8250_port *p)
 
 	return id;
 }
+#endif
 
 /*
  * This is a helper routine to autodetect StarTech/Exar/Oxsemi UART's.
@@ -757,6 +767,8 @@ static unsigned int autoconfig_read_divisor_id(struct uart_8250_port *p)
  *
  * What evil have men's minds wrought...
  */
+
+#ifndef CONFIG_SERIAL_8250_SUNXI
 static void autoconfig_has_efr(struct uart_8250_port *up)
 {
 	unsigned int id1, id2, id3, rev;
@@ -874,6 +886,7 @@ static int broken_efr(struct uart_8250_port *up)
 
 	return 0;
 }
+#endif
 
 static inline int ns16550a_goto_highspeed(struct uart_8250_port *up)
 {
@@ -900,6 +913,7 @@ static inline int ns16550a_goto_highspeed(struct uart_8250_port *up)
  */
 static void autoconfig_16550a(struct uart_8250_port *up)
 {
+#ifndef CONFIG_SERIAL_8250_SUNXI
 	unsigned char status1, status2;
 	unsigned int iersave;
 
@@ -1041,7 +1055,10 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 		up->port.type = PORT_XR17D15X;
 		up->capabilities |= UART_CAP_AFE | UART_CAP_EFR;
 	}
-
+#else
+	up->port.type = PORT_16550A;
+	up->capabilities |= UART_CAP_FIFO;
+#endif
 	/*
 	 * We distinguish between 16550A and U6 16550A by counting
 	 * how many bytes are in the FIFO.
@@ -1068,8 +1085,9 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	if (!up->port.iobase && !up->port.mapbase && !up->port.membase)
 		return;
 
-	DEBUG_AUTOCONF("ttyS%d: autoconf (0x%04lx, 0x%p): ",
-		       serial_index(&up->port), up->port.iobase, up->port.membase);
+	DEBUG_AUTOCONF("ttyS%d: autoconf (0x%04lx, 0x%p, 0x%04lx): ",
+		       serial_index(&up->port), up->port.iobase, up->port.membase,
+               (long unsigned int)up->port.mapbase);
 
 	/*
 	 * We really do need global IRQs disabled here - we're going to
@@ -1152,6 +1170,9 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	 * We also initialise the EFR (if any) to zero for later.  The
 	 * EFR occupies the same register location as the FCR and IIR.
 	 */
+#ifdef CONFIG_SERIAL_8250_SUNXI
+	autoconfig_16550a(up);
+#else
 	serial_outp(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	serial_outp(up, UART_EFR, 0);
 	serial_outp(up, UART_LCR, 0);
@@ -1194,6 +1215,7 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 #endif
 
 	serial_outp(up, UART_LCR, save_lcr);
+#endif
 
 	if (up->capabilities != uart_config[up->port.type].flags) {
 		printk(KERN_WARNING
@@ -1449,9 +1471,10 @@ serial8250_rx_chars(struct uart_8250_port *up, unsigned char lsr)
 			else if (lsr & UART_LSR_FE)
 				flag = TTY_FRAME;
 		}
+#ifndef CONFIG_SERIAL_8250_SUNXI
 		if (uart_handle_sysrq_char(&up->port, ch))
 			goto ignore_char;
-
+#endif
 		uart_insert_char(&up->port, lsr, UART_LSR_OE, ch, flag);
 
 ignore_char:
@@ -1493,9 +1516,14 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 			break;
 	} while (--count > 0);
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS){
+		/*because it have locked before calling serial8250_tx_chars
+		 and uart_write_wakeup probably lock again, it must unlock to
+		 call uart_write_wakeup to make sure safety*/
+		spin_unlock(&up->port.lock);
 		uart_write_wakeup(&up->port);
-
+		spin_lock(&up->port.lock);
+	}
 	DEBUG_INTR("THRE...");
 
 	if (uart_circ_empty(xmit))
@@ -1531,7 +1559,6 @@ EXPORT_SYMBOL_GPL(serial8250_modem_status);
  * This handles the interrupt from one port.
  */
 
-#define UART_USR (AW_UART_USR>>2)
 int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 {
 	unsigned char status;
@@ -1539,35 +1566,48 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	struct uart_8250_port *up =
 		container_of(port, struct uart_8250_port, port);
 
-       if ((iir & 0x7) == UART_IIR_BUSY) {
-               unsigned int mcr_t = serial_inp(up, UART_MCR);
-               AW_UART_LOG(">>> ttyS%d bus busy...", up->port.line);
-               serial_outp(up, UART_MCR, mcr_t|(1<<4));
-               while (serial_in(up, UART_USR)&1)
-               serial_inp(up, UART_RX);
-               serial_outp(up, UART_LCR, up->lcr);
-               serial_outp(up, UART_MCR, mcr_t);
-               return 1;
-       }
+	if ((iir & 0x7) == UART_IIR_BUSY) {
+		AW_UART_LOG(">>> ttyS%d bus busy...", up->port.line);
+		if (serial_in(up, UART_USR)&1) {
+			debug_mask = (1 << 29);
+			serial_outp(up,	UART_HALT, UART_FORCE_CFG);
+			serial_outp(up, UART_LCR, up->lcr);
+			serial_outp(up, UART_HALT, UART_FORCE_CFG |UART_FORCE_UPDATE);
+			while(serial_inp(up, UART_HALT)&UART_FORCE_UPDATE);
+			serial_outp(up, UART_HALT, 0x00);
+			serial_in(up, UART_USR);
+		} else
+			serial_outp(up, UART_LCR, up->lcr);
+		return 1;
+	}
 
 	if (iir & UART_IIR_NO_INT) {
 		AW_UART_LOG("no int");
 		return 0;
 	}
+	if (!(debug_mask & 0x1))
+		debug_mask &= (1 << 29);
 
 	spin_lock_irqsave(&up->port.lock, flags);
-
 	status = serial_inp(up, UART_LSR);
+
+	if (status & (UART_LSR_DR | UART_LSR_BI)) {
+		status = serial8250_rx_chars(up, status);
+        if (debug_mask & 0x1)
+		    debug_mask |= (1 << 31);
+	}
+
+	serial8250_modem_status(up);
+	if (status & UART_LSR_THRE) {
+		serial8250_tx_chars(up);
+		if (debug_mask & 0x1)
+			debug_mask |= (1 << 30);
+	}
+
+	spin_unlock_irqrestore(&up->port.lock, flags);
 
 	DEBUG_INTR("status = %x...", status);
 
-	if (status & (UART_LSR_DR | UART_LSR_BI))
-		status = serial8250_rx_chars(up, status);
-	serial8250_modem_status(up);
-	if (status & UART_LSR_THRE)
-		serial8250_tx_chars(up);
-
-	spin_unlock_irqrestore(&up->port.lock, flags);
 	return 1;
 }
 EXPORT_SYMBOL_GPL(serial8250_handle_irq);
@@ -1871,7 +1911,14 @@ static void serial8250_break_ctl(struct uart_port *port, int break_state)
 		up->lcr |= UART_LCR_SBC;
 	else
 		up->lcr &= ~UART_LCR_SBC;
-	serial_out(up, UART_LCR, up->lcr);
+
+	if (serial_inp(up, UART_USR)&0x01) {
+		serial_outp(up,	UART_HALT, UART_FORCE_CFG);
+		serial_outp(up, UART_LCR, up->lcr);
+		serial_outp(up, UART_HALT, UART_FORCE_CFG |UART_FORCE_UPDATE);
+		while(serial_inp(up, UART_HALT)&UART_FORCE_UPDATE);
+	} else
+		serial_out(up, UART_LCR, up->lcr);
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
@@ -2112,7 +2159,15 @@ static int serial8250_startup(struct uart_port *port)
 	/*
 	 * Now, initialize the UART
 	 */
-	serial_outp(up, UART_LCR, UART_LCR_WLEN8);
+	up->lcr = UART_LCR_WLEN8;					/* Save LCR */
+	if (serial_inp(up, UART_USR)&0x01) {
+		serial_outp(up,	UART_HALT, UART_FORCE_CFG);
+		serial_outp(up, UART_LCR, UART_LCR_WLEN8);
+		serial_outp(up, UART_HALT, UART_FORCE_CFG |UART_FORCE_UPDATE);
+		while(serial_inp(up, UART_HALT)&UART_FORCE_UPDATE);
+		serial_outp(up, UART_HALT, 0x00);
+	} else
+		serial_outp(up, UART_LCR, UART_LCR_WLEN8);
 
 	spin_lock_irqsave(&up->port.lock, flags);
 	if (up->port.flags & UPF_FOURPORT) {
@@ -2222,7 +2277,13 @@ static void serial8250_shutdown(struct uart_port *port)
 	/*
 	 * Disable break condition and FIFOs
 	 */
-	serial_out(up, UART_LCR, serial_inp(up, UART_LCR) & ~UART_LCR_SBC);
+	if (serial_inp(up, UART_USR)&0x01) {
+		serial_outp(up,	UART_HALT, UART_FORCE_CFG);
+		serial_outp(up, UART_LCR, serial_inp(up, UART_LCR) & ~UART_LCR_SBC);
+		serial_outp(up, UART_HALT, UART_FORCE_CFG |UART_FORCE_UPDATE);
+		while(serial_inp(up, UART_HALT)&UART_FORCE_UPDATE);
+	} else
+		serial_out(up, UART_LCR, serial_inp(up, UART_LCR) & ~UART_LCR_SBC);
 	serial8250_clear_fifos(up);
 
 #ifdef CONFIG_SERIAL_8250_RSA
@@ -2273,8 +2334,6 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned char cval, fcr = 0;
 	unsigned long flags;
 	unsigned int baud, quot;
-	unsigned char mcr_tmp=0x00;
-	unsigned int count_tmp;
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
@@ -2419,39 +2478,29 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 #endif
 
-	mcr_tmp = serial_inp(up, UART_MCR);
 
 	if (up->capabilities & UART_NATSEMI) {
-		/* Switch to bank 2 not bank 1, to avoid resetting EXCR2 */
-
-		count_tmp=0;
-		mcr_tmp = serial_inp(up, UART_MCR);
-		serial_out(up, UART_MCR, mcr_tmp |(1<<4));
-		do{
-			count_tmp++;
-			serial_out(up, UART_FCR,0x07);
-			serial_outp(up, UART_LCR, 0xe0);
-			if(count_tmp==1000)
-				 break;
-		}while(serial_inp(up, UART_USR)&0x01);
+		serial_outp(up, UART_LCR, 0xe0);
 	} else {
-
-		/*loopback mode to set lcr*/
-		mcr_tmp	= serial_inp(up, UART_MCR);
-		serial_out(up, UART_MCR, mcr_tmp |(1<<4));
-
-		count_tmp=0;
-		do{
-			count_tmp++;
-
-			serial_out(up, UART_FCR,0x07);
-			serial_outp(up, UART_LCR, cval | UART_LCR_DLAB);/* set DLAB */
-			if(count_tmp==1000)
-				break;
-		}while(serial_inp(up, UART_USR)&0x01);
+#ifdef CONFIG_SERIAL_8250_SUNXI
+	/*
+	 *Because our platform hardware so much ugly which likes my English
+	 *I must check line status to ensure it no busy when set LCR value,
+	 *if miserable the line status is busy,it must set UART_FORCE_CFG bit
+	 *first before set LCR without DLAB,it also viable if  you only want
+	 *to set DLAB to set baud. More informations can be get for sw spec
+	 * */
+		if(serial_inp(up, UART_USR)&0x01)
+				serial_outp(up, UART_HALT, UART_FORCE_CFG);
+			else
+				serial_outp(up, UART_LCR, cval | UART_LCR_DLAB);/* set DLAB */
+#endif
+		serial_outp(up, UART_LCR, cval | UART_LCR_DLAB);/* set DLAB */
 	}
-
+	if((serial_inp(up, UART_HALT)&UART_FORCE_CFG) && !(serial_inp(up, UART_LCR)&UART_LCR_DLAB))
+		serial_outp(up, UART_HALT, UART_FORCE_CFG);
 	serial_dl_write(up, quot);
+	serial_outp(up,UART_SCH,quot & 0xff);
 
 	/*
 	 * LCR DLAB must be set to enable 64-byte FIFO mode. If the FCR
@@ -2459,19 +2508,23 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	 */
 	if (up->port.type == PORT_16750)
 		serial_outp(up, UART_FCR, fcr);
-		count_tmp=0;
-	do{
-		count_tmp++;
 
-		serial_out(up, UART_FCR,0x07);
-		serial_outp(up, UART_LCR, cval);		/* reset DLAB */
-		if(count_tmp==1000)
-			break;
-	}while(serial_inp(up, UART_USR)&0x01);
-	/*to normal from loopback*/
-	serial_out(up, UART_MCR, mcr_tmp);
-	serial_outp(up, UART_LCR, cval);		/* reset DLAB */
 	up->lcr = cval;					/* Save LCR */
+	serial_outp(up, UART_LCR, cval);
+
+	/*
+	 *When baud and LCR be set finish, it must set UART_FORCE_UPDATE bit
+	 *to let operations take effect, the UART_FORCE_UPDATE will clear
+	 *by self when update successfully
+	 * */
+	if(serial_inp(up, UART_HALT) & UART_FORCE_CFG){
+		if(debug_mask & 0x1)
+			debug_mask |= 1 << 3;
+		serial_outp(up, UART_HALT, UART_FORCE_CFG | UART_FORCE_UPDATE);
+		while(serial_inp(up, UART_HALT) & UART_FORCE_UPDATE);
+		serial_outp(up, UART_HALT, 0x00);
+	}
+
 	if (up->port.type != PORT_16750) {
 		if (fcr & UART_FCR_ENABLE_FIFO) {
 			/* emulated UARTs (Lucent Venus 167x) need two steps */
@@ -2749,7 +2802,7 @@ static struct uart_ops serial8250_pops = {
 #endif
 };
 
-static struct uart_8250_port serial8250_ports[UART_NR];
+struct uart_8250_port serial8250_ports[UART_NR];
 
 static void (*serial8250_isa_config)(int port, struct uart_port *up,
 	unsigned short *capabilities);
@@ -3131,106 +3184,12 @@ static int __devexit serial8250_remove(struct platform_device *dev)
 	}
 	return 0;
 }
-#if 0
-#define UART_MSG(fmt...)    printk("[uart]: "fmt)
-#else
-#define UART_MSG(fmt...)	do { } while (0)
+
+#ifdef CONFIG_SERIAL_8250_SUNXI
+extern void sw_serial_do_pm(struct uart_port *port, unsigned int state,
+		unsigned int oldstate);
 #endif
-/* Register base define */
-#define UART_BASE       (0x01C28000)
-#define UART_BASE_OS    (0x400)
-#define UARTx_BASE(x)   (UART_BASE + (x) * UART_BASE_OS)
-#define RESSIZE(res)    (((res)->end - (res)->start)+1)
-#define OFFSET			0xf0000000
-#define FCR_AW  0x0e1
-#define REG_RD_U(fmt...)	readl(port_base_addr + fmt)
-#define REG_WD_U(member,fmt...)	writel(member,port_base_addr + fmt)
-struct sw_serial_port {
-    struct uart_port    port;
-    char                name[16];
-    int                 port_no;
-    int                 pin_num;
-    u32                 pio_hdle;
-    struct clk          *clk;
-    u32                 sclk;
-    struct resource     *mmres;
-    u32                 irq;
-    struct platform_device* pdev;
-};
-typedef struct backup_reg_def{
-	u32 dll; 		/* 0x00	*/
-	u32 dlh;		/* 0x04 */
-	u32 ier;		/* 0x04 */
-	u32 fcr;		/* 0x08 */
-	u32 lcr;		/* 0x0C */
-	u32 mcr;		/* 0x10 */
-	u32 sch;		/* 0x1C */
-	u32 halt;		/* 0xA4 */
-} backup_reg_t;
-#define	BACK_REG	backup_reg[port_num]
-#define U_DLL		0X00
-#define U_RX		0X00
-#define U_DLH		0X04
-#define U_IER		0X04
-#define U_FCR		0X08
-#define U_LCR		0X0c
-#define U_MCR		0X10
-#define U_SCH		0X1c
-#define	U_USR		0X7c
-#define U_HALT		0Xa4
-static backup_reg_t backup_reg[1];
-void sunxi_8250_backup_reg(int port_num ,struct uart_port *port)
-{
-	unsigned long port_base_addr;
-	port_base_addr = port->mapbase + OFFSET;
-	UART_MSG("\nport_base_addr is %x \n port->mapbase is %x\n",port_base_addr,port->mapbase);
-	BACK_REG.lcr	= REG_RD_U(U_LCR);
-	BACK_REG.mcr	= REG_RD_U(U_MCR);
-	BACK_REG.sch	= REG_RD_U(U_SCH);
-	BACK_REG.halt	= REG_RD_U(U_HALT);
-	BACK_REG.fcr	= FCR_AW;
-	while (REG_RD_U(U_USR)&1)
-        REG_RD_U(U_RX);
-	REG_WD_U(BACK_REG.lcr & 0x7f,U_LCR);
-	UART_MSG("\n1: lcr is %x  \n backup_reg.lcr is %x\n",REG_RD_U(U_LCR),BACK_REG.lcr);
-	BACK_REG.ier	= REG_RD_U(U_IER);
-	UART_MSG("\norgin: lcr is %x mcr is %x sch is %x halt is %x ier is %x\n",REG_RD_U(U_LCR),REG_RD_U(U_MCR),REG_RD_U(U_SCH),REG_RD_U(U_HALT),REG_RD_U(U_IER));
-	UART_MSG("\nback: lcr is %x mcr is %x sch is %x halt is %x ier is %x\n",BACK_REG.lcr,BACK_REG.mcr,BACK_REG.sch,BACK_REG.halt,BACK_REG.ier);
-	while (REG_RD_U(U_USR)&1)
-        REG_RD_U(U_RX);
-	REG_WD_U(BACK_REG.lcr | 0x80,U_LCR);
-	BACK_REG.dll	= REG_RD_U(U_DLL);
-	BACK_REG.dlh	= REG_RD_U(U_DLH);
-	while (REG_RD_U(U_USR)&1)
-        REG_RD_U(U_RX);
-	REG_WD_U(BACK_REG.lcr,U_LCR);
-	UART_MSG("\n2: lcr is %x  \n backup_reg.lcr is %x\n",REG_RD_U(U_LCR),BACK_REG.lcr);
-}
-void sunxi_8250_comeback_reg(int port_num,struct uart_port *port)
-{
-	unsigned long port_base_addr;
-	port_base_addr = port->mapbase + OFFSET;
-	REG_WD_U(BACK_REG.sch,U_SCH);
-	REG_WD_U(BACK_REG.halt,U_HALT);
-	REG_WD_U(BACK_REG.mcr,U_MCR);
-	REG_WD_U(BACK_REG.fcr,U_FCR);
-	while (REG_RD_U(U_USR)&1)
-        REG_RD_U(U_RX);
-	REG_WD_U(BACK_REG.lcr & 0x7f,U_LCR);
-	UART_MSG("\n1: lcr is %x  \n backup_reg.lcr is %x\n",REG_RD_U(U_LCR),BACK_REG.lcr);
-	REG_WD_U(BACK_REG.ier,U_IER);
-	UART_MSG("\nback1: lcr is %x mcr is %x sch is %x halt is %x ier is %x\n",REG_RD_U(U_LCR),REG_RD_U(U_MCR),REG_RD_U(U_SCH),REG_RD_U(U_HALT),REG_RD_U(U_IER));
-	while (REG_RD_U(U_USR)&1)
-        REG_RD_U(U_RX);
-	REG_WD_U(BACK_REG.lcr | 0x80,U_LCR);
-	REG_WD_U(BACK_REG.dll,U_DLL);
-	REG_WD_U(BACK_REG.dlh,U_DLH);
-	while (REG_RD_U(U_USR)&1)
-        REG_RD_U(U_RX);
-	REG_WD_U(BACK_REG.lcr,U_LCR);
-	UART_MSG("\nback1: lcr is %x mcr is %x sch is %x halt is %x ier is %x\n",REG_RD_U(U_LCR),REG_RD_U(U_MCR),REG_RD_U(U_SCH),REG_RD_U(U_HALT),REG_RD_U(U_IER));
-	UART_MSG("\n3: lcr is %x  \n backup_reg.lcr is %x\n",REG_RD_U(U_LCR),BACK_REG.lcr);
-}
+
 static int serial8250_suspend(struct platform_device *dev, pm_message_t state)
 {
 
@@ -3239,8 +3198,9 @@ static int serial8250_suspend(struct platform_device *dev, pm_message_t state)
 		struct uart_8250_port *up = &serial8250_ports[i];
 
 		if (up->port.type != PORT_UNKNOWN && up->port.dev == &dev->dev){
-			//uart_suspend_port(&serial8250_reg, &up->port);
 			sunxi_8250_backup_reg(i,&up->port);
+			uart_suspend_port(&serial8250_reg, &up->port);
+			sw_serial_do_pm(&up->port,3,0);
 		}
 	}
 	return 0;
@@ -3254,8 +3214,10 @@ static int serial8250_resume(struct platform_device *dev)
 		struct uart_8250_port *up = &serial8250_ports[i];
 
 		if (up->port.type != PORT_UNKNOWN && up->port.dev == &dev->dev){
+
+			sw_serial_do_pm(&up->port,0,3);
 			sunxi_8250_comeback_reg(i,&up->port);
-			//serial8250_resume_port(i);
+			serial8250_resume_port(i);
 		}
 	}
 
@@ -3505,6 +3467,9 @@ MODULE_PARM_DESC(nr_uarts, "Maximum number of UARTs supported. (1-" __MODULE_STR
 
 module_param(skip_txen_test, uint, 0644);
 MODULE_PARM_DESC(skip_txen_test, "Skip checking for the TXEN bug at init time");
+
+module_param(debug_mask, uint, 0644);
+MODULE_PARM_DESC(debug_mask, "sw debug switch");
 
 #ifdef CONFIG_SERIAL_8250_RSA
 module_param_array(probe_rsa, ulong, &probe_rsa_count, 0444);
