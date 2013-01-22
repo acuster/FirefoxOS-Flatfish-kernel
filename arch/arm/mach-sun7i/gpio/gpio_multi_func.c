@@ -16,6 +16,13 @@
 
 #include "gpio_include.h"
 
+#ifdef CONFIG_AW_AXP20
+extern int axp_gpio_set_io(int gpio, int io_state);
+extern int axp_gpio_get_io(int gpio, int *io_state);
+extern int axp_gpio_set_value(int gpio, int value);
+extern int axp_gpio_get_value(int gpio, int *value);
+#endif
+
 /**
  * gpio_set_cfg - set multi sel for the gpio
  * @chip:   aw_gpio_chip struct for the gpio
@@ -406,6 +413,27 @@ u32 sw_gpio_setall_range(struct gpio_config *pcfg, u32 cfg_num)
     }
 
     for (i = 0; i < cfg_num; i++, pcfg++) {
+#ifdef CONFIG_AW_AXP20
+        if (pcfg->gpio >= AXP_NR_BASE && pcfg->gpio < AXP_NR_BASE + AXP_NR) {
+            req_success = (0 == gpio_request(pcfg->gpio, NULL));
+            if (0 == pcfg->mul_sel) {
+                WARN(0 != gpio_direction_input(pcfg->gpio), "%s: set axp pin(%d) input failed\n",
+                        __func__, pcfg->gpio);
+            } else if (1 == pcfg->mul_sel) {
+                WARN(0 != gpio_direction_output(pcfg->gpio, (pcfg->data ? 1 : 0)),
+                        "%s: set axp pin(%d) output(%d) failed\n", __func__, pcfg->gpio, pcfg->data);
+            } else {
+                PIO_ERR("%s: apx pin(%d) but not input/output\n", __func__, pcfg->gpio);
+            }
+
+            if (req_success) {
+                gpio_free(pcfg->gpio);
+            }
+
+            continue;
+        }
+#endif
+
         pchip = gpio_to_aw_gpiochip(pcfg->gpio);
         if (!pchip || !pchip->cfg || !pchip->cfg->set_cfg ||
             !pchip->cfg->set_pull || !pchip->cfg->set_drvlevel) {
@@ -462,6 +490,33 @@ u32 sw_gpio_getall_range(struct gpio_config *pcfg, u32 cfg_num)
     }
 
     for (i = 0; i < cfg_num; i++, pcfg++) {
+#ifdef CONFIG_AW_AXP20
+        if (pcfg->gpio >= AXP_NR_BASE && pcfg->gpio < AXP_NR_BASE + AXP_NR) {
+            int io_status = -1;
+
+            PIO_INF("%s: can only get axp pin(%d) data value\n",
+                    __func__, pcfg->gpio);
+
+            req_success = (0 == gpio_request(pcfg->gpio, NULL));
+            /* get mul sel: input/output */
+            offset = pcfg->gpio - AXP_NR_BASE;
+            if (0 == axp_gpio_get_io(offset, &io_status)) {
+                pcfg->mul_sel = io_status;
+            } else {
+                PIO_ERR("%s: get axp pin(%d) io status failed\n",
+                        __func__, pcfg->gpio);
+            }
+
+            /* get data */
+            pcfg->data = __gpio_get_value(pcfg->gpio);
+            if (req_success) {
+                gpio_free(pcfg->gpio);
+            }
+
+            continue;
+        }
+#endif
+
         pchip = gpio_to_aw_gpiochip(pcfg->gpio);
         if (!pchip || !pchip->cfg || !pchip->cfg->get_cfg ||
             !pchip->cfg->get_pull || !pchip->cfg->get_drvlevel) {

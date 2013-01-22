@@ -36,6 +36,10 @@
 #define PH_NR           28
 #define PI_NR           22
 
+#ifdef CONFIG_AW_AXP20
+#define AXP_NR          5
+#endif
+
 /*
  * base index for each pio
  */
@@ -50,7 +54,10 @@ enum sun7i_gpio_number {
     PF_NR_BASE = AW_GPIO_NEXT(PE),
     PG_NR_BASE = AW_GPIO_NEXT(PF),
     PH_NR_BASE = AW_GPIO_NEXT(PG),
-    PI_NR_BASE = AW_GPIO_NEXT(PH)
+    PI_NR_BASE = AW_GPIO_NEXT(PH),
+#ifdef CONFIG_AW_AXP20
+    AXP_NR_BASE = AW_GPIO_NEXT(PI),
+#endif
 };
 
 /* pio index definition */

@@ -84,6 +84,13 @@ static inline struct aw_gpio_chip *gpio_to_aw_gpiochip(u32 gpio)
         return NULL;
     }
 
+    /* axp pin can only use linux stardard api */
+#ifdef CONFIG_AW_AXP20
+    if (gpio >= AXP_NR_BASE && gpio < AXP_NR_BASE + AXP_NR) {
+        return NULL;
+    }
+#endif
+
     pchip = to_gpiochip(gpio);
     if (!pchip) {
         return NULL;

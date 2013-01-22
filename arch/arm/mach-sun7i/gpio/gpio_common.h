@@ -27,15 +27,15 @@
 #if (PIO_DBG_LEVEL == 1)
 #define PIO_DBG(format,args...)         do {} while (0)
 #define PIO_INF(format,args...)         do {} while (0)
-#define PIO_ERR(format,args...)         printk("[gpio-err] "format,##args)
+#define PIO_ERR(format,args...)         printk(KERN_ERR "[gpio-err] "format,##args)
 #elif (PIO_DBG_LEVEL == 2)
 #define PIO_DBG(format,args...)         do {} while (0)
-#define PIO_INF(format,args...)         printk("[gpio-inf] "format,##args)
-#define PIO_ERR(format,args...)         printk("[gpio-err] "format,##args)
+#define PIO_INF(format,args...)         printk(KERN_INFO"[gpio-inf] "format,##args)
+#define PIO_ERR(format,args...)         printk(KERN_ERR "[gpio-err] "format,##args)
 #elif (PIO_DBG_LEVEL == 3)
-#define PIO_DBG(format,args...)         printk("[gpio-dbg] "format,##args)
-#define PIO_INF(format,args...)         printk("[gpio-inf] "format,##args)
-#define PIO_ERR(format,args...)         printk("[gpio-err] "format,##args)
+#define PIO_DBG(format,args...)         printk(KERN_INFO"[gpio-dbg] "format,##args)
+#define PIO_INF(format,args...)         printk(KERN_INFO"[gpio-inf] "format,##args)
+#define PIO_ERR(format,args...)         printk(KERN_ERR "[gpio-err] "format,##args)
 #endif
 
 #define PIO_POINTER_CHECK_NULL(p, name, retval) \
