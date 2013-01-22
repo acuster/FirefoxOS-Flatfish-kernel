@@ -936,6 +936,7 @@ static int __init sunxi_cpufreq_initcall(void)
     corevdd = regulator_get(NULL, "axp20_core");
     if(IS_ERR(corevdd)) {
         CPUFREQ_INF("try to get regulator failed, core vdd will not changed!\n");
+        corevdd = NULL;
     }
     else {
         CPUFREQ_INF("try to get regulator(0x%x) successed.\n", (__u32)corevdd);
@@ -980,8 +981,10 @@ static void __exit sunxi_cpufreq_exitcall(void)
     clk_put(clk_apb);
 
 #ifdef CONFIG_CPU_FREQ_DVFS
+    if(corevdd == NULL) {
     regulator_put(corevdd);
     corevdd = NULL;
+    }
 #endif
     cpufreq_unregister_driver(&sunxi_cpufreq_driver);
 }

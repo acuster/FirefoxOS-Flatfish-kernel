@@ -172,17 +172,18 @@ int main(void)
 		printk("before power init. \n");
 	}
 
-	while(mem_power_init(mem_para_info.axp_event)&&--retry){
-		printk("mem_power_init failed. \n");
-		;
-	}
-	if(0 == retry){
-		goto mem_power_init_err;
-	}else{
-		retry = RETRY_TIMES;
-	}
-
-
+    if (likely(mem_para_info.axp_enable))
+    {
+        while(mem_power_init(mem_para_info.axp_event)&&--retry){
+            printk("mem_power_init failed. \n");
+            ;
+        }
+        if(0 == retry){
+            goto mem_power_init_err;
+        }else{
+            retry = RETRY_TIMES;
+        }
+    }
 
 	/* dram enter self-refresh */
 #ifdef DRAM_ENTER_SELFRESH
@@ -246,16 +247,18 @@ suspend_err:
 suspend_dram_err:
 mem_power_init_err:
 
-
 #if 0
-    while(mem_power_exit(mem_para_info.axp_event)&&--retry){
-		;
-	}
-	if(0 == retry){
-		return -1;
-	}else{
-		retry = RETRY_TIMES;
-	}
+    if (likely(mem_para_info.axp_enable))
+    {
+        while(mem_power_exit(mem_para_info.axp_event)&&--retry){
+            ;
+        }
+        if(0 == retry){
+            return -1;
+        }else{
+            retry = RETRY_TIMES;
+        }
+    }
 #endif
 
 	//busy_waiting();
@@ -290,18 +293,21 @@ static __s32 suspend_with_nommu(void)
 				printk_nommu("notify pmu to power off. \n");
 			}
 
-			while(mem_power_off_nommu()&&--retry){
-				if(unlikely((mem_para_info.debug_mask)&PM_STANDBY_PRINT_STANDBY)){
-					printk_nommu("notify pmu to power off: failed one time, retry.... \n");
-				}
-				;
-			}
-			if(0 == retry){
-				goto mem_power_off_nommu_err;
+            if (likely(mem_para_info.axp_enable))
+            {
+                while(mem_power_off_nommu()&&--retry){
+                    if(unlikely((mem_para_info.debug_mask)&PM_STANDBY_PRINT_STANDBY)){
+                        printk_nommu("notify pmu to power off: failed one time, retry.... \n");
+                    }
+                    ;
+                }
+                if(0 == retry){
+                    goto mem_power_off_nommu_err;
 
-			}else{
-				retry = RETRY_TIMES;
-			}
+                }else{
+                    retry = RETRY_TIMES;
+                }
+            }
 
 #endif
 			return 0;
@@ -319,26 +325,29 @@ static __s32 suspend_with_mmu(void)
 {
 
 #ifdef SET_COPRO_DEFAULT
-		set_copro_default();
+	set_copro_default();
 #endif
 
 
 #ifdef MEM_POWER_OFF
-			/*power off*/
-			while(mem_power_off()&&--retry){
-				;
-			}
-			if(0 == retry){
-				return -1;
-			}else{
-				retry = RETRY_TIMES;
-			}
+	/*power off*/
+    if (likely(mem_para_info.axp_enable))
+    {
+        while(mem_power_off()&&--retry){
+            ;
+        }
+        if(0 == retry){
+            return -1;
+        }else{
+            retry = RETRY_TIMES;
+        }
+    }
 #endif
 
 #ifdef WITH_MMU
-		jump_to_resume0(0xc0100000);
+	jump_to_resume0(0xc0100000);
 #endif
 
-		return 0;
+	return 0;
 
 }

@@ -6,7 +6,6 @@ static struct aw_mem_para mem_para_info;
 
 extern char *__bss_start;
 extern char *__bss_end;
-static __s32 dcdc2, dcdc3;
 static __u32 sp_backup;
 static char    *tmpPtr = (char *)&__bss_start;
 static __u32 status = 0;
@@ -85,7 +84,10 @@ int main(void)
 
 	/*restore pmu config*/
 #ifdef POWER_OFF
-	mem_power_exit(mem_para_info.axp_event);
+    if (likely(mem_para_info.axp_enable))
+    {
+        mem_power_exit(mem_para_info.axp_event);
+    }
 
 	/* disable watch-dog: coresponding with boot0 */
 	mem_tmr_init();
@@ -123,16 +125,17 @@ void restore_ccmu(void)
 	}
 #endif
 
-	dcdc2 = mem_para_info.suspend_dcdc2;
-	dcdc3 = mem_para_info.suspend_dcdc3;
 
 #if 1
-	while( 0 != mem_set_voltage(POWER_VOL_DCDC2, dcdc2)){
-			;
-	}
-	while(0 != mem_set_voltage(POWER_VOL_DCDC3, dcdc3)){
-			;
-	}
+    if (likely(mem_para_info.axp_enable))
+    {
+        while( 0 != mem_set_voltage(POWER_VOL_DCDC2, mem_para_info.suspend_dcdc2)){
+                ;
+        }
+        while(0 != mem_set_voltage(POWER_VOL_DCDC3, mem_para_info.suspend_dcdc3)){
+                ;
+        }
+    }
 #endif
 
 	change_runtime_env(1);

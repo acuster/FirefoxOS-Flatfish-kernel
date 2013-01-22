@@ -77,6 +77,9 @@
 static int debug_mask = PM_STANDBY_PRINT_STANDBY | PM_STANDBY_PRINT_RESUME;
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
+static int standby_axp_enable = 1;
+module_param_named(standby_axp_enable, standby_axp_enable, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
 extern char *standby_bin_start;
 extern char *standby_bin_end;
 extern char *suspend_bin_start;
@@ -118,8 +121,8 @@ static struct map_desc mem_sram_md = {
 
 static struct aw_pm_info standby_info = {
     .standby_para = {
-		.event = SUSPEND_WAKEUP_SRC_EXINT,
-		.axp_event = AXP_MEM_WAKEUP,
+		.event_enable  = SUSPEND_WAKEUP_SRC_EXINT,
+		.axp_src = AXP_MEM_WAKEUP,
     },
     .pmu_arg = {
         .twi_port = 0,
@@ -166,8 +169,9 @@ EXPORT_SYMBOL(standby_level);
 
 //static volatile int enter_flag = 0;
 static bool mem_allocated_flag = false;
-static int standby_mode = 0;
+static int standby_mode = 1;
 static int suspend_status_flag = 0;
+module_param_named(standby_mode, standby_mode, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 extern void create_mapping(struct map_desc *md);
 extern void save_mapping(unsigned long vaddr);
@@ -242,7 +246,6 @@ static int aw_pm_valid(suspend_state_t state)
 	}
 #endif
 
-	standby_mode = 1;
 	//if 1 == standby_mode, actually, mean mem corresponding with super standby
 	if(PM_SUSPEND_STANDBY == state){
 		if(1 == standby_mode){
@@ -386,28 +389,36 @@ static int aw_early_suspend(void)
 	mem_sram_save(&(saved_sram_state));
 
 #if 1
-	//backup volt and freq state, after backup device state
-	mem_twi_init(AXP_IICBUS);
-	/* backup voltages */
-	while(-1 == (mem_para_info.suspend_dcdc2 = mem_get_voltage(POWER_VOL_DCDC2)) && --retry){
-		;
-	}
-	if(0 == retry){
-		print_call_info();
-		return -1;
-	}else{
-		retry = MAX_RETRY_TIMES;
-	}
+    if (likely(mem_para_info.axp_enable))
+    {
+        //backup volt and freq state, after backup device state
+        mem_twi_init(AXP_IICBUS);
+        /* backup voltages */
+        while(-1 == (mem_para_info.suspend_dcdc2 = mem_get_voltage(POWER_VOL_DCDC2)) && --retry){
+            ;
+        }
+        if(0 == retry){
+            print_call_info();
+            return -1;
+        }else{
+            retry = MAX_RETRY_TIMES;
+        }
 
-	while(-1 == (mem_para_info.suspend_dcdc3 = mem_get_voltage(POWER_VOL_DCDC3)) && --retry){
-		;
-	}
-	if(0 == retry){
-		print_call_info();
-		return -1;
-	}else{
-		retry = MAX_RETRY_TIMES;
-	}
+        while(-1 == (mem_para_info.suspend_dcdc3 = mem_get_voltage(POWER_VOL_DCDC3)) && --retry){
+            ;
+        }
+        if(0 == retry){
+            print_call_info();
+            return -1;
+        }else{
+            retry = MAX_RETRY_TIMES;
+        }
+    }
+    else
+    {
+        mem_para_info.suspend_dcdc2 = -1;
+        mem_para_info.suspend_dcdc3 = -1;
+    }
 #endif
 
 	/*backup bus ratio*/
@@ -426,6 +437,7 @@ static int aw_early_suspend(void)
 
 	if((DRAM_BACKUP_SIZE1) < sizeof(mem_para_info)){
 		//judge the reserved space for mem para is enough or not.
+        print_call_info();
 		return -1;
 	}
 
@@ -452,14 +464,12 @@ static int aw_early_suspend(void)
 #ifdef PRE_DISABLE_MMU
 	//jump to sram: dram enter selfresh, and power off.
 	mem = (int (*)(void))SRAM_FUNC_START_PA;
-	//move standby code to sram
-	memcpy((void *)SRAM_FUNC_START, (void *)&suspend_bin_start, (int)&suspend_bin_end - (int)&suspend_bin_start);
 #else
 	//jump to sram: dram enter selfresh, and power off.
 	mem = (int (*)(void))SRAM_FUNC_START;
-	//move standby code to sram
-	memcpy((void *)SRAM_FUNC_START, (void *)&suspend_bin_start, (int)&suspend_bin_end - (int)&suspend_bin_start);
 #endif
+    //move standby code to sram
+    memcpy((void *)SRAM_FUNC_START, (void *)&suspend_bin_start, (int)&suspend_bin_end - (int)&suspend_bin_start);
 
 
 #ifdef PRE_DISABLE_MMU
@@ -546,6 +556,7 @@ static int aw_super_standby(suspend_state_t state)
 {
 	int result = 0;
 	suspend_status_flag = 0;
+    mem_para_info.axp_enable = standby_axp_enable;
 
 mem_enter:
 	if( 1 == mem_para_info.mem_flag){
@@ -635,6 +646,7 @@ static int aw_pm_enter(suspend_state_t state)
 				IO_ADDRESS(SW_PA_PORTC_IO_BASE) + i*0x04, *(volatile __u32 *)(IO_ADDRESS(SW_PA_PORTC_IO_BASE) + i*0x04));
 		}
 	}
+    standby_info.standby_para.axp_enable = standby_axp_enable;
 
 	if(NORMAL_STANDBY== standby_type){
 		print_call_info();
@@ -643,11 +655,11 @@ static int aw_pm_enter(suspend_state_t state)
 		memcpy((void *)SRAM_FUNC_START, (void *)&standby_bin_start, (int)&standby_bin_end - (int)&standby_bin_start);
 		/* config system wakeup evetn type */
 		if(PM_SUSPEND_MEM == state || PM_SUSPEND_STANDBY == state){
-			standby_info.standby_para.axp_event = AXP_MEM_WAKEUP;
+			standby_info.standby_para.axp_src = AXP_MEM_WAKEUP;
 		}else if(PM_SUSPEND_BOOTFAST == state){
-			standby_info.standby_para.axp_event = AXP_BOOTFAST_WAKEUP;
+			standby_info.standby_para.axp_src = AXP_BOOTFAST_WAKEUP;
 		}
-		standby_info.standby_para.event = (SUSPEND_WAKEUP_SRC_EXINT | SUSPEND_WAKEUP_SRC_ALARM);
+		standby_info.standby_para.event_enable = (SUSPEND_WAKEUP_SRC_EXINT | SUSPEND_WAKEUP_SRC_ALARM);
 
 		/* goto sram and run */
 		standby(&standby_info);

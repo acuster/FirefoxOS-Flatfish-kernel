@@ -617,7 +617,6 @@ static int check_up(void)
     int num_hist = hotplug_history->num_hist;
     int hotplug_lock = atomic_read(&g_hotplug_lock);
 
-     printk("=======================%s %s===============\n", __FILE__, __FUNCTION__);
     if(dbs_tuners_ins.cpu_up_rate_adj != dbs_tuners_ins.cpu_up_rate)
         up_rate = dbs_tuners_ins.cpu_up_rate_adj;
     else
@@ -698,7 +697,6 @@ static int check_down(void)
     int num_hist = hotplug_history->num_hist;
     int hotplug_lock = atomic_read(&g_hotplug_lock);
 
-    printk("=======================%s %s===============\n", __FILE__, __FUNCTION__);
     /* hotplug has been locked, do nothing */
     if (hotplug_lock > 0)
         return 0;
@@ -1038,7 +1036,6 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
     int num_hist = hotplug_history->num_hist;
     int max_hotplug_rate = max((int)dbs_tuners_ins.cpu_up_rate, (int)dbs_tuners_ins.cpu_down_rate);
 
-    printk("=======================%s %s===============\n", __FILE__, __FUNCTION__);
     max_hotplug_rate = max(max_hotplug_rate, (int)dbs_tuners_ins.freq_up_rate);
     max_hotplug_rate = max(max_hotplug_rate, (int)dbs_tuners_ins.freq_down_rate);
 
@@ -1158,7 +1155,6 @@ static void do_dbs_timer(struct work_struct *work)
          */
         delay = usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
 
-        printk("=======================%s %s:%d===============\n", __FILE__, __FUNCTION__, delay);
         queue_delayed_work_on(cpu, dvfs_workqueue, &dbs_info->work, delay);
     }
 
