@@ -56,8 +56,9 @@ build_kernel()
 		cp arch/arm/configs/sun7ismp_defconfig .config
 	fi
 
-	build_standby
+#	build_standby
 	make ARCH=arm CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage modules
+	build_standby
 
 	${OBJCOPY} -R .note.gnu.build-id -S -O binary vmlinux bImage
 
