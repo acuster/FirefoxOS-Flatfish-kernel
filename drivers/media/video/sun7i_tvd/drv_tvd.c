@@ -170,37 +170,37 @@ static int tvd_clk_init(struct tvd_dev *dev,int interface)
 	struct clk *module_clk_src;
 
 	dev->ahb_clk=clk_get(NULL, "ahb_tvd");
-	if (dev->ahb_clk == NULL)
+	if (NULL == dev->ahb_clk || IS_ERR(dev->ahb_clk))
         {
-	        __err("get ahb clk error!\n");
+	        __err("get tvd ahb clk error!\n");
 	        return -1;
         }
 
 	dev->module1_clk=clk_get(NULL,"tvdmod1");
-	if(dev->module1_clk == NULL)
+	if(NULL == dev->module1_clk || IS_ERR(dev->module1_clk))
         {
-	        __err("get module1 clock error!\n");
+	        __err("get tvd module1 clock error!\n");
 		return -1;
         }
 
         dev->module2_clk=clk_get(NULL,"tvdmod2");
-	if(dev->module2_clk == NULL)
+	if(NULL == dev->module2_clk || IS_ERR(dev->module2_clk))
         {
-	        __err("get module2 clock error!\n");
+	        __err("get tvd module2 clock error!\n");
 		return -1;
         }
 
 	dev->dram_clk = clk_get(NULL, "sdram_tvd");
-	if (dev->dram_clk == NULL)
+	if (NULL == dev->dram_clk || IS_ERR(dev->dram_clk))
         {
-	        __err("get dram clock error!\n");
+	        __err("get tvd dram clock error!\n");
 		return -1;
         }
 
 	module_clk_src=clk_get(NULL,"video_pll0"); //can select video_pll0 or video_pll1
-	if (module_clk_src == NULL)
+	if (NULL == module_clk_src || IS_ERR(module_clk_src))
         {
-		__err("get clock source error!\n");
+		__err("get tvd clock source error!\n");
 		return -1;
         }
         if(interface==2)
@@ -209,15 +209,21 @@ static int tvd_clk_init(struct tvd_dev *dev,int interface)
 		ret = clk_set_rate(module_clk_src, 297000000); //264000000//297000000
 	if (ret == -1)
         {
-                __err("set parent clock error!\n");
+                __err("set tvd parent clock error!\n");
 	        return -1;
         }
 
 	ret = clk_set_parent(dev->module1_clk, module_clk_src);
 	if (ret == -1)
         {
-                __err("set parent clock error!\n");
+                __err("set tvd parent clock error!\n");
 	        return -1;
+        }
+
+        if(NULL == module_clk_src || IS_ERR(module_clk_src))
+        {
+                __err("tvd module_clk_src NULL hdle\n");
+                return -1;
         }
 	clk_put(module_clk_src); //use ok
 
@@ -226,34 +232,91 @@ static int tvd_clk_init(struct tvd_dev *dev,int interface)
 
 static int tvd_clk_exit(struct tvd_dev *dev)
 {
-	clk_put(dev->ahb_clk);
-	dev->ahb_clk = NULL;
-	clk_put(dev->module1_clk);
-	dev->module1_clk = NULL;
-	clk_put(dev->module2_clk);
-	dev->module2_clk = NULL;
-	clk_put(dev->dram_clk);
-	dev->dram_clk = NULL;
+        if(NULL == dev->ahb_clk || IS_ERR(dev->ahb_clk))
+        {
+                __err("tvd ahb_clk NULL hdle\n");
+                return -1;
+        }
+        clk_put(dev->ahb_clk);
+        dev->ahb_clk = NULL;
+
+        if(NULL == dev->module1_clk || IS_ERR(dev->module1_clk))
+        {
+                __err("tvd module1_clk NULL hdle\n");
+                return -1;
+        }
+        clk_put(dev->module1_clk);
+        dev->module1_clk = NULL;
+
+        if(NULL == dev->module2_clk || IS_ERR(dev->module2_clk))
+        {
+                __err("tvd module2_clk NULL hdle\n");
+                return -1;
+        }
+        clk_put(dev->module2_clk);
+        dev->module2_clk = NULL;
+
+        if(NULL == dev->dram_clk || IS_ERR(dev->dram_clk))
+        {
+                __err("tvd dram_clk NULL hdle\n");
+                return -1;
+        }
+        clk_put(dev->dram_clk);
+        dev->dram_clk = NULL;
 
 	return 0;
 }
 
 static int tvd_clk_open(struct tvd_dev *dev)
 {
-	clk_enable(dev->dram_clk);
-	clk_enable(dev->module1_clk);
-        clk_enable(dev->module2_clk);
-	clk_enable(dev->ahb_clk);
-
+	if(clk_enable(dev->dram_clk))
+        {
+                __err("tvd dram_clk enable fail\n");
+        }
+        if(clk_enable(dev->module1_clk))
+        {
+                __err("tvd module1_clk enable fail\n");
+        }
+        if(clk_enable(dev->module2_clk))
+        {
+                __err("tvd module2_clk enable fail\n");
+        }
+        if(clk_enable(dev->ahb_clk))
+        {
+                __err("tvd ahb_clk enable fail\n");
+        }
 	return 0;
 }
 
 static int tvd_clk_close(struct tvd_dev *dev)
 {
-	clk_disable(dev->ahb_clk);
-	clk_disable(dev->module1_clk);
+        if(NULL == dev->ahb_clk || IS_ERR(dev->ahb_clk))
+        {
+                __err("tvd ahb_clk NULL hdle\n");
+                return -1;
+        }
+        clk_disable(dev->ahb_clk);
+
+        if(NULL == dev->module1_clk || IS_ERR(dev->module1_clk))
+        {
+                __err("tvd module1_clk NULL hdle\n");
+                return -1;
+        }
+        clk_disable(dev->module1_clk);
+
+        if(NULL == dev->module2_clk || IS_ERR(dev->module2_clk))
+        {
+                __err("tvd module2_clk NULL hdle\n");
+                return -1;
+        }
         clk_disable(dev->module2_clk);
-	clk_disable(dev->dram_clk);
+
+        if(NULL == dev->dram_clk || IS_ERR(dev->dram_clk))
+        {
+                __err("tvd dram_clk NULL hdle\n");
+                return -1;
+        }
+        clk_disable(dev->dram_clk);
 
 	return 0;
 }
