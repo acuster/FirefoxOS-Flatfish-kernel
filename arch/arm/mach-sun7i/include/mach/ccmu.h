@@ -326,14 +326,15 @@ typedef struct __CCMU_USB_CLK_REG00CC {
     __u32   reserved2: 23;      //bit9,  reserved
 } __ccmu_usb_clk_reg00cc_t;
 
-typedef struct __CCMU_GPS_CLK_REG00D0 {
-    __u32   ClkDivRatio: 3;     //bit0,  clock divide ratio(m)
-    __u32   reserved0: 21;      //bit3,  reserved
-    __u32   ClkSrc: 2;          //bit24, GPU Clock Source Select: 00-osc24M, 01-PLL6, 10-PLL7, 11-PLL4.
-    __u32   reserved1: 4;       //bit26, reserved
-    __u32   Reset: 1;           //bit30, GPS reset control
-    __u32   SpecClkGate: 1;     //bit31, gating special clock for GPS, 0-CLK OFF, 1-CLK ON
-} __ccmu_gps_clk_reg00d0_t;
+/* REMOVED */
+//typedef struct __CCMU_GPS_CLK_REG00D0 {
+//    __u32   ClkDivRatio: 3;     //bit0,  clock divide ratio(m)
+//    __u32   reserved0: 21;      //bit3,  reserved
+//    __u32   ClkSrc: 2;          //bit24, GPU Clock Source Select: 00-osc24M, 01-PLL6, 10-PLL7, 11-PLL4.
+//    __u32   reserved1: 4;       //bit26, reserved
+//    __u32   Reset: 1;           //bit30, GPS reset control
+//    __u32   SpecClkGate: 1;     //bit31, gating special clock for GPS, 0-CLK OFF, 1-CLK ON
+//} __ccmu_gps_clk_reg00d0_t;
 
 typedef struct __CCMU_DRAM_GATE_REG0100 {
     __u32   VeGate: 1;          //bit0,  Gating dram clock for VE, 0-mask, 1-pass
@@ -485,7 +486,7 @@ typedef struct __CCMU_MBUS_CLK_REG015C {
 typedef struct __CCMU_GMAC_CLK_REG0164 {
     __u32   TxClkSrc: 2;        //bit0,  GMAC Transmit Clock Source
     __u32   PhyIT: 1;           //bit2,  GMAC Phy Interface Type
-    __u32   TXClkInv: 1;        //bit3,  Enable GMAC Transmit Clock Invertor, 0-Disable, 1-Enable
+    __u32   TxClkInv: 1;        //bit3,  Enable GMAC Transmit Clock Invertor, 0-Disable, 1-Enable
     __u32   RxClkInv: 1;        //bit4,  Enable GMAC Receive Clock Invertor
     __u32   RxDlyChain: 3;      //bit5,  Configure GMAC Receive Clock Delay Chain
     __u32   ClkDiv: 2;          //bit8,  Clock pre-divide ratio(n)

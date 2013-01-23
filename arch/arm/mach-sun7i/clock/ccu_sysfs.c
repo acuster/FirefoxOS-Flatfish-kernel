@@ -465,6 +465,7 @@ static int __init ccu_sysfs_init(void)
 {
     int status;
 
+    /* create /sys/class/ccu/ */
     status = class_register(&ccu_class);
     if (status < 0)
         CCU_ERR("%s: status %d\n", __func__, status);

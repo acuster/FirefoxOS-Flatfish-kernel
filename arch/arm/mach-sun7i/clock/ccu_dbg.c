@@ -188,6 +188,7 @@ void clk_dbg_inf(void)
     print_clk_inf(AhbGate1, Lcd1Gate);
     print_clk_inf(AhbGate1, Csi0Gate);
     print_clk_inf(AhbGate1, Csi1Gate);
+    print_clk_inf(AhbGate1, Hdmi1Gate);
     print_clk_inf(AhbGate1, HdmiDGate);
     print_clk_inf(AhbGate1, DeBe0Gate);
     print_clk_inf(AhbGate1, DeBe1Gate);
@@ -201,19 +202,23 @@ void clk_dbg_inf(void)
     print_clk_inf(Apb0Gate, SpdifGate);
     print_clk_inf(Apb0Gate, Ac97Gate);
     print_clk_inf(Apb0Gate, Iis0Gate);
+    print_clk_inf(Apb0Gate, Iis1Gate);
     print_clk_inf(Apb0Gate, PioGate);
     print_clk_inf(Apb0Gate, Ir0Gate);
     print_clk_inf(Apb0Gate, Ir1Gate);
+    print_clk_inf(Apb0Gate, Iis2Gate);
     print_clk_inf(Apb0Gate, KeypadGate);
 
     printk("\nApb1Gate clk infor:\n");
     print_clk_inf(Apb1Gate, Twi0Gate);
     print_clk_inf(Apb1Gate, Twi1Gate);
     print_clk_inf(Apb1Gate, Twi2Gate);
+    print_clk_inf(Apb1Gate, Twi3Gate);
     print_clk_inf(Apb1Gate, CanGate);
     print_clk_inf(Apb1Gate, ScrGate);
     print_clk_inf(Apb1Gate, Ps20Gate);
     print_clk_inf(Apb1Gate, Ps21Gate);
+    print_clk_inf(Apb1Gate, Twi4Gate);
     print_clk_inf(Apb1Gate, Uart0Gate);
     print_clk_inf(Apb1Gate, Uart1Gate);
     print_clk_inf(Apb1Gate, Uart2Gate);
@@ -311,7 +316,6 @@ void clk_dbg_inf(void)
     print_clk_inf(I2s0Clk, ClkDiv);
     print_clk_inf(I2s0Clk, SpecClkGate);
 
-
     printk("\nAc97Clk clk infor:\n");
     print_clk_inf(Ac97Clk, ClkDiv);
     print_clk_inf(Ac97Clk, SpecClkGate);
@@ -352,6 +356,14 @@ void clk_dbg_inf(void)
     print_clk_inf(Spi3Clk, ClkPreDiv);
     print_clk_inf(Spi3Clk, ClkSrc);
     print_clk_inf(Spi3Clk, SpecClkGate);
+
+    printk("\nI2s1Clk clk infor:\n");
+    print_clk_inf(I2s1Clk, ClkDiv);
+    print_clk_inf(I2s1Clk, SpecClkGate);
+
+    printk("\nI2s2Clk clk infor:\n");
+    print_clk_inf(I2s2Clk, ClkDiv);
+    print_clk_inf(I2s2Clk, SpecClkGate);
 
     printk("\nDramGate clk infor:\n");
     print_clk_inf(DramGate, VeGate);
@@ -484,6 +496,14 @@ void clk_dbg_inf(void)
     print_clk_inf(MBusClk, ClkDivN);
     print_clk_inf(MBusClk, ClkSrc);
     print_clk_inf(MBusClk, ClkGate);
+
+    printk("\nGmacClk clk infor:\n");
+    print_clk_inf(GmacClk, TxClkSrc);
+    print_clk_inf(GmacClk, PhyIT);
+    print_clk_inf(GmacClk, TxClkInv);
+    print_clk_inf(GmacClk, RxClkInv);
+    print_clk_inf(GmacClk, RxDlyChain);
+    print_clk_inf(GmacClk, ClkDiv);
 
     printk("\nClkOutA clk infor:\n");
     print_clk_inf(ClkOutA, ClkDivM);
@@ -660,11 +680,13 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, AhbGate1, Lcd1Gate);
     sprintf_clk_inf(m, AhbGate1, Csi0Gate);
     sprintf_clk_inf(m, AhbGate1, Csi1Gate);
+    sprintf_clk_inf(m, AhbGate1, Hdmi1Gate);
     sprintf_clk_inf(m, AhbGate1, HdmiDGate);
     sprintf_clk_inf(m, AhbGate1, DeBe0Gate);
     sprintf_clk_inf(m, AhbGate1, DeBe1Gate);
     sprintf_clk_inf(m, AhbGate1, DeFe0Gate);
     sprintf_clk_inf(m, AhbGate1, DeFe1Gate);
+    sprintf_clk_inf(m, AhbGate1, GmacGate);
     sprintf_clk_inf(m, AhbGate1, MpGate);
     sprintf_clk_inf(m, AhbGate1, Gpu3DGate);
 
@@ -673,19 +695,23 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, Apb0Gate, SpdifGate);
     sprintf_clk_inf(m, Apb0Gate, Ac97Gate);
     sprintf_clk_inf(m, Apb0Gate, Iis0Gate);
+    sprintf_clk_inf(m, Apb0Gate, Iis1Gate);
     sprintf_clk_inf(m, Apb0Gate, PioGate);
     sprintf_clk_inf(m, Apb0Gate, Ir0Gate);
     sprintf_clk_inf(m, Apb0Gate, Ir1Gate);
+    sprintf_clk_inf(m, Apb0Gate, Iis2Gate);
     sprintf_clk_inf(m, Apb0Gate, KeypadGate);
 
     seq_printf(m, "\nApb1Gate clk infor:\n");
     sprintf_clk_inf(m, Apb1Gate, Twi0Gate);
     sprintf_clk_inf(m, Apb1Gate, Twi1Gate);
     sprintf_clk_inf(m, Apb1Gate, Twi2Gate);
+    sprintf_clk_inf(m, Apb1Gate, Twi3Gate);
     sprintf_clk_inf(m, Apb1Gate, CanGate);
     sprintf_clk_inf(m, Apb1Gate, ScrGate);
     sprintf_clk_inf(m, Apb1Gate, Ps20Gate);
     sprintf_clk_inf(m, Apb1Gate, Ps21Gate);
+    sprintf_clk_inf(m, Apb1Gate, Twi4Gate);
     sprintf_clk_inf(m, Apb1Gate, Uart0Gate);
     sprintf_clk_inf(m, Apb1Gate, Uart1Gate);
     sprintf_clk_inf(m, Apb1Gate, Uart2Gate);
@@ -825,6 +851,14 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, Spi3Clk, ClkSrc);
     sprintf_clk_inf(m, Spi3Clk, SpecClkGate);
 
+    seq_printf(m, "\nI2s1Clk clk infor:\n");
+    sprintf_clk_inf(m, I2s1Clk, ClkDiv);
+    sprintf_clk_inf(m, I2s1Clk, SpecClkGate);
+
+    seq_printf(m, "\nI2s2Clk clk infor:\n");
+    sprintf_clk_inf(m, I2s2Clk, ClkDiv);
+    sprintf_clk_inf(m, I2s2Clk, SpecClkGate);
+
     seq_printf(m, "\nDramGate clk infor:\n");
     sprintf_clk_inf(m, DramGate, VeGate);
     sprintf_clk_inf(m, DramGate, Csi0Gate);
@@ -957,6 +991,14 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, MBusClk, ClkSrc);
     sprintf_clk_inf(m, MBusClk, ClkGate);
 
+    seq_printf(m, "\nGmacClk clk infor:\n");
+    sprintf_clk_inf(m, GmacClk, TxClkSrc);
+    sprintf_clk_inf(m, GmacClk, PhyIT);
+    sprintf_clk_inf(m, GmacClk, TxClkInv);
+    sprintf_clk_inf(m, GmacClk, RxClkInv);
+    sprintf_clk_inf(m, GmacClk, RxDlyChain);
+    sprintf_clk_inf(m, GmacClk, ClkDiv);
+
     seq_printf(m, "\nClkOutA clk infor:\n");
     sprintf_clk_inf(m, ClkOutA, ClkDivM);
     sprintf_clk_inf(m, ClkOutA, ClkDivN);
@@ -988,6 +1030,7 @@ static const struct file_operations ccmu_dbg_fops = {
 
 static int __init ccu_dbg_init(void)
 {
+    /* create /proc/ccmu */
     proc_create("ccmu", S_IRUGO, NULL, &ccmu_dbg_fops);
     return 0;
 }

@@ -190,7 +190,11 @@ static __aw_ccu_clk_id_e mod_clk_get_parent(__aw_ccu_clk_id_e id)
             return _parse_module0_clk_src(&aw_ccu_reg->Ir0Clk);
         case AW_MOD_CLK_IR1:
             return _parse_module0_clk_src(&aw_ccu_reg->Ir1Clk);
-        case AW_MOD_CLK_I2S:
+        case AW_MOD_CLK_I2S0:
+            return AW_SYS_CLK_PLL2;
+        case AW_MOD_CLK_I2S1:
+            return AW_SYS_CLK_PLL2;
+        case AW_MOD_CLK_I2S2:
             return AW_SYS_CLK_PLL2;
         case AW_MOD_CLK_AC97:
             return AW_SYS_CLK_PLL2;
@@ -257,7 +261,7 @@ static __aw_ccu_clk_id_e mod_clk_get_parent(__aw_ccu_clk_id_e id)
                 case 2:
                     return AW_SYS_CLK_PLL3X2;
                 case 3:
-                    return AW_SYS_CLK_PLL7X2;
+                    return AW_SYS_CLK_PLL62;
                 default:
                     return AW_SYS_CLK_NONE;
             }
@@ -409,12 +413,12 @@ static __aw_ccu_clk_id_e mod_clk_get_parent(__aw_ccu_clk_id_e id)
                 case 0:
                     return AW_SYS_CLK_HOSC;
                 case 1:
-                    return AW_SYS_CLK_PLL6;
+                    return AW_SYS_CLK_PLL62;
                 case 2:
-                    return AW_SYS_CLK_PLL5M;
+                    return AW_SYS_CLK_PLL5P;
                 default:
                     aw_ccu_reg->MBusClk.ClkSrc = 2;
-                    return AW_SYS_CLK_PLL5;
+                    return AW_SYS_CLK_PLL5P;
             }
         }
         case AW_MOD_CLK_OUTA: {
@@ -440,6 +444,8 @@ static __aw_ccu_clk_id_e mod_clk_get_parent(__aw_ccu_clk_id_e id)
         case AW_MOD_CLK_TWI0:
         case AW_MOD_CLK_TWI1:
         case AW_MOD_CLK_TWI2:
+        case AW_MOD_CLK_TWI3:
+        case AW_MOD_CLK_TWI4:
         case AW_MOD_CLK_CAN:
         case AW_MOD_CLK_SCR:
         case AW_MOD_CLK_PS20:
@@ -497,8 +503,12 @@ static __aw_ccu_clk_onff_e mod_clk_get_status(__aw_ccu_clk_id_e id)
             return _get_module0_clk_status(&aw_ccu_reg->Ir0Clk);
         case AW_MOD_CLK_IR1:
             return _get_module0_clk_status(&aw_ccu_reg->Ir1Clk);
-        case AW_MOD_CLK_I2S:
+        case AW_MOD_CLK_I2S0:
             return aw_ccu_reg->I2s0Clk.SpecClkGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
+        case AW_MOD_CLK_I2S1:
+            return aw_ccu_reg->I2s1Clk.SpecClkGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
+        case AW_MOD_CLK_I2S2:
+            return aw_ccu_reg->I2s2Clk.SpecClkGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_MOD_CLK_AC97:
             return aw_ccu_reg->Ac97Clk.SpecClkGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_MOD_CLK_SPDIF:
@@ -579,6 +589,8 @@ static __aw_ccu_clk_onff_e mod_clk_get_status(__aw_ccu_clk_id_e id)
         case AW_MOD_CLK_TWI0:
         case AW_MOD_CLK_TWI1:
         case AW_MOD_CLK_TWI2:
+        case AW_MOD_CLK_TWI3:
+        case AW_MOD_CLK_TWI4:
         case AW_MOD_CLK_CAN:
         case AW_MOD_CLK_SCR:
         case AW_MOD_CLK_PS20:
@@ -661,6 +673,8 @@ static __aw_ccu_clk_onff_e mod_clk_get_status(__aw_ccu_clk_id_e id)
             return aw_ccu_reg->AhbGate1.Csi0Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_AHB_CLK_CSI1:
             return aw_ccu_reg->AhbGate1.Csi1Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
+        case AW_AHB_CLK_HDMI1:
+            return aw_ccu_reg->AhbGate1.Hdmi1Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_AHB_CLK_HDMI:
             return aw_ccu_reg->AhbGate1.HdmiDGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_AHB_CLK_DEBE0:
@@ -671,6 +685,8 @@ static __aw_ccu_clk_onff_e mod_clk_get_status(__aw_ccu_clk_id_e id)
             return aw_ccu_reg->AhbGate1.DeFe0Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_AHB_CLK_DEFE1:
             return aw_ccu_reg->AhbGate1.DeFe1Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
+        case AW_AHB_CLK_GMAC:
+            return aw_ccu_reg->AhbGate1.GmacGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_AHB_CLK_MP:
             return aw_ccu_reg->AhbGate1.MpGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_AHB_CLK_MALI:
@@ -681,8 +697,12 @@ static __aw_ccu_clk_onff_e mod_clk_get_status(__aw_ccu_clk_id_e id)
             return aw_ccu_reg->Apb0Gate.SpdifGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_APB_CLK_AC97:
             return aw_ccu_reg->Apb0Gate.Ac97Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
-        case AW_APB_CLK_I2S:
+        case AW_APB_CLK_I2S0:
             return aw_ccu_reg->Apb0Gate.Iis0Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
+        case AW_APB_CLK_I2S1:
+            return aw_ccu_reg->Apb0Gate.Iis1Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
+        case AW_APB_CLK_I2S2:
+            return aw_ccu_reg->Apb0Gate.Iis2Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_APB_CLK_PIO:
             return aw_ccu_reg->Apb0Gate.PioGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_APB_CLK_IR0:
@@ -697,6 +717,10 @@ static __aw_ccu_clk_onff_e mod_clk_get_status(__aw_ccu_clk_id_e id)
             return aw_ccu_reg->Apb1Gate.Twi1Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_APB_CLK_TWI2:
             return aw_ccu_reg->Apb1Gate.Twi2Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
+        case AW_APB_CLK_TWI3:
+            return aw_ccu_reg->Apb1Gate.Twi3Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
+        case AW_APB_CLK_TWI4:
+            return aw_ccu_reg->Apb1Gate.Twi4Gate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_APB_CLK_CAN:
             return aw_ccu_reg->Apb1Gate.CanGate ? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_APB_CLK_SCR:
@@ -790,8 +814,12 @@ static __s64 mod_clk_get_rate(__aw_ccu_clk_id_e id)
             return _get_module0_clk_rate(&aw_ccu_reg->Ir0Clk);
         case AW_MOD_CLK_IR1:
             return _get_module0_clk_rate(&aw_ccu_reg->Ir1Clk);
-        case AW_MOD_CLK_I2S:
+        case AW_MOD_CLK_I2S0:
             return (1 << aw_ccu_reg->I2s0Clk.ClkDiv);
+        case AW_MOD_CLK_I2S1:
+            return (1 << aw_ccu_reg->I2s1Clk.ClkDiv);
+        case AW_MOD_CLK_I2S2:
+            return (1 << aw_ccu_reg->I2s2Clk.ClkDiv);
         case AW_MOD_CLK_AC97:
             return (1 << aw_ccu_reg->Ac97Clk.ClkDiv);
         case AW_MOD_CLK_SPDIF:
@@ -911,7 +939,11 @@ static __s32 mod_clk_set_parent(__aw_ccu_clk_id_e id, __aw_ccu_clk_id_e parent)
             return _set_module0_clk_src(&aw_ccu_reg->Ir0Clk, parent);
         case AW_MOD_CLK_IR1:
             return _set_module0_clk_src(&aw_ccu_reg->Ir1Clk, parent);
-        case AW_MOD_CLK_I2S:
+        case AW_MOD_CLK_I2S0:
+            return (parent == AW_SYS_CLK_PLL2) ? 0 : -1;
+        case AW_MOD_CLK_I2S1:
+            return (parent == AW_SYS_CLK_PLL2) ? 0 : -1;
+        case AW_MOD_CLK_I2S2:
             return (parent == AW_SYS_CLK_PLL2) ? 0 : -1;
         case AW_MOD_CLK_AC97:
             return (parent == AW_SYS_CLK_PLL2) ? 0 : -1;
@@ -975,7 +1007,7 @@ static __s32 mod_clk_set_parent(__aw_ccu_clk_id_e id, __aw_ccu_clk_id_e parent)
                 case AW_SYS_CLK_PLL7:
                     aw_ccu_reg->Lcd0Ch0Clk.ClkSrc = 1;
                     return 0;
-                case AW_SYS_CLK_PLL7X2:
+                case AW_SYS_CLK_PLL62:
                     aw_ccu_reg->Lcd0Ch0Clk.ClkSrc = 3;
                     return 0;
                 default:
@@ -1089,8 +1121,14 @@ static __s32 mod_clk_set_parent(__aw_ccu_clk_id_e id, __aw_ccu_clk_id_e parent)
                 case AW_SYS_CLK_PLL3:
                     aw_ccu_reg->Csi0Clk.ClkSrc = 1;
                     return 0;
+                case AW_SYS_CLK_PLL3X2:
+                    aw_ccu_reg->Csi0Clk.ClkSrc = 5;
+                    return 0;
                 case AW_SYS_CLK_PLL7:
                     aw_ccu_reg->Csi0Clk.ClkSrc = 2;
+                    return 0;
+                case AW_SYS_CLK_PLL7X2:
+                    aw_ccu_reg->Csi0Clk.ClkSrc = 6;
                     return 0;
                 default:
                     return -1;
@@ -1187,10 +1225,10 @@ static __s32 mod_clk_set_parent(__aw_ccu_clk_id_e id, __aw_ccu_clk_id_e parent)
                 case AW_SYS_CLK_HOSC:
                     aw_ccu_reg->MBusClk.ClkSrc = 0;
                     break;
-                case AW_SYS_CLK_PLL6:
+                case AW_SYS_CLK_PLL62:
                     aw_ccu_reg->MBusClk.ClkSrc = 1;
                     break;
-                case AW_SYS_CLK_PLL5M:
+                case AW_SYS_CLK_PLL5P:
                     aw_ccu_reg->MBusClk.ClkSrc = 2;
                     break;
                 default:
@@ -1241,6 +1279,8 @@ static __s32 mod_clk_set_parent(__aw_ccu_clk_id_e id, __aw_ccu_clk_id_e parent)
         case AW_MOD_CLK_TWI0:
         case AW_MOD_CLK_TWI1:
         case AW_MOD_CLK_TWI2:
+        case AW_MOD_CLK_TWI3:
+        case AW_MOD_CLK_TWI4:
         case AW_MOD_CLK_CAN:
         case AW_MOD_CLK_SCR:
         case AW_MOD_CLK_PS20:
@@ -1300,8 +1340,14 @@ static __s32 mod_clk_set_status(__aw_ccu_clk_id_e id, __aw_ccu_clk_onff_e status
             return _set_module0_clk_status(&aw_ccu_reg->Ir0Clk, status);
         case AW_MOD_CLK_IR1:
             return _set_module0_clk_status(&aw_ccu_reg->Ir1Clk, status);
-        case AW_MOD_CLK_I2S:
+        case AW_MOD_CLK_I2S0:
             aw_ccu_reg->I2s0Clk.SpecClkGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
+            return 0;
+        case AW_MOD_CLK_I2S1:
+            aw_ccu_reg->I2s1Clk.SpecClkGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
+            return 0;
+        case AW_MOD_CLK_I2S2:
+            aw_ccu_reg->I2s2Clk.SpecClkGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
             return 0;
         case AW_MOD_CLK_AC97:
             aw_ccu_reg->Ac97Clk.SpecClkGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
@@ -1424,6 +1470,8 @@ static __s32 mod_clk_set_status(__aw_ccu_clk_id_e id, __aw_ccu_clk_onff_e status
         case AW_MOD_CLK_TWI0:
         case AW_MOD_CLK_TWI1:
         case AW_MOD_CLK_TWI2:
+        case AW_MOD_CLK_TWI3:
+        case AW_MOD_CLK_TWI4:
         case AW_MOD_CLK_CAN:
         case AW_MOD_CLK_SCR:
         case AW_MOD_CLK_PS20:
@@ -1543,6 +1591,9 @@ static __s32 mod_clk_set_status(__aw_ccu_clk_id_e id, __aw_ccu_clk_onff_e status
         case AW_AHB_CLK_CSI1:
             aw_ccu_reg->AhbGate1.Csi1Gate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
             return 0;
+        case AW_AHB_CLK_HDMI1:
+            aw_ccu_reg->AhbGate1.Hdmi1Gate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
+            return 0;
         case AW_AHB_CLK_HDMI:
             aw_ccu_reg->AhbGate1.HdmiDGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
             return 0;
@@ -1557,6 +1608,9 @@ static __s32 mod_clk_set_status(__aw_ccu_clk_id_e id, __aw_ccu_clk_onff_e status
             return 0;
         case AW_AHB_CLK_DEFE1:
             aw_ccu_reg->AhbGate1.DeFe1Gate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
+            return 0;
+        case AW_AHB_CLK_GMAC:
+            aw_ccu_reg->AhbGate1.GmacGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
             return 0;
         case AW_AHB_CLK_MP:
             aw_ccu_reg->AhbGate1.MpGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
@@ -1574,8 +1628,14 @@ static __s32 mod_clk_set_status(__aw_ccu_clk_id_e id, __aw_ccu_clk_onff_e status
         case AW_APB_CLK_AC97:
             aw_ccu_reg->Apb0Gate.Ac97Gate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
             return 0;
-        case AW_APB_CLK_I2S:
+        case AW_APB_CLK_I2S0:
             aw_ccu_reg->Apb0Gate.Iis0Gate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
+            return 0;
+        case AW_APB_CLK_I2S1:
+            aw_ccu_reg->Apb0Gate.Iis1Gate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
+            return 0;
+        case AW_APB_CLK_I2S2:
+            aw_ccu_reg->Apb0Gate.Iis2Gate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
             return 0;
         case AW_APB_CLK_PIO:
             aw_ccu_reg->Apb0Gate.PioGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
@@ -1597,6 +1657,12 @@ static __s32 mod_clk_set_status(__aw_ccu_clk_id_e id, __aw_ccu_clk_onff_e status
             return 0;
         case AW_APB_CLK_TWI2:
             aw_ccu_reg->Apb1Gate.Twi2Gate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
+            return 0;
+        case AW_APB_CLK_TWI3:
+            aw_ccu_reg->Apb1Gate.Twi3Gate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
+            return 0;
+        case AW_APB_CLK_TWI4:
+            aw_ccu_reg->Apb1Gate.Twi4Gate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
             return 0;
         case AW_APB_CLK_CAN:
             aw_ccu_reg->Apb1Gate.CanGate = (status == AW_CCU_CLK_OFF) ? 0 : 1;
@@ -1717,7 +1783,7 @@ static __s32 mod_clk_set_rate(__aw_ccu_clk_id_e id, __s64 rate)
             return _set_module0_clk_rate(&aw_ccu_reg->Ir0Clk, rate);
         case AW_MOD_CLK_IR1:
             return _set_module0_clk_rate(&aw_ccu_reg->Ir1Clk, rate);
-        case AW_MOD_CLK_I2S: {
+        case AW_MOD_CLK_I2S0: {
             switch (rate) {
                 case 1:
                     aw_ccu_reg->I2s0Clk.ClkDiv = 0;
@@ -1730,6 +1796,44 @@ static __s32 mod_clk_set_rate(__aw_ccu_clk_id_e id, __s64 rate)
                     return 0;
                 case 8:
                     aw_ccu_reg->I2s0Clk.ClkDiv = 3;
+                    return 0;
+                default:
+                    return -1;
+            }
+            return -1;
+        }
+        case AW_MOD_CLK_I2S1: {
+            switch (rate) {
+                case 1:
+                    aw_ccu_reg->I2s1Clk.ClkDiv = 0;
+                    return 0;
+                case 2:
+                    aw_ccu_reg->I2s1Clk.ClkDiv = 1;
+                    return 0;
+                case 4:
+                    aw_ccu_reg->I2s1Clk.ClkDiv = 2;
+                    return 0;
+                case 8:
+                    aw_ccu_reg->I2s1Clk.ClkDiv = 3;
+                    return 0;
+                default:
+                    return -1;
+            }
+            return -1;
+        }
+        case AW_MOD_CLK_I2S2: {
+            switch (rate) {
+                case 1:
+                    aw_ccu_reg->I2s2Clk.ClkDiv = 0;
+                    return 0;
+                case 2:
+                    aw_ccu_reg->I2s2Clk.ClkDiv = 1;
+                    return 0;
+                case 4:
+                    aw_ccu_reg->I2s2Clk.ClkDiv = 2;
+                    return 0;
+                case 8:
+                    aw_ccu_reg->I2s2Clk.ClkDiv = 3;
                     return 0;
                 default:
                     return -1;
@@ -2095,7 +2199,9 @@ static __aw_ccu_clk_reset_e mod_clk_get_reset(__aw_ccu_clk_id_e id)
         case AW_MOD_CLK_PATA:
         case AW_MOD_CLK_IR0:
         case AW_MOD_CLK_IR1:
-        case AW_MOD_CLK_I2S:
+        case AW_MOD_CLK_I2S0:
+        case AW_MOD_CLK_I2S1:
+        case AW_MOD_CLK_I2S2:
         case AW_MOD_CLK_AC97:
         case AW_MOD_CLK_SPDIF:
         case AW_MOD_CLK_KEYPAD:
@@ -2184,7 +2290,9 @@ static __s32 mod_clk_set_reset(__aw_ccu_clk_id_e id, __aw_ccu_clk_reset_e reset)
         case AW_MOD_CLK_PATA:
         case AW_MOD_CLK_IR0:
         case AW_MOD_CLK_IR1:
-        case AW_MOD_CLK_I2S:
+        case AW_MOD_CLK_I2S0:
+        case AW_MOD_CLK_I2S1:
+        case AW_MOD_CLK_I2S2:
         case AW_MOD_CLK_AC97:
         case AW_MOD_CLK_SPDIF:
         case AW_MOD_CLK_KEYPAD:

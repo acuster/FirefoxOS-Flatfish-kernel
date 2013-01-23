@@ -52,6 +52,7 @@ static __aw_ccu_clk_id_e sys_clk_get_parent(__aw_ccu_clk_id_e id)
                 case 2:
                     return AW_SYS_CLK_PLL1;
                 case 3:
+                    return AW_SYS_CLK_PLL6;
                 default:
                     return AW_SYS_CLK_NONE;
             }
@@ -176,9 +177,9 @@ static __u64 sys_clk_get_rate(__aw_ccu_clk_id_e id)
                 FactorN=86, PreDiv=21, PostDiv=4, output=24*86/21/4=24.571mhz, 48k series fs */
             tmpReg = *(volatile __u32 *)&aw_ccu_reg->Pll2Ctl;
             if (((tmpReg >> 8) & 0x7f) == 79) {
-                return 22579200; /* liugang, 22.571mhz ~= 22579200, 22579200*2/1024=44100 2012-10-9 */
+                return 22579200; /* 22.571mhz ~= 22579200, 22579200*2/1024=44100 */
             } else if (((tmpReg >> 8) & 0x7f) == 86) {
-                return 24576000; /* liugang, 24.571mhz ~= 24576000, 24576000*2/1024=48000 2012-10-9 */
+                return 24576000; /* 24.571mhz ~= 24576000, 24576000*2/1024=48000 */
             } else {
                 /* set audio pll to default value 24576000 */
                 tmpReg &= ~((0x1f << 0) | (0x7f << 8) | (0x0f << 26));
@@ -189,9 +190,9 @@ static __u64 sys_clk_get_rate(__aw_ccu_clk_id_e id)
         }
         case AW_SYS_CLK_PLL2X8: {
             if (sys_clk_get_rate(AW_SYS_CLK_PLL2) == 24576000) {
-                return 24576000 * 18; /* liugang, why not 24576000 * 8? 2012-10-9 */
+                return 24576000 * 18; /* why not 24576000 * 8? */
             } else {
-                return 22579200 * 20; /* liugang, why not 22579200 * 8? 2012-10-9 */
+                return 22579200 * 20; /* why not 22579200 * 8? */
             }
         }
         case AW_SYS_CLK_PLL3: {
@@ -577,9 +578,7 @@ static int sys_clk_set_rate(__aw_ccu_clk_id_e id, __u64 rate)
         case AW_SYS_CLK_PLL2X8: {
             if ((sys_clk_get_rate(AW_SYS_CLK_PLL2) == 24576000) && (rate == 24576000 * 18)) {
                 return 0;
-            } else if ((sys_clk_get_rate(AW_SYS_CLK_PLL2) == 22579200) && (rate == 24576000 * 20))
-
-            {
+            } else if ((sys_clk_get_rate(AW_SYS_CLK_PLL2) == 22579200) && (rate == 24576000 * 20)) {
                 return 0;
             }
 

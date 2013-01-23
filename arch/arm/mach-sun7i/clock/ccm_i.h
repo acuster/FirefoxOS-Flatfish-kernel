@@ -25,15 +25,15 @@
 #if (CCU_DEBUG_LEVEL == 1)
     #define CCU_DBG(format,args...)     do {} while (0)
     #define CCU_INF(format,args...)     do {} while (0)
-    #define CCU_ERR(format,args...)     printk("[ccu-err] "format,##args)
+    #define CCU_ERR(format,args...)     printk(KERN_ERR "[ccu-err] "format,##args)
 #elif (CCU_DEBUG_LEVEL == 2)
     #define CCU_DBG(format,args...)     do {} while (0)
-    #define CCU_INF(format,args...)     printk("[ccu-inf] "format,##args)
-    #define CCU_ERR(format,args...)     printk("[ccu-err] "format,##args)
+    #define CCU_INF(format,args...)     printk(KERN_INFO"[ccu-inf] "format,##args)
+    #define CCU_ERR(format,args...)     printk(KERN_ERR "[ccu-err] "format,##args)
 #elif (CCU_DEBUG_LEVEL == 3)
-    #define CCU_DBG(format,args...)     printk("[ccu-dbg] "format,##args)
-    #define CCU_INF(format,args...)     printk("[ccu-inf] "format,##args)
-    #define CCU_ERR(format,args...)     printk("[ccu-err] "format,##args)
+    #define CCU_DBG(format,args...)     printk(KERN_INFO"[ccu-dbg] "format,##args)
+    #define CCU_INF(format,args...)     printk(KERN_INFO"[ccu-inf] "format,##args)
+    #define CCU_ERR(format,args...)     printk(KERN_ERR "[ccu-err] "format,##args)
 #endif
 
 /* define system clock id */
@@ -83,7 +83,9 @@ typedef enum __AW_CCU_CLK_ID
     AW_MOD_CLK_PATA,        /* "pata"                                           */
     AW_MOD_CLK_IR0,         /* "ir0"                                            */
     AW_MOD_CLK_IR1,         /* "ir1"                                            */
-    AW_MOD_CLK_I2S,         /* "i2s"                                            */
+    AW_MOD_CLK_I2S0,        /* "i2s0"                                           */
+    AW_MOD_CLK_I2S1,        /* "i2s1"                                           */
+    AW_MOD_CLK_I2S2,        /* "i2s2"                                           */
     AW_MOD_CLK_AC97,        /* "ac97"                                           */
     AW_MOD_CLK_SPDIF,       /* "spdif"                                          */
     AW_MOD_CLK_KEYPAD,      /* "key_pad"                                        */
@@ -122,6 +124,8 @@ typedef enum __AW_CCU_CLK_ID
     AW_MOD_CLK_TWI0,        /* "twi0"                                           */
     AW_MOD_CLK_TWI1,        /* "twi1"                                           */
     AW_MOD_CLK_TWI2,        /* "twi2"                                           */
+    AW_MOD_CLK_TWI3,        /* "twi3"                                           */
+    AW_MOD_CLK_TWI4,        /* "twi4"                                           */
     AW_MOD_CLK_CAN,         /* "can"                                            */
     AW_MOD_CLK_SCR,         /* "scr"                                            */
     AW_MOD_CLK_PS20,        /* "ps0"                                            */
@@ -171,11 +175,13 @@ typedef enum __AW_CCU_CLK_ID
     AW_AHB_CLK_LCD1,        /* "ahb_lcd1"                                       */
     AW_AHB_CLK_CSI0,        /* "ahb_csi0"                                       */
     AW_AHB_CLK_CSI1,        /* "ahb_csi1"                                       */
+    AW_AHB_CLK_HDMI1,       /* "ahb_hdmi1"                                      */
     AW_AHB_CLK_HDMI,        /* "ahb_hdmi"                                       */
     AW_AHB_CLK_DEBE0,       /* "ahb_de_image0"                                  */
     AW_AHB_CLK_DEBE1,       /* "ahb_de_image1"                                  */
     AW_AHB_CLK_DEFE0,       /* "ahb_de_scale0"                                  */
     AW_AHB_CLK_DEFE1,       /* "ahb_de_scale1"                                  */
+    AW_AHB_CLK_GMAC,        /* "ahb_gmac" */
     AW_AHB_CLK_MP,          /* "ahb_de_mix"                                     */
     AW_AHB_CLK_MALI,        /* "ahb_mali"                                       */
     AW_AHB_CLK_EHCI1,       /* "ahb_ehci1"                                      */
@@ -186,7 +192,9 @@ typedef enum __AW_CCU_CLK_ID
     AW_APB_CLK_ADDA,        /* "apb_audio_codec"                                */
     AW_APB_CLK_SPDIF,       /* "apb_spdif"                                      */
     AW_APB_CLK_AC97,        /* "apb_ac97"                                       */
-    AW_APB_CLK_I2S,         /* "apb_i2s"                                        */
+    AW_APB_CLK_I2S0,        /* "apb_i2s0"                                       */
+    AW_APB_CLK_I2S1,        /* "apb_i2s1"                                       */
+    AW_APB_CLK_I2S2,        /* "apb_i2s2"                                       */
     AW_APB_CLK_PIO,         /* "apb_pio"                                        */
     AW_APB_CLK_IR0,         /* "apb_ir0"                                        */
     AW_APB_CLK_IR1,         /* "apb_ir1"                                        */
@@ -194,6 +202,8 @@ typedef enum __AW_CCU_CLK_ID
     AW_APB_CLK_TWI0,        /* "apb_twi0"                                       */
     AW_APB_CLK_TWI1,        /* "apb_twi1"                                       */
     AW_APB_CLK_TWI2,        /* "apb_twi2"                                       */
+    AW_APB_CLK_TWI3,        /* "apb_twi3"                                       */
+    AW_APB_CLK_TWI4,        /* "apb_twi4"                                       */
     AW_APB_CLK_CAN,         /* "apb_can"                                        */
     AW_APB_CLK_SCR,         /* "apb_scr"                                        */
     AW_APB_CLK_PS20,        /* "apb_ps0"                                        */
@@ -280,6 +290,7 @@ static inline __u64 ccu_clk_uldiv(__u64 dividend, __u32 divisior)
 {
     __u32 rem = 0;
 
+    /* quotient stored in dividend */
     rem = do_div(dividend, divisior);
     if (0 != rem)
         dividend += 1;
