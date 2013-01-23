@@ -70,6 +70,9 @@ enum sun7i_gpio_number {
 #define GPIOG(n)        (PG_NR_BASE + (n))
 #define GPIOH(n)        (PH_NR_BASE + (n))
 #define GPIOI(n)        (PI_NR_BASE + (n))
+#ifdef CONFIG_AW_AXP20
+#define GPIO_AXP(n)     (AXP_NR_BASE + (n))
+#endif
 
 /* pio default macro */
 #define GPIO_PULL_DEFAULT   ((u32)-1         )
