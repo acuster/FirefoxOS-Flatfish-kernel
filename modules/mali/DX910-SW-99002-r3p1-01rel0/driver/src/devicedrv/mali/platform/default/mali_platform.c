@@ -18,6 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <mach/irqs.h>
 #include <mach/clock.h>
 #include <mach/sys_config.h>
@@ -38,48 +39,59 @@ _mali_osk_errcode_t mali_platform_init(void)
 
 	//get mali ahb clock
     h_ahb_mali = clk_get(NULL, CLK_AHB_MALI);
-	if(!h_ahb_mali){
+	if(!h_ahb_mali || IS_ERR(h_ahb_mali)){
 		MALI_PRINT(("try to get ahb mali clock failed!\n"));
-	}
+	} else
+		pr_info("%s(%d): get %s handle success!\n", __func__, __LINE__, CLK_AHB_MALI);
+
 	//get mali clk
 	h_mali_clk = clk_get(NULL, CLK_MOD_MALI);
-	if(!h_mali_clk){
+	if(!h_mali_clk || IS_ERR(h_ahb_mali)){
 		MALI_PRINT(("try to get mali clock failed!\n"));
-	}
+	} else
+		pr_info("%s(%d): get %s handle success!\n", __func__, __LINE__, CLK_MOD_MALI);
 
 	h_ve_pll = clk_get(NULL, CLK_SYS_PLL4);
-	if(!h_ve_pll){
+	if(!h_ve_pll || IS_ERR(h_ahb_mali)){
 		MALI_PRINT(("try to get ve pll clock failed!\n"));
-	}
+	} else
+		pr_info("%s(%d): get %s handle success!\n", __func__, __LINE__, CLK_SYS_PLL4);
 
 	//set mali parent clock
 	if(clk_set_parent(h_mali_clk, h_ve_pll)){
 		MALI_PRINT(("try to set mali clock source failed!\n"));
-	}
+	} else
+		pr_info("%s(%d): set mali clock source success!\n", __func__, __LINE__);
 
 	//set mali clock
 	rate = clk_get_rate(h_ve_pll);
+	pr_info("%s(%d): get ve pll rate %d!\n", __func__, __LINE__, rate);
 
-    if(SCIRPT_ITEM_VALUE_TYPE_INT == script_get_item("mali_para", "mali_used", &mali_use)){
-        if(mali_use.val == 1){
-            if(SCIRPT_ITEM_VALUE_TYPE_INT == script_get_item("mali_para", "mali_clkdiv", &clk_drv)){
-                if(clk_drv.val > 0){
-                    mali_clk_div = clk_drv.val;
-                }
-            }
-        }
-    }
+	if(SCIRPT_ITEM_VALUE_TYPE_INT == script_get_item("mali_para", "mali_used", &mali_use)) {
+		pr_info("%s(%d): get mali_para->mali_used success! mali_use %d\n", __func__, __LINE__, mali_use.val);
+		if(mali_use.val == 1) {
+			if(SCIRPT_ITEM_VALUE_TYPE_INT == script_get_item("mali_para", "mali_clkdiv", &clk_drv)) {
+				pr_info("%s(%d): get mali_para->mali_clkdiv success! clk_drv %d\n", __func__,
+					__LINE__, clk_drv.val);
+				if(clk_drv.val > 0)
+					mali_clk_div = clk_drv.val;
+			} else
+				pr_info("%s(%d): get mali_para->mali_clkdiv failed!\n", __func__, __LINE__);
+		}
+	} else
+		pr_info("%s(%d): get mali_para->mali_used failed!\n", __func__, __LINE__);
 
-	//pr_info("mali: clk_div %d\n", mali_clk_div);
+	pr_info("%s(%d): mali_clk_div %d\n", __func__, __LINE__, mali_clk_div);
 	rate /= mali_clk_div;
-
 	if(clk_set_rate(h_mali_clk, rate)){
 		MALI_PRINT(("try to set mali clock failed!\n"));
-	}
+	} else
+		pr_info("%s(%d): set mali clock rate success!\n", __func__, __LINE__);
 
-	if(clk_reset(h_mali_clk,AW_CCU_CLK_NRESET)){
+	if(clk_reset(h_mali_clk, AW_CCU_CLK_NRESET)){
 		MALI_PRINT(("try to reset release failed!\n"));
-	}
+	} else
+		pr_info("%s(%d): reset release success!\n", __func__, __LINE__);
 
 	MALI_SUCCESS;
 }
