@@ -90,7 +90,7 @@ struct sw_serial_port {
     struct platform_device  *pdev;
 };
 
-struct sw_serial_port *sw_serial_uart[6];
+struct sw_serial_port *sw_serial_uart[MAX_PORTS];
 static int sw_uart_have_used = 0;
 backup_reg_t sunxi_serial_reg_back[MAX_PORTS];
 
@@ -514,6 +514,14 @@ static struct resource sw_uart_res[8][2] = {
         {.start = UARTx_BASE(5),    .end = UARTx_BASE(5) + UART_BASE_OS - 1,    .flags = IORESOURCE_MEM}, /*base*/
         {.start = AW_IRQ_UART5 ,    .end = AW_IRQ_UART5,                        .flags = IORESOURCE_IRQ}, /*irq */
     },
+    {/* uart6 resource */
+        {.start = UARTx_BASE(6),    .end = UARTx_BASE(6) + UART_BASE_OS - 1,    .flags = IORESOURCE_MEM}, /*base*/
+        {.start = AW_IRQ_UART6 ,    .end = AW_IRQ_UART6,                        .flags = IORESOURCE_IRQ}, /*irq */
+    },
+    {/* uart7 resource */
+        {.start = UARTx_BASE(7),    .end = UARTx_BASE(7) + UART_BASE_OS - 1,    .flags = IORESOURCE_MEM}, /*base*/
+        {.start = AW_IRQ_UART7 ,    .end = AW_IRQ_UART7,                        .flags = IORESOURCE_IRQ}, /*irq */
+    },
 };
 
 struct platform_device sw_uart_dev[] = {
@@ -523,6 +531,8 @@ struct platform_device sw_uart_dev[] = {
     [3] = {.name = "sunxi-uart", .id = 3, .num_resources = ARRAY_SIZE(sw_uart_res[3]), .resource = &sw_uart_res[3][0], .dev.release = sunxi_serial_release},
     [4] = {.name = "sunxi-uart", .id = 4, .num_resources = ARRAY_SIZE(sw_uart_res[4]), .resource = &sw_uart_res[4][0], .dev.release = sunxi_serial_release},
     [5] = {.name = "sunxi-uart", .id = 5, .num_resources = ARRAY_SIZE(sw_uart_res[5]), .resource = &sw_uart_res[5][0], .dev.release = sunxi_serial_release},
+    [6] = {.name = "sunxi-uart", .id = 6, .num_resources = ARRAY_SIZE(sw_uart_res[6]), .resource = &sw_uart_res[6][0], .dev.release = sunxi_serial_release},
+    [7] = {.name = "sunxi-uart", .id = 7, .num_resources = ARRAY_SIZE(sw_uart_res[7]), .resource = &sw_uart_res[7][0], .dev.release = sunxi_serial_release},
 };
 
 static int uart_used;
