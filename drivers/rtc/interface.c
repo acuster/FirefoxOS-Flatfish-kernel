@@ -117,6 +117,20 @@ int rtc_set_mmss(struct rtc_device *rtc, unsigned long secs)
 }
 EXPORT_SYMBOL_GPL(rtc_set_mmss);
 
+static void rtc_alarm_disable(struct rtc_device *rtc)
+{
+       if (!rtc->ops || !rtc->ops->alarm_irq_enable)
+               return;
+
+       rtc->ops->alarm_irq_enable(rtc->dev.parent, false);
+}
+
+void rtc_alarm_shutdown(struct rtc_device *rtc)
+{
+       rtc_alarm_disable(rtc);
+}
+EXPORT_SYMBOL_GPL(rtc_alarm_shutdown);
+
 static int rtc_read_alarm_internal(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 {
 	int err;
@@ -784,8 +798,10 @@ static void rtc_timer_remove(struct rtc_device *rtc, struct rtc_timer *timer)
 		struct rtc_wkalrm alarm;
 		int err;
 		next = timerqueue_getnext(&rtc->timerqueue);
-		if (!next)
-			return;
+        if (!next) {
+            rtc_alarm_disable(rtc);
+             return;
+        }
 		alarm.time = rtc_ktime_to_tm(next->expires);
 		alarm.enabled = 1;
 		err = __rtc_set_alarm(rtc, &alarm);
@@ -847,7 +863,8 @@ again:
 		err = __rtc_set_alarm(rtc, &alarm);
 		if (err == -ETIME)
 			goto again;
-	}
+    } else
+        rtc_alarm_disable(rtc);
 
 	mutex_unlock(&rtc->ops_lock);
 }

@@ -32,9 +32,10 @@
 #include <asm/irq.h>
 #include <asm/delay.h>
 
-#undef RTC_DBG
-#undef RTC_ERR
-#if (0)
+#define RTC_DBG
+#define RTC_ERR
+
+#if (1)
     #define RTC_DBG(format,args...)  printk("[rtc] "format,##args)
     #define RTC_ERR(format,args...)  printk("[rtc] "format,##args)
 #else
@@ -43,7 +44,7 @@
 #endif
 
 /* (56) the fpga alarm irq number is 6+32 = 38, while the actually alarm irq number is 56*/
-#define SW_INT_IRQNO_ALARM 38
+#define SW_INT_IRQNO_ALARM                  AW_IRQ_TIMER2
 #define SUNXI_LOSC_CTRL_REG               	(0x100)
 
 #define SUNXI_RTC_DATE_REG                	(0x104)
@@ -102,7 +103,7 @@
 #define ALARM_SET_HOUR_VALUE(x)     		(((x)&0x0000001f) << 16)
 #define ALARM_SET_DAY_VALUE(x)      		(((x)&0x000000ff) << 24)
 
-#define F23_ALARM
+#define A20_ALARM
 /*
  * notice: IN 23 A version, operation(eg. write date, time reg)
  * that will affect losc reg, will also affect pwm reg at the same time
@@ -122,7 +123,7 @@ static void __iomem *sunxi_rtc_base;
 static int sunxi_rtc_alarmno = NO_IRQ;
 static int losc_err_flag   = 0;
 
-#ifdef F23_ALARM
+#ifdef A20_ALARM
 /* IRQ Handlers, irq no. is shared with timer2 */
 static irqreturn_t sunxi_rtc_alarmirq(int irq, void *id)
 {
@@ -371,7 +372,7 @@ static int sunxi_rtc_settime(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-#ifdef F23_ALARM
+#ifdef A20_ALARM
 static int sunxi_rtc_getalarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct rtc_time *alm_tm = &alrm->time;
@@ -518,7 +519,7 @@ static const struct rtc_class_ops sunxi_rtcops = {
 	.release			= sunxi_rtc_release,
 	.read_time			= sunxi_rtc_gettime,
 	.set_time			= sunxi_rtc_settime,
-#ifdef F23_ALARM
+#ifdef A20_ALARM
 	.read_alarm			= sunxi_rtc_getalarm,
 	.set_alarm			= sunxi_rtc_setalarm,
 	.alarm_irq_enable 	= sunxi_rtc_alarm_irq_enable,
@@ -529,14 +530,14 @@ static int __devexit sunxi_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
 
-#ifdef F23_ALARM
+#ifdef A20_ALARM
     free_irq(sunxi_rtc_alarmno, rtc);
 #endif
 
     rtc_device_unregister(rtc);
 	platform_set_drvdata(pdev, NULL);
 
-#ifdef F23_ALARM
+#ifdef A20_ALARM
 	sunxi_rtc_setaie(0);
 #endif
 
@@ -587,7 +588,7 @@ static int __devinit sunxi_rtc_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
-#ifdef F23_ALARM
+#ifdef A20_ALARM
 	ret = request_irq(sunxi_rtc_alarmno, sunxi_rtc_alarmirq,
 			  IRQF_DISABLED,  "sunxi-rtc alarm", rtc);
 	if (ret) {
