@@ -267,6 +267,13 @@ u32 port_to_index(u32 port, u32 port_num)
         {PI_NR_BASE, PI_NR}
     };
 
+#ifdef CONFIG_AW_AXP20
+    if (AXP_PORT_VAL == port) {
+        WARN(port_num >= AXP_NR, "%s: maybe error, please check sys_config.fex", __func__);
+        return AXP_NR_BASE + port_num;
+    }
+#endif
+
     if (port - 1 < ARRAY_SIZE(gpio_trans_tbl) &&
         port_num < gpio_trans_tbl[port - 1].nr)
         return gpio_trans_tbl[port - 1].base + port_num;

@@ -56,7 +56,10 @@ enum sun7i_gpio_number {
     PH_NR_BASE = AW_GPIO_NEXT(PG),
     PI_NR_BASE = AW_GPIO_NEXT(PH),
 #ifdef CONFIG_AW_AXP20
-    AXP_NR_BASE = AW_GPIO_NEXT(PI),
+    AXP_NR_BASE     = AW_GPIO_NEXT(PI),
+    GPIO_INDEX_END  = AW_GPIO_NEXT(AXP),
+#else
+    GPIO_INDEX_END  = AW_GPIO_NEXT(PM),
 #endif
 };
 
@@ -80,12 +83,13 @@ enum sun7i_gpio_number {
 #define GPIO_DATA_DEFAULT   ((u32)-1         )
 
 /* pio end, invalid macro */
-#define GPIO_INDEX_END      (GPIOI(PI_NR) + 1)
 #define GPIO_INDEX_INVALID  (0xFFFFFFFF      )
 #define GPIO_CFG_INVALID    (0xFFFFFFFF      )
 #define GPIO_PULL_INVALID   (0xFFFFFFFF      )
 #define GPIO_DRVLVL_INVALID (0xFFFFFFFF      )
 #define IRQ_NUM_INVALID     (0xFFFFFFFF      )
+
+#define AXP_PORT_VAL        (0x0000FFFF      )
 
 /* config value for external int */
 #define GPIO_CFG_EINT       (0b110  )   /* config value to eint for ph/pi */

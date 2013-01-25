@@ -20,7 +20,8 @@
 #include <linux/seq_file.h>
 #include <linux/i2c.h>
 #include <linux/mfd/axp-mfd.h>
-
+#include <asm-generic/gpio.h>
+#include <mach/gpio.h>
 #include "axp-gpio.h"
 
 struct virtual_gpio_data {
@@ -180,6 +181,111 @@ int axp_gpio_get_value(int gpio, int *value)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(axp_gpio_get_value);
+
+static int __axp_gpio_input(struct gpio_chip *chip, unsigned offset)
+{
+	u32  index = chip->base + offset;
+//	printk("%s: line %d,%d,\n", __func__, __LINE__,offset);
+	if(GPIO_AXP(0) == index)
+		return axp_gpio_set_io(0, 0);
+	else if(GPIO_AXP(1) == index)
+		return axp_gpio_set_io(1, 0);
+	else if(GPIO_AXP(2) == index)
+		return axp_gpio_set_io(2, 0);
+	else if(GPIO_AXP(3) == index)
+		return axp_gpio_set_io(3, 0);
+	else if(GPIO_AXP(4) == index)
+		return axp_gpio_set_io(4, 0);
+	else
+		return -EINVAL;
+}
+static int __axp_gpio_output(struct gpio_chip *chip, unsigned offset, int value)
+{
+	u32  index = chip->base + (int)offset;
+	int  ret = 0;
+	int  id = index - GPIO_AXP(0);
+
+//	printk("%s: line %d,%d,%d\n", __func__, __LINE__,offset,value);
+	switch(id) {
+		case 0:
+			ret = axp_gpio_set_io(0, 1); /* set to output */
+			if(ret)
+				return ret;
+			return axp_gpio_set_value(0, value); /* set value */
+		case 1:
+			ret = axp_gpio_set_io(1, 1); /* set to output */
+			if(ret)
+				return ret;
+			return axp_gpio_set_value(1, value); /* set value */
+		case 2:
+			ret = axp_gpio_set_io(2, 1); /* set to output */
+			if(ret)
+				return ret;
+			return axp_gpio_set_value(2, value); /* set value */
+		case 3:
+			ret = axp_gpio_set_io(3, 1); /* set to output */
+			if(ret)
+				return ret;
+			return axp_gpio_set_value(3, value); /* set value */
+		case 4:
+			ret = axp_gpio_set_io(4, 1); /* set to output */
+			if(ret)
+				return ret;
+			return axp_gpio_set_value(4, value); /* set value */
+		default: return -EINVAL;
+	}
+}
+static void __axp_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+{
+	u32  index = chip->base + offset;
+	int id = index - GPIO_AXP(0);
+//	printk("%s: line %d,%d,%d\n", __func__, __LINE__,offset,value);
+
+	switch (id) {
+		case 0:axp_gpio_set_value(0, value);break;
+		case 1:axp_gpio_set_value(1, value);break;
+		case 2:axp_gpio_set_value(2, value);break;
+		case 3:axp_gpio_set_value(3, value);break;
+		case 4:axp_gpio_set_value(4, value);break;
+		default:WARN_ON(1);
+	}
+}
+static int __axp_gpio_get(struct gpio_chip *chip, unsigned offset)
+{
+	u32  index = chip->base + offset;
+	int  value = 0;
+//	printk("%s: line %d,%d,\n", __func__, __LINE__,offset);
+
+	if(GPIO_AXP(0) == index) {
+		WARN_ON(0 != axp_gpio_get_value(0, &value));
+		return value;
+	} else if(GPIO_AXP(1) == index) {
+		WARN_ON(0 != axp_gpio_get_value(1, &value));
+		return value;
+	} else if(GPIO_AXP(2) == index) {
+		WARN_ON(0 != axp_gpio_get_value(2, &value));
+		return value;
+	} else if(GPIO_AXP(3) == index) {
+		WARN_ON(0 != axp_gpio_get_value(3, &value));
+		return value;
+	} else if(GPIO_AXP(4) == index) {
+		WARN_ON(0 != axp_gpio_get_value(4, &value));
+		return value;
+	}	else {
+		printk("%s err: line %d\n", __func__, __LINE__);;
+		return 0;
+	}
+}
+
+struct gpio_chip axp_gpio_chip = {
+	.base	= AXP_NR_BASE,
+	.ngpio	= AXP_NR,
+	.label	= "axp_pin",
+	.direction_input = __axp_gpio_input,
+	.direction_output = __axp_gpio_output,
+	.set	= __axp_gpio_set,
+	.get	= __axp_gpio_get,
+};
 
 static ssize_t show_gpio(struct device *dev,
 			   struct device_attribute *attr, char *buf)
@@ -342,6 +448,9 @@ static struct platform_driver axp_gpio_driver = {
 
 static int __init axp_gpio_init(void)
 {
+	/* register axp gpio chip */
+	if(0 != gpiochip_add(&axp_gpio_chip))
+		printk("%s err, line %d\n", __func__, __LINE__);
 	return platform_driver_register(&axp_gpio_driver);
 }
 subsys_initcall(axp_gpio_init);

@@ -31,6 +31,9 @@ static void axp_mfd_irq_work(struct work_struct *work)
 		container_of(work, struct axp_mfd_chip, irq_work);
 	uint64_t irqs = 0;
 
+    printk("-------------------------------------\n");
+    printk("axp_mfd_irq_work\n");
+    printk("-------------------------------------\n");
 	while (1) {
 		if (chip->ops->read_irqs(chip, &irqs)){
 			break;
@@ -288,7 +291,9 @@ static int __devinit axp_mfd_probe(struct i2c_client *client,
 	chip = kzalloc(sizeof(struct axp_mfd_chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
-
+    printk("-------------------------------------------");
+    printk("%s:%s pmu probed !\n",__FUNCTION__,id->name);
+    printk("-------------------------------------------");
 	axp = client;
 
 	chip->client = client;
@@ -315,6 +320,9 @@ static int __devinit axp_mfd_probe(struct i2c_client *client,
 		goto out_free_chip;
 	}
 
+    printk("-------------------------------------------\n");
+    printk("%s:%s pmu request_irq ok !\n",__FUNCTION__,id->name);
+    printk("-------------------------------------------\n");
 
 	ret = axp_mfd_add_subdevs(chip, pdata);
 	if (ret)

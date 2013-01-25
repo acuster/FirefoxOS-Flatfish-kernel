@@ -334,7 +334,7 @@ int axp_script_parser_fetch(char *main, char *sub, u32 *val, u32 size)
             return -1;
 		}
 		*val = script_val.val;
-//		printk("axp config [%s] [%s] : %d\n", main, sub, *val);
+		printk("axp config [%s] [%s] : %d\n", main, sub, *val);
 		return 0;
 }
 
@@ -714,6 +714,7 @@ if (pmu_used)
 
     if (pmu_used)
     {
+
         axp_regl_init_data[1].constraints.state_standby.uV = ldo2_vol * 1000;
         axp_regl_init_data[2].constraints.state_standby.uV = ldo3_vol * 1000;
         axp_regl_init_data[3].constraints.state_standby.uV = ldo4_vol * 1000;
@@ -741,7 +742,6 @@ if (pmu_used)
         axp_sply_init_data.chgcsttime = pmu_init_chg_csttime;
         axp_mfd_i2c_board_info[0].addr = pmu_twi_addr;
         axp_mfd_i2c_board_info[0].irq = pmu_irq_id;
-
         return i2c_register_board_info(pmu_twi_id, axp_mfd_i2c_board_info,
 				ARRAY_SIZE(axp_mfd_i2c_board_info));
     }
