@@ -14,22 +14,69 @@
  */
 #include "mali_kernel_common.h"
 #include "mali_osk.h"
-#include "mali_platform.h"
+#include <linux/mali/mali_utgard.h>
+#include <linux/platform_device.h>
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/clk.h>
-#include <linux/err.h>
 #include <mach/irqs.h>
 #include <mach/clock.h>
 #include <mach/sys_config.h>
+#include <mach/includes.h>
 
 
 int mali_clk_div = 3;
+struct clk *h_ahb_mali, *h_mali_clk, *h_ve_pll;
+int mali_clk_flag=0;
 module_param(mali_clk_div, int, S_IRUSR | S_IWUSR | S_IWGRP | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(mali_clk_div, "Clock divisor for mali");
 
-struct clk *h_ahb_mali, *h_mali_clk, *h_ve_pll;
-int mali_clk_flag=0;
+static void mali_platform_device_release(struct device *device);
+void mali_gpu_utilization_handler(u32 utilization);
+
+typedef enum mali_power_mode_tag
+{
+	MALI_POWER_MODE_ON,
+	MALI_POWER_MODE_LIGHT_SLEEP,
+	MALI_POWER_MODE_DEEP_SLEEP,
+} mali_power_mode;
+
+static struct resource mali_gpu_resources[]=
+{
+    /*
+    //MALI_GPU_RESOURCES_MALI400_MP2_PMU(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq) \
+    */
+    MALI_GPU_RESOURCES_MALI400_MP2_PMU(SW_PA_MALI_IO_BASE, AW_IRQ_GPU_GP, AW_IRQ_GPU_GPMMU, \
+                                        AW_IRQ_GPU_PP0, AW_IRQ_GPU_PPMMU0, AW_IRQ_GPU_PP1, AW_IRQ_GPU_PPMMU1)
+};
+
+
+
+static struct platform_device mali_gpu_device =
+{
+    .name = MALI_GPU_NAME_UTGARD,
+    .id = 0,
+    .dev.release = mali_platform_device_release,
+};
+
+static struct mali_gpu_device_data mali_gpu_data =
+{
+    .dedicated_mem_start = SW_GPU_MEM_BASE,
+    .dedicated_mem_size = SW_GPU_MEM_SIZE,
+    .shared_mem_size = 512*1024*1024,
+    .fb_start = SW_FB_MEM_BASE,
+    .fb_size = SW_FB_MEM_SIZE,
+    .utilization_interval = 1000,
+    .utilization_handler = mali_gpu_utilization_handler,
+};
+
+
+static void mali_platform_device_release(struct device *device)
+{
+    MALI_DEBUG_PRINT(2,("mali_platform_device_release() called\n"));
+}
+
 _mali_osk_errcode_t mali_platform_init(void)
 {
 	unsigned long rate;
@@ -63,7 +110,7 @@ _mali_osk_errcode_t mali_platform_init(void)
 
 	//set mali clock
 	rate = clk_get_rate(h_ve_pll);
-	pr_info("%s(%d): get ve pll rate %d!\n", __func__, __LINE__, rate);
+	pr_info("%s(%d): get ve pll rate %d!\n", __func__, __LINE__, (int)rate);
 
 	if(SCIRPT_ITEM_VALUE_TYPE_INT == script_get_item("mali_para", "mali_used", &mali_use)) {
 		pr_info("%s(%d): get mali_para->mali_used success! mali_use %d\n", __func__, __LINE__, mali_use.val);
@@ -91,7 +138,7 @@ _mali_osk_errcode_t mali_platform_init(void)
 	} else
 		pr_info("%s(%d): reset release success!\n", __func__, __LINE__);
 
-	MALI_SUCCESS;
+    MALI_SUCCESS;
 }
 
 _mali_osk_errcode_t mali_platform_deinit(void)
@@ -109,6 +156,7 @@ _mali_osk_errcode_t mali_platform_deinit(void)
 
 _mali_osk_errcode_t mali_platform_power_mode_change(mali_power_mode power_mode)
 {
+    MALI_PRINT(("mali_platform_power_mode_change in!\n"));
 	if(power_mode == MALI_POWER_MODE_ON)
     {
 	if(mali_clk_flag == 0)
@@ -128,7 +176,7 @@ _mali_osk_errcode_t mali_platform_power_mode_change(mali_power_mode power_mode)
     }
     else if(power_mode == MALI_POWER_MODE_LIGHT_SLEEP)
     {
-	/*close mali axi/apb clock*/
+	//close mali axi/apb clock/
 	if(mali_clk_flag == 1)
 	{
 		//MALI_PRINT(("disable mali clock\n"));
@@ -139,7 +187,7 @@ _mali_osk_errcode_t mali_platform_power_mode_change(mali_power_mode power_mode)
     }
     else if(power_mode == MALI_POWER_MODE_DEEP_SLEEP)
     {
-	/*close mali axi/apb clock*/
+	//close mali axi/apb clock
 	if(mali_clk_flag == 1)
 	{
 		//MALI_PRINT(("disable mali clock\n"));
@@ -148,8 +196,57 @@ _mali_osk_errcode_t mali_platform_power_mode_change(mali_power_mode power_mode)
 	       clk_disable(h_ahb_mali);
 	}
     }
+    MALI_PRINT(("mali_platform_power_mode_change out!\n"));
     MALI_SUCCESS;
 }
+
+
+int sun5i_mali_platform_device_register(void)
+{
+    int err;
+
+    MALI_DEBUG_PRINT(2,("sun5i__mali_platform_device_register() called\n"));
+    MALI_DEBUG_PRINT(2,("sizeof:%d, sizof:%d\n", sizeof(mali_gpu_resources), sizeof(mali_gpu_resources[0])));
+
+    err = platform_device_add_resources(&mali_gpu_device, mali_gpu_resources, sizeof(mali_gpu_resources) / sizeof(mali_gpu_resources[0]));
+    if (0 == err)
+    {
+        err = platform_device_add_data(&mali_gpu_device, &mali_gpu_data, sizeof(mali_gpu_data));
+        if(0 == err)
+        {
+            err = platform_device_register(&mali_gpu_device);
+            if (0 == err)
+            {
+                mali_platform_init();
+#ifdef CONFIG_PM_RUNTIME
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
+				pm_runtime_set_autosuspend_delay(&(mali_gpu_device.dev), 1000);
+				pm_runtime_use_autosuspend(&(mali_gpu_device.dev));
+#endif
+				pm_runtime_enable(&(mali_gpu_device.dev));
+#endif
+
+                 MALI_DEBUG_PRINT(2,("sun5i_mali_platform_device_register() sucess!!\n"));
+
+                return 0;
+            }
+        }
+
+        MALI_DEBUG_PRINT(2,("sun5i__mali_platform_device_register() add data failed!\n"));
+
+        platform_device_unregister(&mali_gpu_device);
+    }
+    return err;
+}
+
+void mali_platform_device_unregister(void)
+{
+    MALI_DEBUG_PRINT(2, ("mali_platform_device_unregister() called!\n"));
+
+    mali_platform_deinit();
+    platform_device_unregister(&mali_gpu_device);
+}
+
 
 void mali_gpu_utilization_handler(u32 utilization)
 {
