@@ -55,7 +55,7 @@
 #endif
 
 /* 代码调试 */
-#if  1
+#if  0
     #define DMSG_MANAGER_DEBUG          DMSG_PRINT
 #else
     #define DMSG_MANAGER_DEBUG(...)
@@ -68,7 +68,7 @@
 #endif
 
 /* 普通信息打印 */
-#if  1
+#if  0
     #define DMSG_INFO         			DMSG_PRINT
 #else
     #define DMSG_INFO(...)
@@ -82,7 +82,7 @@
 #endif
 
 /* 普通警告 */
-#if	0
+#if	1
     #define DMSG_WRN        			DMSG_ERR
 #else
     #define DMSG_WRN(...)

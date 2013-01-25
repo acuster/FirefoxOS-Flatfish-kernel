@@ -83,11 +83,18 @@ static const char *const ep_name[] = {
 
 #define SW_UDC_ENDPOINTS       ARRAY_SIZE(ep_name)
 
+enum sw_buffer_map_state {
+	UN_MAPPED = 0,
+	PRE_MAPPED,
+	SW_UDC_USB_MAPPED
+};
+
 struct sw_udc_request {
 	struct list_head		queue;		/* ep's requests */
 	struct usb_request		req;
 
 	__u32 is_queue;  /* flag. 是否已经压入队列? */
+	enum sw_buffer_map_state map_state;
 };
 
 enum ep0_state {
@@ -115,7 +122,8 @@ typedef struct sw_udc_dma{
 	char name[32];
 	//struct sw_dma_client dma_client;
 
-	int dma_hdle;	/* dma 句柄 */
+	dma_hdl_t dma_hdle;	/* dma 句柄 */
+	int is_start;
 }sw_udc_dma_t;
 
 /* dma 传输参数 */
@@ -157,6 +165,7 @@ typedef struct sw_udc_io{
 typedef struct sw_udc {
 	spinlock_t			        lock;
     struct platform_device *pdev;
+    struct device		        *controller;
 
 	struct sw_udc_ep		    ep[SW_UDC_ENDPOINTS];
 	int				            address;
@@ -180,7 +189,7 @@ typedef struct sw_udc {
 	sw_udc_io_t					*sw_udc_io;
 	char 						driver_name[32];
 	__u32 						usbc_no;	/* 控制器端口号 	*/
-	sw_udc_dma_t 			    sw_udc_dma;
+	sw_udc_dma_t 			    sw_udc_dma[6];
 
 	u32							stoped;		/* 控制器停止工作 	*/
 	u32 						irq_no;		/* USB 中断号 		*/

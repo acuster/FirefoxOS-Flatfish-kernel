@@ -21,13 +21,14 @@
 #ifndef  __SW_UDC_DMA_H__
 #define  __SW_UDC_DMA_H__
 
-#define  is_tx_ep(ep)		((ep->bEndpointAddress) & USB_DIR_IN)
-
 //---------------------------------------------------------------
 //  宏 定义
 //---------------------------------------------------------------
 #ifdef  SW_UDC_DMA
 #define  is_udc_support_dma()       1
+#else
+#define  is_udc_support_dma()       0
+#endif
 
 //---------------------------------------------------------------
 //  函数 定义
@@ -46,25 +47,5 @@ __u32 sw_udc_dma_is_busy(struct sw_udc_ep *ep);
 
 __s32 sw_udc_dma_probe(struct sw_udc *dev);
 __s32 sw_udc_dma_remove(struct sw_udc *dev);
-
-#else
-#define  is_udc_support_dma()       0
-
-#define sw_udc_switch_bus_to_dma
-#define sw_udc_switch_bus_to_pio
-
-#define sw_udc_enable_dma_channel_irq
-#define sw_udc_disable_dma_channel_irq
-
-#define sw_udc_dma_set_config
-#define sw_udc_dma_start
-#define sw_udc_dma_stop
-#define sw_udc_dma_transmit_length
-#define sw_udc_dma_is_busy
-
-#define sw_udc_dma_probe
-#define sw_udc_dma_remove
-
-#endif
 
 #endif   //__SW_UDC_DMA_H__

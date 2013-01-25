@@ -33,9 +33,9 @@
 #include  "../include/sw_usb_config.h"
 
 #define  SW_UDC_DOUBLE_FIFO       /* 双 FIFO          */
-//#define  SW_UDC_DMA               /* DMA 传输         */
+#define  SW_UDC_DMA               /* DMA 传输         */
 #define  SW_UDC_HS_TO_FS          /* 支持高速跳转全速 */
-//#define  SW_UDC_DEBUG
+
 
 //---------------------------------------------------------------
 //  调试
@@ -43,7 +43,7 @@
 
 /* sw udc 调试打印 */
 #if	0
-    #define DMSG_DBG_UDC     			DMSG_MSG
+    #define DMSG_DBG_UDC     			DMSG_PRINT
 #else
     #define DMSG_DBG_UDC(...)
 #endif
