@@ -59,7 +59,7 @@ enum sun7i_gpio_number {
     AXP_NR_BASE     = AW_GPIO_NEXT(PI),
     GPIO_INDEX_END  = AW_GPIO_NEXT(AXP),
 #else
-    GPIO_INDEX_END  = AW_GPIO_NEXT(PM),
+    GPIO_INDEX_END  = AW_GPIO_NEXT(PI),
 #endif
 };
 
