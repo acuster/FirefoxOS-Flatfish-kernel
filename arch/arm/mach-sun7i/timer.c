@@ -227,18 +227,22 @@ static struct irqaction sun7i_timer_irq = {
 void __init aw_clkevt_init(void)
 {
 	int ret;
+	u32 val = 0;
 
 	timer_cpu_base = ioremap_nocache(SW_PA_TIMERC_IO_BASE, 0x1000);
 	pr_info("%s: timer base 0x%08x\n", __func__, (int)timer_cpu_base);
 
 	/* disable & clear all timers */
 	writel(0x0, timer_cpu_base + TMR_IRQ_EN_REG_OFF);
-	writel(0x3f, timer_cpu_base + TMR_IRQ_STA_REG_OFF);
+	writel(0x1ff, timer_cpu_base + TMR_IRQ_STA_REG_OFF); /* diff from 33 */
 
 	/* init timer0 */
 	writel(TIMER0_VALUE, timer_cpu_base + TMR0_INTV_VALUE_REG_OFF);
-	//writel(0x66, timer_cpu_base + TMR0_CTRL_REG_OFF);
-	writel(0x46, timer_cpu_base + TMR0_CTRL_REG_OFF); /* src: 24000000 pre-scale: 16 */
+	val = 0 << 7; /* continuous mode */
+	val |= 0b100 << 4; /* pre-scale: 16 */
+	val |= 0b01 << 2; /* src: osc24M */
+	val |= 1 << 1; /* reload interval value */
+	writel(val, timer_cpu_base + TMR0_CTRL_REG_OFF);
 
 	/* register timer0 interrupt */
 	ret = setup_irq(AW_IRQ_TIMER0, &sun7i_timer_irq);

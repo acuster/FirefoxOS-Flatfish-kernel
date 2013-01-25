@@ -170,6 +170,8 @@ void inline csp_ndma_set_wait_state(dma_channel_t * pchan, u32 state)
 	ctrl = *(ndma_ctrl_t *)&val;
 	ctrl.wait_state = state;
 	DMA_WRITE_REG(*(u32 *)&ctrl, pchan->reg_base + DMA_OFF_REG_CTRL);
+	/* refresh ctrl val, set on next start */
+	pchan->ctrl.n.wait_state = state;
 }
 
 /* set security, both for ndma and ddma */
@@ -184,18 +186,27 @@ void inline csp_dma_set_security(dma_channel_t * pchan, u32 para)
 	case SRC_SECU_DST_SECU:
 		IS_DEDICATE(pchan->id) ? (ctrl.d.src_sec = 0, ctrl.d.dst_sec = 0)
 					: (ctrl.n.src_sec = 0, ctrl.n.dst_sec = 0);
+		/* refresh ctrl val, set on next start */
+		IS_DEDICATE(pchan->id) ? (pchan->ctrl.d.src_sec = 0, pchan->ctrl.d.dst_sec = 0)
+					: (pchan->ctrl.n.src_sec = 0, pchan->ctrl.n.dst_sec = 0);
 		break;
 	case SRC_SECU_DST_NON_SECU:
 		IS_DEDICATE(pchan->id) ? (ctrl.d.src_sec = 0, ctrl.d.dst_sec = 1)
 					: (ctrl.n.src_sec = 0, ctrl.n.dst_sec = 1);
+		IS_DEDICATE(pchan->id) ? (pchan->ctrl.d.src_sec = 0, pchan->ctrl.d.dst_sec = 1)
+					: (pchan->ctrl.n.src_sec = 0, pchan->ctrl.n.dst_sec = 1);
 		break;
 	case SRC_NON_SECU_DST_SECU:
 		IS_DEDICATE(pchan->id) ? (ctrl.d.src_sec = 1, ctrl.d.dst_sec = 0)
 					: (ctrl.n.src_sec = 1, ctrl.n.dst_sec = 0);
+		IS_DEDICATE(pchan->id) ? (pchan->ctrl.d.src_sec = 1, pchan->ctrl.d.dst_sec = 0)
+					: (pchan->ctrl.n.src_sec = 1, pchan->ctrl.n.dst_sec = 0);
 		break;
 	case SRC_NON_SECU_DST_NON_SECU:
 		IS_DEDICATE(pchan->id) ? (ctrl.d.src_sec = 1, ctrl.d.dst_sec = 1)
 					: (ctrl.n.src_sec = 1, ctrl.n.dst_sec = 1);
+		IS_DEDICATE(pchan->id) ? (pchan->ctrl.d.src_sec = 1, pchan->ctrl.d.dst_sec = 1)
+					: (pchan->ctrl.n.src_sec = 1, pchan->ctrl.n.dst_sec = 1);
 		break;
 	default:
 		BUG();
