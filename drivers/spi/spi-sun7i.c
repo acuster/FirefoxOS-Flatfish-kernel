@@ -22,7 +22,6 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
-#include <linux/spi/spi.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
@@ -39,15 +38,15 @@
 #if (SPI_DEBUG_LEVEL == 1)
     #define spi_dbg(format,args...)     do {} while (0)
     #define spi_inf(format,args...)     do {} while (0)
-    #define spi_err(format,args...)     printk("[spi-err] "format,##args)
+    #define spi_err(format,args...)     printk(KERN_ERR "[spi-err] "format,##args)
 #elif (SPI_DEBUG_LEVEL == 2)
     #define spi_dbg(format,args...)     do {} while (0)
-    #define spi_inf(format,args...)     printk("[spi-inf] "format,##args)
-    #define spi_err(format,args...)     printk("[spi-err] "format,##args)
+    #define spi_inf(format,args...)     printk(KERN_INFO"[spi-inf] "format,##args)
+    #define spi_err(format,args...)     printk(KERN_ERR "[spi-err] "format,##args)
 #elif (SPI_DEBUG_LEVEL == 3)
-    #define spi_dbg(format,args...)     printk("[spi-dbg] "format,##args)
-    #define spi_inf(format,args...)     printk("[spi-inf] "format,##args)
-    #define spi_err(format,args...)     printk("[spi-err] "format,##args)
+    #define spi_dbg(format,args...)     printk(KERN_INFO"[spi-dbg] "format,##args)
+    #define spi_inf(format,args...)     printk(KERN_INFO"[spi-inf] "format,##args)
+    #define spi_err(format,args...)     printk(KERN_ERR "[spi-err] "format,##args)
 #endif
 
 enum spi_duplex_flag {
@@ -379,11 +378,13 @@ void spi_set_bc_wtc(u32 tx_len, u32 rx_len, void *base_addr)
     reg_val &= ~SPI_BC_BC_MASK;
     reg_val |= (SPI_BC_BC_MASK & (tx_len + rx_len));
     writel(reg_val, base_addr + SPI_BC_REG);
+	spi_dbg("%s: bc: %u\n", __func__, readl(base_addr + SPI_BC_REG));
 
     reg_val = readl(base_addr + SPI_TC_REG);
     reg_val &= ~SPI_TC_WTC_MASK;
     reg_val |= (SPI_TC_WTC_MASK & tx_len);
     writel(reg_val, base_addr + SPI_TC_REG);
+	spi_dbg("%s: tc: %u\n", __func__, readl(base_addr + SPI_TC_REG));
 }
 
 /* set ss control */
@@ -485,6 +486,7 @@ static int sun7i_spi_prepare_dma(struct sun7i_spi *aw_spi, enum spi_dma_dir dma_
     int bus_num = aw_spi->master->bus_num;
     dma_cb_t done_cb;
 
+	spi_dbg("%s: enter\n", __func__);
     if (SPI_DMA_RDEV == dma_dir) {
         aw_spi->dma_hdle_rx = sw_dma_request(spi_dma_rx[bus_num], aw_spi->dma_type);
         if (!aw_spi->dma_hdle_rx) {
@@ -524,10 +526,11 @@ static int sun7i_spi_config_dma(struct sun7i_spi *aw_spi, enum spi_dma_dir dma_d
     dma_hdl_t dma_hdle;
     u32 src_addr, dst_addr;
 
-    spi_hw_conf.xfer_type.src_data_width    = DATA_WIDTH_32BIT;
-    spi_hw_conf.xfer_type.src_bst_len       = DATA_BRST_4;
-    spi_hw_conf.xfer_type.dst_data_width    = DATA_WIDTH_32BIT;
-    spi_hw_conf.xfer_type.dst_bst_len       = DATA_BRST_4;
+	spi_dbg("%s: enter\n", __func__);
+    spi_hw_conf.xfer_type.src_data_width    = DATA_WIDTH_8BIT;
+    spi_hw_conf.xfer_type.src_bst_len       = DATA_BRST_1;
+    spi_hw_conf.xfer_type.dst_data_width    = DATA_WIDTH_8BIT;
+    spi_hw_conf.xfer_type.dst_bst_len       = DATA_BRST_1;
     spi_hw_conf.bconti_mode                 = false;
     spi_hw_conf.irq_spt                     = CHAN_IRQ_FD;
     switch (aw_spi->dma_type) {
@@ -536,11 +539,11 @@ static int sun7i_spi_config_dma(struct sun7i_spi *aw_spi, enum spi_dma_dir dma_d
                 spi_hw_conf.address_type.src_addr_mode  = NDMA_ADDR_NOCHANGE;
                 spi_hw_conf.address_type.dst_addr_mode  = NDMA_ADDR_INCREMENT;
                 spi_hw_conf.src_drq_type                = spi_rx_ndrq[bus_num];
-                spi_hw_conf.dst_drq_type                = D_DST_SDRAM;
+                spi_hw_conf.dst_drq_type                = N_DST_SDRAM;
             } else if (SPI_DMA_WDEV == dma_dir) {
                 spi_hw_conf.address_type.src_addr_mode  = NDMA_ADDR_INCREMENT;
                 spi_hw_conf.address_type.dst_addr_mode  = NDMA_ADDR_NOCHANGE;
-                spi_hw_conf.src_drq_type                = D_DST_SDRAM;
+                spi_hw_conf.src_drq_type                = N_SRC_SDRAM;
                 spi_hw_conf.dst_drq_type                = spi_tx_ndrq[bus_num];
             } else {
                 return -1;
@@ -556,8 +559,8 @@ static int sun7i_spi_config_dma(struct sun7i_spi *aw_spi, enum spi_dma_dir dma_d
             } else if (SPI_DMA_WDEV == dma_dir) {
                 spi_hw_conf.address_type.src_addr_mode  = DDMA_ADDR_LINEAR;
                 spi_hw_conf.address_type.dst_addr_mode  = DDMA_ADDR_IO;
-                spi_hw_conf.src_drq_type                = spi_tx_ddrq[bus_num];
-                spi_hw_conf.dst_drq_type                = D_DST_SDRAM;
+                spi_hw_conf.src_drq_type                = D_SRC_SDRAM;
+                spi_hw_conf.dst_drq_type                = spi_tx_ddrq[bus_num];
             } else {
                 return -1;
             }
@@ -594,6 +597,7 @@ static int sun7i_spi_start_dma(struct sun7i_spi *aw_spi, enum spi_dma_dir dma_di
 {
     int ret = 0;
 
+	spi_dbg("%s: enter\n", __func__);
     if (SPI_DMA_RDEV == dma_dir) {
         ret = sw_dma_ctl(aw_spi->dma_hdle_rx, DMA_OP_START, NULL);
     } else if (SPI_DMA_WDEV == dma_dir) {
@@ -611,6 +615,7 @@ static int sun7i_spi_release_dma(struct sun7i_spi *aw_spi, enum spi_dma_dir dma_
     int ret = 0;
     unsigned long flags;
 
+	spi_dbg("%s: enter\n", __func__);
     if (SPI_DMA_RDEV == dma_dir) {
         spin_lock_irqsave(&aw_spi->lock, flags);
         ret  = sw_dma_ctl(aw_spi->dma_hdle_rx, DMA_OP_STOP, NULL);
@@ -680,6 +685,7 @@ static int sun7i_spi_xfer_setup(struct spi_device *spi, struct spi_transfer *t)
     struct sun7i_spi_config *config = spi->controller_data; // allocate in the setup, and free in the cleanup
     void *__iomem base_addr = aw_spi->base_addr;
 
+    spi_dbg("%s: enter\n", __func__);
     config->max_speed_hz  = (t && t->speed_hz) ? t->speed_hz : spi->max_speed_hz;
     config->bits_per_word = (t && t->bits_per_word) ? t->bits_per_word : spi->bits_per_word;
     config->bits_per_word = ((config->bits_per_word + 7) / 8) * 8;
@@ -746,8 +752,10 @@ static int sun7i_spi_xfer(struct spi_device *spi, struct spi_transfer *t)
     spi_dbg("%s: spi%d begin transfer, txbuf %p, rxbuf %p, len %d\n",
             __func__, spi->master->bus_num, tx_buf, rx_buf, t->len);
 
-    if ((!t->tx_buf && !t->rx_buf) || !t->len)
+    if ((!t->tx_buf && !t->rx_buf) || !t->len) {
+        spi_err("%s: spi%d invalid buffer or len\n", __func__, spi->master->bus_num);
         return -EINVAL;
+    }
 
     /* write 1 to clear 0 */
     spi_clr_irq_pending(SPI_STAT_MASK, base_addr);
@@ -756,8 +764,10 @@ static int sun7i_spi_xfer(struct spi_device *spi, struct spi_transfer *t)
     /* reset tx/rx fifo */
     spi_reset_fifo(base_addr);
 
-    if (aw_spi->duplex_flag != DUPLEX_NULL)
+    if (aw_spi->duplex_flag != DUPLEX_NULL) {
+        spi_err("%s: spi%d duplex flag not null\n", __func__, spi->master->bus_num);
         return -EINVAL;
+    }
 
     /* set the Burst Counter and Write Transmit Counter, auto put dummy data into the txFIFO! */
     /* check if use full duplex or half duplex */
@@ -952,6 +962,10 @@ static int sun7i_spi_xfer(struct spi_device *spi, struct spi_transfer *t)
         sun7i_spi_release_dma(aw_spi, SPI_DMA_WDEV);
     }
 
+    if (aw_spi->duplex_flag != DUPLEX_NULL) {
+        aw_spi->duplex_flag = DUPLEX_NULL;
+    }
+
     return ret;
 }
 
@@ -961,6 +975,8 @@ static void sun7i_spi_work(struct work_struct *work)
     struct sun7i_spi *aw_spi = container_of(work, struct sun7i_spi, work);
     spin_lock_irq(&aw_spi->lock);
     aw_spi->busy = SPI_BUSY;
+
+    spi_dbg("%s: enter\n", __func__);
     /*
      * get from messages queue, and then do with them,
      * if message queue is empty ,then return and set status to free,
@@ -988,17 +1004,20 @@ static void sun7i_spi_work(struct work_struct *work)
             if (t->bits_per_word || t->speed_hz) { /* if spi transfer is zero,use spi device value. */
                 status = sun7i_spi_xfer_setup(spi, t); /* set the value every spi transfer */
                 if (status < 0)
-                    break;/* fail, quit */
+                    break; /* fail, quit */
                 spi_dbg("[spi-%d]: xfer setup \n", aw_spi->master->bus_num);
             }
+
             /* first active the cs */
             if (cs_change)
                 aw_spi->cs_control(spi, 1);
             /* update the new cs value */
             cs_change = t->cs_change;
+
             /* full duplex mode */
             if (t->rx_buf && t->tx_buf)
                 spi_clear_dhb(aw_spi->base_addr);
+
             /*
              * do transfer
              * > 64 : dma ;  <= 64 : cpu
@@ -1007,15 +1026,18 @@ static void sun7i_spi_work(struct work_struct *work)
             status = sun7i_spi_xfer(spi, t);
             if (status)
                 break; /* fail quit, zero means succeed */
+
             /* accmulate the value in the message */
             msg->actual_length += t->len;
             /* may be need to delay */
             if (t->delay_usecs)
                 udelay(t->delay_usecs);
-            /* if zero ,keep active,otherwise deactived. */
+
+            /* if zero, keep active, otherwise deactived. */
             if (cs_change)
                 aw_spi->cs_control(spi, 0);
         }
+
         /*
          * spi message complete,succeed or failed
          * return value
@@ -1027,10 +1049,12 @@ static void sun7i_spi_work(struct work_struct *work)
         if (status || !cs_change) {
             aw_spi->cs_control(spi, 0);
         }
+
         /* restore default value. */
         sun7i_spi_xfer_setup(spi, NULL);
         spin_lock_irq(&aw_spi->lock);
     }
+
     /* set spi to free */
     aw_spi->busy = SPI_FREE;
     spin_unlock_irq(&aw_spi->lock);
@@ -1101,6 +1125,7 @@ static int sun7i_spi_transfer(struct spi_device *spi, struct spi_message *msg)
     msg->actual_length = 0;
     msg->status = -EINPROGRESS;
 
+    spi_dbg("%s: enter\n", __func__);
     spin_lock_irqsave(&aw_spi->lock, flags);
     /* add msg to the sun7i_spi queue */
     list_add_tail(&msg->queue, &aw_spi->queue);
@@ -1116,9 +1141,10 @@ static int sun7i_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 static int sun7i_spi_setup(struct spi_device *spi)
 {
     struct sun7i_spi *aw_spi = spi_master_get_devdata(spi->master);
-    struct sun7i_spi_config *config = spi->controller_data;/* general is null. */
+    struct sun7i_spi_config *config = spi->controller_data; /* general is null. */
     unsigned long flags;
 
+    spi_dbg("%s: enter\n", __func__);
     /* just support 8 bits per word */
     if (spi->bits_per_word != 8)
         return -EINVAL;
@@ -1134,8 +1160,11 @@ static int sun7i_spi_setup(struct spi_device *spi)
 
     if (!config) {
         config = kzalloc(sizeof * config, GFP_KERNEL);
-        if (!config)
+        if (!config) {
+            spi_err("%s: spi%d alloc memory for config failed\n",
+                    __func__, spi->master->bus_num);
             return -ENOMEM;
+        }
         spi->controller_data = config;
     }
 
@@ -1217,7 +1246,7 @@ static int sun7i_spi_set_mclk(struct sun7i_spi *aw_spi, u32 mod_clk)
 {
     struct clk *source_clock = NULL;
     char *name = NULL;
-    u32 source = 1;
+    u32 source = 0;
     int ret = 0;
 
     switch (source) {
@@ -1483,7 +1512,7 @@ static int __init sun7i_spi_probe(struct platform_device *pdev)
         goto err6;
     }
 
-    spi_inf("%s: reuuimllas SoC SPI Driver loaded for Bus SPI%d with %d Slaves at most\n",
+    spi_inf("%s: reuuimlla's SoC SPI Driver loaded for Bus SPI%d with %d Slaves at most\n",
             __func__, pdev->id, master->num_chipselect);
     spi_inf("%s: spi%d driver probe succeed, base %p, irq %d, dma_id_rx %d, dma_id_tx %d\n",
             __func__, master->bus_num, aw_spi->base_addr, aw_spi->irq,
@@ -1914,6 +1943,48 @@ static int sun7i_spi_get_cfg_csbitmap(int bus_num)
     return val.val;
 }
 
+#ifdef CONFIG_SUN7I_SPI_NORFLASH_TEST
+#include <linux/spi/flash.h>
+#include <linux/mtd/partitions.h>
+
+/*struct mtd_partition part = {
+	.name = "p1",
+	.size = 8388608,
+	.offset = 0,
+};*/
+
+static struct flash_platform_data at25df641_info = {
+    .name = "m25p80",
+    .parts = NULL,
+    .nr_parts = 0,
+    .type = "at25df641",
+};
+
+static struct spi_board_info norflash = {
+    .modalias = "m25p80",
+    .platform_data = &at25df641_info,
+    .mode = SPI_MODE_0,
+    .irq = 0,
+    .max_speed_hz = 10 * 1000 * 1000,
+    .bus_num = 0,
+    .chip_select = 0,
+};
+
+static void __init sun7i_spi_norflash_test(void)
+{
+    if (spi_register_board_info(&norflash, 1)) {
+        spi_err("%s: Register norflash:%s information failed\n",
+                __func__, at25df641_info.type);
+    } else {
+        spi_inf("%s: Register norflash:%s information OK\n",
+                __func__, at25df641_info.type);
+    }
+}
+#else
+static void __init sun7i_spi_norflash_test(void)
+{}
+#endif /* CONFIG_SUN7I_SPI_NORFLASH_TEST */
+
 /* get configuration in the script */
 #define SPI0_USED_MASK 0x1
 #define SPI1_USED_MASK 0x2
@@ -1952,6 +2023,8 @@ static int __init spi_sun7i_init(void)
     if (sun7i_spi_register_spidev()) {
         spi_err("%s: register spi devices board info failed\n", __func__);
     }
+
+    sun7i_spi_norflash_test();
 
     if (spi_used & SPI0_USED_MASK)
         platform_device_register(&sun7i_spi0_device);
