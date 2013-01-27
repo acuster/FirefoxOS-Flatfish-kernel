@@ -343,11 +343,11 @@ config SUN7I_SPI_NDMA
         This selects SPI DMA mode with DMA transfer
         Y select NDMA mode and N select DDMA mode
 
-config SUN7I_SPI_NORFLASH_TEST
-    bool "SUN7I SPI Norflash Test"
+config SUN7I_SPI_NORFLASH
+    bool "SUN7I SPI Norflash"
     depends on SPI_SUN7I
     help
-        This selects test spi controller with norflash.
+        This selects norflash support.
 
 config SPI_TEGRA
 	tristate "Nvidia Tegra SPI controller"

@@ -33,7 +33,7 @@
 #include <mach/sys_config.h>
 #include <mach/spi.h>
 
-#define SPI_DEBUG_LEVEL 3
+#define SPI_DEBUG_LEVEL 2
 
 #if (SPI_DEBUG_LEVEL == 1)
     #define spi_dbg(format,args...)     do {} while (0)
@@ -449,7 +449,7 @@ static int sun7i_spi_get_cfg_csbitmap(int bus_num);
 /* flush d-cache */
 static void sun7i_spi_cleanflush_dcache_region(void *addr, __u32 len)
 {
-    __cpuc_flush_dcache_area(addr, len + (1 << 5) * 2 - 2);
+    __cpuc_flush_dcache_area(addr, len/*len + (1 << 5) * 2 - 2*/);
 }
 
 static char *spi_dma_rx[] = {"spi0_rx", "spi1_rx", "spi2_rx", "spi3_rx"};
@@ -861,7 +861,7 @@ static int sun7i_spi_xfer(struct spi_device *spi, struct spi_transfer *t)
                     return -EINVAL;
                 }
 
-                sun7i_spi_config_dma(aw_spi, SPI_DMA_WDEV, (void *)t->tx_buf, tx_len);
+                sun7i_spi_config_dma(aw_spi, SPI_DMA_WDEV, (void *)tx_buf, tx_len);
                 sun7i_spi_start_dma(aw_spi, SPI_DMA_WDEV);
                 break;
             }
@@ -1068,12 +1068,12 @@ static irqreturn_t sun7i_spi_handler(int irq, void *dev_id)
 
     unsigned int status = spi_qry_irq_pending(base_addr);
     spi_clr_irq_pending(status, base_addr);
-    spi_dbg("%s: spi%d irq status = 0x%08x\n", __func__, aw_spi->master->bus_num, status);
 
     aw_spi->result = 0; /* assume succeed */
     /* master mode, Transfer Complete Interrupt */
     if (status & SPI_STAT_TC) {
-        spi_dbg("%s: spi%d TC comes\n", __func__, aw_spi->master->bus_num);
+        spi_dbg("%s: spi%d TC comes, irq status = 0x%08x\n",
+			    __func__, aw_spi->master->bus_num, status);
         spi_disable_irq(SPI_STAT_TC | SPI_STAT_ERR, base_addr);
         /*
          * just check dma+callback receive, skip other condition.
@@ -1102,7 +1102,8 @@ static irqreturn_t sun7i_spi_handler(int irq, void *dev_id)
     }
     /* master mode: err */
     else if (status & SPI_STAT_ERR) {
-        spi_err("%s: spi%d ERR comes\n", __func__, aw_spi->master->bus_num);
+        spi_err("%s: spi%d ERR comes, irq status = 0x%08x\n",
+			    __func__, aw_spi->master->bus_num, status);
         /* error process, release dma in the workqueue,should not be here */
         spi_disable_irq(SPI_STAT_TC | SPI_STAT_ERR, base_addr);
         spi_restore_state(1, base_addr);
@@ -1246,7 +1247,11 @@ static int sun7i_spi_set_mclk(struct sun7i_spi *aw_spi, u32 mod_clk)
 {
     struct clk *source_clock = NULL;
     char *name = NULL;
+#ifdef CONFIG_AW_FPGA_PLATFORM
     u32 source = 0;
+#elif defined CONFIG_AW_ASIC_PLATFORM
+	u32 source = 2;
+#endif
     int ret = 0;
 
     switch (source) {
@@ -1428,6 +1433,13 @@ static int __init sun7i_spi_probe(struct platform_device *pdev)
 
     aw_spi->master          = master;
     aw_spi->irq             = irq;
+#ifdef CONFIG_SUN7I_SPI_NDMA
+	aw_spi->dma_type        = CHAN_NORAML;
+#else
+	aw_spi->dma_type        = CHAN_DEDICATE;
+#endif
+	spi_inf("%s: spi%d dma type: %s\n", __func__, pdev->id,
+			aw_spi->dma_type == CHAN_NORAML ? "normal" : "dedicate");
     aw_spi->dma_id_tx       = dma_res_tx->start;
     aw_spi->dma_id_rx       = dma_res_rx->start;
     aw_spi->dma_hdle_rx     = 0;
@@ -1943,7 +1955,7 @@ static int sun7i_spi_get_cfg_csbitmap(int bus_num)
     return val.val;
 }
 
-#ifdef CONFIG_SUN7I_SPI_NORFLASH_TEST
+#ifdef CONFIG_SUN7I_SPI_NORFLASH
 #include <linux/spi/flash.h>
 #include <linux/mtd/partitions.h>
 
@@ -1970,7 +1982,7 @@ static struct spi_board_info norflash = {
     .chip_select = 0,
 };
 
-static void __init sun7i_spi_norflash_test(void)
+static void __init sun7i_spi_norflash(void)
 {
     if (spi_register_board_info(&norflash, 1)) {
         spi_err("%s: Register norflash:%s information failed\n",
@@ -1981,9 +1993,9 @@ static void __init sun7i_spi_norflash_test(void)
     }
 }
 #else
-static void __init sun7i_spi_norflash_test(void)
+static void __init sun7i_spi_norflash(void)
 {}
-#endif /* CONFIG_SUN7I_SPI_NORFLASH_TEST */
+#endif /* CONFIG_SUN7I_SPI_NORFLASH */
 
 /* get configuration in the script */
 #define SPI0_USED_MASK 0x1
@@ -2024,7 +2036,7 @@ static int __init spi_sun7i_init(void)
         spi_err("%s: register spi devices board info failed\n", __func__);
     }
 
-    sun7i_spi_norflash_test();
+    sun7i_spi_norflash();
 
     if (spi_used & SPI0_USED_MASK)
         platform_device_register(&sun7i_spi0_device);
