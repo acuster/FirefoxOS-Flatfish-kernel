@@ -150,7 +150,11 @@ static int __devinit axp20_init_chip(struct axp_mfd_chip *chip)
 	/* mask and clear all IRQs */
 	chip->irqs_enabled = 0xffffffff | (uint64_t)0xff << 32;
 	chip->ops->disable_irqs(chip, chip->irqs_enabled);
-
+    #ifdef CONFIG_ARCH_SUN7I
+    writel(0x01,NMI_CTL_REG);
+    writel(0x01,NMI_IRG_PENDING_REG);
+    writel(0x00,NMI_INT_ENABLE_REG);
+    #endif
 	return 0;
 }
 
@@ -171,7 +175,9 @@ static int axp20_disable_irqs(struct axp_mfd_chip *chip, uint64_t irqs)
 	v[7] = POWER20_INTEN5;
 	v[8] = ((chip->irqs_enabled) >> 32) & 0xff;
 	ret =  __axp_writes(chip->client, POWER20_INTEN1, 9, v);
-
+    #ifdef CONFIG_ARCH_SUN7I
+    writel(0x0,NMI_INT_ENABLE_REG);
+    #endif
 	return ret;
 
 }
@@ -193,6 +199,9 @@ static int axp20_enable_irqs(struct axp_mfd_chip *chip, uint64_t irqs)
 	v[7] = POWER20_INTEN5;
 	v[8] = ((chip->irqs_enabled) >> 32) & 0xff;
 	ret =  __axp_writes(chip->client, POWER20_INTEN1, 9, v);
+    #ifdef CONFIG_ARCH_SUN7I
+    writel(0x1,NMI_INT_ENABLE_REG);
+    #endif
 
 	return ret;
 }
@@ -202,11 +211,14 @@ static int axp20_read_irqs(struct axp_mfd_chip *chip, uint64_t *irqs)
 	uint8_t v[5] = {0, 0, 0, 0, 0};
 	int ret;
 	ret =  __axp_reads(chip->client, POWER20_INTSTS1, 5, v);
+    #ifdef CONFIG_ARCH_SUN7I
+    writel(0x01,NMI_IRG_PENDING_REG);
+    #endif
 	if (ret < 0)
 		return ret;
 
 	*irqs =(((uint64_t) v[4]) << 32) |(((uint64_t) v[3]) << 24) | (((uint64_t) v[2])<< 16) | (((uint64_t)v[1]) << 8) | ((uint64_t) v[0]);
-	return 0;
+    return 0;
 }
 
 

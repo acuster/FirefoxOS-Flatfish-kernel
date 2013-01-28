@@ -488,6 +488,11 @@ struct axp_mfd_chip_ops {
 #define AXP20_STATUS_INCHAR    ( 1 << 14)
 #define AXP20_STATUS_ICTEMOV   ( 1 << 15)
 
+#ifdef  CONFIG_ARCH_SUN7I
+#define NMI_CTL_REG            (0xf1c00030)
+#define NMI_IRG_PENDING_REG    (0xf1c00034)
+#define NMI_INT_ENABLE_REG     (0xf1c00038)
+#endif
 
 extern struct device *axp_get_dev(void);
 extern int axp_register_notifier(struct device *dev,
