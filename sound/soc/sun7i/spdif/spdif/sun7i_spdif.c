@@ -59,7 +59,7 @@ static struct sun7i_dma_params sun7i_spdif_stereo_out = {
 #endif
 
 struct sun7i_spdif_info sun7i_spdif;
-/*static u32 spdif_handle = 0;*/
+//static u32 spdif_handle = 0;
 static struct clk *spdif_apbclk, *spdif_pll2clk, *spdif_pllx8, *spdif_moduleclk;
 
 void sun7i_snd_txctrl(struct snd_pcm_substream *substream, int on)
@@ -517,18 +517,18 @@ static int __devinit sun7i_spdif_dev_probe(struct platform_device *pdev)
 		return -ENXIO;
 
 		//spdif apbclk
-		spdif_apbclk = clk_get(NULL, CLK_APB_SPDIF);
+		spdif_apbclk = clk_get(NULL, "apb_spdif");
 		if(-1 == clk_enable(spdif_apbclk)){
 			printk("spdif_apbclk failed! line = %d\n", __LINE__);
 		}
 
-		spdif_pllx8 = clk_get(NULL, CLK_SYS_PLL2X8);
+		spdif_pllx8 = clk_get(NULL, "audio_pllx8");
 
 		//spdif pll2clk
-		spdif_pll2clk = clk_get(NULL, CLK_SYS_PLL2);
+		spdif_pll2clk = clk_get(NULL, "audio_pll");
 
 		//spdif module clk
-		spdif_moduleclk = clk_get(NULL, CLK_MOD_SPDIF);
+		spdif_moduleclk = clk_get(NULL, "spdif");
 
 		if(clk_set_parent(spdif_moduleclk, spdif_pll2clk)){
 			printk("try to set parent of spdif_moduleclk to spdif_pll2ck failed! line = %d\n",__LINE__);
@@ -592,15 +592,15 @@ static struct platform_driver sun7i_spdif_driver = {
 static int __init sun7i_spdif_init(void)
 {
 	int err = 0;
-	static script_item_u   val;
-	script_item_value_type_e  type;
-	type=script_get_item("spdif_para", "spdif_used", &val);
-	if(SCIRPT_ITEM_VALUE_TYPE_INT != type){
-		pr_info("spdif user type err\n");
-	}
-     spdif_used=val.val;
+	int ret;
+
+//	ret = script_parser_fetch("spdif_para","spdif_used", &spdif_used, sizeof(int));
+//	if (ret) {
+//        printk("[SPDIF]sun7i_spdif_init fetch spdif using configuration failed\n");
+//    }
+
 	if (spdif_used) {
-		/*spdif_handle = gpio_request_ex("spdif_para", NULL);*/
+//		spdif_handle = gpio_request_ex("spdif_para", NULL);
 
 		if((platform_device_register(&sun7i_spdif_device))<0)
 			return err;

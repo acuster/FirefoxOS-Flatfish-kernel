@@ -38,19 +38,19 @@
 #include "sun7i-hdmiaudio.h"
 
 
-static struct sw_dma_client sun7i_dma_client_out = {
+/*static struct sw_dma_client sun7i_dma_client_out = {
 	.name = "HDMIAUDIO PCM Stereo out"
 };
 
-//static struct sw_dma_client sun7i_dma_client_in = {
-//	.name = "HDMIAUDIO PCM Stereo in"
-//};
+static struct sw_dma_client sun7i_dma_client_in = {
+	.name = "HDMIAUDIO PCM Stereo in"
+};*/
 
 static struct sun7i_dma_params sun7i_hdmiaudio_pcm_stereo_out = {
-	.client		=	&sun7i_dma_client_out,
-	.channel	=	DMACH_HDMIAUDIO,
+
+	.name = "HDMIAUDIO PCM Stereo out",
 	.dma_addr 	=	0,
-	.dma_size 	=   4,               /* dma transfer 32bits */
+
 };
 
 //static struct sun7i_dma_params sun7i_hdmiaudio_pcm_stereo_in = {
@@ -99,9 +99,7 @@ static int sun7i_hdmiaudio_trigger(struct snd_pcm_substream *substream,
                               int cmd, struct snd_soc_dai *dai)
 {
 	int ret = 0;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct sun7i_dma_params *dma_data =
-					snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+
 
 	switch (cmd) {
 		case SNDRV_PCM_TRIGGER_START:
@@ -112,7 +110,7 @@ static int sun7i_hdmiaudio_trigger(struct snd_pcm_substream *substream,
 			} else {
 				sun7i_snd_txctrl_hdmiaudio(substream, 1);
 			}
-		sw_dma_ctrl(dma_data->channel, SW_DMAOP_STARTED);
+
 		break;
 		case SNDRV_PCM_TRIGGER_STOP:
 		case SNDRV_PCM_TRIGGER_SUSPEND:

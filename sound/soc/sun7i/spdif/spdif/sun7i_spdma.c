@@ -84,6 +84,7 @@ static void sun7i_pcm_enqueue(struct snd_pcm_substream *substream)
 		if ((pos + len) > prtd->dma_end) {
 			len  = prtd->dma_end - pos;
 		}
+		printk("%s, line:%d,pos:%x, prtd->params->dma_addr:%x, len:%x\n", __func__, __LINE__, pos, prtd->params->dma_addr, len);
 		ret = sw_dma_enqueue(prtd->dma_hdl, pos, prtd->params->dma_addr, len);
 		if (ret == 0) {
 			prtd->dma_loaded++;
@@ -106,6 +107,7 @@ static void sun7i_audio_buffdone(dma_hdl_t dma_hdl, void *parg)
 	if (substream) {
 		snd_pcm_period_elapsed(substream);
 	}
+printk("%s, line:%d\n", __func__, __LINE__);
 	spin_lock(&prtd->lock);
 	{
 		prtd->dma_loaded--;

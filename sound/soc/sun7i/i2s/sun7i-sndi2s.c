@@ -264,13 +264,13 @@ static struct platform_device *sun7i_sndi2s_device;
 static int __init sun7i_sndi2s_init(void)
 {
 	int ret;
-	int ret2;
-
-//	ret2 = script_parser_fetch("i2s_para","i2s_used", &i2s_used, sizeof(int));
-//	if (ret2) {
-//        printk("[I2S]sun7i_sndi2s_init fetch i2s using configuration failed\n");
-//    }
-//
+	static script_item_u   val;
+	script_item_value_type_e  type;
+	type=script_get_item("i2s_para", "i2s_used", &val);
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != type){
+		pr_info("i2s_used  type err\n");
+	}
+    i2s_used=val.val;
     if (i2s_used) {
 		sun7i_sndi2s_device = platform_device_alloc("soc-audio", 2);
 		if(!sun7i_sndi2s_device)

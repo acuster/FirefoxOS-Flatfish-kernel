@@ -116,7 +116,7 @@ struct snd_soc_dai_driver sndi2s_dai = {
 	},
 	/* pcm operations */
 	.ops = &sndi2s_dai_ops,
-	.symmetric_rates = 1,
+
 };
 EXPORT_SYMBOL(sndi2s_dai);
 
@@ -176,13 +176,11 @@ static struct platform_driver sndi2s_codec_driver = {
 static int __init sndi2s_codec_init(void)
 {
 	int err = 0;
-	int ret = 0;
-
-//	ret = script_parser_fetch("i2s_para","i2s_used", &i2s_used, sizeof(int));
-//	if (ret) {
-//        printk("[I2S]sndi2s_init fetch i2s using configuration failed\n");
-//    }
-//
+		/*	ret = script_parser_fetch("i2s_para","i2s_used", &i2s_used, sizeof(int));
+	if (ret) {
+        printk("[I2S]sndi2s_init fetch i2s using configuration failed\n");
+    }
+	*/
 	if (i2s_used) {
 		if((err = platform_device_register(&sndi2s_codec_device)) < 0)
 			return err;

@@ -39,26 +39,20 @@
 
 static int regsave[8];
 static int i2s_used = 1;
-static struct sw_dma_client sun7i_dma_client_out = {
-	.name = "I2S PCM Stereo out"
-};
 
-static struct sw_dma_client sun7i_dma_client_in = {
-	.name = "I2S PCM Stereo in"
-};
 
 static struct sun7i_dma_params sun7i_i2s_pcm_stereo_out = {
-	.client		=	&sun7i_dma_client_out,
-	.channel	=	DMACH_NIIS_PLAY,
-	.dma_addr 	=	SUN7I_IISBASE + SUN7I_IISTXFIFO,
-	.dma_size 	=   4,               /* dma transfer 32bits */
+
+	.name        = "I2S PCM Stereo out",
+	.dma_addr    =	SUN7I_IISBASE + SUN7I_IISTXFIFO,
+
 };
 
 static struct sun7i_dma_params sun7i_i2s_pcm_stereo_in = {
-	.client		=	&sun7i_dma_client_in,
-	.channel	=	DMACH_NIIS_CAPTURE,
+
+	.name       = "I2S PCM Stereo in",
 	.dma_addr 	=	SUN7I_IISBASE + SUN7I_IISRXFIFO,
-	.dma_size 	=   4,               /* dma transfer 32bits */
+
 };
 
 
@@ -69,7 +63,7 @@ static struct sun7i_dma_params sun7i_i2s_pcm_stereo_in = {
 void sun7i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 {
 	u32 reg_val;
-
+	/*pr_info("sun7i-i2s::func:%s(line:%d)\n",__func__,__LINE__);*/
 	reg_val = readl(sun7i_iis.regs + SUN7I_TXCHSEL);
 	reg_val &= ~0x7;
 	reg_val |= SUN7I_TXCHSEL_CHNUM(substream->runtime->channels);
@@ -128,6 +122,7 @@ void sun7i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 
 void sun7i_snd_rxctrl_i2s(struct snd_pcm_substream *substream, int on)
 {
+	/*pr_info("sun7i-i2s::func:%s(line:%d)\n",__func__,__LINE__);*/
 	u32 reg_val;
 	reg_val = readl(sun7i_iis.regs + SUN7I_RXCHSEL);
 	reg_val &= ~0x1;
@@ -194,7 +189,7 @@ static int sun7i_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
 	u32 reg_val;
 	u32 reg_val1;
-
+	/*pr_info("sun7i-i2s::func:%s(line:%d)\n",__func__,__LINE__);*/
 	//SDO ON
 	reg_val = readl(sun7i_iis.regs + SUN7I_IISCTL);
 	reg_val |= (SUN7I_IISCTL_SDO0EN);
@@ -316,6 +311,7 @@ static int sun7i_i2s_hw_params(struct snd_pcm_substream *substream,
 																struct snd_pcm_hw_params *params,
 																struct snd_soc_dai *dai)
 {
+	/*pr_info("sun7i-i2s::func:%s(line:%d)\n",__func__,__LINE__);*/
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct sun7i_dma_params *dma_data;
 
@@ -333,26 +329,27 @@ static int sun7i_i2s_trigger(struct snd_pcm_substream *substream,
                               int cmd, struct snd_soc_dai *dai)
 {
 	int ret = 0;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct sun7i_dma_params *dma_data =
-					snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
-
+	/*pr_info("sun7i-i2s::func:%s(line:%d)\n",__func__,__LINE__);*/
 	switch (cmd) {
 		case SNDRV_PCM_TRIGGER_START:
 		case SNDRV_PCM_TRIGGER_RESUME:
 		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+
 			if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 				sun7i_snd_rxctrl_i2s(substream, 1);
 			} else {
 				sun7i_snd_txctrl_i2s(substream, 1);
 			}
-			sw_dma_ctrl(dma_data->channel, SW_DMAOP_STARTED);
+
 			break;
 		case SNDRV_PCM_TRIGGER_STOP:
 		case SNDRV_PCM_TRIGGER_SUSPEND:
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+
 			if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 				sun7i_snd_rxctrl_i2s(substream, 0);
+				/*printk("[IIS]SPECIAL CLK 0x01c20068 = %#x, line= %d\n", *(volatile int*)0xF1C20068, __LINE__);
+				printk("[IIS]SPECIAL CLK 0x01c200B8 = %#x, line = %d\n", *(volatile int*)0xF1C200B8, __LINE__);*/
 			} else {
 			  sun7i_snd_txctrl_i2s(substream, 0);
 			}
@@ -368,7 +365,7 @@ static int sun7i_i2s_trigger(struct snd_pcm_substream *substream,
 //freq:   1: 22.5792MHz   0: 24.576MHz
 static int sun7i_i2s_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
                                  unsigned int freq, int dir)
-{
+{	/*pr_info("sun7i-i2s::func:%s(line:%d)\n",__func__,__LINE__);*/
 	if (!freq) {
 		clk_set_rate(i2s_pll2clk, 24576000);
 	} else {
@@ -381,6 +378,7 @@ static int sun7i_i2s_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
 static int sun7i_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int div)
 {
 	u32 reg;
+	/*pr_info("sun7i-i2s::func:%s(line:%d)\n",__func__,__LINE__);*/
 	switch (div_id) {
 		case SUN7I_DIV_MCLK:
 			if(div <= 8)
@@ -482,8 +480,8 @@ static int sun7i_i2s_suspend(struct snd_soc_dai *cpu_dai)
 	clk_disable(i2s_apbclk);
 
 	//printk("[IIS]PLL2 0x01c20008 = %#x\n", *(volatile int*)0xF1C20008);
-	printk("[IIS]SPECIAL CLK 0x01c20068 = %#x, line= %d\n", *(volatile int*)0xF1C20068, __LINE__);
-	printk("[IIS]SPECIAL CLK 0x01c200B8 = %#x, line = %d\n", *(volatile int*)0xF1C200B8, __LINE__);
+	/*printk("[IIS]SPECIAL CLK 0x01c20068 = %#x, line= %d\n", *(volatile int*)0xF1C20068, __LINE__);
+	printk("[IIS]SPECIAL CLK 0x01c200B8 = %#x, line = %d\n", *(volatile int*)0xF1C200B8, __LINE__);*/
 
 	return 0;
 }
@@ -538,7 +536,7 @@ static struct snd_soc_dai_driver sun7i_iis_dai = {
 		.rates = SUN7I_I2S_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE,
 	},
-	.symmetric_rates = 1,
+
 	.ops 		= &sun7i_iis_dai_ops,
 };
 
@@ -552,7 +550,7 @@ static int __devinit sun7i_i2s_dev_probe(struct platform_device *pdev)
 		return -ENXIO;
 
 	//i2s apbclk
-	i2s_apbclk = clk_get(NULL, "apb_i2s");
+	i2s_apbclk = clk_get(NULL, "apb_i2s0");
 	if(-1 == clk_enable(i2s_apbclk)){
 		printk("i2s_apbclk failed! line = %d\n", __LINE__);
 		goto out;
@@ -564,7 +562,7 @@ static int __devinit sun7i_i2s_dev_probe(struct platform_device *pdev)
 	i2s_pll2clk = clk_get(NULL, "audio_pll");
 
 	//i2s module clk
-	i2s_moduleclk = clk_get(NULL, "i2s");
+	i2s_moduleclk = clk_get(NULL, "i2s0");
 
 	if(clk_set_parent(i2s_moduleclk, i2s_pll2clk)){
 		printk("try to set parent of i2s_moduleclk to i2s_pll2ck failed! line = %d\n",__LINE__);
@@ -585,7 +583,7 @@ static int __devinit sun7i_i2s_dev_probe(struct platform_device *pdev)
 	reg_val |= SUN7I_IISCTL_GEN;
 	writel(reg_val, sun7i_iis.regs + SUN7I_IISCTL);
 
-	iounmap(sun7i_iis.ioregs);
+	/*iounmap(sun7i_iis.ioregs);*/
 	ret = snd_soc_register_dai(&pdev->dev, &sun7i_iis_dai);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register DAI\n");
@@ -605,19 +603,19 @@ static int __devexit sun7i_i2s_dev_remove(struct platform_device *pdev)
 {
 	if(i2s_used) {
 		i2s_used = 0;
-		//release the module clock
+		/*release the module clock*/
 		clk_disable(i2s_moduleclk);
 
-		//release pllx8clk
+		/*release pllx8clk*/
 		clk_put(i2s_pllx8);
 
-		//release pll2clk
+		/*release pll2clk*/
 		clk_put(i2s_pll2clk);
 
-		//release apbclk
+		/*release apbclk*/
 		clk_put(i2s_apbclk);
 
-//		gpio_release(i2s_handle, 2);
+		/*gpio_release(i2s_handle, 2);*/
 		snd_soc_unregister_dai(&pdev->dev);
 		platform_set_drvdata(pdev, NULL);
 	}
@@ -642,15 +640,15 @@ static struct platform_driver sun7i_i2s_driver = {
 static int __init sun7i_i2s_init(void)
 {
 	int err = 0;
-	int ret;
-
-//	ret = script_parser_fetch("i2s_para","i2s_used", &i2s_used, sizeof(int));
-//	if (ret) {
-//        printk("[I2S]sun7i_i2s_init fetch i2s using configuration failed\n");
-//    }
-//
+	static script_item_u   val;
+	script_item_value_type_e  type;
+	type=script_get_item("i2s_para", "i2s_used", &val);
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != type){
+		pr_info("i2s_used  type err\n");
+	}
+    i2s_used=val.val;
 	if (i2s_used) {
-//		i2s_handle = gpio_request_ex("i2s_para", NULL);
+	/*i2s_handle = gpio_request_ex("i2s_para", NULL);*/
 
 		if((err = platform_device_register(&sun7i_i2s_device)) < 0)
 			return err;

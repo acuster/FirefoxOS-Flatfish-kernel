@@ -267,8 +267,6 @@ extern void sun7i_snd_rxctrl_i2s(struct snd_pcm_substream *substream, int on);
 
 struct sun7i_i2s_info {
 	void __iomem   *regs;    /* IIS BASE */
-	void __iomem   *ccmregs;  //CCM BASE
-	void __iomem   *ioregs;   //IO BASE
 
 	u32 slave;					//0: master, 1: slave
 	u32 mono;					//0: stereo, 1: mono

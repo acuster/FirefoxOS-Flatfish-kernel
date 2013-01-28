@@ -38,8 +38,8 @@ extern void sun7i_snd_rxctrl_hdmiaudio(struct snd_pcm_substream *substream, int 
 
 struct sun7i_hdmiaudio_info {
 	void __iomem   *regs;    /* IIS BASE */
-	void __iomem   *ccmregs;  //CCM BASE
-	void __iomem   *ioregs;   //IO BASE
+	/*void __iomem   *ccmregs;  //CCM BASE
+	void __iomem   *ioregs;   //IO BASE*/
 };
 
 extern struct sun7i_hdmiaudio_info sun7i_hdmiaudio;

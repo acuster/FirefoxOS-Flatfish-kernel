@@ -16,6 +16,15 @@
 #ifndef SUN7I_HDMIPCM_H_
 #define SUN7I_HDMIPCM_H_
 
+#undef HX_NEW_DMA
+#define HX_NEW_DMA
+#ifdef HX_NEW_DMA
+	struct sun7i_dma_params {
+		char *name;
+		dma_addr_t dma_addr;
+	};
+
+#else
 struct sun7i_dma_params {
 	struct sw_dma_client *client;
 	int channel;
@@ -32,5 +41,5 @@ enum sun7i_dma_buffresult {
 /* platform data */
 extern int sw_dma_enqueue(unsigned int channel, void *id,
 			dma_addr_t data, int size);
-
+#endif
 #endif //SUN7I_HDMIPCM_H_

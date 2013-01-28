@@ -1,5 +1,5 @@
 /*
- * sound\soc\sun7i\i2s\sun7i-i2sdma.h
+ * sound\soc\sun7i\spdif\sun7i_sndspdif.h
  * (C) Copyright 2007-2011
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
  * chenpailin <chenpailin@Reuuimllatech.com>
@@ -12,15 +12,7 @@
  * the License, or (at your option) any later version.
  *
  */
-#ifndef SUN7I_PCM_H_
-#define SUN7I_PCM_H_
+#ifndef SUN7I_SNDSPDIF_H_
+#define SUN7I_SNDSPDIF_H_
 
-#define ST_RUNNING    (1<<0)
-#define ST_OPENED     (1<<1)
-
-struct sun7i_dma_params {
-	char *name;
-	dma_addr_t dma_addr;
-};
-
-#endif //SUN7I_PCM_H_
+#endif

@@ -31,7 +31,6 @@
 
 #include "sun7i-hdmiaudio.h"
 #include "sun7i-hdmipcm.h"
-
 static volatile unsigned int dmasrc = 0;
 static volatile unsigned int dmadst = 0;
 
@@ -62,6 +61,9 @@ struct sun7i_runtime_data {
 	dma_addr_t dma_start;
 	dma_addr_t dma_pos;
 	dma_addr_t dma_end;
+	dma_hdl_t	dma_hdl;
+	bool		play_dma_flag;
+	dma_cb_t 	play_done_cb;
 	struct sun7i_dma_params *params;
 };
 
@@ -80,7 +82,8 @@ static void sun7i_pcm_enqueue(struct snd_pcm_substream *substream)
 			len  = prtd->dma_end - pos;
 		}
 
-		ret = sw_dma_enqueue(prtd->params->channel, substream, __bus_to_virt(pos),  len);
+		ret = sw_dma_enqueue(prtd->dma_hdl, pos, prtd->params->dma_addr, len);
+
 		if (ret == 0) {
 			prtd->dma_loaded++;
 			pos += prtd->dma_period;
@@ -94,16 +97,10 @@ static void sun7i_pcm_enqueue(struct snd_pcm_substream *substream)
 	prtd->dma_pos = pos;
 }
 
-static void sun7i_audio_buffdone(struct sw_dma_chan *channel,
-		                                  void *dev_id, int size,
-		                                  enum sw_dma_buffresult result)
+static void sun7i_audio_buffdone(dma_hdl_t dma_hdl, void *parg)
 {
 	struct sun7i_runtime_data *prtd;
-	struct snd_pcm_substream *substream = dev_id;
-
-	if (result == SW_RES_ABORT || result == SW_RES_ERR)
-		return;
-
+	struct snd_pcm_substream *substream = parg;
 	prtd = substream->runtime->private_data;
 		if (substream) {
 			snd_pcm_period_elapsed(substream);
@@ -127,21 +124,34 @@ static int sun7i_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct sun7i_dma_params *dma =
 					snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
-	int ret = 0;
+
 	if (!dma)
 		return 0;
 
 	if (prtd->params == NULL) {
 		prtd->params = dma;
-		ret = sw_dma_request(prtd->params->channel,
-					  prtd->params->client, NULL);
-		if (ret < 0) {
-				return ret;
+			/*
+		 * requeset audio dma handle(we don't care about the channel!)
+		 */
+		prtd->dma_hdl = sw_dma_request(prtd->params->name, CHAN_DEDICATE);
+		if (NULL == prtd->dma_hdl) {
+			printk(KERN_ERR "failed to request spdif dma handle\n");
+			return -EINVAL;
 		}
 	}
 
-	sw_dma_set_buffdone_fn(prtd->params->channel,
-				    sun7i_audio_buffdone);
+		/*
+	* set callback
+	*/
+	memset(&prtd->play_done_cb, 0, sizeof(prtd->play_done_cb));
+	prtd->play_done_cb.func = sun7i_audio_buffdone;
+	prtd->play_done_cb.parg = substream;
+	/*use the full buffer callback, maybe we should use the half buffer callback?*/
+	if (0 != sw_dma_ctl(prtd->dma_hdl, DMA_OP_SET_FD_CB, (void *)&(prtd->play_done_cb))) {
+		printk(KERN_ERR "failed to set dma buffer done!!!\n");
+		sw_dma_release(prtd->dma_hdl);
+		return -EINVAL;
+	}
 
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 
@@ -162,14 +172,24 @@ static int sun7i_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct sun7i_runtime_data *prtd = substream->runtime->private_data;
 
-	/* TODO - do we need to ensure DMA flushed */
-	if(prtd->params)
-	sw_dma_ctrl(prtd->params->channel, SW_DMAOP_FLUSH);
+
 
 	snd_pcm_set_runtime_buffer(substream, NULL);
 
 	if (prtd->params) {
-		sw_dma_free(prtd->params->channel, prtd->params->client);
+			/*
+		 * stop play dma transfer
+		 */
+		if (0 != sw_dma_ctl(prtd->dma_hdl, DMA_OP_STOP, NULL)) {
+			return -EINVAL;
+		}
+		/*
+		*	release play dma handle
+		*/
+		if (0 != sw_dma_release(prtd->dma_hdl)) {
+			return -EINVAL;
+		}
+		prtd->dma_hdl = (dma_hdl_t)NULL;
 		prtd->params = NULL;
 	}
 
@@ -179,31 +199,48 @@ static int sun7i_pcm_hw_free(struct snd_pcm_substream *substream)
 static int sun7i_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct sun7i_runtime_data *prtd = substream->runtime->private_data;
-	struct dma_hw_conf codec_dma_conf;
+	dma_config_t codec_dma_conf;
 	int ret = 0;
 
 	if (!prtd->params)
 		return 0;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
-		codec_dma_conf.drqsrc_type  = DRQ_TYPE_SDRAM;
-		codec_dma_conf.drqdst_type  = DRQ_TYPE_HDMIAUDIO;
-		codec_dma_conf.xfer_type    = DMAXFER_D_BWORD_S_BWORD;
-		codec_dma_conf.address_type = DMAADDRT_D_IO_S_LN;
-		codec_dma_conf.dir          = SW_DMA_WDEV;
-		codec_dma_conf.reload       = 0;
-		codec_dma_conf.hf_irq       = SW_DMA_IRQ_FULL;
-		codec_dma_conf.from         = prtd->dma_start;
-		codec_dma_conf.to           = prtd->params->dma_addr;
-		codec_dma_conf.cmbk		 	= 0x1F071F07;
-		ret = sw_dma_config(prtd->params->channel, &codec_dma_conf);
-	}
+		memset(&codec_dma_conf, 0, sizeof(codec_dma_conf));
+		codec_dma_conf.xfer_type.src_data_width 	= DATA_WIDTH_32BIT;
+		codec_dma_conf.xfer_type.src_bst_len 	= DATA_BRST_4;
+		codec_dma_conf.xfer_type.dst_data_width 	= DATA_WIDTH_32BIT;
+		codec_dma_conf.xfer_type.dst_bst_len 	= DATA_BRST_4;
+		codec_dma_conf.address_type.src_addr_mode 	= DDMA_ADDR_LINEAR;
+		codec_dma_conf.address_type.dst_addr_mode 	= DDMA_ADDR_IO;
+		codec_dma_conf.src_drq_type 	= D_SRC_SDRAM;
+		codec_dma_conf.dst_drq_type 	= D_DST_HDMI_AUD;
+		codec_dma_conf.bconti_mode 		= false;
+		codec_dma_conf.irq_spt 		= CHAN_IRQ_FD;
+		if(0 != sw_dma_config(prtd->dma_hdl, &codec_dma_conf)) {
+			printk("err:%s,line:%d\n", __func__, __LINE__);
+			return -EINVAL;
+			return -EINVAL;
+		}
+		/*	dma_para_t para;
+			para.src_blk_sz 	= 0;
+			para.src_wait_cyc 	= 0;
+			para.dst_blk_sz 	= 0;
+			para.dst_wait_cyc 	= 0;*/
+			u32 tmp = 0x1F071F07;
+			if(0 != sw_dma_ctl(prtd->dma_hdl, DMA_OP_SET_PARA_REG, &tmp)) {
+
+				return -EINVAL;
+			}
+
+		}else{
+		return -EINVAL;
+		}
 
 	/* flush the DMA channel */
-	sw_dma_ctrl(prtd->params->channel, SW_DMAOP_FLUSH);
+	/*sw_dma_ctrl(prtd->params->channel, SW_DMAOP_FLUSH);*/
 	prtd->dma_loaded = 0;
-	prtd->dma_pos = prtd->dma_start;
-
+	/*prtd->dma_pos = prtd->dma_start;*/
 	/* enqueue dma buffers */
 	sun7i_pcm_enqueue(substream);
 
@@ -221,14 +258,26 @@ static int sun7i_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		printk("[HDMI-AUDIO] PCM trigger start...\n");
-		sw_dma_ctrl(prtd->params->channel, SW_DMAOP_START);
+		/*
+		* start dma transfer
+		*/
+		if (0 != sw_dma_ctl(prtd->dma_hdl, DMA_OP_START, NULL)) {
+			printk("%s err, dma start err\n", __FUNCTION__);
+			return -EINVAL;
+		}
 		break;
 
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		printk("[HDMI-AUDIO] PCM trigger stop...\n");
-		sw_dma_ctrl(prtd->params->channel, SW_DMAOP_STOP);
+		/*
+		* stop play dma transfer
+		*/
+		if (0 != sw_dma_ctl(prtd->dma_hdl, DMA_OP_STOP, NULL)) {
+			printk("%s err, dma stop err\n", __FUNCTION__);
+			return -EINVAL;
+		}
 		break;
 
 	default:
@@ -249,7 +298,7 @@ static snd_pcm_uframes_t sun7i_pcm_pointer(struct snd_pcm_substream *substream)
 
 	spin_lock(&prtd->lock);
 
-	sw_dma_getcurposition(DMACH_HDMIAUDIO, (dma_addr_t*)&dmasrc, (dma_addr_t*)&dmadst);
+	sw_dma_getposition(prtd->dma_hdl, (dma_addr_t*)&dmasrc, (dma_addr_t*)&dmadst);
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		res = dmadst - prtd->dma_start;
