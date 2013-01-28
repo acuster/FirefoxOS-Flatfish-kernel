@@ -34,10 +34,10 @@
 #define HP_THERMAL_NUM		8
 
 #ifdef CONFIG_PCI_HCI
-#define MAX_AGGR_NUM	0x0A0A
+#define MAX_AGGR_NUM	0x0B
 #else
-#define MAX_AGGR_NUM	0x0909
-#endif
+#define MAX_AGGR_NUM	0x07
+#endif // CONFIG_PCI_HCI
 
 
 /*--------------------------Define Parameters-------------------------------*/
@@ -100,11 +100,6 @@ typedef enum _WIRELESS_MODE {
 	WIRELESS_MODE_AC		= BIT6
 } WIRELESS_MODE;
 
-typedef enum _BaseBand_Config_Type{
-	BaseBand_Config_PHY_REG = 0,			//Radio Path A
-	BaseBand_Config_AGC_TAB = 1,			//Radio Path B
-}BaseBand_Config_Type, *PBaseBand_Config_Type;
-
 
 typedef enum _PHY_Rate_Tx_Power_Offset_Area{
 	RA_OFFSET_LEGACY_OFDM1,
@@ -129,18 +124,6 @@ typedef	enum _RF_TYPE_8190P{
 	RF_PSEUDO_11N=5,	// 5, It is a temporality RF.
 }RF_TYPE_8190P_E,*PRF_TYPE_8190P_E;
 
-
-typedef enum _RATR_TABLE_MODE_8192C{
-	RATR_INX_WIRELESS_NGB = 0,
-	RATR_INX_WIRELESS_NG = 1,
-	RATR_INX_WIRELESS_NB = 2,
-	RATR_INX_WIRELESS_N = 3,
-	RATR_INX_WIRELESS_GB = 4,
-	RATR_INX_WIRELESS_G = 5,
-	RATR_INX_WIRELESS_B = 6,
-	RATR_INX_WIRELESS_MC = 7,
-	RATR_INX_WIRELESS_A = 8,
-}RATR_TABLE_MODE_8192C, *PRATR_TABLE_MODE_8192C;
 
 typedef struct _BB_REGISTER_DEFINITION{
 	u32 rfintfs;			// set software control:

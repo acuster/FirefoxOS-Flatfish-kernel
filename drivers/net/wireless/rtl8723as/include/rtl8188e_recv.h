@@ -17,8 +17,8 @@
  *
  *
  ******************************************************************************/
-#ifndef __RTL8723A_RECV_H__
-#define __RTL8723A_RECV_H__
+#ifndef __RTL8188E_RECV_H__
+#define __RTL8188E_RECV_H__
 
 #include <rtl8192c_recv.h>
 
@@ -123,6 +123,7 @@ void rtl8188es_recv_hdl(PADAPTER padapter, struct recv_buf *precvbuf);
 #endif
 
 #ifdef CONFIG_USB_HCI
+#define INTERRUPT_MSG_FORMAT_LEN 60
 void rtl8188eu_init_recvbuf(_adapter *padapter, struct recv_buf *precvbuf);
 s32 rtl8188eu_init_recv_priv(PADAPTER padapter);
 void rtl8188eu_free_recv_priv(PADAPTER padapter);

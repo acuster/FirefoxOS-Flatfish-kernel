@@ -282,7 +282,7 @@ void Hal_MPT_CCKTxPowerAdjustbyIndex(PADAPTER pAdapter, BOOLEAN beven)
 	PMPT_CONTEXT	pMptCtx = &pAdapter->mppriv.MptCtx;
 
 
-	if (!IS_92C_SERIAL(pHalData->VersionID) || !IS_NORMAL_CHIP(pHalData->VersionID))
+	if (!IS_92C_SERIAL(pHalData->VersionID))
 		return;
 #if 0
 	while(PlatformAtomicExchange(&Adapter->IntrCCKRefCount, TRUE) == TRUE)
@@ -417,13 +417,6 @@ void Hal_SetChannel(PADAPTER pAdapter)
 		pHalData->dmpriv.bCCKinCH14 = _FALSE;
 		Hal_MPT_CCKTxPowerAdjust(pAdapter, pHalData->dmpriv.bCCKinCH14);
 	}
-#if 0
-//#ifdef CONFIG_USB_HCI
-	// Georgia add 2009-11-17, suggested by Edlu , for 8188CU ,46 PIN
-	if (!IS_92C_SERIAL(pHalData->VersionID) && !IS_NORMAL_CHIP(pHalData->VersionID)) {
-		mpt_AdjustRFRegByRateByChan92CU(pAdapter, rate, pHalData->CurrentChannel, bandwidth);
-	}
-#endif
 
 #endif
 }
@@ -1009,6 +1002,11 @@ void Hal_SetCarrierSuppressionTx(PADAPTER pAdapter, u8 bStart)
 			//PHY_SetBBReg(pAdapter, rCCK0_System, bCCKTxRate, pMgntInfo->ForcedDataRate);
 			write_bbreg(pAdapter, rCCK0_System, bCCKTxRate, 0x0);    //Set FTxRate to 1Mbps
 		}
+
+		 //Set for dynamic set Power index
+		 write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000500);
+		 write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000500);
+
 	}
 	else// Stop Carrier Suppression.
 	{
@@ -1022,6 +1020,9 @@ void Hal_SetCarrierSuppressionTx(PADAPTER pAdapter, u8 bStart)
 			write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x0);
 			write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x1);
 		}
+		//Stop for dynamic set Power index
+		write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter1, bMaskDWord, 0x01000100);
+		write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter1, bMaskDWord, 0x01000100);
 	}
 	//DbgPrint("\n MPT_ProSetCarrierSupp() is finished. \n");
 }

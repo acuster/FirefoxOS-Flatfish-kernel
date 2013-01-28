@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,6 @@
 #include <xmit_osdep.h>
 #include <osdep_intf.h>
 #include <circ_buf.h>
-
 
 uint rtw_remainder_len(struct pkt_file *pfile)
 {
@@ -128,11 +127,11 @@ int rtw_os_xmit_resource_alloc(_adapter *padapter, struct xmit_buf *pxmitbuf,u32
 {
 #ifdef CONFIG_USB_HCI
 	int i;
-	struct dvobj_priv	*pdvobjpriv = &padapter->dvobjpriv;
+	struct dvobj_priv	*pdvobjpriv = adapter_to_dvobj(padapter);
 	struct usb_device	*pusbd = pdvobjpriv->pusbdev;
 
 #ifdef CONFIG_USE_USB_BUFFER_ALLOC_TX
-	pxmitbuf->pallocated_buf = rtw_usb_buffer_alloc(pusbd, (size_t)alloc_sz, GFP_ATOMIC, &pxmitbuf->dma_transfer_addr);
+	pxmitbuf->pallocated_buf = rtw_usb_buffer_alloc(pusbd, (size_t)alloc_sz, &pxmitbuf->dma_transfer_addr);
 	pxmitbuf->pbuf = pxmitbuf->pallocated_buf;
 	if(pxmitbuf->pallocated_buf == NULL)
 		return _FAIL;
@@ -160,7 +159,7 @@ int rtw_os_xmit_resource_alloc(_adapter *padapter, struct xmit_buf *pxmitbuf,u32
 
 	}
 #endif
-#if defined(CONFIG_PCI_HCI) || defined(CONFIG_SDIO_HCI)
+#if defined(CONFIG_PCI_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 	pxmitbuf->pallocated_buf = rtw_zmalloc(alloc_sz);
 	if (pxmitbuf->pallocated_buf == NULL)
 	{
@@ -177,7 +176,7 @@ void rtw_os_xmit_resource_free(_adapter *padapter, struct xmit_buf *pxmitbuf,u32
 {
 #ifdef CONFIG_USB_HCI
 	int i;
-	struct dvobj_priv	*pdvobjpriv = &padapter->dvobjpriv;
+	struct dvobj_priv	*pdvobjpriv = adapter_to_dvobj(padapter);
 	struct usb_device	*pusbd = pdvobjpriv->pusbdev;
 
 
@@ -200,16 +199,35 @@ void rtw_os_xmit_resource_free(_adapter *padapter, struct xmit_buf *pxmitbuf,u32
 #endif	// CONFIG_USE_USB_BUFFER_ALLOC_TX
 
 #endif
-#if defined(CONFIG_PCI_HCI) || defined(CONFIG_SDIO_HCI)
+#if defined(CONFIG_PCI_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 	if(pxmitbuf->pallocated_buf)
 		rtw_mfree(pxmitbuf->pallocated_buf, free_sz);
 #endif
 }
 
+#define WMM_XMIT_THRESHOLD	(NR_XMITFRAME*2/5)
+
 void rtw_os_pkt_complete(_adapter *padapter, _pkt *pkt)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35))
+	u16	queue;
+	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
+
+	queue = skb_get_queue_mapping(pkt);
+	if (padapter->registrypriv.wifi_spec) {
+		if(__netif_subqueue_stopped(padapter->pnetdev, queue) &&
+			(pxmitpriv->hwxmits[queue].accnt < WMM_XMIT_THRESHOLD))
+		{
+			netif_wake_subqueue(padapter->pnetdev, queue);
+		}
+	} else {
+		if(__netif_subqueue_stopped(padapter->pnetdev, queue))
+			netif_wake_subqueue(padapter->pnetdev, queue);
+	}
+#else
 	if (netif_queue_stopped(padapter->pnetdev))
 		netif_wake_queue(padapter->pnetdev);
+#endif
 
 	dev_kfree_skb_any(pkt);
 }
@@ -230,15 +248,21 @@ void rtw_os_xmit_complete(_adapter *padapter, struct xmit_frame *pxframe)
 
 void rtw_os_xmit_schedule(_adapter *padapter)
 {
-#ifdef CONFIG_SDIO_HCI
+	_adapter *pri_adapter = padapter;
+
+#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 	if(!padapter)
 		return;
 
-//	if (rtw_txframes_pending(padapter))
-	if (_rtw_queue_empty(&padapter->xmitpriv.pending_xmitbuf_queue) == _FALSE)
-	{
-		_rtw_up_sema(&padapter->xmitpriv.xmit_sema);
-	}
+#ifdef CONFIG_CONCURRENT_MODE
+	if(padapter->adapter_type > PRIMARY_ADAPTER)
+		pri_adapter = padapter->pbuddy_adapter;
+#endif
+
+	if (_rtw_queue_empty(&pri_adapter->xmitpriv.pending_xmitbuf_queue) == _FALSE)
+		_rtw_up_sema(&pri_adapter->xmitpriv.xmit_sema);
+
+
 #else
 	_irqL  irqL;
 	struct xmit_priv *pxmitpriv;
@@ -259,7 +283,33 @@ void rtw_os_xmit_schedule(_adapter *padapter)
 #endif
 }
 
+static void rtw_check_xmit_resource(_adapter *padapter, _pkt *pkt)
+{
+	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
+	u16	queue;
 
+	if (padapter->registrypriv.wifi_spec) {
+		queue = skb_get_queue_mapping(pkt);
+		/* No free space for Tx, tx_worker is too slow */
+		if (pxmitpriv->hwxmits[queue].accnt > WMM_XMIT_THRESHOLD) {
+			//DBG_871X("%s(): stop netif_subqueue[%d]\n", __FUNCTION__, queue);
+			netif_stop_subqueue(padapter->pnetdev, queue);
+		}
+	} else {
+		if(pxmitpriv->free_xmitframe_cnt<=4) {
+			if (!netif_tx_queue_stopped(netdev_get_tx_queue(padapter->pnetdev, queue)))
+				netif_stop_subqueue(padapter->pnetdev, queue);
+		}
+	}
+#else
+	if(pxmitpriv->free_xmitframe_cnt<=4)
+	{
+		if (!rtw_netif_queue_stopped(padapter->pnetdev))
+			rtw_netif_stop_queue(padapter->pnetdev);
+	}
+#endif
+}
 
 #ifdef CONFIG_TX_MCAST2UNI
 int rtw_mlcst2unicst(_adapter *padapter, struct sk_buff *skb)
@@ -324,6 +374,9 @@ int rtw_xmit_entry(_pkt *pkt, _nic_hdl pnetdev)
 	extern int rtw_mc2u_disable;
 #endif	// CONFIG_TX_MCAST2UNI
 	s32 res = 0;
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
+	u16 queue;
+#endif
 
 _func_enter_;
 
@@ -336,6 +389,8 @@ _func_enter_;
 		#endif
 		goto drop_packet;
 	}
+
+	rtw_check_xmit_resource(padapter, pkt);
 
 #ifdef CONFIG_TX_MCAST2UNI
 	if ( !rtw_mc2u_disable

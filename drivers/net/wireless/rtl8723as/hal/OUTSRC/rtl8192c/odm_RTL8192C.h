@@ -61,6 +61,11 @@ odm_TXPowerTrackingCallback_ThermalMeter_92C(
 	IN PADAPTER	Adapter
 	);
 
+VOID
+odm_TXPowerTrackingCallback_ThermalMeter_8723A(
+    IN PADAPTER	Adapter
+    );
+
 //
 // ==================================================
 // Tx power tracking relative code.

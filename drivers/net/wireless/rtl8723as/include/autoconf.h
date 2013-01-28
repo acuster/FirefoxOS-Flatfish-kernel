@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -17,9 +17,9 @@
  *
  *
  ******************************************************************************/
-
+#define CONFIG_ODM_REFRESH_RAMASK
 #define CONFIG_PHY_SETTING_WITH_ODM
-#define CONFIG_CHIP_VER_INTEGRATION
+
 
 /*
  * Automatically generated C config: don't edit
@@ -30,91 +30,98 @@
 #define RTL871X_MODULE_NAME "8723AS"
 #define DRV_NAME "rtl8723as"
 
-#define CONFIG_RTL8723A 1
-#define CONFIG_SDIO_HCI 1
-#define PLATFORM_LINUX 1
+#define CONFIG_RTL8723A
+#define CONFIG_SDIO_HCI
+#define PLATFORM_LINUX
 
-#define CONFIG_EMBEDDED_FWIMG 1
-
-#define CONFIG_DEBUG 1
-
+#define CONFIG_EMBEDDED_FWIMG
 
 /*
  * Functions Config
  */
-#define CONFIG_80211N_HT 1
-#define CONFIG_RECV_REORDERING_CTRL 1
+#define CONFIG_80211N_HT
+#define CONFIG_RECV_REORDERING_CTRL
 
-#define CONFIG_IOCTL_CFG80211 1
+#define CONFIG_IOCTL_CFG80211
 #ifdef CONFIG_IOCTL_CFG80211
+	#define RTW_USE_CFG80211_STA_EVENT /* Opne this for Android 4.1's wpa_supplicant */
 	#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
-	//#define CONFIG_DEBUG_CFG80211 1
+	//#define CONFIG_DEBUG_CFG80211
+	#define CONFIG_SET_SCAN_DENY_TIMER
 #endif
 
-#define CONFIG_AP_MODE	1
+#define CONFIG_AP_MODE
 #ifdef CONFIG_AP_MODE
-	#define CONFIG_NATIVEAP_MLME 1
+	#define CONFIG_NATIVEAP_MLME
 	#ifndef CONFIG_NATIVEAP_MLME
-		#define CONFIG_HOSTAPD_MLME	1
+		#define CONFIG_HOSTAPD_MLME
 	#endif
-	//#define CONFIG_FIND_BEST_CHANNEL	1
-	//#define CONFIG_NO_WIRELESS_HANDLERS	1
+	//#define CONFIG_FIND_BEST_CHANNEL
+	//#define CONFIG_NO_WIRELESS_HANDLERS
 #endif
 
-#define CONFIG_P2P	1
+#define CONFIG_P2P
 #ifdef CONFIG_P2P
 	//Added by Albert 20110812
 	//The CONFIG_WFD is for supporting the Wi-Fi display
-	//#define CONFIG_WFD	1
+	#define CONFIG_WFD
 
-	//Unmarked if there is low p2p scanned ratio; Kurt
-	//#define CONFIG_P2P_AGAINST_NOISE	1
-
-	#define CONFIG_P2P_REMOVE_GROUP_INFO
+	#ifndef CONFIG_WIFI_TEST
+		#define CONFIG_P2P_REMOVE_GROUP_INFO
+	#endif
 	//#define CONFIG_DBG_P2P
+	//#define CONFIG_P2P_IPS
 #endif
 
-// Added by Kurt 20110511
-//#define CONFIG_TDLS	1
+//	Added by Kurt 20110511
+//#define CONFIG_TDLS
+#ifdef CONFIG_TDLS
+//	#ifndef CONFIG_WFD
+//		#define CONFIG_WFD	1
+//	#endif
+//	#define CONFIG_TDLS_AUTOSETUP			1
+//	#define CONFIG_TDLS_AUTOCHECKALIVE		1
+#endif
 
 #define CONFIG_LAYER2_ROAMING
 #define CONFIG_LAYER2_ROAMING_RESUME
 
-//#define CONFIG_80211D 1
-#define CONFIG_LPS_RPWM_TIMER
+//#define CONFIG_80211D
+
 
 /*
  * Hardware Related Config
  */
-//#define CONFIG_BT_COEXIST	1 // set from Makefile
-//#define CONFIG_ANTENNA_DIVERSITY	1
-//#define SUPPORT_HW_RFOFF_DETECTED	1
+//#define CONFIG_BT_COEXIST	// set from Makefile
+//#define CONFIG_ANTENNA_DIVERSITY
+//#define SUPPORT_HW_RFOFF_DETECTED
 
-//#define CONFIG_SW_LED 1
+//#define CONFIG_SW_LED
 
 
 /*
  * Interface Related Config
  */
-
+#define CONFIG_SDIO_RX_COPY
 
 /*
  * Others
  */
-//#define CONFIG_MAC_LOOPBACK_DRIVER 1
-#define CONFIG_SKB_COPY	1//for amsdu
-#define CONFIG_LONG_DELAY_ISSUE 1
-//#define CONFIG_PATCH_JOIN_WRONG_CHANNEL 1
+//#define CONFIG_MAC_LOOPBACK_DRIVER
+#define CONFIG_SKB_COPY //for amsdu
+#define CONFIG_LONG_DELAY_ISSUE
+#define CONFIG_NEW_SIGNAL_STAT_PROCESS
+#define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable, */
+//#define CONFIG_PATCH_JOIN_WRONG_CHANNEL
 
 
 /*
  * Auto Config Section
  */
 #if defined(CONFIG_RTL8723A) && defined(CONFIG_SDIO_HCI)
-#define CONFIG_RTL8723A_SDIO 1
-#define CONFIG_XMIT_THREAD_MODE 1
+#define CONFIG_RTL8723A_SDIO
+#define CONFIG_XMIT_THREAD_MODE
 #endif
-
 
 #ifdef CONFIG_MAC_LOOPBACK_DRIVER
 #undef CONFIG_IOCTL_CFG80211
@@ -127,14 +134,21 @@
 #endif
 
 
+#define CONFIG_CONCURRENT_MODE 1
+#ifdef CONFIG_CONCURRENT_MODE
+	#define CONFIG_TSF_RESET_OFFLOAD 1			// For 2 PORT TSF SYNC.
+	//#define CONFIG_HWPORT_SWAP				//Port0->Sec , Port1 -> Pri
+#endif	// CONFIG_CONCURRENT_MODE
+
+
 #ifdef CONFIG_MP_INCLUDED
 	#define MP_DRIVER		1
-	#define CONFIG_MP_IWPRIV_SUPPORT 1
+	#define CONFIG_MP_IWPRIV_SUPPORT
 	// disable unnecessary functions for MP
-	#undef CONFIG_POWER_SAVING
-	#undef CONFIG_BT_COEXIST
-	#undef CONFIG_ANTENNA_DIVERSITY
-	#undef SUPPORT_HW_RFOFF_DETECTED
+	//#undef CONFIG_POWER_SAVING
+	//#undef CONFIG_BT_COEXIST
+	//#undef CONFIG_ANTENNA_DIVERSITY
+	//#undef SUPPORT_HW_RFOFF_DETECTED
 #else // !CONFIG_MP_INCLUDED
 	#define MP_DRIVER		0
 	#undef CONFIG_MP_IWPRIV_SUPPORT
@@ -142,18 +156,25 @@
 
 
 #ifdef CONFIG_POWER_SAVING
-	#define CONFIG_IPS		1
-	#define CONFIG_LPS		1
+	#define CONFIG_IPS
+	#define CONFIG_LPS
 
 	#if defined(CONFIG_LPS) && defined(CONFIG_SDIO_HCI)
-	#define CONFIG_LPS_LCLK	1
+	#define CONFIG_LPS_LCLK
+	#endif
+
+	#ifdef CONFIG_LPS_LCLK
+	#define CONFIG_LPS_RPWM_TIMER
+	#ifdef CONFIG_LPS_RPWM_TIMER
+	#define LPS_RPWM_WAIT_MS 30
+	#endif
 	#endif
 #endif // #ifdef CONFIG_POWER_SAVING
 
 
 #ifdef CONFIG_BT_COEXIST
 	#ifndef CONFIG_LPS
-		#define CONFIG_LPS 1	// download reserved page to FW
+		#define CONFIG_LPS	// download reserved page to FW
 	#endif
 #endif
 
@@ -175,14 +196,6 @@
 	#define HAL_MAC_ENABLE	1
 	#define HAL_BB_ENABLE		1
 	#define HAL_RF_ENABLE		1
-#endif
-
-
-#define DBG	0
-#ifdef CONFIG_DEBUG
-//#define CONFIG_DEBUG_RTL871X
-#define CONFIG_DEBUG_RTL819X
-//#define CONFIG_PROC_DEBUG
 #endif
 
 /*
@@ -213,3 +226,17 @@
 #define RATE_ADAPTIVE_SUPPORT 			0
 #define POWER_TRAINING_ACTIVE			0
 //#endif
+
+/*
+ * Debug Related Config
+ */
+#define DBG	0
+
+//#define CONFIG_DEBUG /* DBG_871X, etc... */
+//#define CONFIG_DEBUG_RTL871X /* RT_TRACE, RT_PRINT_DATA, _func_enter_, _func_exit_ */
+
+//#define CONFIG_PROC_DEBUG
+
+#define DBG_CONFIG_ERROR_DETECT
+//#define DBG_XMIT_BUF
+//#define DBG_XMIT_BUF_EXT

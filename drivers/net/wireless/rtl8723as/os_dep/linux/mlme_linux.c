@@ -96,6 +96,7 @@ void _dynamic_check_timer_handlder (void *FunctionContext)
 	_adapter *adapter = (_adapter *)FunctionContext;
 
 #if (MP_DRIVER == 1)
+if (adapter->registrypriv.mp_mode == 1)
 	return;
 #endif
 	rtw_dynamic_check_timer_handlder(adapter);
@@ -219,7 +220,6 @@ void rtw_reset_securitypriv( _adapter *adapter )
 
 		psec_priv->ndisauthtype = Ndis802_11AuthModeOpen;
 		psec_priv->ndisencryptstatus = Ndis802_11WEPDisabled;
-		psec_priv->wps_phase = _FALSE;
 		//}
 	}
 }
@@ -285,7 +285,9 @@ _func_enter_;
 
 		wrqu.data.length = (wrqu.data.length<IW_CUSTOM_MAX) ? wrqu.data.length:IW_CUSTOM_MAX;
 
+#ifndef CONFIG_IOCTL_CFG80211
 		wireless_send_event(adapter->pnetdev,IWEVCUSTOM,&wrqu,buff);
+#endif
 
 		if(buff)
 		    rtw_mfree(buff, IW_CUSTOM_MAX);
@@ -320,180 +322,6 @@ void init_addba_retry_timer(_adapter *padapter, struct sta_info *psta)
 
 	_init_timer(&psta->addba_retry_timer, padapter->pnetdev, _addba_timer_hdl, psta);
 }
-
-#ifdef CONFIG_TDLS
-void _TPK_timer_hdl(void *FunctionContext)
-{
-	struct sta_info *ptdls_sta = (struct sta_info *)FunctionContext;
-
-	ptdls_sta->TPK_count++;
-	//TPK_timer set 1000 as default
-	//retry timer should set at least 301 sec.
-	if(ptdls_sta->TPK_count==TPK_RESEND_COUNT){
-		ptdls_sta->TPK_count=0;
-		issue_tdls_setup_req(ptdls_sta->padapter, ptdls_sta->hwaddr);
-	}
-
-	_set_timer(&ptdls_sta->TPK_timer, ptdls_sta->TDLS_PeerKey_Lifetime/TPK_RESEND_COUNT);
-}
-
-void init_TPK_timer(_adapter *padapter, struct sta_info *psta)
-{
-	psta->padapter=padapter;
-
-	_init_timer(&psta->TPK_timer, padapter->pnetdev, _TPK_timer_hdl, psta);
-}
-
-// TDLS_DONE_CH_SEN: channel sensing and report candidate channel
-// TDLS_OFF_CH: first time set channel to off channel
-// TDLS_BASE_CH: when go back to the channel linked with AP, send null data to peer STA as an indication
-void _ch_switch_timer_hdl(void *FunctionContext)
-{
-
-	struct sta_info *ptdls_sta = (struct sta_info *)FunctionContext;
-	_adapter *padapter = ptdls_sta->padapter;
-
-	if( ptdls_sta->option == TDLS_DONE_CH_SEN ){
-		rtw_tdls_cmd(padapter, ptdls_sta->hwaddr, TDLS_DONE_CH_SEN);
-	}else if( ptdls_sta->option == TDLS_OFF_CH ){
-		issue_nulldata_to_TDLS_peer_STA(ptdls_sta->padapter, ptdls_sta, 0);
-		_set_timer(&ptdls_sta->base_ch_timer, 500);
-	}else if( ptdls_sta->option == TDLS_BASE_CH){
-		issue_nulldata_to_TDLS_peer_STA(ptdls_sta->padapter, ptdls_sta, 0);
-	}
-}
-
-void init_ch_switch_timer(_adapter *padapter, struct sta_info *psta)
-{
-	psta->padapter=padapter;
-	_init_timer(&psta->option_timer, padapter->pnetdev, _ch_switch_timer_hdl, psta);
-}
-
-void _base_ch_timer_hdl(void *FunctionContext)
-{
-	struct sta_info *ptdls_sta = (struct sta_info *)FunctionContext;
-	rtw_tdls_cmd(ptdls_sta->padapter, ptdls_sta->hwaddr, TDLS_P_OFF_CH);
-}
-
-void init_base_ch_timer(_adapter *padapter, struct sta_info *psta)
-{
-	psta->padapter=padapter;
-	_init_timer(&psta->base_ch_timer, padapter->pnetdev, _base_ch_timer_hdl, psta);
-}
-
-void _off_ch_timer_hdl(void *FunctionContext)
-{
-	struct sta_info *ptdls_sta = (struct sta_info *)FunctionContext;
-	rtw_tdls_cmd(ptdls_sta->padapter, ptdls_sta->hwaddr, TDLS_P_BASE_CH );
-}
-
-void init_off_ch_timer(_adapter *padapter, struct sta_info *psta)
-{
-	psta->padapter=padapter;
-	_init_timer(&psta->off_ch_timer, padapter->pnetdev, _off_ch_timer_hdl, psta);
-}
-
-void _tdls_handshake_timer_hdl(void *FunctionContext)
-{
-	struct sta_info *ptdls_sta = (struct sta_info *)FunctionContext;
-
-	if(ptdls_sta != NULL)
-	{
-		if( !(ptdls_sta->tdls_sta_state & TDLS_LINKED_STATE) )
-		{
-			printk("HANDSHAKE TIME OUT\n");
-			free_tdls_sta(ptdls_sta->padapter, ptdls_sta);
-		}
-	}
-}
-
-void init_handshake_timer(_adapter *padapter, struct sta_info *psta)
-{
-	psta->padapter=padapter;
-	_init_timer(&psta->handshake_timer, padapter->pnetdev, _tdls_handshake_timer_hdl, psta);
-}
-
-//Check tdls peer sta alive.
-void _tdls_alive_timer_phase1_hdl(void *FunctionContext)
-{
-	_irqL irqL;
-	struct sta_info *ptdls_sta = (struct sta_info *)FunctionContext;
-	_adapter *padapter = ptdls_sta->padapter;
-	struct tdls_info *ptdlsinfo = &padapter->tdlsinfo;
-
-	_enter_critical_bh(&ptdlsinfo->hdl_lock, &irqL);
-	ptdls_sta->timer_flag = 1;
-	_exit_critical_bh(&ptdlsinfo->hdl_lock, &irqL);
-
-	ptdls_sta->tdls_sta_state &= (~TDLS_ALIVE_STATE);
-
-	DBG_871X("issue_tdls_dis_req to check alive\n");
-	issue_tdls_dis_req( padapter, ptdls_sta->hwaddr);
-	rtw_tdls_cmd(padapter, ptdls_sta->hwaddr, TDLS_CKALV_PH1);
-	sta_update_last_rx_pkts(ptdls_sta);
-
-	if (	ptdls_sta->timer_flag == 2 )
-		rtw_tdls_cmd(padapter, ptdls_sta->hwaddr, TDLS_FREE_STA);
-	else
-	{
-		_enter_critical_bh(&ptdlsinfo->hdl_lock, &irqL);
-		ptdls_sta->timer_flag = 0;
-		_exit_critical_bh(&ptdlsinfo->hdl_lock, &irqL);
-	}
-
-}
-
-void _tdls_alive_timer_phase2_hdl(void *FunctionContext)
-{
-	_irqL irqL;
-	struct sta_info *ptdls_sta = (struct sta_info *)FunctionContext;
-	_adapter *padapter = ptdls_sta->padapter;
-	struct tdls_info *ptdlsinfo = &padapter->tdlsinfo;
-
-	_enter_critical_bh(&(ptdlsinfo->hdl_lock), &irqL);
-	ptdls_sta->timer_flag = 1;
-	_exit_critical_bh(&ptdlsinfo->hdl_lock, &irqL);
-
-	if( (ptdls_sta->tdls_sta_state & TDLS_ALIVE_STATE) &&
-		(sta_last_rx_pkts(ptdls_sta) + 3 <= sta_rx_pkts(ptdls_sta)) )
-	{
-		DBG_871X("TDLS STA ALIVE\n");
-		ptdls_sta->alive_count = 0;
-		rtw_tdls_cmd(padapter, ptdls_sta->hwaddr, TDLS_CKALV_PH2);
-}
-	else
-	{
-		DBG_8192C("TDLS STA TOO FAR\n");
-		ptdls_sta->alive_count++;
-		if( ptdls_sta->alive_count == TDLS_ALIVE_COUNT )
-		{
-			ptdls_sta->stat_code = _RSON_TDLS_TEAR_TOOFAR_;
-			issue_tdls_teardown(padapter, ptdls_sta->hwaddr);
-		}
-		else
-		{
-			rtw_tdls_cmd(padapter, ptdls_sta->hwaddr, TDLS_CKALV_PH2);
-	}
-}
-
-	if (	ptdls_sta->timer_flag == 2 )
-		rtw_tdls_cmd(padapter, ptdls_sta->hwaddr, TDLS_FREE_STA);
-	else
-	{
-		_enter_critical_bh(&(ptdlsinfo->hdl_lock), &irqL);
-		ptdls_sta->timer_flag = 0;
-		_exit_critical_bh(&ptdlsinfo->hdl_lock, &irqL);
-	}
-
-}
-
-void init_tdls_alive_timer(_adapter *padapter, struct sta_info *psta)
-{
-	psta->padapter=padapter;
-	_init_timer(&psta->alive_timer1, padapter->pnetdev, _tdls_alive_timer_phase1_hdl, psta);
-	_init_timer(&psta->alive_timer2, padapter->pnetdev, _tdls_alive_timer_phase2_hdl, psta);
-}
-#endif //CONFIG_TDLS
 
 /*
 void _reauth_timer_hdl(void *FunctionContext)
@@ -544,7 +372,9 @@ void rtw_indicate_sta_assoc_event(_adapter *padapter, struct sta_info *psta)
 
 	DBG_871X("+rtw_indicate_sta_assoc_event\n");
 
+#ifndef CONFIG_IOCTL_CFG80211
 	wireless_send_event(padapter->pnetdev, IWEVREGISTERED, &wrqu, NULL);
+#endif
 
 }
 
@@ -569,7 +399,9 @@ void rtw_indicate_sta_disassoc_event(_adapter *padapter, struct sta_info *psta)
 
 	DBG_871X("+rtw_indicate_sta_disassoc_event\n");
 
+#ifndef CONFIG_IOCTL_CFG80211
 	wireless_send_event(padapter->pnetdev, IWEVEXPIRED, &wrqu, NULL);
+#endif
 
 }
 
@@ -583,7 +415,7 @@ static int mgnt_xmit_entry(struct sk_buff *skb, struct net_device *pnetdev)
 
 	//DBG_871X("%s\n", __FUNCTION__);
 
-	return padapter->HalFunc.hostap_mgnt_xmit_entry(padapter, skb);
+	return rtw_hal_hostap_mgnt_xmit_entry(padapter, skb);
 }
 
 static int mgnt_netdev_open(struct net_device *pnetdev)
@@ -595,10 +427,10 @@ static int mgnt_netdev_open(struct net_device *pnetdev)
 
 	init_usb_anchor(&phostapdpriv->anchored);
 
-	if(!netif_queue_stopped(pnetdev))
-		netif_start_queue(pnetdev);
+	if(!rtw_netif_queue_stopped(pnetdev))
+		rtw_netif_start_queue(pnetdev);
 	else
-		netif_wake_queue(pnetdev);
+		rtw_netif_wake_queue(pnetdev);
 
 
 	netif_carrier_on(pnetdev);
@@ -617,8 +449,8 @@ static int mgnt_netdev_close(struct net_device *pnetdev)
 
 	netif_carrier_off(pnetdev);
 
-	if (!netif_queue_stopped(pnetdev))
-		netif_stop_queue(pnetdev);
+	if (!rtw_netif_queue_stopped(pnetdev))
+		rtw_netif_stop_queue(pnetdev);
 
 	//rtw_write16(phostapdpriv->padapter, 0x0116, 0x3f3f);
 

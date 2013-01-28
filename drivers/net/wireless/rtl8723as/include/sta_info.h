@@ -27,7 +27,7 @@
 
 #define IBSS_START_MAC_ID	2
 #define NUM_STA 32
-#define NUM_ACL 64
+#define NUM_ACL 16
 
 
 //if mode ==0, then the sta is allowed once the addr is hit.
@@ -35,11 +35,17 @@
 struct rtw_wlan_acl_node {
         _list		        list;
         u8       addr[ETH_ALEN];
-        u8       mode;
+        u8       valid;
 };
 
+//mode=0, disable
+//mode=1, accept unless in deny list
+//mode=2, deny unless in accept list
 struct wlan_acl_pool {
-        struct rtw_wlan_acl_node aclnode[NUM_ACL];
+	int mode;
+	int num;
+	struct rtw_wlan_acl_node aclnode[NUM_ACL];
+	_queue	acl_node_q;
 };
 
 typedef struct _RSSI_STA{
@@ -119,6 +125,7 @@ struct sta_info {
 	u8	raid;
 	u8 	init_rate;
 	u32	ra_mask;
+	u8	wireless_mode;	// NETWORK_TYPE
 	struct stainfo_stats sta_stats;
 
 #ifdef CONFIG_TDLS
@@ -131,7 +138,6 @@ struct sta_info {
 	_timer	TPK_timer;
 	struct TDLS_PeerKey	tpk;
 	_adapter *padapter;
-	u8	cam_entry;
 	u16	stat_code;
 	u8	off_ch;
 	u16	ch_switch_time;
@@ -259,7 +265,7 @@ struct sta_info {
 	u8		bValid;				// record the sta status link or not?
 	//u8		WirelessMode;		//
 	u8		IOTPeer;			// Enum value.	HT_IOT_PEER_E
-
+	u8		rssi_level;			//for Refresh RA mask
 	// ODM Write
 	//1 PHY_STATUS_INFO
 	u8		RSSI_Path[4];		//
@@ -273,6 +279,9 @@ struct sta_info {
 	//
 	// ================ODM Relative Info=======================
 	//
+
+	/* To store the sequence number of received management frame */
+	u16 RxMgmtFrameSeqNum;
 };
 
 #define sta_rx_pkts(sta) \
@@ -339,6 +348,8 @@ struct	sta_priv {
 	u16 tim_bitmap;//only support 15 stations, aid=0~15 mapping bit0~bit15
 
 	u16 max_num_sta;
+
+	struct wlan_acl_pool acl_list;
 #endif
 
 };
@@ -370,6 +381,6 @@ extern void rtw_free_all_stainfo(_adapter *padapter);
 extern struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr);
 extern u32 rtw_init_bcmc_stainfo(_adapter* padapter);
 extern struct sta_info* rtw_get_bcmc_stainfo(_adapter* padapter);
-extern u8 rtw_access_ctrl(struct wlan_acl_pool* pacl_list, u8 * mac_addr);
+extern u8 rtw_access_ctrl(_adapter *padapter, u8 *mac_addr);
 
 #endif //_STA_INFO_H_

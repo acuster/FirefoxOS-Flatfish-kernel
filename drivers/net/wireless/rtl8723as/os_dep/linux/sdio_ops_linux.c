@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -78,7 +78,7 @@ _func_enter_;
 	for (i = 0; i < cnt; i++) {
 		pdata[i] = sdio_readb(func, addr+i, &err);
 		if (err) {
-			DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x\n", __func__, err, addr);
+			DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x\n", __func__, err, addr+i);
 			break;
 		}
 	}
@@ -130,7 +130,7 @@ _func_enter_;
 	for (i = 0; i < cnt; i++) {
 		sdio_writeb(func, pdata[i], addr+i, &err);
 		if (err) {
-			DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x val=0x%02x\n", __func__, err, addr, pdata[i]);
+			DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x val=0x%02x\n", __func__, err, addr+i, pdata[i]);
 			break;
 		}
 	}
@@ -162,6 +162,26 @@ _func_enter_;
 _func_exit_;
 
 	return err;
+}
+
+u8 _sd_read8(PSDIO_DATA psdio, u32 addr, s32 *err)
+{
+	u8 v;
+	struct sdio_func *func;
+
+_func_enter_;
+
+	func = psdio->func;
+
+	//sdio_claim_host(func);
+	v = sdio_readb(func, addr, err);
+	//sdio_release_host(func);
+	if (err && *err)
+		DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x\n", __func__, *err, addr);
+
+_func_exit_;
+
+	return v;
 }
 
 u8 sd_read8(PSDIO_DATA psdio, u32 addr, s32 *err)
@@ -196,6 +216,26 @@ _func_enter_;
 	sdio_claim_host(func);
 	v = sdio_readw(func, addr, err);
 	sdio_release_host(func);
+	if (err && *err)
+		DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x\n", __func__, *err, addr);
+
+_func_exit_;
+
+	return  v;
+}
+
+u32 _sd_read32(PSDIO_DATA psdio, u32 addr, s32 *err)
+{
+	u32 v;
+	struct sdio_func *func;
+
+_func_enter_;
+
+	func = psdio->func;
+
+	//sdio_claim_host(func);
+	v = sdio_readl(func, addr, err);
+	//sdio_release_host(func);
 	if (err && *err)
 		DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x\n", __func__, *err, addr);
 
@@ -254,6 +294,23 @@ _func_enter_;
 	sdio_release_host(func);
 	if (err && *err)
 		DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x val=0x%04x\n", __func__, *err, addr, v);
+
+_func_exit_;
+}
+
+void _sd_write32(PSDIO_DATA psdio, u32 addr, u32 v, s32 *err)
+{
+	struct sdio_func *func;
+
+_func_enter_;
+
+	func = psdio->func;
+
+	//sdio_claim_host(func);
+	sdio_writel(func, v, addr, err);
+	//sdio_release_host(func);
+	if (err && *err)
+		DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x val=0x%08x\n", __func__, *err, addr, v);
 
 _func_exit_;
 }

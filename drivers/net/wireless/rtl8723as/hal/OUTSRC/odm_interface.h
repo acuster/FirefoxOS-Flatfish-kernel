@@ -40,15 +40,31 @@
 #define _bit_ic(_name, _ic)		BIT_##_name##_ic
 
 // _cat: implemented by Token-Pasting Operator.
+#if 0
 #define _cat(_name, _ic_type, _func)								\
 	( 																		\
 		_func##_all(_name)										\
 	)
-#if 0 //TODO: enable it if we need to support run-time to differentiate between 92C_SERIES and JAGUAR_SERIES.
+#endif
+
+/*===================================
+
+#define ODM_REG_DIG_11N		0xC50
+#define ODM_REG_DIG_11AC	0xDDD
+
+ODM_REG(DIG,_pDM_Odm)
+=====================================*/
+
+#define _reg_11N(_name)			ODM_REG_##_name##_11N
+#define _reg_11AC(_name)		ODM_REG_##_name##_11AC
+#define _bit_11N(_name)			ODM_BIT_##_name##_11N
+#define _bit_11AC(_name)		ODM_BIT_##_name##_11AC
+
+#if 1 //TODO: enable it if we need to support run-time to differentiate between 92C_SERIES and JAGUAR_SERIES.
 #define _cat(_name, _ic_type, _func)									\
 	( 															\
-		((_ic_type) & ODM_IC_11N_SERIES)? _func##_all(_name):		\
-		_func##_ic(_name, _8195)									\
+		((_ic_type) & ODM_IC_11N_SERIES)? _func##_11N(_name):		\
+		_func##_11AC(_name)									\
 	)
 #endif
 #if 0 // only sample code

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+* Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
 *
 * This program is free software; you can redistribute it and/or modify it
 * under the terms of version 2 of the GNU General Public License as
@@ -22,16 +22,16 @@
 #ifndef __INC_FW_8723A_HW_IMG_H
 #define __INC_FW_8723A_HW_IMG_H
 
-#include "../odm_precomp.h"
-
 
 /******************************************************************************
-*                           rtl8723fw.TXT
+*                           rtl8723fw_B.TXT
 ******************************************************************************/
 
 void
-ODM_ReadAndConfig_rtl8723fw_8723A(
-	IN   PDM_ODM_T  pDM_Odm
+ODM_ReadFirmware_8723A_rtl8723fw_B(
+     IN   PDM_ODM_T    pDM_Odm,
+     OUT  u1Byte       *pFirmware,
+     OUT  u4Byte       *pFirmwareSize
 );
 
 #endif

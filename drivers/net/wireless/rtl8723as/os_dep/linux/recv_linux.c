@@ -65,7 +65,7 @@ int rtw_os_recvbuf_resource_alloc(_adapter *padapter, struct recv_buf *precvbuf)
 	int res=_SUCCESS;
 
 #ifdef CONFIG_USB_HCI
-	struct dvobj_priv	*pdvobjpriv = &padapter->dvobjpriv;
+	struct dvobj_priv	*pdvobjpriv = adapter_to_dvobj(padapter);
 	struct usb_device	*pusbd = pdvobjpriv->pusbdev;
 
 	precvbuf->irp_pending = _FALSE;
@@ -87,7 +87,7 @@ int rtw_os_recvbuf_resource_alloc(_adapter *padapter, struct recv_buf *precvbuf)
 	precvbuf->len = 0;
 
 	#ifdef CONFIG_USE_USB_BUFFER_ALLOC_RX
-	precvbuf->pallocated_buf = rtw_usb_buffer_alloc(pusbd, (size_t)precvbuf->alloc_sz, GFP_ATOMIC, &precvbuf->dma_transfer_addr);
+	precvbuf->pallocated_buf = rtw_usb_buffer_alloc(pusbd, (size_t)precvbuf->alloc_sz, &precvbuf->dma_transfer_addr);
 	precvbuf->pbuf = precvbuf->pallocated_buf;
 	if(precvbuf->pallocated_buf == NULL)
 		return _FAIL;
@@ -107,7 +107,7 @@ int rtw_os_recvbuf_resource_free(_adapter *padapter, struct recv_buf *precvbuf)
 
 #ifdef CONFIG_USE_USB_BUFFER_ALLOC_RX
 
-	struct dvobj_priv	*pdvobjpriv = &padapter->dvobjpriv;
+	struct dvobj_priv	*pdvobjpriv = adapter_to_dvobj(padapter);
 	struct usb_device	*pusbd = pdvobjpriv->pusbdev;
 
 	rtw_usb_buffer_free(pusbd, (size_t)precvbuf->alloc_sz, precvbuf->pallocated_buf, precvbuf->dma_transfer_addr);
@@ -194,7 +194,9 @@ void rtw_handle_tkip_mic_err(_adapter *padapter,u8 bgroup)
 	_rtw_memset( &wrqu, 0x00, sizeof( wrqu ) );
 	wrqu.data.length = sizeof( ev );
 
+#ifndef CONFIG_IOCTL_CFG80211
 	wireless_send_event( padapter->pnetdev, IWEVMICHAELMICFAILURE, &wrqu, (char*) &ev );
+#endif
 }
 
 void rtw_hostapd_mlme_rx(_adapter *padapter, union recv_frame *precv_frame)
@@ -264,6 +266,14 @@ _func_enter_;
 	}
 #endif
 
+#ifdef CONFIG_WAPI_SUPPORT
+	if (rtw_wapi_check_for_drop(padapter,precv_frame))
+	{
+		WAPI_TRACE(WAPI_ERR, "%s(): Rx Reorder Drop case!!\n", __FUNCTION__);
+		goto _recv_indicatepkt_drop;
+	}
+#endif
+
 	skb = precv_frame->u.hdr.pkt;
 	if(skb == NULL)
 	{
@@ -277,11 +287,7 @@ _func_enter_;
 
 	skb->data = precv_frame->u.hdr.rx_data;
 
-#ifdef NET_SKBUFF_DATA_USES_OFFSET
 	skb_set_tail_pointer(skb, precv_frame->u.hdr.len);
-#else
-	skb->tail = precv_frame->u.hdr.rx_tail;
-#endif
 
 	skb->len = precv_frame->u.hdr.len;
 
@@ -311,13 +317,17 @@ _func_enter_;
 
 			if(psta)
 			{
+				struct net_device *pnetdev= (struct net_device*)padapter->pnetdev;
+
 				//DBG_871X("directly forwarding to the rtw_xmit_entry\n");
 
 				//skb->ip_summed = CHECKSUM_NONE;
-				//skb->protocol = eth_type_trans(skb, pnetdev);
+				skb->dev = pnetdev;
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
+				skb_set_queue_mapping(skb, rtw_recv_select_queue(skb));
+#endif //LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35)
 
-				skb->dev = padapter->pnetdev;
-				rtw_xmit_entry(skb, padapter->pnetdev);
+				rtw_xmit_entry(skb, pnetdev);
 
 				if(bmcast)
 					skb = pskb2;
@@ -399,9 +409,6 @@ _recv_indicatepkt_drop:
 	 if(precv_frame)
 		 rtw_free_recvframe(precv_frame, pfree_recv_queue);
 
-
-	 precvpriv->rx_drop++;
-
 	 return _FAIL;
 
 _func_exit_;
@@ -429,7 +436,7 @@ void rtw_os_read_port(_adapter *padapter, struct recv_buf *precvbuf)
 
 
 #endif
-#ifdef CONFIG_SDIO_HCI
+#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 		precvbuf->pskb = NULL;
 #endif
 

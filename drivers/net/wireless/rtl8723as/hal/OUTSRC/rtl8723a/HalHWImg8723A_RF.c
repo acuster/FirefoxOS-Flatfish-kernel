@@ -27,23 +27,26 @@ CheckCondition(
     const u4Byte  Hex
     )
 {
-    u4Byte board = Hex & 0xFF;
-    u4Byte interface = Hex & 0xFF00;
-    u4Byte platform = Hex & 0xFF0000;
+    u4Byte _board     = (Hex & 0x000000FF);
+    u4Byte _interface = (Hex & 0x0000FF00) >> 8;
+    u4Byte _platform  = (Hex & 0x00FF0000) >> 16;
     u4Byte cond = Condition;
 
-    cond = Condition & 0xFF;
-    if ( (board & cond) == 0 && cond != 0x1F)
+    if ( Condition == 0xCDCDCDCD )
+        return TRUE;
+
+    cond = Condition & 0x000000FF;
+    if ( (_board == cond) && cond != 0x00)
         return FALSE;
 
-    cond = Condition & 0xFF00;
+    cond = Condition & 0x0000FF00;
     cond = cond >> 8;
-    if ( (interface & cond) == 0 && cond != 0x07)
+    if ( (_interface & cond) == 0 && cond != 0x07)
         return FALSE;
 
-    cond = Condition & 0xFF0000;
+    cond = Condition & 0x00FF0000;
     cond = cond >> 16;
-    if ( (platform & cond) == 0 && cond != 0x0F)
+    if ( (_platform & cond) == 0 && cond != 0x0F)
         return FALSE;
     return TRUE;
 }
@@ -59,9 +62,8 @@ u4Byte Array_RadioA_1T_8723A[] = {
 		0x002, 0x00098000,
 	0xFF0F011F, 0xABCD,
 		0x003, 0x00018C63,
-	0xFF0F041F, 0xCDEF,
-		0x003, 0x00039C63,
 	0xCDCDCDCD, 0xCDCD,
+		0x003, 0x00039C63,
 	0xFF0F011F, 0xDEAD,
 		0x004, 0x000210E7,
 		0x009, 0x0002044F,
@@ -187,21 +189,19 @@ u4Byte Array_RadioA_1T_8723A[] = {
 		0x015, 0x0004F424,
 		0x015, 0x0008F424,
 		0x015, 0x000CF424,
-	0xFF0F041F, 0xCDEF,
+	0xCDCDCDCD, 0xCDCD,
 		0x015, 0x0000F474,
 		0x015, 0x0004F477,
-		0x015, 0x0008F474,
-		0x015, 0x000CF474,
-	0xCDCDCDCD, 0xCDCD,
+		0x015, 0x0008F455,
+		0x015, 0x000CF455,
 	0xFF0F011F, 0xDEAD,
 		0x016, 0x00000339,
 		0x016, 0x00040339,
 		0x016, 0x00080339,
 	0xFF0F011F, 0xABCD,
 		0x016, 0x000C0356,
-	0xFF0F041F, 0xCDEF,
-		0x016, 0x000C0366,
 	0xCDCDCDCD, 0xCDCD,
+		0x016, 0x000C0366,
 	0xFF0F011F, 0xDEAD,
 		0x000, 0x00010159,
 		0x018, 0x0000F401,
@@ -221,21 +221,24 @@ ODM_ReadAndConfig_RadioA_1T_8723A(
 	IN   PDM_ODM_T  pDM_Odm
 	)
 {
+	#define READ_NEXT_PAIR(v1, v2, i) do { i += 2; v1 = Array[i]; v2 = Array[i+1]; } while(0)
+
 	u4Byte     hex         = 0;
 	u4Byte     i           = 0;
 	u2Byte     count       = 0;
 	pu4Byte    ptr_array   = NULL;
 	u1Byte     platform    = pDM_Odm->SupportPlatform;
-	u1Byte     interface   = pDM_Odm->SupportInterface;
+	u1Byte     interfaceValue   = pDM_Odm->SupportInterface;
 	u1Byte     board       = pDM_Odm->BoardType;
 	u4Byte     ArrayLen    = sizeof(Array_RadioA_1T_8723A)/sizeof(u4Byte);
 	pu4Byte    Array       = Array_RadioA_1T_8723A;
 
 
 	hex += board;
-	hex += interface << 8;
+	hex += interfaceValue << 8;
 	hex += platform << 16;
 	hex += 0xFF000000;
+
 	for (i = 0; i < ArrayLen; i += 2 )
 	{
 	    u4Byte v1 = Array[i];
@@ -251,82 +254,36 @@ ODM_ReadAndConfig_RadioA_1T_8723A(
 		{ // This line is the start line of branch.
 		    if ( !CheckCondition(Array[i], hex) )
 		    { // Discard the following (offset, data) pairs.
-		        i += 2;
-		        v1 = Array[i];
-		        v2 = Array[i+1];
+		        READ_NEXT_PAIR(v1, v2, i);
 		        while (v2 != 0xDEAD &&
-	                   v2 != 0xCDEF &&
-	                   v2 != 0xCDCD)
+		               v2 != 0xCDEF &&
+		               v2 != 0xCDCD && i < ArrayLen -2)
 		        {
-		            i += 2;
-		            v1 = Array[i];
-		            v2 = Array[i+1];
+		            READ_NEXT_PAIR(v1, v2, i);
 		        }
+		        i -= 2; // prevent from for-loop += 2
+		    }
+		    else // Configure matched pairs and skip to end of if-else.
+		    {
+		        READ_NEXT_PAIR(v1, v2, i);
+		        while (v2 != 0xDEAD &&
+		               v2 != 0xCDEF &&
+		               v2 != 0xCDCD && i < ArrayLen -2)
+		        {
+				odm_ConfigRF_RadioA_8723A(pDM_Odm, v1, v2);
+				READ_NEXT_PAIR(v1, v2, i);
+		        }
+
+		        while (v2 != 0xDEAD && i < ArrayLen -2)
+		        {
+		            READ_NEXT_PAIR(v1, v2, i);
+		        }
+
 		    }
 		}
 	}
 
 }
 
-/******************************************************************************
-*                           RadioB_1T.TXT
-******************************************************************************/
-
-u4Byte Array_RadioB_1T_8723A[] = {
-		0x0FF, 0x000FFFFF,
-
-};
-
-void
-ODM_ReadAndConfig_RadioB_1T_8723A(
-	IN   PDM_ODM_T  pDM_Odm
-	)
-{
-	u4Byte     hex         = 0;
-	u4Byte     i           = 0;
-	u2Byte     count       = 0;
-	pu4Byte    ptr_array   = NULL;
-	u1Byte     platform    = pDM_Odm->SupportPlatform;
-	u1Byte     interface   = pDM_Odm->SupportInterface;
-	u1Byte     board       = pDM_Odm->BoardType;
-	u4Byte     ArrayLen    = sizeof(Array_RadioB_1T_8723A)/sizeof(u4Byte);
-	pu4Byte    Array       = Array_RadioB_1T_8723A;
-
-
-	hex += board;
-	hex += interface << 8;
-	hex += platform << 16;
-	hex += 0xFF000000;
-	for (i = 0; i < ArrayLen; i += 2 )
-	{
-	    u4Byte v1 = Array[i];
-	    u4Byte v2 = Array[i+1];
-
-	    // This (offset, data) pair meets the condition.
-	    if ( v1 < 0xCDCDCDCD )
-	    {
-		    odm_ConfigRF_RadioB_8723A(pDM_Odm, v1, v2);
-		    continue;
-		}
-		else
-		{ // This line is the start line of branch.
-		    if ( !CheckCondition(Array[i], hex) )
-		    { // Discard the following (offset, data) pairs.
-		        i += 2;
-		        v1 = Array[i];
-		        v2 = Array[i+1];
-		        while (v2 != 0xDEAD &&
-	                   v2 != 0xCDEF &&
-	                   v2 != 0xCDCD)
-		        {
-		            i += 2;
-		            v1 = Array[i];
-		            v2 = Array[i+1];
-		        }
-		    }
-		}
-	}
-
-}
 
 #endif // end of HWIMG_SUPPORT

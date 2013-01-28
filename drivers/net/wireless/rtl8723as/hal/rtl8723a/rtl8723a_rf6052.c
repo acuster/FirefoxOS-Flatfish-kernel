@@ -332,7 +332,8 @@ static void getPowerBase(
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	u32			powerBase0, powerBase1;
-	u8			Legacy_pwrdiff=0, HT20_pwrdiff=0;
+	u8			Legacy_pwrdiff=0;
+	s8			HT20_pwrdiff=0;
 	u8			i, powerlevel[2];
 
 	for(i=0; i<2; i++)

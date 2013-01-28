@@ -219,7 +219,7 @@ void rtl8192c_query_rx_phy_status(union recv_frame *prframe, struct phy_stat *pp
 	u8 	bant1_sel = (pDrvInfo->ANTSEL == 1)?_TRUE:_FALSE;
 #endif
 	if(pphy_stat==NULL){
-	//	printk("\n%s pphy_stat is NULL, Return\n",__FUNCTION__);
+	//	DBG_8192C("\n%s pphy_stat is NULL, Return\n",__FUNCTION__);
 		return;
 	}
 

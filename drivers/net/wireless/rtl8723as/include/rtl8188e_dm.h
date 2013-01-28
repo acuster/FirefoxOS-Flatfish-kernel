@@ -170,7 +170,7 @@ void rtl8188e_HalDmWatchDog(IN PADAPTER Adapter);
 //void rtl8192c_dm_RF_Saving(IN PADAPTER pAdapter, IN u8 bForceInNormal);
 
 #ifdef CONFIG_ANTENNA_DIVERSITY
-void	SwAntDivCompare8188E(PADAPTER Adapter, WLAN_BSSID_EX *dst, WLAN_BSSID_EX *src);
-u8 SwAntDivBeforeLink8188E(PADAPTER Adapter );
+void	AntDivCompare8188E(PADAPTER Adapter, WLAN_BSSID_EX *dst, WLAN_BSSID_EX *src);
+u8 AntDivBeforeLink8188E(PADAPTER Adapter );
 #endif
 #endif

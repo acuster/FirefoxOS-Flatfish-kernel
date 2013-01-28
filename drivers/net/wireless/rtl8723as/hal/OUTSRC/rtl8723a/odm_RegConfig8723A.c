@@ -77,7 +77,6 @@ odm_ConfigRF_RadioA_8723A(
 {
 	u4Byte  content = 0x1000; // RF_Content: radioa_txt
 	u4Byte	maskforPhySet= (u4Byte)(content&0xE000);
-	u4Byte	i;
 
     odm_ConfigRFReg_8723A(pDM_Odm, Addr, Data, ODM_RF_PATH_A, Addr|maskforPhySet);
 

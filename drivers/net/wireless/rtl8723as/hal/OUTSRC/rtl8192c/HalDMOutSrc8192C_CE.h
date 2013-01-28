@@ -68,13 +68,12 @@ VOID rtl8192c_PHY_LCCalibrate(IN	PADAPTER	pAdapter);
 // AP calibrate
 //
 VOID rtl8192c_PHY_APCalibrate(IN	PADAPTER	pAdapter, IN 	char		delta);
-VOID rtl8192c_PHY_DigitalPredistortion(IN	PADAPTER	pAdapter);
 
 VOID rtl8192c_odm_CheckTXPowerTracking(IN PADAPTER Adapter);
 
 #ifdef CONFIG_ANTENNA_DIVERSITY
-void	odm_SwAntDivCompare8192C(PADAPTER Adapter, WLAN_BSSID_EX *dst, WLAN_BSSID_EX *src);
-u8 odm_SwAntDivBeforeLink8192C(PADAPTER Adapter);
+void	odm_AntDivCompare8192C(PADAPTER Adapter, WLAN_BSSID_EX *dst, WLAN_BSSID_EX *src);
+u8 odm_AntDivBeforeLink8192C(PADAPTER Adapter);
 #endif
 
 #endif	//__HAL8190PCIDM_H__
