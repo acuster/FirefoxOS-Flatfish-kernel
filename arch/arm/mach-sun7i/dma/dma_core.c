@@ -211,7 +211,7 @@ u32 dma_hdl_irq_fd(dma_channel_t *pchan)
 	switch(cur_state) {
 	case CHAN_STA_IDLE: /* stopped in hd_cb/fd_cb/somewhere? */
 		DMA_INF("%s: state idle, stopped in cb before? just return ok!\n", __func__);
-		WARN_ON(!list_empty(&pchan->buf_list));
+		//WARN_ON(!list_empty(&pchan->buf_list)); /* maybe new enqueue after stopped */
 		goto end;
 	case CHAN_STA_RUNING:
 		WARN_ON(NULL == pchan->pcur_buf);
