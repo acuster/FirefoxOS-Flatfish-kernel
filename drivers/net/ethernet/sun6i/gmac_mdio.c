@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <asm/io.h>
 
-#include "sun6i_gmac.h"
+#include "sunxi_gmac.h"
 
 /**
  * gmac_mdio_read
@@ -127,7 +127,7 @@ int gmac_mdio_register(struct net_device *ndev)
 	else
 		irqlist = priv->mii_irq;
 
-	new_bus->name = "sun6i_gmac";
+	new_bus->name = "sunxi_gmac";
 	new_bus->read = &gmac_mdio_read;
 	new_bus->write = &gmac_mdio_write;
 	new_bus->reset = &gmac_mdio_reset;
@@ -194,13 +194,19 @@ int gmac_mdio_register(struct net_device *ndev)
 		}
 	}
 
-	if (!found)
+	if (!found){
 		printk(KERN_WARNING "%s: No PHY found\n", ndev->name);
+		err = -ENXIO;
+		goto out_err;
+	}
 
 	return 0;
 
+out_err:
+	mdiobus_unregister(new_bus);
 bus_register_fail:
 	mdiobus_free(new_bus);
+	priv->mii = NULL;
 	return err;
 }
 

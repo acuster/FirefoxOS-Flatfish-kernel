@@ -1,25 +1,45 @@
-config NET_VENDOR_SUN6I
+config NET_VENDOR_SUNXI
 	bool "Sun6i gmac devices"
 	default y
 	depends on HAS_IOMEM
 	---help---
 	The gmac device of sun6i platform soc.
 
-if NET_VENDOR_SUN6I
+if NET_VENDOR_SUNXI
 
-config SUN6I_GMAC
-	tristate "Sun6i platform 1G Ethernet driver"
-	depends on HAS_IOMEM && NET_VENDOR_SUN6I
+config SUNXI_GMAC
+	tristate "Sun6i platform 10/100/1000Mbps Ethernet driver"
+	depends on HAS_IOMEM && NET_VENDOR_SUNXI
 	select NET_CORE
 	select MII
 	select PHYLIB
 	select CRC32
 	---help---
 	  This is the driver for the Sun6i Ethernet.
+endif
+
+if SUNXI_GMAC
+
+config GMAC_SCRIPT_SYS
+	bool "Use sunxi platform script"
+	depends on SUNXI_GMAC
+	default y
+	---help---
+	 The GMAC gpio request and control by the script of sunxi platform.
+	 Select it, by script. If not, ioremap by drivers itself.
+
+config GMAC_CLK_SYS
+	bool "Clock use system interface"
+	depends on SUNXI_GMAC
+	default y
+	---help---
+	 It select the clock controler is system or the driver itself.
+	 If you want to use the system interface, select it. If not, the
+	 driver will control the clock by ioremap.
 
 choice
 	prompt "Select the DMA TX/RX descriptor operating modes"
-	depends on SUN6I_GMAC
+	depends on SUNXI_GMAC
 	---help---
 	  This driver supports DMA descriptor to operate both in dual buffer
 	  (RING) and linked-list(CHAINED) mode. In RING mode each descriptor
@@ -34,4 +54,4 @@ config GMAC_CHAINED
 
 endchoice
 
-endif # NET_VENDOR_SUN6I
+endif # NET_VENDOR_SUNXI

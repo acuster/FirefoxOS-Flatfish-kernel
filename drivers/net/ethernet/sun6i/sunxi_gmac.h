@@ -1,5 +1,5 @@
 /*
- * sun6i_gmac.h: SUN6I Gigabit Ethernet Driver
+ * sunxi_gmac.h: SUN6I Gigabit Ethernet Driver
  *
  * Copyright © 2012, Shuge
  *		Author: shuge
@@ -18,14 +18,15 @@
  * along with this program.
  */
 
-#ifndef __SUN6I_GMAC_H__
-#define __SUN6I_GMAC_H__
+#ifndef __SUNXI_GMAC_H__
+#define __SUNXI_GMAC_H__
 
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <mach/sys_config.h>
 
 #include "gmac_reg.h"
 #include "gmac_desc.h"
@@ -127,8 +128,19 @@ struct gmac_priv {
 	struct device *device;
 	void __iomem *ioaddr;
 
+#ifndef CONFIG_GMAC_SCRIPT_SYS
 	void __iomem *gpiobase;
+#else
+	int gpio_cnt;
+	script_item_u *gpio_hd;
+#endif
+#ifndef CONFIG_GMAC_CLK_SYS
 	void __iomem *clkbase;
+#else
+	struct clk *gmac_ahb_clk;
+/*	struct clk *gmac_mod_clk;*/
+#endif
+	void __iomem *gmac_clk_reg;
 
 	struct gmac_extra_stats xstats;
 	struct napi_struct napi;
@@ -153,6 +165,13 @@ struct gmac_priv {
 	//struct dma_features dma_cap;
 };
 
+#ifdef CONFIG_PM
+int gmac_suspend(struct net_device *ndev);
+int gmac_resume(struct net_device *ndev);
+int gmac_freeze(struct net_device *ndev);
+int gmac_restore(struct net_device *ndev);
+#endif /* CONFIG_PM */
+
 int gmac_mdio_unregister(struct net_device *ndev);
 int gmac_mdio_register(struct net_device *ndev);
 int gmac_dvr_remove(struct net_device *ndev);
@@ -161,4 +180,4 @@ struct gmac_priv *gmac_dvr_probe(struct device *device,
 
 extern struct platform_driver gmac_driver;
 extern struct platform_device gmac_device;
-#endif //__SUN6I_GMAC_H__
+#endif //__SUNXI_GMAC_H__

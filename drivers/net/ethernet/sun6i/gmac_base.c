@@ -21,7 +21,7 @@
 #include <linux/crc32.h>
 
 #include "gmac_ethtool.h"
-#include "sun6i_gmac.h"
+#include "sunxi_gmac.h"
 #include "gmac_desc.h"
 
 #undef GMAC_BASE_DEBUG
@@ -79,14 +79,14 @@ void dma_oper_mode(void __iomem *ioaddr, int txmode,
 	u32 op_val = readl(ioaddr + GDMA_OP_MODE);
 
 	if (txmode == SF_DMA_MODE) {
-		printk(KERN_DEBUG "GMAC: enable TX store and forward mode\n");
+		pr_debug(KERN_DEBUG "GMAC: enable TX store and forward mode\n");
 		/* Transmit COE type 2 cannot be done in cut-through mode. */
 		op_val |= OP_MODE_TSF;
 		/* Operating on second frame increase the performance
 		 * especially when transmit store-and-forward is used.*/
 		op_val |= OP_MODE_OSF;
 	} else {
-		printk(KERN_DEBUG "GMAC: disabling TX store and forward mode"
+		pr_debug(KERN_DEBUG "GMAC: disabling TX store and forward mode"
 			      " (threshold = %d)\n", txmode);
 		op_val &= ~OP_MODE_TSF;
 		op_val &= OP_MODE_TC_TX_MASK;
@@ -104,10 +104,10 @@ void dma_oper_mode(void __iomem *ioaddr, int txmode,
 	}
 
 	if (rxmode == SF_DMA_MODE) {
-		printk(KERN_DEBUG "GMAC: enable RX store and forward mode\n");
+		pr_debug(KERN_DEBUG "GMAC: enable RX store and forward mode\n");
 		op_val |= OP_MODE_RSF;
 	} else {
-		printk(KERN_DEBUG "GMAC: disabling RX store and forward mode"
+		pr_debug(KERN_DEBUG "GMAC: disabling RX store and forward mode"
 			      " (threshold = %d)\n", rxmode);
 		op_val &= ~OP_MODE_RSF;
 		op_val &= OP_MODE_TC_RX_MASK;
@@ -338,7 +338,7 @@ void core_set_filter(struct net_device *dev)
 	void __iomem *ioaddr = (void __iomem *) dev->base_addr;
 	unsigned int value = 0;
 
-	printk(KERN_INFO "%s: # mcasts %d, # unicast %d\n",
+	pr_debug(KERN_INFO "%s: # mcasts %d, # unicast %d\n",
 		 __func__, netdev_mc_count(dev), netdev_uc_count(dev));
 
 	if (dev->flags & IFF_PROMISC)
@@ -391,7 +391,7 @@ void core_set_filter(struct net_device *dev)
 #endif
 	writel(value, ioaddr + GMAC_FRAME_FILTER);
 
-	printk(KERN_INFO "\tFrame Filter reg: 0x%08x\n\tHash regs: "
+	pr_debug(KERN_INFO "\tFrame Filter reg: 0x%08x\n\tHash regs: "
 	    "HI 0x%08x, LO 0x%08x\n", readl(ioaddr + GMAC_FRAME_FILTER),
 	    readl(ioaddr + GMAC_HASH_HIGH), readl(ioaddr + GMAC_HASH_LOW));
 }
@@ -401,18 +401,18 @@ void core_flow_ctrl(void __iomem *ioaddr, unsigned int duplex,
 {
 	unsigned int flow = 0;
 
-	printk(KERN_DEBUG "GMAC Flow-Control:\n");
+	pr_debug(KERN_DEBUG "GMAC Flow-Control:\n");
 	if (fc & FLOW_RX) {
-		printk(KERN_DEBUG "\tReceive Flow-Control ON\n");
+		pr_debug(KERN_DEBUG "\tReceive Flow-Control ON\n");
 		flow |= GMAC_FLOW_CTRL_RFE;
 	}
 	if (fc & FLOW_TX) {
-		printk(KERN_DEBUG "\tTransmit Flow-Control ON\n");
+		pr_debug(KERN_DEBUG "\tTransmit Flow-Control ON\n");
 		flow |= GMAC_FLOW_CTRL_TFE;
 	}
 
 	if (duplex) {
-		printk(KERN_DEBUG "\tduplex mode: PAUSE %d\n", pause_time);
+		pr_debug(KERN_DEBUG "\tduplex mode: PAUSE %d\n", pause_time);
 		flow |= (pause_time << GMAC_FLOW_CTRL_PT_SHIFT);
 	}
 

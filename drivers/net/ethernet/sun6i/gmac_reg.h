@@ -19,9 +19,8 @@
 #ifndef __GMAC_REG_H__
 #define __GMAC_REG_H__
 
-#define GMAC_IRQ			(24 + 32) /* in fpga is 24 */
-//#define GMAC_IRQ			114
-#define GMAC_BASE			0x01c50000
+
+#define GMAC_BASE			SW_PA_GMAC_IO_BASE /*0x01c50000*/
 
 /******************************************************************************
  *
@@ -250,14 +249,14 @@ enum rtc_control {
  * the system register for gmac.
  *
  *****************************************************************************/
-#define GPIO_BASE			0x01C20800
+#define GPIO_BASE			(SW_PA_PORTC_IO_BASE) /* 0x01C20800 */
 #define PA_CFG0				(0x00)
 #define PA_CFG1				(0x04)
 #define PA_CFG2				(0x08)
 #define PA_CFG3				(0x0C)
 
 /* Clk control */
-#define CCMU_BASE			0x01c20000
+#define CCMU_BASE			(SW_PA_CCM_IO_BASE) /*0x01c20000 */
 
 #ifdef GET_SYSCLK_SELF
 
@@ -283,7 +282,7 @@ enum rtc_control {
 #endif
 
 #define AHB1_GATING			(0x64)
-#define GMAC_AHB_BIT		0x00000200
+#define GMAC_AHB_BIT		0x00020000
 
 #define GMAC_CLK_REG		0x0164
 #define GMAC_CLK_GPIT		0x00000004

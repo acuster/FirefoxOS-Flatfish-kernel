@@ -20,7 +20,7 @@
 *******************************************************************************/
 #include "gmac_ethtool.h"
 #include "gmac_desc.h"
-#include "sun6i_gmac.h"
+#include "sunxi_gmac.h"
 
 int desc_get_tx_status(void *data, struct gmac_extra_stats *x,
 			       dma_desc_t *p, void __iomem *ioaddr)

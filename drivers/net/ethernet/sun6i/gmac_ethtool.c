@@ -25,11 +25,11 @@
 #include <linux/phy.h>
 #include <asm/io.h>
 
-#include "sun6i_gmac.h"
+#include "sunxi_gmac.h"
 #include "gmac_ethtool.h"
 
 #define REG_SPACE_SIZE		0x1054
-#define GMAC_ETHTOOL_NAME	"sun6i_gmac"
+#define GMAC_ETHTOOL_NAME	"sunxi_gmac"
 
 struct gmac_stats {
 	char stat_string[ETH_GSTRING_LEN];
@@ -96,7 +96,7 @@ static void gmac_ethtool_getdrvinfo(struct net_device *ndev,
 {
 	strlcpy(info->driver, GMAC_ETHTOOL_NAME, sizeof(info->driver));
 
-#define DRV_MODULE_VERSION "SUN6I GMAC driver V0.1"
+#define DRV_MODULE_VERSION "SUNXI GMAC driver V0.1"
 
 	strcpy(info->version, DRV_MODULE_VERSION);
 	info->fw_version[0] = '\0';

@@ -16,6 +16,7 @@
  * along with this program.
  ********************************************************************************/
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -32,18 +33,24 @@
 #include <linux/slab.h>
 #include <linux/prefetch.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
+#include <linux/ctype.h>
+#include <linux/gpio.h>
+
+#include <mach/sys_config.h>
+#include <mach/gpio.h>
+#include <mach/clock.h>
 
 #ifdef CONFIG_GMAC_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #endif
 
-#include "sun6i_gmac.h"
+#include "sunxi_gmac.h"
 #include "gmac_desc.h"
 #include "gmac_ethtool.h"
 
 #undef GMAC_DEBUG
-/*#define GMAC_DEBUG*/
 #ifdef GMAC_DEBUG
 #define DBG(nlevel, klevel, fmt, args...) \
 		((void)(netif_msg_##nlevel(priv) && \
@@ -161,6 +168,57 @@ static inline u32 gmac_tx_avail(struct gmac_priv *priv)
 }
 
 /**
+ * gmac_clk_ctl
+ * @flag: 0--disable, 1--enable.
+ * Description: enable and disable gmac clk.
+ */
+static void gmac_clk_ctl(struct gmac_priv *priv, unsigned int flag)
+{
+	int phy_interface = priv->plat->phy_interface;
+	u32  priv_clk_reg;
+
+#ifndef CONFIG_GMAC_CLK_SYS
+	int reg_value;
+	reg_value = readl(priv->clkbase + AHB1_GATING);
+	flag ? (reg_value |= GMAC_AHB_BIT) : (reg_value &= ~GMAC_AHB_BIT);
+	writel(reg_value, priv->clkbase + AHB1_GATING);
+/*
+	reg_value = readl(priv->clkbase + AHB1_MOD_RESET);
+	flag ? (reg_value |= GMAC_RESET_BIT) : (reg_value &= ~GMAC_RESET_BIT);
+	writel(reg_value, priv->clkbase + AHB1_MOD_RESET);
+*/
+#else
+	if (flag) {
+		clk_enable(priv->gmac_ahb_clk);
+        /*
+		clk_reset(priv->gmac_mod_clk, AW_CCU_CLK_NRESET);
+        */
+	} else {
+		clk_disable(priv->gmac_ahb_clk);
+        /*
+		clk_reset(priv->gmac_mod_clk, AW_CCU_CLK_RESET);
+        */
+	}
+#endif
+
+	/* We should set the interface type. */
+	priv_clk_reg = readl(priv->gmac_clk_reg + GMAC_CLK_REG);
+
+	if (phy_interface == PHY_INTERFACE_MODE_RGMII)
+		priv_clk_reg |= 0x00000004;
+	else
+		priv_clk_reg &= (~0x00000004);
+
+	/* Set gmac transmit clock source. */
+	priv_clk_reg &= (~0x00000003);
+	if (phy_interface == PHY_INTERFACE_MODE_RGMII
+			|| phy_interface == PHY_INTERFACE_MODE_GMII)
+		priv_clk_reg |= 0x00000002;
+
+	writel(priv_clk_reg, priv->gmac_clk_reg + GMAC_CLK_REG);
+}
+
+/**
  * gmac_adjust_link
  * @dev: net device structure
  * Description: it adjusts the link parameters.
@@ -258,11 +316,13 @@ static int gmac_init_phy(struct net_device *ndev)
 	char phy_id[MII_BUS_ID_SIZE + 3];
 	char bus_id[MII_BUS_ID_SIZE];
 	int phy_interface = priv->plat->phy_interface;
+
+	/* Initialize the information of phy state. */
 	priv->oldlink = 0;
 	priv->speed = 0;
 	priv->oldduplex = -1;
 
-	snprintf(bus_id, MII_BUS_ID_SIZE, "sun6i_gmac-%x", priv->plat->bus_id);
+	snprintf(bus_id, MII_BUS_ID_SIZE, "sunxi_gmac-%x", priv->plat->bus_id);
 	snprintf(phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT, bus_id,
 		 priv->plat->phy_addr);
 	pr_debug("gmac_init_phy:  trying to attach to %s\n", phy_id);
@@ -711,12 +771,19 @@ static void gmac_dma_interrupt(struct gmac_priv *priv)
 
 static void gmac_check_ether_addr(struct gmac_priv *priv)
 {
+	int i;
+	char *p = mac_str;
 	/* verify if the MAC address is valid, in case of failures it
 	 * generates a random MAC address */
 	if (!is_valid_ether_addr(priv->ndev->dev_addr)) {
 		gmac_get_umac_addr((void __iomem *)
 					     priv->ndev->base_addr,
 					     priv->ndev->dev_addr, 0);
+		if  (!is_valid_ether_addr(priv->ndev->dev_addr)) {
+			for (i=0; i<6; i++,p++)
+				priv->ndev->dev_addr[i] = simple_strtoul(p, &p, 16);
+		}
+
 		if  (!is_valid_ether_addr(priv->ndev->dev_addr))
 			random_ether_addr(priv->ndev->dev_addr);
 	}
@@ -738,6 +805,7 @@ static int gmac_open(struct net_device *ndev)
 	struct gmac_priv *priv = netdev_priv(ndev);
 	int ret;
 
+	gmac_clk_ctl(priv, 1);
 	gmac_check_ether_addr(priv);
 
 	/* MDIO bus Registration */
@@ -745,13 +813,13 @@ static int gmac_open(struct net_device *ndev)
 	if (ret < 0) {
 		pr_debug("%s: MDIO bus (id: %d) registration failed",
 			 __func__, priv->plat->bus_id);
-		return ret;
+		goto out_err;
 	}
 
 	ret = gmac_init_phy(ndev);
 	if (unlikely(ret)) {
 		pr_err("%s: Cannot attach to PHY (error: %d)\n", __func__, ret);
-		goto open_error;
+		goto out_err;
 	}
 
 	/* Create and initialize the TX/RX descriptors chains. */
@@ -821,6 +889,9 @@ static int gmac_open(struct net_device *ndev)
 open_error:
 	if (ndev->phydev)
 		phy_disconnect(ndev->phydev);
+	free_dma_desc_resources(priv);
+out_err:
+	gmac_clk_ctl(priv, 0);
 
 	return ret;
 }
@@ -872,6 +943,7 @@ static int gmac_release(struct net_device *ndev)
 	gmac_exit_fs();
 #endif
 	gmac_mdio_unregister(ndev);
+	gmac_clk_ctl(priv, 0);
 
 	return 0;
 }
@@ -1451,7 +1523,7 @@ static int gmac_hw_init(struct gmac_priv *priv)
  * call the alloc_etherdev, allocate the priv structure.
  */
 struct gmac_priv *gmac_dvr_probe(struct device *device,
-							void __iomem *addr, int irqnum)
+		void __iomem *addr, int irqnum)
 {
 	int ret = 0;
 	struct net_device *ndev = NULL;
@@ -1617,14 +1689,50 @@ int gmac_restore(struct net_device *ndev)
 }
 #endif /* CONFIG_PM */
 
+#ifndef MODULE
+static int __init set_mac_addr(char *str)
+{
+	char *p = str;
+
+	memcpy(mac_str, p, 18);
+
+	return 0;
+}
+__setup("mac_addr=", set_mac_addr);
+#endif
+
 static int __init gmac_init(void)
 {
+#ifdef CONFIG_GMAC_SCRIPT_SYS
+	script_item_u gmac_used;
+
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("gmac_para", "gmac_used", &gmac_used))
+		printk(KERN_WARNING "[sunxi_gmac]: Script is failed!\n");
+
+	if (!gmac_used.val) {
+		printk(KERN_WARNING "[sunxi_gmac]: The script config GMAC is not used!\n");
+		return 0;
+	}
+#endif
+
 	platform_device_register(&gmac_device);
 	return platform_driver_register(&gmac_driver);
 }
 
 static void __exit gmac_remove(void)
 {
+#ifdef CONFIG_GMAC_SCRIPT_SYS
+	script_item_u gmac_used;
+
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("gmac_para", "gmac_used", &gmac_used))
+		printk(KERN_WARNING "[sunxi_gmac]: Script is failed!\n");
+
+	if (!gmac_used.val) {
+		printk(KERN_WARNING "[sunxi_gmac]: The script config GMAC is not used!\n");
+		return;
+	}
+#endif
+
 	platform_driver_unregister(&gmac_driver);
 	platform_device_unregister(&gmac_device);
 }
@@ -1632,6 +1740,6 @@ static void __exit gmac_remove(void)
 module_init(gmac_init);
 module_exit(gmac_remove);
 
-MODULE_DESCRIPTION("SUN6I 1000 Ethernet device driver");
+MODULE_DESCRIPTION("SUN6I 10/100/1000Mbps Ethernet device driver");
 MODULE_AUTHOR("Shuge <shugeLinux@gmail.com>");
 MODULE_LICENSE("GPL v2");
