@@ -271,7 +271,7 @@ EFUSE_GetEfuseDefinition(
 	IN		PADAPTER	pAdapter,
 	IN		u8		efuseType,
 	IN		u8		type,
-	OUT		PVOID		*pOut,
+	OUT		void		*pOut,
 	IN		BOOLEAN		bPseudoTest
 	)
 {
@@ -524,6 +524,21 @@ Efuse_PgPacketWrite(IN	PADAPTER	pAdapter,
 	return ret;
 }
 
+
+int
+Efuse_PgPacketWrite_BT(IN	PADAPTER	pAdapter,
+					IN	u8 			offset,
+					IN	u8			word_en,
+					IN	u8			*data,
+					IN	BOOLEAN		bPseudoTest)
+{
+	int ret;
+
+	ret =  pAdapter->HalFunc.Efuse_PgPacketWrite_BT(pAdapter, offset, word_en, data, bPseudoTest);
+
+	return ret;
+}
+
 /*-----------------------------------------------------------------------------
  * Function:	efuse_WordEnableDataRead
  *
@@ -667,6 +682,24 @@ u8 rtw_efuse_map_read(PADAPTER padapter, u16 addr, u16 cnts, u8 *data)
 
 	return _SUCCESS;
 }
+
+u8 rtw_BT_efuse_map_read(PADAPTER padapter, u16 addr, u16 cnts, u8 *data)
+{
+	u16	mapLen=0;
+
+	EFUSE_GetEfuseDefinition(padapter, EFUSE_BT, TYPE_EFUSE_MAP_LEN, (PVOID)&mapLen, _FALSE);
+
+	if ((addr + cnts) > mapLen)
+		return _FAIL;
+
+	Efuse_PowerSwitch(padapter, _FALSE, _TRUE);
+
+	efuse_ReadEFuse(padapter, EFUSE_BT, addr, cnts, data, _FALSE);
+
+	Efuse_PowerSwitch(padapter, _FALSE, _FALSE);
+
+	return _SUCCESS;
+}
 //------------------------------------------------------------------------------
 u8 rtw_efuse_map_write(PADAPTER padapter, u16 addr, u16 cnts, u8 *data)
 {
@@ -764,6 +797,106 @@ exit:
 	return ret;
 }
 
+
+//------------------------------------------------------------------------------
+u8 rtw_BT_efuse_map_write(PADAPTER padapter, u16 addr, u16 cnts, u8 *data)
+{
+	u8	offset, word_en;
+	u8	*map;
+	u8	newdata[PGPKT_DATA_SIZE];
+	s32	i, j, idx;
+	u8	ret = _SUCCESS;
+	u16	mapLen=0;
+
+	EFUSE_GetEfuseDefinition(padapter, EFUSE_BT, TYPE_EFUSE_MAP_LEN, (PVOID)&mapLen, _FALSE);
+
+	if ((addr + cnts) > mapLen)
+		return _FAIL;
+
+	map = rtw_zmalloc(mapLen);
+	if(map == NULL){
+		return _FAIL;
+	}
+
+	ret = rtw_BT_efuse_map_read(padapter, 0, mapLen, map);
+	if (ret == _FAIL) goto exit;
+
+	Efuse_PowerSwitch(padapter, _TRUE, _TRUE);
+
+	offset = (addr >> 3);
+	word_en = 0xF;
+	_rtw_memset(newdata, 0xFF, PGPKT_DATA_SIZE);
+	i = addr & 0x7;	// index of one package
+	j = 0;		// index of new package
+	idx = 0;	// data index
+
+	if (i & 0x1) {
+		// odd start
+		if (data[idx] != map[addr+idx]) {
+			word_en &= ~BIT(i >> 1);
+			newdata[i-1] = map[addr+idx-1];
+			newdata[i] = data[idx];
+		}
+		i++;
+		idx++;
+	}
+	do {
+		for (; i < PGPKT_DATA_SIZE; i += 2)
+		{
+			if (cnts == idx) break;
+			if ((cnts - idx) == 1) {
+				if (data[idx] != map[addr+idx]) {
+					word_en &= ~BIT(i >> 1);
+					newdata[i] = data[idx];
+					newdata[i+1] = map[addr+idx+1];
+				}
+				idx++;
+				break;
+			} else {
+				if ((data[idx] != map[addr+idx]) ||
+				    (data[idx+1] != map[addr+idx+1]))
+				{
+					word_en &= ~BIT(i >> 1);
+					newdata[i] = data[idx];
+					newdata[i+1] = data[idx + 1];
+				}
+				idx += 2;
+			}
+			if (idx == cnts) break;
+		}
+
+		if (word_en != 0xF)
+		{
+			DBG_871X("%s: offset=%#X\n", __FUNCTION__, offset);
+			DBG_871X("%s: word_en=%#X\n", __FUNCTION__, word_en);
+			DBG_871X("%s: data=", __FUNCTION__);
+			for (i=0; i<PGPKT_DATA_SIZE; i++)
+			{
+				DBG_871X("0x%02X ", newdata[i]);
+			}
+			DBG_871X("\n");
+
+			ret = Efuse_PgPacketWrite_BT(padapter, offset, word_en, newdata, _FALSE);
+			if (ret == _FAIL) break;
+		}
+
+		if (idx == cnts) break;
+
+		offset++;
+		i = 0;
+		j = 0;
+		word_en = 0xF;
+		_rtw_memset(newdata, 0xFF, PGPKT_DATA_SIZE);
+	} while (1);
+
+	Efuse_PowerSwitch(padapter, _TRUE, _FALSE);
+
+exit:
+
+	rtw_mfree(map, mapLen);
+
+	return ret;
+}
 
 /*-----------------------------------------------------------------------------
  * Function:	Efuse_ReadAllMap
@@ -1046,6 +1179,9 @@ EFUSE_ShadowWrite(
 #if (MP_DRIVER == 0)
 	return;
 #endif
+	if ( pAdapter->registrypriv.mp_mode == 0)
+		return;
+
 
 	if (Type == 1)
 		efuse_ShadowWrite1Byte(pAdapter, Offset, (u8)Value);

@@ -19,34 +19,11 @@
  ******************************************************************************/
 #define _RTL8188E_SRESET_C_
 
-#include <rtl8192c_sreset.h>
+#include <rtl8188e_sreset.h>
 #include <rtl8188e_hal.h>
-
 
 #ifdef DBG_CONFIG_ERROR_DETECT
 extern void rtw_cancel_all_timer(_adapter *padapter);
-
-void rtl8192c_sreset_init_value(_adapter *padapter)
-{
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
-
-	_rtw_mutex_init(&psrtpriv->silentreset_mutex );
-	psrtpriv->silent_reset_inprogress = _FALSE;
-	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
-	psrtpriv->last_tx_time =0;
-	psrtpriv->last_tx_complete_time =0;
-}
-void rtl8192c_sreset_reset_value(_adapter *padapter)
-{
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
-	psrtpriv->silent_reset_inprogress = _FALSE;
-	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
-	psrtpriv->last_tx_time =0;
-	psrtpriv->last_tx_complete_time =0;
-}
-
 static void _restore_security_setting(_adapter *padapter)
 {
 	u8 EntryId = 0;
@@ -125,10 +102,11 @@ static void _restore_network_status(_adapter *padapter)
 		rtw_write32(padapter, REG_EDCA_VI_PARAM, 0x005E541C);
 		rtw_write32(padapter, REG_EDCA_BE_PARAM, 0x0000A525);
 		rtw_write32(padapter, REG_EDCA_BK_PARAM, 0x0000A549);
-
-                // for WiFi test, mixed mode with intel STA under bg mode throughput issue
-	        if (padapter->mlmepriv.htpriv.ht_option == 0)
-		     rtw_write32(padapter, REG_EDCA_BE_PARAM, 0x00004320);
+#ifdef CONFIG_80211N_HT
+		// for WiFi test, mixed mode with intel STA under bg mode throughput issue
+		if (padapter->mlmepriv.htpriv.ht_option == 0)
+#endif //CONFIG_80211N_HT
+		rtw_write32(padapter, REG_EDCA_BE_PARAM, 0x00004320);
 
 	} else {
 		rtw_write32(padapter, REG_EDCA_VO_PARAM, 0x002F3217);
@@ -141,9 +119,9 @@ static void _restore_network_status(_adapter *padapter)
 	//Switch_DM_Func(padapter, DYNAMIC_FUNC_DISABLE, _FALSE);
 #endif
 
-	padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_BSSID, pmlmeinfo->network.MacAddress);
+	rtw_hal_set_hwreg(padapter, HW_VAR_BSSID, pmlmeinfo->network.MacAddress);
 	join_type = 0;
-	padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
+	rtw_hal_set_hwreg(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
 
 	Set_MSR(padapter, (pmlmeinfo->state & 0x3));
 
@@ -152,7 +130,7 @@ static void _restore_network_status(_adapter *padapter)
 	rtw_write8(padapter,0x4dc,padapter->xmitpriv.nqos_ssn);
 }
 
-void rtl8192c_silentreset_for_specific_platform(_adapter *padapter)
+void rtl8188e_silentreset_for_specific_platform(_adapter *padapter)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
@@ -200,7 +178,7 @@ void rtl8192c_silentreset_for_specific_platform(_adapter *padapter)
 #endif
 }
 
-void rtl8192c_sreset_xmit_status_check(_adapter *padapter)
+void rtl8188e_sreset_xmit_status_check(_adapter *padapter)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
@@ -209,11 +187,12 @@ void rtl8192c_sreset_xmit_status_check(_adapter *padapter)
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
 	unsigned int diff_time;
 	u32 txdma_status;
+
 	if( (txdma_status=rtw_read32(padapter, REG_TXDMA_STATUS)) !=0x00){
 		DBG_871X("%s REG_TXDMA_STATUS:0x%08x\n", __FUNCTION__, txdma_status);
-		rtl8192c_silentreset_for_specific_platform(padapter);
+		rtl8188e_silentreset_for_specific_platform(padapter);
 	}
-
+#ifdef CONFIG_USB_HCI
 	//total xmit irp = 4
 	//DBG_8192C("==>%s free_xmitbuf_cnt(%d),txirp_cnt(%d)\n",__FUNCTION__,pxmitpriv->free_xmitbuf_cnt,pxmitpriv->txirp_cnt);
 	//if(pxmitpriv->txirp_cnt == NR_XMITBUFF+1)
@@ -231,15 +210,24 @@ void rtl8192c_sreset_xmit_status_check(_adapter *padapter)
 				if(diff_time > 4000){
 					//padapter->Wifi_Error_Status = WIFI_TX_HANG;
 					DBG_8192C("%s tx hang\n", __FUNCTION__);
-					rtl8192c_silentreset_for_specific_platform(padapter);
+					rtl8188e_silentreset_for_specific_platform(padapter);
 				}
 			}
 		}
 	}
+#endif //CONFIG_USB_HCI
 }
 
-void rtl8192c_sreset_linked_status_check(_adapter *padapter)
+void rtl8188e_sreset_linked_status_check(_adapter *padapter)
 {
+	u32 rx_dma_status = 0;
+	rx_dma_status = rtw_read32(padapter,REG_RXDMA_STATUS);
+	if(rx_dma_status!= 0x00){
+		DBG_8192C("%s REG_RXDMA_STATUS:0x%08x",__FUNCTION__,rx_dma_status);
+		rtw_write32(padapter,REG_RXDMA_STATUS,rx_dma_status);
+	}
+
+#if 0
 	u32 regc50,regc58,reg824,reg800;
 	regc50 = rtw_read32(padapter,0xc50);
 	regc58 = rtw_read32(padapter,0xc58);
@@ -252,44 +240,9 @@ void rtl8192c_sreset_linked_status_check(_adapter *padapter)
 	{
 		DBG_8192C("%s regc50:0x%08x, regc58:0x%08x, reg824:0x%08x, reg800:0x%08x,\n", __FUNCTION__,
 			regc50, regc58, reg824, reg800);
-		rtl8192c_silentreset_for_specific_platform(padapter);
+		rtl8188e_silentreset_for_specific_platform(padapter);
 	}
-}
-
-#ifdef DBG_CONFIG_ERROR_DETECT
-u8 rtl8192c_sreset_get_wifi_status(_adapter *padapter)
-{
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
-
-	u8 status = WIFI_STATUS_SUCCESS;
-	u32 val32 = 0;
-	_irqL irqL;
-	if(psrtpriv->silent_reset_inprogress == _TRUE)
-        {
-		return status;
-	}
-	val32 =rtw_read32(padapter,REG_TXDMA_STATUS);
-	if(val32==0xeaeaeaea){
-		psrtpriv->Wifi_Error_Status = WIFI_IF_NOT_EXIST;
-	}
-	else if(val32!=0){
-		DBG_8192C("txdmastatu(%x)\n",val32);
-		psrtpriv->Wifi_Error_Status = WIFI_MAC_TXDMA_ERROR;
-	}
-
-	if(WIFI_STATUS_SUCCESS !=psrtpriv->Wifi_Error_Status)
-	{
-		DBG_8192C("==>%s error_status(0x%x) \n",__FUNCTION__,psrtpriv->Wifi_Error_Status);
-		status = (psrtpriv->Wifi_Error_Status &( ~(USB_READ_PORT_FAIL|USB_WRITE_PORT_FAIL)));
-	}
-	DBG_8192C("==> %s wifi_status(0x%x)\n",__FUNCTION__,status);
-
-	//status restore
-	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
-
-	return status;
+#endif
 }
 #endif
 
-#endif

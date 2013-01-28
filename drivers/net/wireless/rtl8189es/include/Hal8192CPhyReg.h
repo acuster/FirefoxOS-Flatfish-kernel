@@ -402,12 +402,20 @@
 
 #define		RF_IQADJ_G1				0x01	//
 #define		RF_IQADJ_G2				0x02	//
+#define		RF_BS_PA_APSET_G1_G4		0x03
+#define		RF_BS_PA_APSET_G5_G8		0x04
 #define		RF_POW_TRSW				0x05	//
 
 #define		RF_GAIN_RX					0x06	//
 #define		RF_GAIN_TX					0x07	//
 
 #define		RF_TXM_IDAC				0x08	//
+#define		RF_IPA_G					0x09	//
+#define		RF_TXBIAS_G				0x0A
+#define		RF_TXPA_AG					0x0B
+#define		RF_IPA_A					0x0C	//
+#define		RF_TXBIAS_A				0x0D
+#define		RF_BS_PA_APSET_G9_G11	0x0E
 #define		RF_BS_IQGEN				0x0F	//
 
 #define		RF_MODE1					0x10	//

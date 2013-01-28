@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -24,13 +24,29 @@
 #include <drv_types.h>
 #include <osdep_intf.h>
 
+#ifdef CONFIG_BT_COEXIST
+#include <rtl8723a_hal.h>
+#endif
 
 #ifdef CONFIG_IPS
 void ips_enter(_adapter * padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+	struct xmit_priv *pxmit_priv = &padapter->xmitpriv;
 
+#if (MP_DRIVER == 1)
+	if (padapter->registrypriv.mp_mode == 1)
+		return;
+#endif
+
+	if (pxmit_priv->free_xmitbuf_cnt != NR_XMITBUFF ||
+		pxmit_priv->free_xmit_extbuf_cnt != NR_XMIT_EXTBUFF) {
+		DBG_871X_LEVEL(_drv_always_, "There are some pkts to transmit\n");
+		DBG_871X_LEVEL(_drv_info_, "free_xmitbuf_cnt: %d, free_xmit_extbuf_cnt: %d\n",
+			pxmit_priv->free_xmitbuf_cnt, pxmit_priv->free_xmit_extbuf_cnt);
+		return;
+	}
 
 	_enter_pwrlock(&pwrpriv->lock);
 
@@ -41,11 +57,13 @@ void ips_enter(_adapter * padapter)
 
 	pwrpriv->ips_enter_cnts++;
 	DBG_871X("==>ips_enter cnts:%d\n",pwrpriv->ips_enter_cnts);
-
+#ifdef CONFIG_BT_COEXIST
+	BTDM_TurnOffBtCoexistBeforeEnterIPS(padapter);
+#endif
 	if(rf_off == pwrpriv->change_rfpwrstate )
 	{
 		pwrpriv->bpower_saving = _TRUE;
-		DBG_871X("==>power_saving_ctrl_wk_hdl change rf to OFF...LED(0x%08x).... \n\n",rtw_read32(padapter,0x4c));
+		DBG_871X_LEVEL(_drv_always_, "nolinked power save enter\n");
 
 		if(pwrpriv->ips_mode == IPS_LEVEL_2)
 			pwrpriv->bkeepfwalive = _TRUE;
@@ -66,16 +84,21 @@ int ips_leave(_adapter * padapter)
 	struct mlme_priv		*pmlmepriv = &(padapter->mlmepriv);
 	int result = _SUCCESS;
 	sint keyid;
+
+
 	_enter_pwrlock(&pwrpriv->lock);
+
 	if((pwrpriv->rf_pwrstate == rf_off) &&(!pwrpriv->bips_processing))
 	{
+		pwrpriv->bips_processing = _TRUE;
 		pwrpriv->change_rfpwrstate = rf_on;
 		pwrpriv->ips_leave_cnts++;
 		DBG_871X("==>ips_leave cnts:%d\n",pwrpriv->ips_leave_cnts);
 
-		result = rtw_ips_pwr_up(padapter);
-		pwrpriv->bips_processing = _TRUE;
-		pwrpriv->rf_pwrstate = rf_on;
+		if ((result = rtw_ips_pwr_up(padapter)) == _SUCCESS) {
+			pwrpriv->rf_pwrstate = rf_on;
+		}
+		DBG_871X_LEVEL(_drv_always_, "nolinked power save leave\n");
 
 		if((_WEP40_ == psecuritypriv->dot11PrivacyAlgrthm) ||(_WEP104_ == psecuritypriv->dot11PrivacyAlgrthm))
 		{
@@ -96,9 +119,10 @@ int ips_leave(_adapter * padapter)
 
 		pwrpriv->bkeepfwalive = _FALSE;
 		pwrpriv->bpower_saving = _FALSE;
-
 	}
+
 	_exit_pwrlock(&pwrpriv->lock);
+
 	return result;
 }
 
@@ -115,6 +139,66 @@ int rtw_hw_suspend(_adapter *padapter );
 int rtw_hw_resume(_adapter *padapter);
 #endif
 
+bool rtw_pwr_unassociated_idle(_adapter *adapter)
+{
+	_adapter *buddy = adapter->pbuddy_adapter;
+	struct mlme_priv *pmlmepriv = &(adapter->mlmepriv);
+#ifdef CONFIG_P2P
+	struct wifidirect_info	*pwdinfo = &(adapter->wdinfo);
+#ifdef CONFIG_IOCTL_CFG80211
+	struct cfg80211_wifidirect_info *pcfg80211_wdinfo = &adapter->cfg80211_wdinfo;
+#endif
+#endif
+
+	bool ret = _FALSE;
+
+	if (adapter->pwrctrlpriv.ips_deny_time >= rtw_get_current_time()) {
+		//DBG_871X("%s ips_deny_time\n", __func__);
+		goto exit;
+	}
+
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE|WIFI_SITE_MONITOR)
+		|| check_fwstate(pmlmepriv, WIFI_UNDER_LINKING|WIFI_UNDER_WPS)
+		|| check_fwstate(pmlmepriv, WIFI_AP_STATE)
+		|| check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE|WIFI_ADHOC_STATE)
+		#if defined(CONFIG_P2P) && defined(CONFIG_IOCTL_CFG80211) && defined(CONFIG_P2P_IPS)
+		|| pcfg80211_wdinfo->is_ro_ch
+		#elif defined(CONFIG_P2P)
+		|| !rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)
+		#endif
+	) {
+		goto exit;
+	}
+
+	/* consider buddy, if exist */
+	if (buddy) {
+		struct mlme_priv *b_pmlmepriv = &(buddy->mlmepriv);
+		#ifdef CONFIG_P2P
+		struct wifidirect_info *b_pwdinfo = &(buddy->wdinfo);
+		#ifdef CONFIG_IOCTL_CFG80211
+		struct cfg80211_wifidirect_info *b_pcfg80211_wdinfo = &buddy->cfg80211_wdinfo;
+		#endif
+		#endif
+
+		if (check_fwstate(b_pmlmepriv, WIFI_ASOC_STATE|WIFI_SITE_MONITOR)
+			|| check_fwstate(b_pmlmepriv, WIFI_UNDER_LINKING|WIFI_UNDER_WPS)
+			|| check_fwstate(b_pmlmepriv, WIFI_AP_STATE)
+			|| check_fwstate(b_pmlmepriv, WIFI_ADHOC_MASTER_STATE|WIFI_ADHOC_STATE)
+			#if defined(CONFIG_P2P) && defined(CONFIG_IOCTL_CFG80211) && defined(CONFIG_P2P_IPS)
+			|| b_pcfg80211_wdinfo->is_ro_ch
+			#elif defined(CONFIG_P2P)
+			|| !rtw_p2p_chk_state(b_pwdinfo, P2P_STATE_NONE)
+			#endif
+		) {
+			goto exit;
+		}
+	}
+	ret = _TRUE;
+
+exit:
+	return ret;
+}
+
 #if defined (PLATFORM_LINUX)||defined (PLATFORM_FREEBSD)
 void rtw_ps_processor(_adapter*padapter)
 {
@@ -127,8 +211,11 @@ void rtw_ps_processor(_adapter*padapter)
 	rt_rf_power_state rfpwrstate;
 #endif //SUPPORT_HW_RFOFF_DETECTED
 
+	pwrpriv->ps_processing = _TRUE;
+
 #ifdef SUPPORT_HW_RFOFF_DETECTED
-	if(pwrpriv->bips_processing == _TRUE)	return;
+	if(pwrpriv->bips_processing == _TRUE)
+		goto exit;
 
 	//DBG_871X("==> fw report state(0x%x)\n",rtw_read8(padapter,0x1ca));
 	if(padapter->pwrctrlpriv.bHWPwrPindetect)
@@ -184,107 +271,75 @@ void rtw_ps_processor(_adapter*padapter)
 	}
 #endif //SUPPORT_HW_RFOFF_DETECTED
 
-	if( pwrpriv->power_mgnt == PS_MODE_ACTIVE )	return;
+	if (pwrpriv->ips_mode_req == IPS_NONE
+		#ifdef CONFIG_CONCURRENT_MODE
+		|| padapter->pbuddy_adapter->pwrctrlpriv.ips_mode_req == IPS_NONE
+		#endif
+	)
+		goto exit;
+
+	if (rtw_pwr_unassociated_idle(padapter) == _FALSE)
+		goto exit;
 
 	if((pwrpriv->rf_pwrstate == rf_on) && ((pwrpriv->pwr_state_check_cnts%4)==0))
 	{
-		if (	(check_fwstate(pmlmepriv, _FW_LINKED|_FW_UNDER_SURVEY|_FW_UNDER_LINKING) == _TRUE) ||
-			(check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE) ||
-			(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == _TRUE) ||
-			(check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == _TRUE) ||
-			(padapter->bup == _FALSE)
-			#ifdef CONFIG_P2P
-			|| !rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)
-			#endif //CONFIG_P2P
-		)
-		{
-			return;
-		}
-
 		DBG_871X("==>%s .fw_state(%x)\n",__FUNCTION__,get_fwstate(pmlmepriv));
+		#if defined (CONFIG_BT_COEXIST)&& defined (CONFIG_AUTOSUSPEND)
+		#else
 		pwrpriv->change_rfpwrstate = rf_off;
-
+		#endif
 		#ifdef CONFIG_AUTOSUSPEND
 		if(padapter->registrypriv.usbss_enable)
 		{
-			if(padapter->pwrctrlpriv.bHWPwrPindetect)
+			if(pwrpriv->bHWPwrPindetect)
 				pwrpriv->bkeepfwalive = _TRUE;
 
 			if(padapter->net_closed == _TRUE)
 				pwrpriv->ps_flag = _TRUE;
 
+			#if defined (CONFIG_BT_COEXIST)&& defined (CONFIG_AUTOSUSPEND)
+			if (_TRUE==pwrpriv->bInternalAutoSuspend) {
+				DBG_871X("<==%s .pwrpriv->bInternalAutoSuspend)(%x)\n",__FUNCTION__,pwrpriv->bInternalAutoSuspend);
+			} else {
+				pwrpriv->change_rfpwrstate = rf_off;
+				padapter->bCardDisableWOHSM = _TRUE;
+				DBG_871X("<==%s .pwrpriv->bInternalAutoSuspend)(%x) call autosuspend_enter\n",__FUNCTION__,pwrpriv->bInternalAutoSuspend);
+				autosuspend_enter(padapter);
+			}
+			#else
 			padapter->bCardDisableWOHSM = _TRUE;
 			autosuspend_enter(padapter);
+			#endif	//if defined (CONFIG_BT_COEXIST)&& defined (CONFIG_AUTOSUSPEND)
 		}
-		else if(padapter->pwrctrlpriv.bHWPwrPindetect)
+		else if(pwrpriv->bHWPwrPindetect)
 		{
 		}
 		else
 		#endif //CONFIG_AUTOSUSPEND
 		{
+			#if defined (CONFIG_BT_COEXIST)&& defined (CONFIG_AUTOSUSPEND)
+			pwrpriv->change_rfpwrstate = rf_off;
+			#endif	//defined (CONFIG_BT_COEXIST)&& defined (CONFIG_AUTOSUSPEND)
+
 			#ifdef CONFIG_IPS
 			ips_enter(padapter);
 			#endif
 		}
 	}
-
-
+exit:
+	rtw_set_pwr_state_check_timer(&padapter->pwrctrlpriv);
+	pwrpriv->ps_processing = _FALSE;
+	return;
 }
 
 void pwr_state_check_handler(void *FunctionContext);
 void pwr_state_check_handler(void *FunctionContext)
 {
 	_adapter *padapter = (_adapter *)FunctionContext;
-	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
-	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
-	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
-#ifdef CONFIG_P2P
-	struct wifidirect_info	*pwdinfo = &( padapter->wdinfo );
-#endif //CONFIG_P2P
-	//DBG_871X("%s\n", __FUNCTION__);
-
-#ifdef SUPPORT_HW_RFOFF_DETECTED
-	//DBG_871X("%s...bHWPwrPindetect(%d)\n",__FUNCTION__,padapter->pwrctrlpriv.bHWPwrPindetect);
-	if(padapter->pwrctrlpriv.bHWPwrPindetect)
-	{
-		rtw_ps_cmd(padapter);
-		rtw_set_pwr_state_check_timer(&padapter->pwrctrlpriv);
-	}
-	else
-#endif
-	{
-		//if(padapter->net_closed == _TRUE)		return;
-		//DBG_871X("==>%s .fw_state(%x)\n", __FUNCTION__, get_fwstate(pmlmepriv));
-		if (	(check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE) ||
-			(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == _TRUE) ||
-			(check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == _TRUE) ||
-			(check_fwstate(pmlmepriv, _FW_LINKED|_FW_UNDER_SURVEY|_FW_UNDER_LINKING) == _TRUE)  ||
-			(padapter->bup == _FALSE)
-			#ifdef CONFIG_P2P
-			|| !rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)
-			#endif //CONFIG_P2P
-			)
-		{
-			//other pwr ctrl....
-			rtw_set_pwr_state_check_timer(&padapter->pwrctrlpriv);
-		}
-		else
-		{
-			if((pwrpriv->rf_pwrstate == rf_on) &&(_FALSE == pwrpriv->bips_processing))
-			{
-				pwrpriv->change_rfpwrstate = rf_off;
-				pwrctrlpriv->pwr_state_check_cnts = 0;
-				DBG_871X("==>pwr_state_check_handler .fw_state(%x)\n",get_fwstate(pmlmepriv));
-				rtw_ps_cmd(padapter);
-			}
-
-		}
-	}
-
-
-
+	rtw_ps_cmd(padapter);
 }
 #endif
+
 
 
 #ifdef CONFIG_LPS
@@ -304,22 +359,70 @@ _func_enter_;
 
 	pslv = PS_STATE(pslv);
 
-	if (pwrpriv->rpwm == pslv) {
+
+	if (_TRUE == padapter->pwrctrlpriv.btcoex_rfon)
+	{
+		if (pslv < PS_STATE_S4)
+			pslv = PS_STATE_S3;
+
+		if (pwrpriv->rpwm == pslv) {
+			struct reportpwrstate_parm report;
+			report.state = PS_STATE_S3;
+#ifdef CONFIG_LPS_LCLK
+			//cpwm_int_hdl(padapter, &report);
+			_set_workitem(&padapter->pwrctrlpriv.cpwm_event);
+#endif
+			return;
+		}
+	}
+
+#ifdef CONFIG_LPS_RPWM_TIMER
+	if (pwrpriv->brpwmtimeout == _TRUE)
+	{
+		DBG_871X("%s: RPWM timeout, force to set RPWM(0x%02X) again!\n", __FUNCTION__, pslv);
+	}
+	else
+#endif // CONFIG_LPS_RPWM_TIMER
+	{
+	if ( (pwrpriv->rpwm == pslv)
+#ifdef CONFIG_LPS_LCLK
+		|| ((pwrpriv->rpwm >= PS_STATE_S2)&&(pslv >= PS_STATE_S2))
+#endif
+		)
+	{
 		RT_TRACE(_module_rtl871x_pwrctrl_c_,_drv_err_,
-			("%s: Already set rpwm[0x%02x]!\n", __FUNCTION__, pslv));
+			("%s: Already set rpwm[0x%02X], new=0x%02X!\n", __FUNCTION__, pwrpriv->rpwm, pslv));
+		return;
+	}
+	}
+
+	if ((padapter->bSurpriseRemoved == _TRUE) ||
+		(padapter->hw_init_completed == _FALSE))
+	{
+		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_err_,
+				 ("%s: SurpriseRemoved(%d) hw_init_completed(%d)\n",
+				  __FUNCTION__, padapter->bSurpriseRemoved, padapter->hw_init_completed));
+
+		pwrpriv->cpwm = PS_STATE_S4;
+
 		return;
 	}
 
-	if ((padapter->bDriverStopped == _TRUE) ||
-		(padapter->bSurpriseRemoved == _TRUE)) {
+	if (padapter->bDriverStopped == _TRUE)
+	{
 		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_err_,
-				 ("%s: bDriverStopped(%d) bSurpriseRemoved(%d)\n",
-				  __FUNCTION__, padapter->bDriverStopped, padapter->bSurpriseRemoved));
-		return;
+				 ("%s: change power state(0x%02X) when DriverStopped\n", __FUNCTION__, pslv));
+
+		if (pslv < PS_STATE_S2) {
+			RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_err_,
+					 ("%s: Reject to enter PS_STATE(0x%02X) lower than S2 when DriverStopped!!\n", __FUNCTION__, pslv));
+			return;
+		}
 	}
 
 	rpwm = pslv | pwrpriv->tog;
 #ifdef CONFIG_LPS_LCLK
+	// only when from PS_STATE S0/S1 to S2 and higher needs ACK
 	if ((pwrpriv->cpwm < PS_STATE_S2) && (pslv >= PS_STATE_S2))
 		rpwm |= PS_ACK;
 #endif
@@ -328,11 +431,34 @@ _func_enter_;
 
 	pwrpriv->rpwm = pslv;
 
-	padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_SET_RPWM, (u8 *)(&rpwm));
+#ifdef CONFIG_LPS_RPWM_TIMER
+	if (rpwm & PS_ACK)
+		_set_timer(&pwrpriv->pwr_rpwm_timer, LPS_RPWM_WAIT_MS);
+#endif // CONFIG_LPS_RPWM_TIMER
+	rtw_hal_set_hwreg(padapter, HW_VAR_SET_RPWM, (u8 *)(&rpwm));
 
 	pwrpriv->tog += 0x80;
 
-	if (!(rpwm & PS_ACK)) pwrpriv->cpwm = pslv;
+
+	if (_TRUE == padapter->pwrctrlpriv.btcoex_rfon)
+	{
+		struct reportpwrstate_parm report;
+		report.state = pslv;
+#ifdef CONFIG_LPS_LCLK
+		//cpwm_int_hdl(padapter, &report);
+		_set_workitem(&padapter->pwrctrlpriv.cpwm_event);
+#endif
+	}
+	else
+	{
+#ifdef CONFIG_LPS_LCLK
+	// No LPS 32K, No Ack
+	if (!(rpwm & PS_ACK))
+#endif
+	{
+		pwrpriv->cpwm = pslv;
+	}
+	}
 
 _func_exit_;
 }
@@ -353,15 +479,21 @@ u8 PS_RDY_CHECK(_adapter * padapter)
 		return _FALSE;
 	}
 
-	if (	(check_fwstate(pmlmepriv, _FW_LINKED) == _FALSE) ||
+	if ((check_fwstate(pmlmepriv, _FW_LINKED) == _FALSE) ||
+		(check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == _TRUE) ||
 		(check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE) ||
 		(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == _TRUE) ||
 		(check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == _TRUE) )
 		return _FALSE;
-
+#ifdef CONFIG_WOWLAN
+	if(_TRUE == pwrpriv->bInSuspend && pwrpriv->wowlan_mode)
+		return _TRUE;
+	else
+		return _FALSE;
+#else
 	if(_TRUE == pwrpriv->bInSuspend )
 		return _FALSE;
-
+#endif
 	if( (padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) && (padapter->securitypriv.binstallGrpkey == _FALSE) )
 	{
 		DBG_871X("Group handshake still in progress !!!\n");
@@ -371,7 +503,7 @@ u8 PS_RDY_CHECK(_adapter * padapter)
 	return _TRUE;
 }
 
-void rtw_set_ps_mode(PADAPTER padapter, u8 ps_mode, u8 smart_ps)
+void rtw_set_ps_mode(PADAPTER padapter, u8 ps_mode, u8 smart_ps, u8 bcn_ant_mode)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 #ifdef CONFIG_P2P
@@ -396,10 +528,20 @@ _func_enter_;
 		return;
 	}
 
-	if((pwrpriv->pwr_mode == ps_mode) &&
-		(pwrpriv->smart_ps == smart_ps)){
-		return;
+	if (pwrpriv->pwr_mode == ps_mode)
+	{
+		if (PS_MODE_ACTIVE == ps_mode) return;
+
+		if ((pwrpriv->smart_ps == smart_ps) &&
+			(pwrpriv->bcn_ant_mode == bcn_ant_mode))
+		{
+			return;
+		}
 	}
+
+#ifdef CONFIG_LPS_LCLK
+	_enter_pwrlock(&pwrpriv->lock);
+#endif
 
 	//if(pwrpriv->pwr_mode == PS_MODE_ACTIVE)
 	if(ps_mode == PS_MODE_ACTIVE)
@@ -408,10 +550,7 @@ _func_enter_;
 		if(pwdinfo->opp_ps == 0)
 #endif //CONFIG_P2P
 		{
-#ifdef CONFIG_LPS_LCLK
-			_enter_pwrlock(&pwrpriv->lock);
-#endif
-			DBG_871X("rtw_set_ps_mode(): Busy Traffic , Leave 802.11 power save..\n");
+			DBG_871X("rtw_set_ps_mode: Leave 802.11 power save\n");
 
 #ifdef CONFIG_TDLS
 			_enter_critical_bh(&pstapriv->sta_hash_lock, &irqL);
@@ -434,44 +573,17 @@ _func_enter_;
 			_exit_critical_bh(&pstapriv->sta_hash_lock, &irqL);
 #endif //CONFIG_TDLS
 
-			pwrpriv->smart_ps = smart_ps;
 			pwrpriv->pwr_mode = ps_mode;
-
 			rtw_set_rpwm(padapter, PS_STATE_S4);
-#ifdef CONFIG_LPS_LCLK
-{
-			u32 n = 0;
-			//Change condition for 88E LPS.
-			//modify by Thomas. 2012/4/2.
-			while (pwrpriv->cpwm < PS_STATE_S2) {
-			//while (pwrpriv->cpwm != PS_STATE_S4) {
-				n++;
-				if (n == 10000) break;
-				if (padapter->bSurpriseRemoved == _TRUE) break;
-#ifdef CONFIG_USB_HCI
-				if (padapter->bDriverStopped== _TRUE) break;
-#endif
-				rtw_msleep_os(1);
-			}
-			if (n == 10000)
-				DBG_871X(KERN_ERR "%s: wait CPWM to S4 too long! cpwm=0x%02x\n", __func__, pwrpriv->cpwm);
-}
-#endif
-			padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
+			rtw_hal_set_hwreg(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
 			pwrpriv->bFwCurrentInPSMode = _FALSE;
-#ifdef CONFIG_LPS_LCLK
-			_exit_pwrlock(&pwrpriv->lock);
-#endif
 		}
 	}
 	else
 	{
 		if(PS_RDY_CHECK(padapter))
 		{
-#ifdef CONFIG_LPS_LCLK
-			_enter_pwrlock(&pwrpriv->lock);
-#endif
-			DBG_871X("rtw_set_ps_mode(): Enter 802.11 power save mode...\n");
+			DBG_871X("rtw_set_ps_mode: Enter 802.11 power save\n");
 
 #ifdef CONFIG_TDLS
 			_enter_critical_bh(&pstapriv->sta_hash_lock, &irqL);
@@ -494,24 +606,24 @@ _func_enter_;
 			_exit_critical_bh(&pstapriv->sta_hash_lock, &irqL);
 #endif //CONFIG_TDLS
 
-			pwrpriv->smart_ps = smart_ps;
-			pwrpriv->pwr_mode = ps_mode;
 			pwrpriv->bFwCurrentInPSMode = _TRUE;
-			padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
+			pwrpriv->pwr_mode = ps_mode;
+			pwrpriv->smart_ps = smart_ps;
+			pwrpriv->bcn_ant_mode = bcn_ant_mode;
+			rtw_hal_set_hwreg(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
+
 #ifdef CONFIG_P2P
 			// Set CTWindow after LPS
 			if(pwdinfo->opp_ps == 1)
 			//if(pwdinfo->p2p_ps_enable == _TRUE)
 				p2p_ps_wk_cmd(padapter, P2P_PS_ENABLE, 0);
 #endif //CONFIG_P2P
+
 #ifdef CONFIG_LPS_LCLK
 			if (pwrpriv->alives == 0)
 				rtw_set_rpwm(padapter, PS_STATE_S0);
 #else
 			rtw_set_rpwm(padapter, PS_STATE_S2);
-#endif
-#ifdef CONFIG_LPS_LCLK
-			_exit_pwrlock(&pwrpriv->lock);
 #endif
 		}
 		//else
@@ -520,9 +632,51 @@ _func_enter_;
 		//}
 	}
 
+#ifdef CONFIG_LPS_LCLK
+	_exit_pwrlock(&pwrpriv->lock);
+#endif
+
 _func_exit_;
 }
 
+/*
+ * Return:
+ *	0:	Leave OK
+ *	-1:	Timeout
+ *	-2:	Other error
+ */
+s32 LPS_RF_ON_check(PADAPTER padapter, u32 delay_ms)
+{
+	u32 start_time;
+	u8 bAwake = _FALSE;
+	s32 err = 0;
+
+
+	start_time = rtw_get_current_time();
+	while (1)
+	{
+		rtw_hal_get_hwreg(padapter, HW_VAR_FWLPS_RF_ON, &bAwake);
+		if (_TRUE == bAwake)
+			break;
+
+		if (_TRUE == padapter->bSurpriseRemoved)
+		{
+			err = -2;
+			DBG_871X("%s: device surprise removed!!\n", __FUNCTION__);
+			break;
+		}
+
+		if (rtw_get_passing_time_ms(start_time) > delay_ms)
+		{
+			err = -1;
+			DBG_871X("%s: Wait for FW LPS leave more than %u ms!!!\n", __FUNCTION__, delay_ms);
+			break;
+		}
+		rtw_usleep_os(100);
+	}
+
+	return err;
+}
 
 //
 //	Description:
@@ -532,20 +686,43 @@ void LPS_Enter(PADAPTER padapter)
 {
 	struct pwrctrl_priv	*pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
+	_adapter *buddy = padapter->pbuddy_adapter;
 
 _func_enter_;
 
 //	DBG_871X("+LeisurePSEnter\n");
 
-	if (	(check_fwstate(pmlmepriv, _FW_LINKED) == _FALSE) ||
-		(check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == _TRUE) ||
-		(check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE) ||
-		(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == _TRUE) ||
-		(check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == _TRUE) )
-		return;
+#ifdef CONFIG_CONCURRENT_MODE
+	if (padapter->iface_type != IFACE_PORT0)
+		return; /* Skip power saving for concurrent mode port 1*/
 
-	if(_TRUE == pwrpriv->bInSuspend )
-		return ;
+	/* consider buddy, if exist */
+	if (buddy) {
+		struct mlme_priv *b_pmlmepriv = &(buddy->mlmepriv);
+		#ifdef CONFIG_P2P
+		struct wifidirect_info *b_pwdinfo = &(buddy->wdinfo);
+		#ifdef CONFIG_IOCTL_CFG80211
+		struct cfg80211_wifidirect_info *b_pcfg80211_wdinfo = &buddy->cfg80211_wdinfo;
+		#endif
+		#endif
+
+		if (check_fwstate(b_pmlmepriv, WIFI_ASOC_STATE|WIFI_SITE_MONITOR)
+			|| check_fwstate(b_pmlmepriv, WIFI_UNDER_LINKING|WIFI_UNDER_WPS)
+			|| check_fwstate(b_pmlmepriv, WIFI_AP_STATE)
+			|| check_fwstate(b_pmlmepriv, WIFI_ADHOC_MASTER_STATE|WIFI_ADHOC_STATE)
+			#if defined(CONFIG_P2P) && defined(CONFIG_IOCTL_CFG80211) && defined(CONFIG_P2P_IPS)
+			|| b_pcfg80211_wdinfo->is_ro_ch
+			#elif defined(CONFIG_P2P)
+			|| !rtw_p2p_chk_state(b_pwdinfo, P2P_STATE_NONE)
+			#endif
+		) {
+			return;
+		}
+	}
+#endif
+
+	if (PS_RDY_CHECK(padapter) == _FALSE)
+		return;
 
 	if (pwrpriv->bLeisurePs)
 	{
@@ -555,7 +732,7 @@ _func_enter_;
 			if(pwrpriv->pwr_mode == PS_MODE_ACTIVE)
 			{
 				pwrpriv->bpower_saving = _TRUE;
-				rtw_set_ps_mode(padapter, pwrpriv->power_mgnt, padapter->registrypriv.smart_ps);
+				rtw_set_ps_mode(padapter, pwrpriv->power_mgnt, padapter->registrypriv.smart_ps, 0);
 			}
 		}
 		else
@@ -574,10 +751,18 @@ _func_exit_;
 //
 void LPS_Leave(PADAPTER padapter)
 {
+#define LPS_LEAVE_TIMEOUT_MS 100
+
 	struct pwrctrl_priv	*pwrpriv = &padapter->pwrctrlpriv;
-	s32 LPSLeaveTimeOut = 10000;
+	u32 start_time;
+	u8 bAwake = _FALSE;
 
 _func_enter_;
+
+#ifdef CONFIG_CONCURRENT_MODE
+	if (padapter->iface_type != IFACE_PORT0)
+		return; /* Skip power saving for concurrent mode port 1*/
+#endif
 
 //	DBG_871X("+LeisurePSLeave\n");
 
@@ -585,34 +770,13 @@ _func_enter_;
 	{
 		if(pwrpriv->pwr_mode != PS_MODE_ACTIVE)
 		{
-			rtw_set_ps_mode(padapter, PS_MODE_ACTIVE, 0);
-			pwrpriv->bpower_saving = _FALSE;
+			rtw_set_ps_mode(padapter, PS_MODE_ACTIVE, 0, 0);
 
-			{
-				BOOLEAN bAwake = _TRUE;
-				padapter->HalFunc.GetHwRegHandler(padapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bAwake));
-				while(!bAwake)
-				{
-					rtw_usleep_os(100);
-					LPSLeaveTimeOut--;
-					if(LPSLeaveTimeOut <= 0)
-					{
-						DBG_871X("Wait for FW LPS leave too long!!! LPSLeaveTimeOut  = %u\n", LPSLeaveTimeOut );
-						break;
-					}
-					padapter->HalFunc.GetHwRegHandler(padapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bAwake));
-				}
-				#ifdef CONFIG_RECFG_AGC_TAB
-				if(LPSLeaveTimeOut > 0){
-					padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_LPS_RF_ON_RECFG_AGC, (u8 *)(&bAwake));
-
-				}
-				#endif
-			}
+			LPS_RF_ON_check(padapter, LPS_LEAVE_TIMEOUT_MS);
 		}
 	}
 
-
+	pwrpriv->bpower_saving = _FALSE;
 
 //	DBG_871X("-LeisurePSLeave\n");
 
@@ -628,18 +792,27 @@ _func_exit_;
 void LeaveAllPowerSaveMode(IN PADAPTER Adapter)
 {
 	struct mlme_priv	*pmlmepriv = &(Adapter->mlmepriv);
+	u8	enqueue = 0;
 
 _func_enter_;
 
 	//DBG_871X("%s.....\n",__FUNCTION__);
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
 	{ //connect
+#ifdef CONFIG_LPS_LCLK
+		enqueue = 1;
+#endif
+
 #ifdef CONFIG_P2P
-		p2p_ps_wk_cmd(Adapter, P2P_PS_DISABLE, 0);
+		p2p_ps_wk_cmd(Adapter, P2P_PS_DISABLE, enqueue);
 #endif //CONFIG_P2P
+
 #ifdef CONFIG_LPS
-		//DBG_871X("==> leave LPS.......\n");
-		LPS_Leave(Adapter);
+		rtw_lps_ctrl_wk_cmd(Adapter, LPS_CTRL_LEAVE, enqueue);
+#endif
+
+#ifdef CONFIG_LPS_LCLK
+		LPS_Leave_check(Adapter);
 #endif
 	}
 	else
@@ -650,22 +823,22 @@ _func_enter_;
 			if(Adapter->registrypriv.usbss_enable)
 			{
 				#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
-				usb_disable_autosuspend(Adapter->dvobjpriv.pusbdev);
+				usb_disable_autosuspend(adapter_to_dvobj(Adapter)->pusbdev);
 				#elif (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,22) && LINUX_VERSION_CODE<=KERNEL_VERSION(2,6,34))
-				Adapter->dvobjpriv.pusbdev->autosuspend_disabled = Adapter->bDisableAutosuspend;//autosuspend disabled by the user
+				adapter_to_dvobj(Adapter)->pusbdev->autosuspend_disabled = Adapter->bDisableAutosuspend;//autosuspend disabled by the user
 				#endif
 			}
 			else
 			#endif
 			{
-			/*
+#if defined(CONFIG_PLATFORM_SPRD) && defined(CONFIG_RTL8188E)
 				#ifdef CONFIG_IPS
 				if(_FALSE == ips_leave(Adapter))
 				{
 					DBG_871X("======> ips_leave fail.............\n");
 				}
 				#endif
-			*/
+#endif //CONFIG_PLATFORM_SPRD && CONFIG_RTL8188E
 			}
 		}
 	}
@@ -674,6 +847,53 @@ _func_exit_;
 }
 
 #ifdef CONFIG_LPS_LCLK
+void LPS_Leave_check(
+	PADAPTER padapter)
+{
+	struct pwrctrl_priv *pwrpriv;
+	u32	start_time;
+	u8	bReady;
+
+_func_enter_;
+
+	pwrpriv = &padapter->pwrctrlpriv;
+
+	bReady = _FALSE;
+	start_time = rtw_get_current_time();
+
+	rtw_yield_os();
+
+	while(1)
+	{
+		_enter_pwrlock(&pwrpriv->lock);
+
+		if ((padapter->bSurpriseRemoved == _TRUE)
+			|| (padapter->hw_init_completed == _FALSE)
+#ifdef CONFIG_USB_HCI
+			|| (padapter->bDriverStopped== _TRUE)
+#endif
+			|| (pwrpriv->pwr_mode == PS_MODE_ACTIVE)
+			)
+		{
+			bReady = _TRUE;
+		}
+
+		_exit_pwrlock(&pwrpriv->lock);
+
+		if(_TRUE == bReady)
+			break;
+
+		if(rtw_get_passing_time_ms(start_time)>100)
+		{
+			DBG_871X("Wait for cpwm event  than 100 ms!!!\n");
+			break;
+		}
+		rtw_msleep_os(1);
+	}
+
+_func_exit_;
+}
+
 /*
  * Caller:ISR handler...
  *
@@ -687,7 +907,6 @@ void cpwm_int_hdl(
 {
 	struct pwrctrl_priv *pwrpriv;
 
-
 _func_enter_;
 
 	pwrpriv = &padapter->pwrctrlpriv;
@@ -699,12 +918,23 @@ _func_enter_;
 		goto exit;
 	}
 #endif
-//	_enter_pwrlock(&pwrpriv->lock);
+
+	_enter_pwrlock(&pwrpriv->lock);
+
+#ifdef CONFIG_LPS_RPWM_TIMER
+	if (pwrpriv->rpwm < PS_STATE_S2)
+	{
+		DBG_871X("%s: Redundant CPWM Int. RPWM=0x%02X CPWM=0x%02x\n", __func__, pwrpriv->rpwm, pwrpriv->cpwm);
+		_exit_pwrlock(&pwrpriv->lock);
+		goto exit;
+	}
+#endif // CONFIG_LPS_RPWM_TIMER
 
 	pwrpriv->cpwm = PS_STATE(preportpwrstate->state);
 	pwrpriv->cpwm_tog = preportpwrstate->state & PS_TOGGLE;
 
-	if (pwrpriv->cpwm >= PS_STATE_S2) {
+	if (pwrpriv->cpwm >= PS_STATE_S2)
+	{
 		if (pwrpriv->alives & CMD_ALIVE)
 			_rtw_up_sema(&padapter->cmdpriv.cmd_queue_sema);
 
@@ -712,7 +942,7 @@ _func_enter_;
 			_rtw_up_sema(&padapter->xmitpriv.xmit_sema);
 	}
 
-//	_exit_pwrlock(&pwrpriv->lock);
+	_exit_pwrlock(&pwrpriv->lock);
 
 exit:
 	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
@@ -720,6 +950,90 @@ exit:
 
 _func_exit_;
 }
+
+static void cpwm_event_callback(struct work_struct *work)
+{
+	struct pwrctrl_priv *pwrpriv = container_of(work, struct pwrctrl_priv, cpwm_event);
+	_adapter *adapter = container_of(pwrpriv, _adapter, pwrctrlpriv);
+	struct reportpwrstate_parm report;
+
+	//DBG_871X("%s\n",__FUNCTION__);
+
+	report.state = PS_STATE_S2;
+	cpwm_int_hdl(adapter, &report);
+}
+
+#ifdef CONFIG_LPS_RPWM_TIMER
+static void rpwmtimeout_workitem_callback(struct work_struct *work)
+{
+	PADAPTER padapter;
+	struct pwrctrl_priv *pwrpriv;
+
+
+	pwrpriv = container_of(work, struct pwrctrl_priv, rpwmtimeoutwi);
+	padapter = container_of(pwrpriv, _adapter, pwrctrlpriv);
+//	DBG_871X("+%s: rpwm=0x%02X cpwm=0x%02X\n", __func__, pwrpriv->rpwm, pwrpriv->cpwm);
+
+	_enter_pwrlock(&pwrpriv->lock);
+	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2))
+	{
+		DBG_871X("%s: rpwm=0x%02X cpwm=0x%02X CPWM done!\n", __func__, pwrpriv->rpwm, pwrpriv->cpwm);
+		goto exit;
+	}
+	_exit_pwrlock(&pwrpriv->lock);
+
+	if (rtw_read8(padapter, 0x100) != 0xEA)
+	{
+#if 1
+		struct reportpwrstate_parm report;
+
+		report.state = PS_STATE_S2;
+		DBG_871X("\n%s: FW already leave 32K!\n\n", __func__);
+		cpwm_int_hdl(padapter, &report);
+#else
+		DBG_871X("\n%s: FW already leave 32K!\n\n", __func__);
+		cpwm_event_callback(&pwrpriv->cpwm_event);
+#endif
+		return;
+	}
+
+	_enter_pwrlock(&pwrpriv->lock);
+
+	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2))
+	{
+		DBG_871X("%s: cpwm=%d, nothing to do!\n", __func__, pwrpriv->cpwm);
+		goto exit;
+	}
+	pwrpriv->brpwmtimeout = _TRUE;
+	rtw_set_rpwm(padapter, pwrpriv->rpwm);
+	pwrpriv->brpwmtimeout = _FALSE;
+
+exit:
+	_exit_pwrlock(&pwrpriv->lock);
+}
+
+/*
+ * This function is a timer handler, can't do any IO in it.
+ */
+static void pwr_rpwm_timeout_handler(void *FunctionContext)
+{
+	PADAPTER padapter;
+	struct pwrctrl_priv *pwrpriv;
+
+
+	padapter = (PADAPTER)FunctionContext;
+	pwrpriv = &padapter->pwrctrlpriv;
+//	DBG_871X("+%s: rpwm=0x%02X cpwm=0x%02X\n", __func__, pwrpriv->rpwm, pwrpriv->cpwm);
+
+	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2))
+	{
+		DBG_871X("+%s: cpwm=%d, nothing to do!\n", __func__, pwrpriv->cpwm);
+		return;
+	}
+
+	_set_workitem(&pwrpriv->rpwmtimeoutwi);
+}
+#endif // CONFIG_LPS_RPWM_TIMER
 
 __inline static void register_task_alive(struct pwrctrl_priv *pwrctrl, u32 tag)
 {
@@ -760,7 +1074,7 @@ _func_enter_;
 
 	if (pwrctrl->bFwCurrentInPSMode == _TRUE)
 	{
-		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_err_,
+		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
 				 ("rtw_register_tx_alive: cpwm=0x%02x alives=0x%08x\n",
 				  pwrctrl->cpwm, pwrctrl->alives));
 
@@ -909,15 +1223,15 @@ _func_enter_;
 	if ((pwrctrl->pwr_mode != PS_MODE_ACTIVE) &&
 		(pwrctrl->bFwCurrentInPSMode == _TRUE))
 	{
+		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
+				 ("rtw_unregister_tx_alive: cpwm=0x%02x alives=0x%08x\n",
+				  pwrctrl->cpwm, pwrctrl->alives));
+
 		if ((pwrctrl->alives == 0) &&
 			(pwrctrl->cpwm > PS_STATE_S0))
 		{
 			rtw_set_rpwm(padapter, PS_STATE_S0);
 		}
-
-		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
-				 ("rtw_unregister_tx_alive: cpwm=0x%02x alives=0x%08x\n",
-				  pwrctrl->cpwm, pwrctrl->alives));
 	}
 
 	_exit_pwrlock(&pwrctrl->lock);
@@ -947,15 +1261,15 @@ _func_enter_;
 	if ((pwrctrl->pwr_mode != PS_MODE_ACTIVE) &&
 		(pwrctrl->bFwCurrentInPSMode == _TRUE))
 	{
+		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
+				 ("rtw_unregister_cmd_alive: cpwm=0x%02x alives=0x%08x\n",
+				  pwrctrl->cpwm, pwrctrl->alives));
+
 		if ((pwrctrl->alives == 0) &&
 			(pwrctrl->cpwm > PS_STATE_S0))
 		{
 			rtw_set_rpwm(padapter, PS_STATE_S0);
 		}
-
-		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
-				 ("rtw_unregister_cmd_alive: cpwm=0x%02x alives=0x%08x\n",
-				  pwrctrl->cpwm, pwrctrl->alives));
 	}
 
 	_exit_pwrlock(&pwrctrl->lock);
@@ -1025,11 +1339,12 @@ _func_enter_;
 	pwrctrlpriv->rf_pwrstate = rf_on;
 	pwrctrlpriv->ips_enter_cnts=0;
 	pwrctrlpriv->ips_leave_cnts=0;
+	pwrctrlpriv->bips_processing = _FALSE;
 
 	pwrctrlpriv->ips_mode = padapter->registrypriv.ips_mode;
 	pwrctrlpriv->ips_mode_req = padapter->registrypriv.ips_mode;
 
-	pwrctrlpriv->pwr_state_check_interval = 2000;
+	pwrctrlpriv->pwr_state_check_interval = RTW_PWR_STATE_CHK_INTERVAL;
 	pwrctrlpriv->pwr_state_check_cnts = 0;
 	pwrctrlpriv->bInternalAutoSuspend = _FALSE;
 	pwrctrlpriv->bInSuspend = _FALSE;
@@ -1043,19 +1358,34 @@ _func_enter_;
 
 	pwrctrlpriv->LpsIdleCount = 0;
 	//pwrctrlpriv->FWCtrlPSMode =padapter->registrypriv.power_mgnt;// PS_MODE_MIN;
-	pwrctrlpriv->power_mgnt =padapter->registrypriv.power_mgnt;// PS_MODE_MIN;
+	if (padapter->registrypriv.mp_mode == 1)
+		pwrctrlpriv->power_mgnt =PS_MODE_ACTIVE ;
+	else
+		pwrctrlpriv->power_mgnt =padapter->registrypriv.power_mgnt;// PS_MODE_MIN;
 	pwrctrlpriv->bLeisurePs = (PS_MODE_ACTIVE != pwrctrlpriv->power_mgnt)?_TRUE:_FALSE;
 
 	pwrctrlpriv->bFwCurrentInPSMode = _FALSE;
 
+	pwrctrlpriv->rpwm = 0;
 	pwrctrlpriv->cpwm = PS_STATE_S4;
 
 	pwrctrlpriv->pwr_mode = PS_MODE_ACTIVE;
-
-
 	pwrctrlpriv->smart_ps = padapter->registrypriv.smart_ps;
+	pwrctrlpriv->bcn_ant_mode = 0;
 
 	pwrctrlpriv->tog = 0x80;
+
+#ifdef CONFIG_LPS_LCLK
+	rtw_hal_set_hwreg(padapter, HW_VAR_SET_RPWM, (u8 *)(&pwrctrlpriv->rpwm));
+
+	_init_workitem(&pwrctrlpriv->cpwm_event, cpwm_event_callback, NULL);
+
+#ifdef CONFIG_LPS_RPWM_TIMER
+	pwrctrlpriv->brpwmtimeout = _FALSE;
+	_init_workitem(&pwrctrlpriv->rpwmtimeoutwi, rpwmtimeout_workitem_callback, NULL);
+	_init_timer(&pwrctrlpriv->pwr_rpwm_timer, padapter->pnetdev, pwr_rpwm_timeout_handler, padapter);
+#endif // CONFIG_LPS_RPWM_TIMER
+#endif // CONFIG_LPS_LCLK
 
 #ifdef PLATFORM_LINUX
 	_init_timer(&(pwrctrlpriv->pwr_state_check_timer), padapter->pnetdev, pwr_state_check_handler, (u8 *)padapter);
@@ -1104,7 +1434,7 @@ _func_exit_;
 }
 
 #ifdef CONFIG_RESUME_IN_WORKQUEUE
-#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 extern int rtw_resume_process(_adapter *padapter);
 #endif
 static void resume_workitem_callback(struct work_struct *work)
@@ -1114,7 +1444,7 @@ static void resume_workitem_callback(struct work_struct *work)
 
 	DBG_871X("%s\n",__FUNCTION__);
 
-	#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+	#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 	rtw_resume_process(adapter);
 	#endif
 
@@ -1134,7 +1464,7 @@ void rtw_resume_in_workqueue(struct pwrctrl_priv *pwrpriv)
 #endif //CONFIG_RESUME_IN_WORKQUEUE
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 extern int rtw_resume_process(_adapter *padapter);
 #endif
 static void rtw_early_suspend(struct early_suspend *h)
@@ -1153,7 +1483,7 @@ static void rtw_late_resume(struct early_suspend *h)
 
 	DBG_871X("%s\n",__FUNCTION__);
 	if(pwrpriv->do_late_resume) {
-		#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+		#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 		rtw_resume_process(adapter);
 		pwrpriv->do_late_resume = _FALSE;
 		#endif
@@ -1188,7 +1518,7 @@ void rtw_unregister_early_suspend(struct pwrctrl_priv *pwrpriv)
 #endif //CONFIG_HAS_EARLYSUSPEND
 
 #ifdef CONFIG_ANDROID_POWER
-#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 extern int rtw_resume_process(PADAPTER padapter);
 #endif
 static void rtw_early_suspend(android_early_suspend_t *h)
@@ -1207,7 +1537,7 @@ static void rtw_late_resume(android_early_suspend_t *h)
 
 	DBG_871X("%s\n",__FUNCTION__);
 	if(pwrpriv->do_late_resume) {
-		#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+		#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 		rtw_resume_process(adapter);
 		pwrpriv->do_late_resume = _FALSE;
 		#endif
@@ -1242,35 +1572,54 @@ void rtw_unregister_early_suspend(struct pwrctrl_priv *pwrpriv)
 u8 rtw_interface_ps_func(_adapter *padapter,HAL_INTF_PS_FUNC efunc_id,u8* val)
 {
 	u8 bResult = _TRUE;
-	if(padapter->HalFunc.interface_ps_func)
-	{
-		bResult = padapter->HalFunc.interface_ps_func(padapter,efunc_id,val);
-	}
+	rtw_hal_intf_ps_func(padapter,efunc_id,val);
+
 	return bResult;
 }
 
 /*
 * rtw_pwr_wakeup - Wake the NIC up from: 1)IPS. 2)USB autosuspend
 * @adapter: pointer to _adapter structure
-*
+* @ips_deffer_ms: the ms wiil prevent from falling into IPS after wakeup
 * Return _SUCCESS or _FAIL
 */
-int _rtw_pwr_wakeup(_adapter *padapter, const char *caller)
+
+int _rtw_pwr_wakeup(_adapter *padapter, u32 ips_deffer_ms, const char *caller)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	int ret = _SUCCESS;
+
+#ifdef CONFIG_CONCURRENT_MODE
+	if (padapter->pbuddy_adapter)
+		LeaveAllPowerSaveMode(padapter->pbuddy_adapter);
+
+	if ((padapter->isprimary == _FALSE) && padapter->pbuddy_adapter){
+		padapter = padapter->pbuddy_adapter;
+		pwrpriv = &padapter->pwrctrlpriv;
+		pmlmepriv = &padapter->mlmepriv;
+	}
+#endif
+
+	pwrpriv->ips_deny_time = rtw_get_current_time() + rtw_ms_to_systime(ips_deffer_ms);
+{
+	u32 start = rtw_get_current_time();
+	if (pwrpriv->ps_processing) {
+		DBG_871X("%s wait ps_processing...\n", __func__);
+		while (pwrpriv->ps_processing && rtw_get_passing_time_ms(start) <= 3000)
+			rtw_msleep_os(10);
+		if (pwrpriv->ps_processing)
+			DBG_871X("%s wait ps_processing timeout\n", __func__);
+		else
+			DBG_871X("%s wait ps_processing done\n", __func__);
+	}
+}
 
 	//System suspend is not allowed to wakeup
 	if((pwrpriv->bInternalAutoSuspend == _FALSE) && (_TRUE == pwrpriv->bInSuspend )){
 		ret = _FAIL;
 		goto exit;
 	}
-
-	//I think this should be check in IPS, LPS, autosuspend functions...
-	//if( pwrpriv->power_mgnt == PS_MODE_ACTIVE ) {
-	//	goto exit;
-	//}
 
 	//block???
 	if((pwrpriv->bInternalAutoSuspend == _TRUE)  && (padapter->net_closed == _TRUE)) {
@@ -1281,10 +1630,28 @@ int _rtw_pwr_wakeup(_adapter *padapter, const char *caller)
 	//I think this should be check in IPS, LPS, autosuspend functions...
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
 	{
+#if defined (CONFIG_BT_COEXIST)&& defined (CONFIG_AUTOSUSPEND)
+		if(_TRUE==pwrpriv->bInternalAutoSuspend){
+			if(0==pwrpriv->autopm_cnt){
+			#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,33))
+				if (usb_autopm_get_interface(adapter_to_dvobj(padapter)->pusbintf) < 0)
+				{
+					DBG_871X( "can't get autopm: \n");
+				}
+			#elif (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,20))
+				usb_autopm_disable(adapter_to_dvobj(padapter)->pusbintf);
+			#else
+				usb_autoresume_device(adapter_to_dvobj(padapter)->pusbdev, 1);
+			#endif
+			pwrpriv->autopm_cnt++;
+			}
+#endif	//#if defined (CONFIG_BT_COEXIST)&& defined (CONFIG_AUTOSUSPEND)
 		ret = _SUCCESS;
 		goto exit;
+#if defined (CONFIG_BT_COEXIST)&& defined (CONFIG_AUTOSUSPEND)
+		}
+#endif	//#if defined (CONFIG_BT_COEXIST)&& defined (CONFIG_AUTOSUSPEND)
 	}
-
 	if(rf_off == pwrpriv->rf_pwrstate )
 	{
 #ifdef CONFIG_USB_HCI
@@ -1297,7 +1664,7 @@ int _rtw_pwr_wakeup(_adapter *padapter, const char *caller)
 		}
 		else if(padapter->registrypriv.usbss_enable)
 		{
-			DBG_8192C("\n %s call autoresume_enter....\n",__FUNCTION__);
+			DBG_8192C("%s call autoresume_enter....\n",__FUNCTION__);
 			if(_FAIL ==  autoresume_enter(padapter))
 			{
 				DBG_8192C("======> autoresume fail.............\n");
@@ -1310,7 +1677,7 @@ int _rtw_pwr_wakeup(_adapter *padapter, const char *caller)
 #endif
 		{
 #ifdef CONFIG_IPS
-			DBG_8192C("\n %s call ips_leave....\n",__FUNCTION__);
+			DBG_8192C("%s call ips_leave....\n",__FUNCTION__);
 			if(_FAIL ==  ips_leave(padapter))
 			{
 				DBG_8192C("======> ips_leave fail.............\n");
@@ -1319,10 +1686,6 @@ int _rtw_pwr_wakeup(_adapter *padapter, const char *caller)
 			}
 #endif
 		}
-	}else {
-		//Jeff: reset timer to avoid falling ips or selective suspend soon
-		if(pwrpriv->bips_processing == _FALSE)
-			rtw_set_pwr_state_check_timer(pwrpriv);
 	}
 
 	//TODO: the following checking need to be merged...
@@ -1340,6 +1703,57 @@ int _rtw_pwr_wakeup(_adapter *padapter, const char *caller)
 	}
 
 exit:
+	pwrpriv->ips_deny_time = rtw_get_current_time() + rtw_ms_to_systime(ips_deffer_ms);
 	return ret;
 
+}
+
+int rtw_pm_set_lps(_adapter *padapter, u8 mode)
+{
+	int	ret = 0;
+	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
+
+	if ( mode < PS_MODE_NUM )
+	{
+		if(pwrctrlpriv->power_mgnt !=mode)
+		{
+			if(PS_MODE_ACTIVE == mode)
+			{
+				LeaveAllPowerSaveMode(padapter);
+			}
+			else
+			{
+				pwrctrlpriv->LpsIdleCount = 2;
+			}
+			pwrctrlpriv->power_mgnt = mode;
+			pwrctrlpriv->bLeisurePs = (PS_MODE_ACTIVE != pwrctrlpriv->power_mgnt)?_TRUE:_FALSE;
+		}
+	}
+	else
+	{
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+int rtw_pm_set_ips(_adapter *padapter, u8 mode)
+{
+	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
+
+	if( mode == IPS_NORMAL || mode == IPS_LEVEL_2 ) {
+		rtw_ips_mode_req(pwrctrlpriv, mode);
+		DBG_871X("%s %s\n", __FUNCTION__, mode == IPS_NORMAL?"IPS_NORMAL":"IPS_LEVEL_2");
+		return 0;
+	}
+	else if(mode ==IPS_NONE){
+		rtw_ips_mode_req(pwrctrlpriv, mode);
+		DBG_871X("%s %s\n", __FUNCTION__, "IPS_NONE");
+		if((padapter->bSurpriseRemoved ==0)&&(_FAIL == rtw_pwr_wakeup(padapter)) )
+			return -EFAULT;
+	}
+	else {
+		return -EINVAL;
+	}
+	return 0;
 }

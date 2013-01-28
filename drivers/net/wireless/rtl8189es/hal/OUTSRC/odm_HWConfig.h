@@ -180,8 +180,8 @@ ODM_ConfigRFWithHeaderFile(
 
 HAL_STATUS
 ODM_ConfigBBWithHeaderFile(
-	IN  	PDM_ODM_T	                pDM_Odm,
-	IN	    ODM_BaseBand_Config_Type	ConfigType
+	IN  	PDM_ODM_T	                	pDM_Odm,
+	IN	ODM_BB_Config_Type		ConfigType
     );
 
 HAL_STATUS

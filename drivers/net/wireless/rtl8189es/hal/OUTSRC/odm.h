@@ -95,14 +95,21 @@
 
 
 //8723A High Power IGI Setting
-
 #define		DM_DIG_HIGH_PWR_IGI_LOWER_BOUND	0x22
+#define  		DM_DIG_Gmode_HIGH_PWR_IGI_LOWER_BOUND 0x28
 #define		DM_DIG_HIGH_PWR_THRESHOLD	0x3a
+
+// LPS define
+#define DM_DIG_FA_TH0_LPS				4 //-> 4 in lps
+#define DM_DIG_FA_TH1_LPS				15 //-> 15 lps
+#define DM_DIG_FA_TH2_LPS				30 //-> 30 lps
+#define RSSI_OFFSET_DIG					0x05;
 
 //ANT Test
 #define 		ANTTESTALL		0x00		//Ant A or B will be Testing
 #define		ANTTESTA		0x01		//Ant A will be Testing
 #define		ANTTESTB		0x02		//Ant B will be testing
+
 
 //============================================================
 // structure and define
@@ -243,6 +250,22 @@ typedef struct _RX_High_Power_
 
 }RXHP_T, *pRXHP_T;
 
+#if(DM_ODM_SUPPORT_TYPE & (ODM_CE))
+#define ASSOCIATE_ENTRY_NUM					32 // Max size of AsocEntry[].
+#define	ODM_ASSOCIATE_ENTRY_NUM				ASSOCIATE_ENTRY_NUM
+
+#elif(DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
+#define ASSOCIATE_ENTRY_NUM					NUM_STAT
+#define	ODM_ASSOCIATE_ENTRY_NUM				ASSOCIATE_ENTRY_NUM+1
+
+#else
+//
+// 2012/01/12 MH Revise for compatiable with other SW team.
+// 0 is for STA 1-n is for AP clients.
+//
+#define ODM_ASSOCIATE_ENTRY_NUM				ASSOCIATE_ENTRY_NUM+1// Default port only one
+#endif
+
 //#ifdef CONFIG_ANTENNA_DIVERSITY
 // This indicates two different the steps.
 // In SWAW_STEP_PEAK, driver needs to switch antenna and listen to the signal on the air.
@@ -310,10 +333,16 @@ typedef struct _SW_Antenna_Switch_
 */
 #ifdef CONFIG_HW_ANTENNA_DIVERSITY
 	//Hybrid Antenna Diversity
-	u4Byte		CCK_Ant1_Cnt;
-	u4Byte		CCK_Ant2_Cnt;
-	u4Byte		OFDM_Ant1_Cnt;
-	u4Byte		OFDM_Ant2_Cnt;
+	u4Byte		CCK_Ant1_Cnt[ASSOCIATE_ENTRY_NUM];
+	u4Byte		CCK_Ant2_Cnt[ASSOCIATE_ENTRY_NUM];
+	u4Byte		OFDM_Ant1_Cnt[ASSOCIATE_ENTRY_NUM];
+	u4Byte		OFDM_Ant2_Cnt[ASSOCIATE_ENTRY_NUM];
+	u4Byte		RSSI_Ant1_Sum[ASSOCIATE_ENTRY_NUM];
+	u4Byte		RSSI_Ant2_Sum[ASSOCIATE_ENTRY_NUM];
+	u1Byte		TxAnt[ASSOCIATE_ENTRY_NUM];
+	u1Byte		TargetSTA;
+	u1Byte		antsel;
+	u1Byte		RxIdleAnt;
 
 #endif
 
@@ -374,21 +403,7 @@ typedef enum _HT_IOT_PEER
 }HT_IOT_PEER_E, *PHTIOT_PEER_E;
 #endif//#if(DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
 
-#if(DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL|ODM_CE))
 
-#if(DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
-#define ASSOCIATE_ENTRY_NUM					NUM_STAT
-#else
-#define ASSOCIATE_ENTRY_NUM					8 // Max size of AsocEntry[].
-#endif
-#define	ODM_ASSOCIATE_ENTRY_NUM				ASSOCIATE_ENTRY_NUM
-#else
-//
-// 2012/01/12 MH Revise for compatiable with other SW team.
-// 0 is for STA 1-n is for AP clients.
-//
-#define ODM_ASSOCIATE_ENTRY_NUM				ASSOCIATE_ENTRY_NUM+1// Default port only one
-#endif
 
 #define IQK_MAC_REG_NUM		4
 #define IQK_ADDA_REG_NUM		16
@@ -593,9 +608,6 @@ typedef enum _ODM_Common_Info_Definition
 	ODM_CMNINFO_DMSP_GET_VALUE,
 	ODM_CMNINFO_BUDDY_ADAPTOR,
 	ODM_CMNINFO_DMSP_IS_MASTER,
-	ODM_CMNINFO_BT_OPERATION,
-	ODM_CMNINFO_BT_BUSY,					//Check Bt is using or not//neil
-	ODM_CMNINFO_BT_DISABLE_EDCA,
 	ODM_CMNINFO_SCAN,
 	ODM_CMNINFO_POWER_SAVING,
 	ODM_CMNINFO_ONE_PATH_CCA,			// ODM_CCA_PATH_E
@@ -604,6 +616,7 @@ typedef enum _ODM_Common_Info_Definition
 	ODM_CMNINFO_INIT_ON,
 	ODM_CMNINFO_ANT_TEST,
 	ODM_CMNINFO_NET_CLOSED,
+	ODM_CMNINFO_MP_MODE,
 //--------- POINTER REFERENCE-----------//
 
 //------------CALL BY VALUE-------------//
@@ -616,6 +629,11 @@ typedef enum _ODM_Common_Info_Definition
 	ODM_CMNINFO_RA_THRESHOLD_HIGH,		// u1Byte
 	ODM_CMNINFO_RA_THRESHOLD_LOW,		// u1Byte
 	ODM_CMNINFO_RF_ANTENNA_TYPE,		// u1Byte
+	ODM_CMNINFO_BT_DISABLED,
+	ODM_CMNINFO_BT_OPERATION,
+	ODM_CMNINFO_BT_DIG,
+	ODM_CMNINFO_BT_BUSY,					//Check Bt is using or not//neil
+	ODM_CMNINFO_BT_DISABLE_EDCA,
 //------------CALL BY VALUE-------------//
 
 	//
@@ -650,6 +668,7 @@ typedef enum _ODM_Support_Ability_Definition
 	ODM_BB_RATE_ADAPTIVE			= BIT9,
 	ODM_BB_PATH_DIV				= BIT10,
 	ODM_BB_PSD					= BIT11,
+	ODM_BB_RXHP					= BIT12,
 
 	//
 	// MAC DM section BIT 16-23
@@ -669,10 +688,10 @@ typedef enum _ODM_Support_Ability_Definition
 //	ODM_CMNINFO_INTERFACE
 typedef enum tag_ODM_Support_Interface_Definition
 {
-	ODM_ITRF_PCIE 	=	0,
-	ODM_ITRF_USB 	=	1,
-	ODM_ITRF_SDIO 	=	2,
-	ODM_ITRF_ALL 		=	3,
+	ODM_ITRF_PCIE 	=	0x1,
+	ODM_ITRF_USB 	=	0x2,
+	ODM_ITRF_SDIO 	=	0x4,
+	ODM_ITRF_ALL 	=	0x7,
 }ODM_INTERFACE_E;
 
 // ODM_CMNINFO_IC_TYPE
@@ -688,7 +707,7 @@ typedef enum tag_ODM_Support_IC_Type_Definition
 }ODM_IC_TYPE_E;
 
 #define ODM_IC_11N_SERIES		(ODM_RTL8192S|ODM_RTL8192C|ODM_RTL8192D|ODM_RTL8723A|ODM_RTL8188E)
-
+#define ODM_IC_11AC_SERIES		(ODM_RTL8812)
 
 //ODM_CMNINFO_CUT_VER
 typedef enum tag_ODM_Cut_Version_Definition
@@ -893,6 +912,31 @@ typedef struct _IQK_MATRIX_REGS_SETTING{
 	s4Byte		Value[1][IQK_Matrix_REG_NUM];
 }IQK_MATRIX_REGS_SETTING,*PIQK_MATRIX_REGS_SETTING;
 
+#if (DM_ODM_SUPPORT_TYPE & ODM_MP)
+typedef struct _PathDiv_Parameter_define_
+{
+	u4Byte org_5g_RegE30;
+	u4Byte org_5g_RegC14;
+	u4Byte org_5g_RegCA0;
+	u4Byte swt_5g_RegE30;
+	u4Byte swt_5g_RegC14;
+	u4Byte swt_5g_RegCA0;
+	//for 2G IQK information
+	u4Byte org_2g_RegC80;
+	u4Byte org_2g_RegC4C;
+	u4Byte org_2g_RegC94;
+	u4Byte org_2g_RegC14;
+	u4Byte org_2g_RegCA0;
+
+	u4Byte swt_2g_RegC80;
+	u4Byte swt_2g_RegC4C;
+	u4Byte swt_2g_RegC94;
+	u4Byte swt_2g_RegC14;
+	u4Byte swt_2g_RegCA0;
+}PATHDIV_PARA,*pPATHDIV_PARA;
+#endif
+
+
 typedef struct ODM_RF_Calibration_Structure
 {
 	//for tx power tracking
@@ -985,11 +1029,12 @@ typedef struct _FAST_ANTENNA_TRAINNING_
 	u1Byte	antsel_a[ODM_ASSOCIATE_ENTRY_NUM];
 	u1Byte	antsel_b[ODM_ASSOCIATE_ENTRY_NUM];
 	u1Byte	antsel_c[ODM_ASSOCIATE_ENTRY_NUM];
-	u4Byte	AntA_Sum[ODM_ASSOCIATE_ENTRY_NUM];
-	u4Byte	AntB_Sum[ODM_ASSOCIATE_ENTRY_NUM];
-	u4Byte	AntA_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
-	u4Byte	AntB_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
+	u4Byte	MainAnt_Sum[ODM_ASSOCIATE_ENTRY_NUM];
+	u4Byte	AuxAnt_Sum[ODM_ASSOCIATE_ENTRY_NUM];
+	u4Byte	MainAnt_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
+	u4Byte	AuxAnt_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
 	u1Byte	RxIdleAnt;
+	BOOLEAN		bBecomeLinked;
 
 }FAT_T,*pFAT_T;
 
@@ -1001,19 +1046,38 @@ typedef enum _FAT_STATE
 
 typedef enum _ANT_DIV_TYPE
 {
-	NO_ANTDIV				= 0xFF,
-	CGCS_RX_SW_ANTDIV		= BIT1,
-	CG_TRX_HW_ANTDIV		= 0x01,
+	NO_ANTDIV					= 0xFF,
+	CG_TRX_HW_ANTDIV			= 0x01,
 	CGCS_RX_HW_ANTDIV 		= 0x02,
-	FIXED_HW_ANTDIV         = 0x03,
+	FIXED_HW_ANTDIV         		= 0x03,
 	CG_TRX_SMART_ANTDIV		= 0x04,
+	CGCS_RX_SW_ANTDIV		= 0x05,
 
 }ANT_DIV_TYPE_E, *PANT_DIV_TYPE_E;
+
+
+
+
+
+
+
+
+
+
+
+
 
 //
 // 2011/09/22 MH Copy from SD4 defined structure. We use to support PHY DM integration.
 //
-typedef struct DM_Out_Source_Dynamic_Mechanism_Structure
+#if(DM_ODM_SUPPORT_TYPE & ODM_MP)
+#if (RT_PLATFORM != PLATFORM_LINUX)
+typedef
+#endif
+struct DM_Out_Source_Dynamic_Mechanism_Structure
+#else// for AP,ADSL,CE Team
+typedef  struct DM_Out_Source_Dynamic_Mechanism_Structure
+#endif
 {
 	//RT_TIMER 	FastAntTrainingTimer;
 	//
@@ -1063,7 +1127,7 @@ typedef struct DM_Out_Source_Dynamic_Mechanism_Structure
 	u1Byte			SupportPlatform;
 	// ODM Support Ability DIG/RATR/TX_PWR_TRACK/  = 1/2/3/
 	u4Byte			SupportAbility;
-	// ODM PCIE/USB/SDIO = 1/2/3
+	// ODM PCIE/USB/SDIO/GSPI = 0/1/2/3
 	u1Byte			SupportInterface;
 	// ODM composite or independent. Bit oriented/ 92C+92D+ .... or any other type = 1/2/3/...
 	u4Byte			SupportICType;
@@ -1122,10 +1186,6 @@ typedef struct DM_Out_Source_Dynamic_Mechanism_Structure
 	BOOLEAN			*pbGetValueFromOtherMac;
 	PADAPTER		*pBuddyAdapter;
 	BOOLEAN			*pbMasterOfDMSP; //MAC0: master, MAC1: slave
-	// Common info for BTDM
-	BOOLEAN			*pbBTOperation;	//BT_Operation(pAdapter)
-	BOOLEAN			*pbBTDisableEDCATurbo;	//BTDM_DisableEDCATurbo(Adapter)
-	BOOLEAN			*pbBTBusy;
 	// Common info for Status
 	BOOLEAN			*pbScanInProcess;
 	BOOLEAN			*pbPowerSaving;
@@ -1144,7 +1204,12 @@ typedef struct DM_Out_Source_Dynamic_Mechanism_Structure
 	u1Byte          	InterfaceIndex; // Add for 92D  dual MAC: 0--Mac0 1--Mac1
 	BOOLEAN         	bIsMPChip;
 	BOOLEAN			bOneEntryOnly;
-
+	// Common info for BTDM
+	BOOLEAN			bBtDisabled;			// BT is disabled
+	BOOLEAN			bBtHsOperation;		// BT HS mode is under progress
+	u1Byte			btHsDigVal;			// use BT rssi to decide the DIG value
+	BOOLEAN			bBtDisableEdcaTurbo;	// Under some condition, don't enable the EDCA Turbo
+	BOOLEAN			bBtBusy;   			// BT is busy.
 //------------CALL BY VALUE-------------//
 
 	//2 Define STA info.
@@ -1194,6 +1259,10 @@ typedef struct DM_Out_Source_Dynamic_Mechanism_Structure
 	BOOLEAN		RSSI_test;
 	//#endif
 
+#if (DM_ODM_SUPPORT_TYPE & ODM_MP)
+	//Path Div Struct
+	PATHDIV_PARA	pathIQK;
+#endif
 
 	EDCA_T		DM_EDCA_Table;
 	u4Byte		WMMEDCA_BE;
@@ -1243,7 +1312,7 @@ typedef struct DM_Out_Source_Dynamic_Mechanism_Structure
 	u1Byte			BbSwingIdxCckCurrent;
 	u1Byte			BbSwingIdxCckBase;
 	BOOLEAN			BbSwingFlagCck;
-
+	u1Byte			*mp_mode;
 	//
 	// ODM system resource.
 	//
@@ -1263,9 +1332,20 @@ typedef struct DM_Out_Source_Dynamic_Mechanism_Structure
 	#endif
 #endif
 
-	// ODM relative Thread.
+#if(DM_ODM_SUPPORT_TYPE & ODM_MP)
 
+#if (RT_PLATFORM != PLATFORM_LINUX)
 } DM_ODM_T, *PDM_ODM_T;		// DM_Dynamic_Mechanism_Structure
+#else
+};
+#endif
+
+#else// for AP,ADSL,CE Team
+} DM_ODM_T, *PDM_ODM_T;		// DM_Dynamic_Mechanism_Structure
+#endif
+
+
+
 #if 1 //92c-series
 #define ODM_RF_PATH_MAX 2
 #else //jaguar - series
@@ -1287,12 +1367,13 @@ typedef enum _ODM_RF_RADIO_PATH {
 	odm_radiod_txt = 0x1003
 } ODM_RF_CONTENT;
 
-typedef enum _ODM_BaseBand_Config_Type{
-    ODM_BaseBand_Config_PHY_REG = 0,   //Radio Path A
-    ODM_BaseBand_Config_AGC_TAB = 1,   //Radio Path B
-    ODM_BaseBand_Config_AGC_TAB_2G = 2,
-    ODM_BaseBand_Config_AGC_TAB_5G = 3,
-} ODM_BaseBand_Config_Type, *PODM_BaseBand_Config_Type;
+typedef enum _ODM_BB_Config_Type{
+    CONFIG_BB_PHY_REG,
+    CONFIG_BB_AGC_TAB,
+    CONFIG_BB_AGC_TAB_2G,
+    CONFIG_BB_AGC_TAB_5G,
+    CONFIG_BB_PHY_REG_PG,
+} ODM_BB_Config_Type, *PODM_BB_Config_Type;
 
 // Status code
 #if (DM_ODM_SUPPORT_TYPE != ODM_MP)
@@ -1368,16 +1449,14 @@ typedef enum tag_DIG_Connect_Definition
 #define		DM_DIG_THRESH_HIGH			40
 #define		DM_DIG_THRESH_LOW			35
 
+#define		DM_SCAN_RSSI_TH				0x14 //scan return issue for LC
+
+
 #define		DM_FALSEALARM_THRESH_LOW	400
 #define		DM_FALSEALARM_THRESH_HIGH	1000
 
 #define		DM_DIG_MAX_NIC				0x3e
-
-#ifdef CONFIG_RECFG_AGC_TAB
 #define		DM_DIG_MIN_NIC				0x1e //0x22//0x1c
-#else
-#define		DM_DIG_MIN_NIC				0x20 //0x22//0x1c
-#endif
 
 #define		DM_DIG_MAX_AP					0x32
 #define		DM_DIG_MIN_AP					0x20
@@ -1390,7 +1469,11 @@ typedef enum tag_DIG_Connect_Definition
 
 //vivi 92c&92d has different definition, 20110504
 //this is for 92c
+#ifdef CONFIG_SPECIAL_SETTING_FOR_FUNAI_TV
+#define		DM_DIG_FA_TH0				0x80//0x20
+#else
 #define		DM_DIG_FA_TH0				0x200//0x20
+#endif
 #define		DM_DIG_FA_TH1				0x300//0x100
 #define		DM_DIG_FA_TH2				0x400//0x200
 //this is for 92d
@@ -1480,8 +1563,8 @@ typedef enum tag_RF_Type_Definition
 //3===========================================================
 typedef enum tag_SW_Antenna_Switch_Definition
 {
-	Antenna_B = 1,
-	Antenna_A = 2,
+	Antenna_A = 1,
+	Antenna_B = 2,
 	Antenna_MAX = 3,
 }DM_SWAS_E;
 
@@ -1492,7 +1575,7 @@ typedef enum tag_SW_Antenna_Switch_Definition
 //
 // Extern Global Variables.
 //
-#define	OFDM_TABLE_SIZE 	37
+#define	OFDM_TABLE_SIZE_92C 	37
 #define	OFDM_TABLE_SIZE_92D 	43
 #define	CCK_TABLE_SIZE		33
 
@@ -1542,6 +1625,14 @@ ODM_TXPowerTrackingCheck(
 	IN		PDM_ODM_T		pDM_Odm
 	);
 
+BOOLEAN
+ODM_RAStateCheck(
+	IN		PDM_ODM_T		pDM_Odm,
+	IN		s4Byte			RSSI,
+	IN		BOOLEAN			bForceUpdate,
+	OUT		pu1Byte			pRATRState
+	);
+
 #if(DM_ODM_SUPPORT_TYPE & (ODM_MP|ODM_AP|ODM_ADSL))
 //============================================================
 // function prototype
@@ -1572,13 +1663,6 @@ ODM_RateAdaptiveStateApInit(
 #endif
 #define AP_InitRateAdaptiveState	ODM_RateAdaptiveStateApInit
 
-BOOLEAN
-ODM_RAStateCheck(
-	IN		PDM_ODM_T		pDM_Odm,
-	IN		s4Byte			RSSI,
-	IN		BOOLEAN			bForceUpdate,
-	OUT		pu1Byte			pRATRState
-	);
 
 #if(DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
 #ifdef WIFI_WMM
@@ -1636,6 +1720,20 @@ GetPSDData(
 	unsigned int 	point,
 	u1Byte initial_gain_psd);
 
+#endif
+
+#if (DM_ODM_SUPPORT_TYPE == ODM_CE)
+
+VOID
+odm_DIGbyRSSI_LPS(
+	IN		PDM_ODM_T		pDM_Odm
+	);
+
+u4Byte ODM_Get_Rate_Bitmap(
+	IN	PDM_ODM_T	pDM_Odm,
+	IN	u4Byte		macid,
+	IN	u4Byte 		ra_mask,
+	IN	u1Byte 		rssi_level);
 #endif
 
 
@@ -1827,17 +1925,6 @@ ODM_FillTXPathInTXDESC(
 		IN	pu1Byte		pDesc
 );
 
-VOID
-ODM_SingleDualAntennaDefaultSetting(
-	IN		PDM_ODM_T		pDM_Odm
-	);
-
-BOOLEAN
-ODM_SingleDualAntennaDetection(
-	IN		PDM_ODM_T		pDM_Odm,
-	IN		u1Byte			mode
-	);
-
 
 #define dm_SWAW_RSSI_Check	ODM_SwAntDivChkPerPktRssi
 
@@ -1854,21 +1941,40 @@ ODM_SingleDualAntennaDetection(
 //
 // For new definition in MP temporarily fro power tracking,
 //
-#if DEV_BUS_TYPE != RT_SDIO_INTERFACE
-
 #define odm_TXPowerTrackingDirectCall(_Adapter)	\
 	IS_HARDWARE_TYPE_8192D(_Adapter) ? odm_TXPowerTrackingCallback_ThermalMeter_92D(_Adapter) : \
 	IS_HARDWARE_TYPE_8192C(_Adapter) ? odm_TXPowerTrackingCallback_ThermalMeter_92C(_Adapter) : \
+	IS_HARDWARE_TYPE_8723A(_Adapter) ? odm_TXPowerTrackingCallback_ThermalMeter_8723A(_Adapter) :\
 	odm_TXPowerTrackingCallback_ThermalMeter_8188E(_Adapter)
 
-#else  //below code would be removed if we have verified SDIO
-
-#define odm_TXPowerTrackingDirectCall(_Adapter)	\
-    IS_HARDWARE_TYPE_8188E(_Adapter) ? odm_TXPowerTrackingCallback_ThermalMeter_8188E(_Adapter) : \
-    IS_HARDWARE_TYPE_8192D(_Adapter) ? odm_TXPowerTrackingCallback_ThermalMeter_92D(_Adapter) : odm_TXPowerTrackingCallback_ThermalMeter_92C(_Adapter)
-#endif
-
+VOID
+ODM_SetTxAntByTxInfo_88C_92D(
+	IN		PDM_ODM_T		pDM_Odm,
+	IN		pu1Byte			pDesc,
+	IN		u1Byte			macId
+	);
 #endif	// #if (DM_ODM_SUPPORT_TYPE == ODM_MP)
+VOID
+ODM_AntselStatistics_88C(
+	IN		PDM_ODM_T		pDM_Odm,
+	IN		u1Byte			MacId,
+	IN		u4Byte			PWDBAll,
+	IN		BOOLEAN			isCCKrate
+);
 
+#if( DM_ODM_SUPPORT_TYPE & (ODM_MP |ODM_CE))
+
+VOID
+ODM_SingleDualAntennaDefaultSetting(
+	IN		PDM_ODM_T		pDM_Odm
+	);
+
+BOOLEAN
+ODM_SingleDualAntennaDetection(
+	IN		PDM_ODM_T		pDM_Odm,
+	IN		u1Byte			mode
+	);
+
+#endif	// #if((DM_ODM_SUPPORT_TYPE==ODM_MP)||(DM_ODM_SUPPORT_TYPE==ODM_CE))
 
 #endif

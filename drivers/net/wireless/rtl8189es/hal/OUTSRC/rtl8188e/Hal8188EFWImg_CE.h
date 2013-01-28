@@ -20,7 +20,7 @@
 #ifndef __INC_HAL8188E_FW_IMG_H
 #define __INC_HAL8188E_FW_IMG_H
 
-#define Rtl8188EFWImgArrayLength 10774
+#define Rtl8188EFWImgArrayLength 9008
 extern const u8 Rtl8188EFwImgArray[Rtl8188EFWImgArrayLength];
 
 #endif //__INC_HAL8188E_FW_IMG_H

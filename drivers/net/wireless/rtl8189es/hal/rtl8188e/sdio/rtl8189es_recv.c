@@ -17,7 +17,7 @@
  *
  *
  ******************************************************************************/
-#define _RTL8723AS_RECV_C_
+#define _RTL8189ES_RECV_C_
 
 #include <drv_conf.h>
 
@@ -90,6 +90,38 @@ s32 rtl8188es_init_recv_priv(PADAPTER padapter)
 			freerecvbuf(precvbuf);
 			break;
 		}
+
+#ifdef CONFIG_SDIO_RX_COPY
+		if (precvbuf->pskb == NULL) {
+			SIZE_PTR tmpaddr=0;
+			SIZE_PTR alignment=0;
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)) // http://www.mail-archive.com/netdev@vger.kernel.org/msg17214.html
+			precvbuf->pskb = __dev_alloc_skb(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ, GFP_KERNEL);
+#else
+			precvbuf->pskb = __netdev_alloc_skb(padapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ, GFP_KERNEL);
+#endif
+
+			if(precvbuf->pskb)
+			{
+				precvbuf->pskb->dev = padapter->pnetdev;
+
+				tmpaddr = (SIZE_PTR)precvbuf->pskb->data;
+				alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
+				skb_reserve(precvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
+
+				precvbuf->phead = precvbuf->pskb->head;
+				precvbuf->pdata = precvbuf->pskb->data;
+				precvbuf->ptail = skb_tail_pointer(precvbuf->pskb);
+				precvbuf->pend = skb_end_pointer(precvbuf->pskb);
+				precvbuf->len = 0;
+			}
+
+			if (precvbuf->pskb == NULL) {
+				DBG_871X("%s: alloc_skb fail!\n", __FUNCTION__);
+			}
+		}
+#endif
 
 		rtw_list_insert_tail(&precvbuf->list, &precvpriv->free_recv_buf_queue.queue);
 
@@ -176,6 +208,465 @@ void rtl8188es_free_recv_priv(PADAPTER padapter)
 	}
 }
 
+#ifdef CONFIG_SDIO_RX_COPY
+static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbuf, struct phy_stat *pphy_status)
+{
+	s32 ret=_SUCCESS;
+#ifdef CONFIG_CONCURRENT_MODE
+	u8 *primary_myid, *secondary_myid, *paddr1;
+	union recv_frame	*precvframe_if2 = NULL;
+	_adapter *primary_padapter = precvframe->u.hdr.adapter;
+	_adapter *secondary_padapter = primary_padapter->pbuddy_adapter;
+	struct recv_priv *precvpriv = &primary_padapter->recvpriv;
+	_queue *pfree_recv_queue = &precvpriv->free_recv_queue;
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(primary_padapter);
+
+	if(!secondary_padapter)
+		return ret;
+
+	paddr1 = GetAddr1Ptr(precvframe->u.hdr.rx_data);
+
+	if(IS_MCAST(paddr1) == _FALSE)//unicast packets
+	{
+		//primary_myid = myid(&primary_padapter->eeprompriv);
+		secondary_myid = myid(&secondary_padapter->eeprompriv);
+
+		if(_rtw_memcmp(paddr1, secondary_myid, ETH_ALEN))
+		{
+			//change to secondary interface
+			precvframe->u.hdr.adapter = secondary_padapter;
+		}
+
+		//ret = recv_entry(precvframe);
+
+	}
+	else // Handle BC/MC Packets
+	{
+		//clone/copy to if2
+		_pkt	 *pkt_copy = NULL;
+		struct rx_pkt_attrib *pattrib = NULL;
+
+		precvframe_if2 = rtw_alloc_recvframe(pfree_recv_queue);
+
+		if(!precvframe_if2)
+			return _FAIL;
+
+		precvframe_if2->u.hdr.adapter = secondary_padapter;
+		_rtw_memcpy(&precvframe_if2->u.hdr.attrib, &precvframe->u.hdr.attrib, sizeof(struct rx_pkt_attrib));
+		pattrib = &precvframe_if2->u.hdr.attrib;
+
+		//driver need to set skb len for skb_copy().
+		//If skb->len is zero, skb_copy() will not copy data from original skb.
+		skb_put(precvframe->u.hdr.pkt, pattrib->pkt_len);
+
+		pkt_copy = skb_copy( precvframe->u.hdr.pkt, GFP_ATOMIC);
+		if (pkt_copy == NULL)
+		{
+			if((pattrib->mfrag == 1)&&(pattrib->frag_num == 0))
+			{
+				DBG_8192C("pre_recv_entry(): skb_copy fail , drop frag frame \n");
+				rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+				return ret;
+			}
+
+			pkt_copy = skb_clone( precvframe->u.hdr.pkt, GFP_ATOMIC);
+			if(pkt_copy == NULL)
+			{
+				DBG_8192C("pre_recv_entry(): skb_clone fail , drop frame\n");
+				rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+				return ret;
+			}
+		}
+
+		pkt_copy->dev = secondary_padapter->pnetdev;
+
+		precvframe_if2->u.hdr.pkt = pkt_copy;
+		precvframe_if2->u.hdr.rx_head = pkt_copy->head;
+		precvframe_if2->u.hdr.rx_data = pkt_copy->data;
+		precvframe_if2->u.hdr.rx_tail = skb_tail_pointer(pkt_copy);
+		precvframe_if2->u.hdr.rx_end = skb_end_pointer(pkt_copy);
+		precvframe_if2->u.hdr.len = pkt_copy->len;
+
+		//recvframe_put(precvframe_if2, pattrib->pkt_len);
+
+		if ( pHalData->ReceiveConfig & RCR_APPFCS)
+			recvframe_pull_tail(precvframe_if2, IEEE80211_FCS_LEN);
+
+		if (pattrib->physt)
+			update_recvframe_phyinfo_88e(precvframe_if2, pphy_status);
+
+		if(rtw_recv_entry(precvframe_if2) != _SUCCESS)
+		{
+			RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,
+				("recvbuf2recvframe: rtw_recv_entry(precvframe) != _SUCCESS\n"));
+		}
+	}
+
+	if (precvframe->u.hdr.attrib.physt)
+		update_recvframe_phyinfo_88e(precvframe, pphy_status);
+	ret = rtw_recv_entry(precvframe);
+
+#endif
+
+	return ret;
+
+}
+
+static void rtl8188es_recv_tasklet(void *priv)
+{
+	PADAPTER			padapter;
+	PHAL_DATA_TYPE		pHalData;
+	struct recv_priv		*precvpriv;
+	struct recv_buf		*precvbuf;
+	union recv_frame		*precvframe;
+	struct recv_frame_hdr	*phdr;
+	struct rx_pkt_attrib	*pattrib;
+	_irqL	irql;
+	u8		*ptr;
+	u32		pkt_offset, skb_len, alloc_sz;
+	s32		transfer_len;
+	_pkt		*pkt_copy = NULL;
+	struct phy_stat	*pphy_status = NULL;
+	u8		shift_sz = 0, rx_report_sz = 0;
+
+
+	padapter = (PADAPTER)priv;
+	pHalData = GET_HAL_DATA(padapter);
+	precvpriv = &padapter->recvpriv;
+
+	do {
+		if ((padapter->bDriverStopped == _TRUE)||(padapter->bSurpriseRemoved== _TRUE))
+		{
+			DBG_8192C("recv_tasklet => bDriverStopped or bSurpriseRemoved \n");
+			break;
+		}
+
+		precvbuf = rtw_dequeue_recvbuf(&precvpriv->recv_buf_pending_queue);
+		if (NULL == precvbuf) break;
+
+		transfer_len = (s32)precvbuf->len;
+		ptr = precvbuf->pdata;
+
+		do {
+			precvframe = rtw_alloc_recvframe(&precvpriv->free_recv_queue);
+			if (precvframe == NULL) {
+				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("%s: no enough recv frame!\n",__FUNCTION__));
+				rtw_enqueue_recvbuf_to_head(precvbuf, &precvpriv->recv_buf_pending_queue);
+
+				// The case of can't allocte recvframe should be temporary,
+				// schedule again and hope recvframe is available next time.
+#ifdef PLATFORM_LINUX
+				tasklet_schedule(&precvpriv->recv_tasklet);
+#endif
+				return;
+			}
+
+			//rx desc parsing
+			update_recvframe_attrib_88e(precvframe, (struct recv_stat*)ptr);
+
+			pattrib = &precvframe->u.hdr.attrib;
+
+			// fix Hardware RX data error, drop whole recv_buffer
+			if ((!(pHalData->ReceiveConfig & RCR_ACRC32)) && pattrib->crc_err)
+			{
+				#if !(MP_DRIVER==1)
+				DBG_8192C("%s()-%d: RX Warning! rx CRC ERROR !!\n", __FUNCTION__, __LINE__);
+				#endif
+				rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+				break;
+			}
+
+			if (pHalData->ReceiveConfig & RCR_APP_BA_SSN)
+				rx_report_sz = RXDESC_SIZE + 4 + pattrib->drvinfo_sz;
+			else
+				rx_report_sz = RXDESC_SIZE + pattrib->drvinfo_sz;
+
+			pkt_offset = rx_report_sz + pattrib->shift_sz + pattrib->pkt_len;
+
+			if ((pattrib->pkt_len==0) || (pkt_offset>transfer_len)) {
+				DBG_8192C("%s()-%d: RX Warning!,pkt_len==0 or pkt_offset(%d)> transfoer_len(%d) \n", __FUNCTION__, __LINE__, pkt_offset, transfer_len);
+				rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+				break;
+			}
+
+			if ((pattrib->crc_err) || (pattrib->icv_err))
+			{
+				DBG_8192C("%s: crc_err=%d icv_err=%d, skip!\n", __FUNCTION__, pattrib->crc_err, pattrib->icv_err);
+				rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+			}
+			else
+			{
+				//	Modified by Albert 20101213
+				//	For 8 bytes IP header alignment.
+				if (pattrib->qos)	//	Qos data, wireless lan header length is 26
+				{
+					shift_sz = 6;
+				}
+				else
+				{
+					shift_sz = 0;
+				}
+
+				skb_len = pattrib->pkt_len;
+
+				// for first fragment packet, driver need allocate 1536+drvinfo_sz+RXDESC_SIZE to defrag packet.
+				// modify alloc_sz for recvive crc error packet by thomas 2011-06-02
+				if((pattrib->mfrag == 1)&&(pattrib->frag_num == 0)){
+					//alloc_sz = 1664;	//1664 is 128 alignment.
+					if(skb_len <= 1650)
+						alloc_sz = 1664;
+					else
+						alloc_sz = skb_len + 14;
+				}
+				else {
+					alloc_sz = skb_len;
+					//	6 is for IP header 8 bytes alignment in QoS packet case.
+					//	8 is for skb->data 4 bytes alignment.
+					alloc_sz += 14;
+				}
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)) // http://www.mail-archive.com/netdev@vger.kernel.org/msg17214.html
+				pkt_copy = dev_alloc_skb(alloc_sz);
+#else
+				pkt_copy = netdev_alloc_skb(padapter->pnetdev, alloc_sz);
+#endif
+				if(pkt_copy)
+				{
+					pkt_copy->dev = padapter->pnetdev;
+					precvframe->u.hdr.pkt = pkt_copy;
+					skb_reserve( pkt_copy, 8 - ((SIZE_PTR)( pkt_copy->data ) & 7 ));//force pkt_copy->data at 8-byte alignment address
+					skb_reserve( pkt_copy, shift_sz );//force ip_hdr at 8-byte alignment address according to shift_sz.
+					_rtw_memcpy(pkt_copy->data, (ptr + rx_report_sz + pattrib->shift_sz), skb_len);
+					precvframe->u.hdr.rx_head = pkt_copy->head;
+					precvframe->u.hdr.rx_data = precvframe->u.hdr.rx_tail = pkt_copy->data;
+					precvframe->u.hdr.rx_end = skb_end_pointer(pkt_copy);
+				}
+				else
+				{
+					if((pattrib->mfrag == 1)&&(pattrib->frag_num == 0))
+					{
+						DBG_8192C("rtl8188es_recv_tasklet: alloc_skb fail , drop frag frame \n");
+						rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+						break;
+					}
+
+					precvframe->u.hdr.pkt = skb_clone(precvbuf->pskb, GFP_ATOMIC);
+					if(precvframe->u.hdr.pkt)
+					{
+						_pkt	*pkt_clone = precvframe->u.hdr.pkt;
+
+						pkt_clone->data = ptr + rx_report_sz + pattrib->shift_sz;
+						skb_reset_tail_pointer(pkt_clone);
+						precvframe->u.hdr.rx_head = precvframe->u.hdr.rx_data = precvframe->u.hdr.rx_tail
+							= pkt_clone->data;
+						precvframe->u.hdr.rx_end =  pkt_clone->data + skb_len;
+					}
+					else
+					{
+						DBG_8192C("rtl8188es_recv_tasklet: skb_clone fail\n");
+						rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+						break;
+					}
+				}
+
+				recvframe_put(precvframe, skb_len);
+				//recvframe_pull(precvframe, drvinfo_sz + RXDESC_SIZE);
+
+				if (pHalData->ReceiveConfig & RCR_APPFCS)
+					recvframe_pull_tail(precvframe, IEEE80211_FCS_LEN);
+
+				// update drv info
+				if (pHalData->ReceiveConfig & RCR_APP_BA_SSN) {
+					//rtl8723s_update_bassn(padapter, (ptr + RXDESC_SIZE));
+				}
+
+				if(pattrib->pkt_rpt_type == NORMAL_RX)//Normal rx packet
+				{
+					pphy_status = (struct phy_stat *)(ptr + (rx_report_sz - pattrib->drvinfo_sz));
+
+#ifdef CONFIG_CONCURRENT_MODE
+					if(rtw_buddy_adapter_up(padapter))
+					{
+						if(pre_recv_entry(precvframe, precvbuf, (struct phy_stat*)pphy_status) != _SUCCESS)
+						{
+							RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,
+								("recvbuf2recvframe: recv_entry(precvframe) != _SUCCESS\n"));
+						}
+					}
+					else
+#endif
+					{
+						if (pattrib->physt)
+							update_recvframe_phyinfo_88e(precvframe, (struct phy_stat*)pphy_status);
+
+						if (rtw_recv_entry(precvframe) != _SUCCESS)
+						{
+							RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("%s: rtw_recv_entry(precvframe) != _SUCCESS\n",__FUNCTION__));
+						}
+					}
+				}
+				else{ // pkt_rpt_type == TX_REPORT1-CCX, TX_REPORT2-TX RTP,HIS_REPORT-USB HISR RTP
+
+					//enqueue recvframe to txrtp queue
+					if(pattrib->pkt_rpt_type == TX_REPORT1){
+						//DBG_8192C("rx CCX \n");
+						//CCX-TXRPT ack for xmit mgmt frames.
+						handle_txrpt_ccx_88e(padapter, precvframe->u.hdr.rx_data);
+					}
+					else if(pattrib->pkt_rpt_type == TX_REPORT2){
+						//printk("rx TX RPT \n");
+						ODM_RA_TxRPT2Handle_8188E(
+									&pHalData->odmpriv,
+									precvframe->u.hdr.rx_data,
+									pattrib->pkt_len,
+									pattrib->MacIDValidEntry[0],
+									pattrib->MacIDValidEntry[1]
+									);
+
+					}
+					/*
+					else if(pattrib->pkt_rpt_type == HIS_REPORT){
+						printk("rx USB HISR \n");
+					}*/
+
+					rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+
+				}
+			}
+
+			// Page size of receive package is 128 bytes alignment =>DMA AGG
+			// refer to _InitTransferPageSize()
+			pkt_offset = _RND128(pkt_offset);
+			transfer_len -= pkt_offset;
+			ptr += pkt_offset;
+			precvframe = NULL;
+			pkt_copy = NULL;
+		}while(transfer_len>0);
+
+		precvbuf->len = 0;
+
+		rtw_enqueue_recvbuf(precvbuf, &precvpriv->free_recv_buf_queue);
+	} while (1);
+
+}
+#else
+static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbuf, struct phy_stat *pphy_status)
+{
+	s32 ret=_SUCCESS;
+#ifdef CONFIG_CONCURRENT_MODE
+	u8 *primary_myid, *secondary_myid, *paddr1;
+	union recv_frame	*precvframe_if2 = NULL;
+	_adapter *primary_padapter = precvframe->u.hdr.adapter;
+	_adapter *secondary_padapter = primary_padapter->pbuddy_adapter;
+	struct recv_priv *precvpriv = &primary_padapter->recvpriv;
+	_queue *pfree_recv_queue = &precvpriv->free_recv_queue;
+	u8	*pbuf = precvframe->u.hdr.rx_head;
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(primary_padapter);
+
+	if(!secondary_padapter)
+		return ret;
+
+	paddr1 = GetAddr1Ptr(precvframe->u.hdr.rx_data);
+
+	if(IS_MCAST(paddr1) == _FALSE)//unicast packets
+	{
+		//primary_myid = myid(&primary_padapter->eeprompriv);
+		secondary_myid = myid(&secondary_padapter->eeprompriv);
+
+		if(_rtw_memcmp(paddr1, secondary_myid, ETH_ALEN))
+		{
+			//change to secondary interface
+			precvframe->u.hdr.adapter = secondary_padapter;
+		}
+
+		//ret = recv_entry(precvframe);
+
+	}
+	else // Handle BC/MC Packets
+	{
+		//clone/copy to if2
+		u8 shift_sz = 0;
+		u32 alloc_sz, skb_len;
+		_pkt	 *pkt_copy = NULL;
+		struct rx_pkt_attrib *pattrib = NULL;
+
+		precvframe_if2 = rtw_alloc_recvframe(pfree_recv_queue);
+
+		if(!precvframe_if2)
+			return _FAIL;
+
+		precvframe_if2->u.hdr.adapter = secondary_padapter;
+		_rtw_init_listhead(&precvframe_if2->u.hdr.list);
+		precvframe_if2->u.hdr.precvbuf = NULL;	//can't access the precvbuf for new arch.
+		precvframe_if2->u.hdr.len=0;
+		_rtw_memcpy(&precvframe_if2->u.hdr.attrib, &precvframe->u.hdr.attrib, sizeof(struct rx_pkt_attrib));
+		pattrib = &precvframe_if2->u.hdr.attrib;
+
+		pkt_copy = skb_copy( precvframe->u.hdr.pkt, GFP_ATOMIC);
+		if (pkt_copy == NULL)
+		{
+			RT_TRACE(_module_rtl871x_recv_c_, _drv_crit_, ("%s: no enough memory to allocate SKB!\n",__FUNCTION__));
+			rtw_free_recvframe(precvframe_if2, &precvpriv->free_recv_queue);
+			rtw_enqueue_recvbuf_to_head(precvbuf, &precvpriv->recv_buf_pending_queue);
+
+			// The case of can't allocte skb is serious and may never be recovered,
+			// once bDriverStopped is enable, this task should be stopped.
+			if (secondary_padapter->bDriverStopped == _FALSE)
+#ifdef PLATFORM_LINUX
+				tasklet_schedule(&precvpriv->recv_tasklet);
+#endif
+			return ret;
+		}
+		pkt_copy->dev = secondary_padapter->pnetdev;
+
+
+
+		if((pattrib->mfrag == 1)&&(pattrib->frag_num == 0)){
+			//alloc_sz = 1664;	//1664 is 128 alignment.
+			if(skb_len <= 1650)
+				alloc_sz = 1664;
+			else
+				alloc_sz = skb_len + 14;
+		}
+		else {
+			alloc_sz = skb_len;
+			//	6 is for IP header 8 bytes alignment in QoS packet case.
+			//	8 is for skb->data 4 bytes alignment.
+			alloc_sz += 14;
+		}
+
+#if 1
+		precvframe_if2->u.hdr.pkt = pkt_copy;
+		precvframe_if2->u.hdr.rx_head = pkt_copy->head;
+		precvframe_if2->u.hdr.rx_data = precvframe_if2->u.hdr.rx_tail = pkt_copy->data;
+		precvframe_if2->u.hdr.rx_end = pkt_copy->data + alloc_sz;
+#endif
+		recvframe_put(precvframe_if2, pkt_offset);
+		recvframe_pull(precvframe_if2, RXDESC_SIZE + pattrib->drvinfo_sz);
+
+		if ( pHalData->ReceiveConfig & RCR_APPFCS)
+			recvframe_pull_tail(precvframe_if2, IEEE80211_FCS_LEN);
+
+		if (pattrib->physt)
+			update_recvframe_phyinfo_88e(precvframe_if2, pphy_status);
+
+		if(rtw_recv_entry(precvframe_if2) != _SUCCESS)
+		{
+			RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,
+				("recvbuf2recvframe: rtw_recv_entry(precvframe) != _SUCCESS\n"));
+		}
+	}
+
+	if (precvframe->u.hdr.attrib.physt)
+		update_recvframe_phyinfo_88e(precvframe, (struct phy_stat*)pphy_status);
+	ret = rtw_recv_entry(precvframe);
+
+#endif
+
+	return ret;
+
+}
+
 static void rtl8188es_recv_tasklet(void *priv)
 {
 	PADAPTER				padapter;
@@ -189,7 +680,9 @@ static void rtl8188es_recv_tasklet(void *priv)
 	_pkt		*ppkt;
 	u32			pkt_offset;
 	_irqL		irql;
-
+#ifdef CONFIG_CONCURRENT_MODE
+	struct recv_stat	*prxstat;
+#endif
 
 	padapter = (PADAPTER)priv;
 	pHalData = GET_HAL_DATA(padapter);
@@ -205,7 +698,7 @@ static void rtl8188es_recv_tasklet(void *priv)
 		{
 			precvframe = rtw_alloc_recvframe(&precvpriv->free_recv_queue);
 			if (precvframe == NULL) {
-				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("rtl8723as_recv_tasklet: no enough recv frame!\n"));
+				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("%s: no enough recv frame!\n",__FUNCTION__));
 				rtw_enqueue_recvbuf_to_head(precvbuf, &precvpriv->recv_buf_pending_queue);
 
 				// The case of can't allocte recvframe should be temporary,
@@ -221,11 +714,16 @@ static void rtl8188es_recv_tasklet(void *priv)
 
 			//rx desc parsing
 			update_recvframe_attrib_88e(precvframe, (struct recv_stat*)ptr);
-
+#ifdef CONFIG_CONCURRENT_MODE
+			prxstat = (struct recv_stat*)ptr;
+#endif
 			// fix Hardware RX data error, drop whole recv_buffer
 			if ((!(pHalData->ReceiveConfig & RCR_ACRC32)) && pattrib->crc_err)
 			{
+				//#if !(MP_DRIVER==1)
+				if (padapter->registrypriv.mp_mode == 0)
 				DBG_8192C("%s()-%d: RX Warning! rx CRC ERROR !!\n", __FUNCTION__, __LINE__);
+				//#endif
 				rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
 				break;
 			}
@@ -248,7 +746,7 @@ static void rtl8188es_recv_tasklet(void *priv)
 				ppkt = skb_clone(precvbuf->pskb, GFP_ATOMIC);
 				if (ppkt == NULL)
 				{
-					RT_TRACE(_module_rtl871x_recv_c_, _drv_crit_, ("rtl8723as_recv_tasklet: no enough memory to allocate SKB!\n"));
+					RT_TRACE(_module_rtl871x_recv_c_, _drv_crit_, ("%s: no enough memory to allocate SKB!\n",__FUNCTION__));
 					rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
 					rtw_enqueue_recvbuf_to_head(precvbuf, &precvpriv->recv_buf_pending_queue);
 
@@ -284,26 +782,38 @@ static void rtl8188es_recv_tasklet(void *priv)
 					ptr += 4;
 				}
 
-				if( (pattrib->physt) && (pattrib->pkt_rpt_type == NORMAL_RX))
-					update_recvframe_phyinfo_88e(precvframe, (struct phy_stat*)ptr);
-
-
 				if(pattrib->pkt_rpt_type == NORMAL_RX)//Normal rx packet
 				{
-					//printk("rx normal pkt\n");
+#ifdef CONFIG_CONCURRENT_MODE
+					if(rtw_buddy_adapter_up(padapter))
+					{
+						if(pre_recv_entry(precvframe, precvbuf, (struct phy_stat*)ptr) != _SUCCESS)
+						{
+							RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,
+								("recvbuf2recvframe: recv_entry(precvframe) != _SUCCESS\n"));
+						}
+					}
+					else
+#endif
+					{
+						if (pattrib->physt)
+					update_recvframe_phyinfo_88e(precvframe, (struct phy_stat*)ptr);
+
 					if (rtw_recv_entry(precvframe) != _SUCCESS)
 					{
-						RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("rtl8723as_recv_tasklet: rtw_recv_entry(precvframe) != _SUCCESS\n"));
+							RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,
+								("recvbuf2recvframe: rtw_recv_entry(precvframe) != _SUCCESS\n"));
+						}
 					}
 				}
 				else{ // pkt_rpt_type == TX_REPORT1-CCX, TX_REPORT2-TX RTP,HIS_REPORT-USB HISR RTP
 
 					//enqueue recvframe to txrtp queue
 					if(pattrib->pkt_rpt_type == TX_REPORT1){
-						printk("rx CCX \n");
+						DBG_8192C("rx CCX \n");
 					}
 					else if(pattrib->pkt_rpt_type == TX_REPORT2){
-						//printk("rx TX RPT \n");
+						//DBG_8192C("rx TX RPT \n");
 						ODM_RA_TxRPT2Handle_8188E(
 									&pHalData->odmpriv,
 									precvframe->u.hdr.rx_data,
@@ -313,9 +823,10 @@ static void rtl8188es_recv_tasklet(void *priv)
 									);
 
 					}
-					else if(pattrib->pkt_rpt_type == TX_REPORT1){
-						printk("rx USB HISR \n");
-					}
+					/*
+					else if(pattrib->pkt_rpt_type == HIS_REPORT){
+						DBG_8192C("rx USB HISR \n");
+					}*/
 
 					rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
 
@@ -337,3 +848,4 @@ static void rtl8188es_recv_tasklet(void *priv)
 	} while (1);
 
 }
+#endif

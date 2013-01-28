@@ -39,7 +39,7 @@
  *
 ******************************************************************************/
 
-#define _RTL8723A_RF6052_C_
+#define _RTL8188E_RF6052_C_
 
 #include <drv_conf.h>
 #include <osdep_service.h>

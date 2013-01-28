@@ -22,7 +22,7 @@
 #ifndef __INC_BB_8188E_HW_IMG_H
 #define __INC_BB_8188E_HW_IMG_H
 
-static BOOLEAN CheckCondition(const u4Byte Condition, const u4Byte Hex);
+//static BOOLEAN CheckCondition(const u4Byte Condition, const u4Byte Hex);
 
 /******************************************************************************
 *                           AGC_TAB_1T.TXT
@@ -43,11 +43,11 @@ ODM_ReadAndConfig_PHY_REG_1T_8188E(
 );
 
 /******************************************************************************
-*                           PHY_REG_MP.TXT
+*                           PHY_REG_PG.TXT
 ******************************************************************************/
 
 void
-ODM_ReadAndConfig_PHY_REG_MP_8188E(
+ODM_ReadAndConfig_PHY_REG_PG_8188E(
 	IN   PDM_ODM_T  pDM_Odm
 );
 

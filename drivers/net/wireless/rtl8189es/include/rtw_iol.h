@@ -24,6 +24,23 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 
+#ifdef CONFIG_RTL8188E
+//IOL config for REG_SYS_CFG(0xF0)
+#define IOL_ENABLE	BIT7
+
+//IOL config for REG_FDHM0(0x88)
+#define IOL_INIT_LLT				BIT0
+#define IOL_READ_EFUSE_MAP	BIT1
+#define IOL_EFUSE_PATCH		BIT2
+#define IOL_IOCONFIG			BIT3
+#define IOL_INIT_LLT_ERR			BIT4
+#define IOL_READ_EFUSE_MAP_ERR	BIT5
+#define IOL_EFUSE_PATCH_ERR		BIT6
+#define IOL_IOCONFIG_ERR			BIT7
+
+void read_efuse_from_txpktbuf(ADAPTER *adapter, int bcnhead, u8 *content, u16 *size);
+#endif
+
 typedef struct _io_offload_cmd {
 	u8 rsvd0;
 	u8 cmd;
@@ -83,5 +100,7 @@ int dbg_rtw_IOL_append_WD_cmd(struct xmit_frame *xmit_frame, u16 addr, u32 value
 #define rtw_IOL_append_WW_cmd(xmit_frame, addr, value) _rtw_IOL_append_WW_cmd((xmit_frame), (addr), (value))
 #define rtw_IOL_append_WD_cmd(xmit_frame, addr, value) _rtw_IOL_append_WD_cmd((xmit_frame), (addr), (value))
 #endif
+
+bool rtw_IOL_applied(ADAPTER *adapter);
 
 #endif //__RTW_IOL_H_

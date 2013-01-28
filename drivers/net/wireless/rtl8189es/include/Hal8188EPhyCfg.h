@@ -34,10 +34,10 @@
 #define HP_THERMAL_NUM		8
 
 #ifdef CONFIG_PCI_HCI
-#define MAX_AGGR_NUM	0x0A0A
+#define MAX_AGGR_NUM	0x0B
 #else
-#define MAX_AGGR_NUM	0x0909
-#endif
+#define MAX_AGGR_NUM	0x07
+#endif // CONFIG_PCI_HCI
 
 
 /*--------------------------Define Parameters-------------------------------*/
@@ -79,6 +79,8 @@ typedef enum _RF_RADIO_PATH{
 	//RF_PATH_MAX				//Max RF number 90 support
 }RF_RADIO_PATH_E, *PRF_RADIO_PATH_E;
 
+#define MAX_PG_GROUP 13
+
 #define	RF_PATH_MAX		2
 #define 	MAX_RF_PATH		RF_PATH_MAX
 #define 	MAX_TX_COUNT				4 //path numbers
@@ -97,11 +99,6 @@ typedef enum _WIRELESS_MODE {
 	WIRELESS_MODE_N_5G 	= BIT4,
 	WIRELESS_MODE_AC		= BIT6
 } WIRELESS_MODE;
-
-typedef enum _BaseBand_Config_Type{
-	BaseBand_Config_PHY_REG = 0,			//Radio Path A
-	BaseBand_Config_AGC_TAB = 1,			//Radio Path B
-}BaseBand_Config_Type, *PBaseBand_Config_Type;
 
 
 typedef enum _PHY_Rate_Tx_Power_Offset_Area{
@@ -127,18 +124,6 @@ typedef	enum _RF_TYPE_8190P{
 	RF_PSEUDO_11N=5,	// 5, It is a temporality RF.
 }RF_TYPE_8190P_E,*PRF_TYPE_8190P_E;
 
-
-typedef enum _RATR_TABLE_MODE_8192C{
-	RATR_INX_WIRELESS_NGB = 0,
-	RATR_INX_WIRELESS_NG = 1,
-	RATR_INX_WIRELESS_NB = 2,
-	RATR_INX_WIRELESS_N = 3,
-	RATR_INX_WIRELESS_GB = 4,
-	RATR_INX_WIRELESS_G = 5,
-	RATR_INX_WIRELESS_B = 6,
-	RATR_INX_WIRELESS_MC = 7,
-	RATR_INX_WIRELESS_A = 8,
-}RATR_TABLE_MODE_8192C, *PRATR_TABLE_MODE_8192C;
 
 typedef struct _BB_REGISTER_DEFINITION{
 	u32 rfintfs;			// set software control:
@@ -253,6 +238,7 @@ void	rtl8188e_PHY_SetRFReg(	IN	PADAPTER			Adapter,
 int	PHY_MACConfig8188E(IN	PADAPTER	Adapter	);
 int	PHY_BBConfig8188E(IN	PADAPTER	Adapter	);
 int	PHY_RFConfig8188E(IN	PADAPTER	Adapter	);
+
 /* RF config */
 int	rtl8188e_PHY_ConfigRFWithParaFile(IN PADAPTER Adapter, IN u8 * pFileName, RF_RADIO_PATH_E eRFPath);
 int	rtl8188e_PHY_ConfigRFWithHeaderFile(	IN	PADAPTER			Adapter,
@@ -325,16 +311,7 @@ void	PHY_SetMonitorMode8192C(IN	PADAPTER	pAdapter,
 BOOLEAN	PHY_CheckIsLegalRfPath8192C(IN	PADAPTER	pAdapter,
 											IN	u32		eRFPath	);
 
-
-VOID rtl8192c_PHY_SetRFPathSwitch(IN	PADAPTER	pAdapter, IN	BOOLEAN		bMain);
-
-//
-// Modify the value of the hw register when beacon interval be changed.
-//
-void
-rtl8192c_PHY_SetBeaconHwReg(	IN	PADAPTER		Adapter,
-					IN	u16			BeaconInterval	);
-
+VOID PHY_SetRFPathSwitch_8188E(IN	PADAPTER	pAdapter, IN	BOOLEAN		bMain);
 
 extern	VOID
 PHY_SwitchEphyParameter(
@@ -352,10 +329,15 @@ SetAntennaConfig92C(
 	IN	u8		DefaultAnt
 	);
 
-
-#ifdef CONFIG_RECFG_AGC_TAB
-void rtl8188e_recfg_agc_tab(PADAPTER	pAdapter);
-#endif
+#ifdef CONFIG_PHY_SETTING_WITH_ODM
+VOID
+storePwrIndexDiffRateOffset(
+	IN	PADAPTER	Adapter,
+	IN	u32		RegAddr,
+	IN	u32		BitMask,
+	IN	u32		Data
+	);
+#endif //CONFIG_PHY_SETTING_WITH_ODM
 /*--------------------------Exported Function prototype---------------------*/
 
 #define PHY_QueryBBReg(Adapter, RegAddr, BitMask) rtl8188e_PHY_QueryBBReg((Adapter), (RegAddr), (BitMask))

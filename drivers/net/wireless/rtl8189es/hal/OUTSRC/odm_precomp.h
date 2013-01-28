@@ -76,13 +76,7 @@
 	#include <osdep_service.h>
 	#include <drv_types.h>
 	#include <rtw_byteorder.h>
-	#include <hal_init.h>
-
-	#if defined(CONFIG_LITTLE_ENDIAN)
-		#define	ODM_ENDIAN_TYPE			ODM_ENDIAN_LITTLE
-	#elif defined (CONFIG_BIG_ENDIAN)
-		#define	ODM_ENDIAN_TYPE			ODM_ENDIAN_BIG
-	#endif
+	#include <hal_intf.h>
 
 #elif (DM_ODM_SUPPORT_TYPE == ODM_MP)
 	#include "Mp_Precomp.h"
@@ -125,12 +119,8 @@
 	#include "rtl8723a/Hal8723SHWImg_CE.h"
 	#elif(RTL8723AU_SUPPORT==1)
 	#include "rtl8723a/Hal8723UHWImg_CE.h"
-	#elif(RTL8188ES_SUPPORT==1)
+	#elif(RTL8188E_SUPPORT==1)
 	#include "rtl8188e/Hal8188EFWImg_CE.h"
-	#include "rtl8188e/Hal8188ESHWImg_CE.h"
-	#elif(RTL8188EU_SUPPORT==1)
-	#include "rtl8188e/Hal8188EFWImg_CE.h"
-	#include "rtl8188e/Hal8188EUHWImg_CE.h"
 	#endif
 #elif (DM_ODM_SUPPORT_TYPE == ODM_MP)
 
@@ -142,6 +132,8 @@
 #include "odm.h"
 #include "odm_HWConfig.h"
 #include "odm_debug.h"
+#include "odm_RegDefine11AC.h"
+#include "odm_RegDefine11N.h"
 
 #if (DM_ODM_SUPPORT_TYPE == ODM_AP)
 #if (RTL8192C_SUPPORT==1)
@@ -206,13 +198,22 @@
 #include "rtl8188e/HalHWImg8188E_BB.h"
 #include "rtl8188e/Hal8188EReg.h"
 
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+#include "rtl8188e/HalPhyRf_8188e.h"
+#endif
+
 #if (RTL8188E_FOR_TEST_CHIP >= 1)
 #include "rtl8188e/HalHWImg8188E_TestChip_MAC.h"
 #include "rtl8188e/HalHWImg8188E_TestChip_RF.h"
 #include "rtl8188e/HalHWImg8188E_TestChip_BB.h"
 #endif
 
-//#include "rtl8188e/HalHWImg8188E_FW.h"
+#ifdef CONFIG_WOWLAN
+#if (RTL8188E_SUPPORT==1)
+#include "rtl8188e/HalHWImg8188E_FW.h"
+#endif
+#endif //CONFIG_WOWLAN
+
 #include "rtl8188e/odm_RegConfig8188E.h"
 #include "rtl8188e/odm_RTL8188E.h"
 #endif

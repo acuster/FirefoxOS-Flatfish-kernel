@@ -312,6 +312,23 @@
 			( (((u8)__Value) & BIT_LEN_MASK_8(__BitLen)) << (__BitOffset) ) \
 		);
 
+//pclint
+#define LE_BITS_CLEARED_TO_1BYTE_8BIT(__pStart, __BitOffset, __BitLen) \
+	( \
+		LE_P1BYTE_TO_HOST_1BYTE(__pStart) \
+	)
+
+//pclint
+#define SET_BITS_TO_LE_1BYTE_8BIT(__pStart, __BitOffset, __BitLen, __Value) \
+{ \
+	*((pu1Byte)(__pStart)) = \
+		EF1Byte( \
+			LE_BITS_CLEARED_TO_1BYTE_8BIT(__pStart, __BitOffset, __BitLen) \
+			| \
+			((u1Byte)__Value) \
+		); \
+}
+
 // Get the N-bytes aligment offset from the current length
 #define N_BYTE_ALIGMENT(__Value, __Aligment) ((__Aligment == 1) ? (__Value) : (((__Value + __Aligment - 1) / __Aligment) * __Aligment))
 

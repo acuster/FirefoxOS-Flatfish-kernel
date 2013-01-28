@@ -27,26 +27,26 @@ CheckCondition(
     const u4Byte  Hex
     )
 {
-    u4Byte board = Hex & 0xFF;
-    u4Byte interface = Hex & 0xFF00;
-    u4Byte platform = Hex & 0xFF0000;
+    u4Byte _board     = (Hex & 0x000000FF);
+    u4Byte _interface = (Hex & 0x0000FF00) >> 8;
+    u4Byte _platform  = (Hex & 0x00FF0000) >> 16;
     u4Byte cond = Condition;
 
     if ( Condition == 0xCDCDCDCD )
         return TRUE;
 
-    cond = Condition & 0xFF;
-    if ( (board & cond) == 0 && cond != 0x1F)
+    cond = Condition & 0x000000FF;
+    if ( (_board == cond) && cond != 0x00)
         return FALSE;
 
-    cond = Condition & 0xFF00;
+    cond = Condition & 0x0000FF00;
     cond = cond >> 8;
-    if ( (interface & cond) == 0 && cond != 0x07)
+    if ( (_interface & cond) == 0 && cond != 0x07)
         return FALSE;
 
-    cond = Condition & 0xFF0000;
+    cond = Condition & 0x00FF0000;
     cond = cond >> 16;
-    if ( (platform & cond) == 0 && cond != 0x0F)
+    if ( (_platform & cond) == 0 && cond != 0x0F)
         return FALSE;
     return TRUE;
 }
@@ -155,7 +155,7 @@ u4Byte Array_RadioA_1T_8188E[] = {
 		0xFFE, 0x00000000,
 		0x01E, 0x00000001,
 		0x01F, 0x00080000,
-		0x000, 0x00030159,
+		0x000, 0x00033E60,
 
 };
 
@@ -171,14 +171,14 @@ ODM_ReadAndConfig_RadioA_1T_8188E(
 	u2Byte     count       = 0;
 	pu4Byte    ptr_array   = NULL;
 	u1Byte     platform    = pDM_Odm->SupportPlatform;
-	u1Byte     interface   = pDM_Odm->SupportInterface;
+	u1Byte     interfaceValue   = pDM_Odm->SupportInterface;
 	u1Byte     board       = pDM_Odm->BoardType;
 	u4Byte     ArrayLen    = sizeof(Array_RadioA_1T_8188E)/sizeof(u4Byte);
 	pu4Byte    Array       = Array_RadioA_1T_8188E;
 
 
 	hex += board;
-	hex += interface << 8;
+	hex += interfaceValue << 8;
 	hex += platform << 16;
 	hex += 0xFF000000;
 	for (i = 0; i < ArrayLen; i += 2 )

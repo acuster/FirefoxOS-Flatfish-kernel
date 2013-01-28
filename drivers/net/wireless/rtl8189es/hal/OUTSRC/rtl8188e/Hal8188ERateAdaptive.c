@@ -51,7 +51,7 @@ static u1Byte RETRY_PENALTY[PERENTRY][RETRYSIZE+1] = {{5,4,3,2,0,3},//92 , idx=0
 													{34,30,24,16,0,32},//26 , idx=0x0f
 													{49,46,40,16,0,48},//20	, idx=0x10
 													{49,45,32,0,0,48},//17 , idx=0x11
-													{49,45,22,18,0,48},//15	, idx=0x12
+												{49,45,22,18,0,48},//15	, idx=0x12
 													{49,40,24,16,0,48},//12	, idx=0x13
 													{49,32,18,12,0,48},//9 , idx=0x14
 													{49,22,18,14,0,48},//6 , idx=0x15
@@ -69,6 +69,26 @@ static u1Byte	RETRY_PENALTY_IDX[2][RATESIZE] = {{4,4,4,5,4,4,5,7,7,7,8,0x0a,	   
 													4,4,5,5,6,0x0a,0x11,0x13,
 													9,9,9,9,0x0c,0x0e,0x11,0x13}};
 #endif
+
+
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+static u1Byte	RETRY_PENALTY_IDX[2][RATESIZE] = 	{{4,4,4,5,4,4,5,7,7,7,8,0x0a,	       // SS>TH
+													4,4,4,4,6,0x0a,0x0b,0x0d,
+													5,5,7,7,8,0x0b,0x0d,0x0f},	 		   // 0329 R01
+													{0x0a,0x0a,0x0a,0x0a,0x0c,0x0c,0x0e,0x10,0x11,0x12,0x12,0x13,	   // SS<TH
+													0x0e,0x0f,0x10,0x10,0x11,0x14,0x14,0x15,
+													9,9,9,9,0x0c,0x0e,0x11,0x13}};
+
+static u1Byte	RETRY_PENALTY_UP_IDX[RATESIZE] = 	{0x10,0x10,0x10,0x10,0x11,0x11,0x12,0x12,0x12,0x13,0x13,0x14,	       // SS>TH
+													0x13,0x13,0x14,0x14,0x15,0x15,0x15,0x15,
+													0x11,0x11,0x12,0x13,0x13,0x13,0x14,0x15};
+
+static u1Byte	RSSI_THRESHOLD[RATESIZE] = 			{0,0,0,0,
+													0,0,0,0,0,0x24,0x26,0x2a,
+													0x13,0x15,0x17,0x18,0x1a,0x1c,0x1d,0x1f,
+													0,0,0,0x1f,0x23,0x28,0x2a,0x2c};
+#else
+
 // wilson modify
 static u1Byte	RETRY_PENALTY_IDX[2][RATESIZE] = {{4,4,4,5,4,4,5,7,7,7,8,0x0a,	       // SS>TH
 													4,4,4,4,6,0x0a,0x0b,0x0d,
@@ -76,6 +96,7 @@ static u1Byte	RETRY_PENALTY_IDX[2][RATESIZE] = {{4,4,4,5,4,4,5,7,7,7,8,0x0a,	   
 													{0x0a,0x0a,0x0b,0x0c,0x0a,0x0a,0x0b,0x0c,0x0d,0x10,0x13,0x14,	   // SS<TH
 													0x0b,0x0c,0x0d,0x0e,0x0f,0x11,0x13,0x15,
 													9,9,9,9,0x0c,0x0e,0x11,0x13}};
+
 static u1Byte	RETRY_PENALTY_UP_IDX[RATESIZE] = {0x0c,0x0d,0x0d,0x0f,0x0d,0x0e,0x0f,0x0f,0x10,0x12,0x13,0x14,	       // SS>TH
 													0x0f,0x10,0x10,0x12,0x12,0x13,0x14,0x15,
 													0x11,0x11,0x12,0x13,0x13,0x13,0x14,0x15};
@@ -84,6 +105,9 @@ static u1Byte	RSSI_THRESHOLD[RATESIZE] = {0,0,0,0,
 													0,0,0,0,0,0x24,0x26,0x2a,
 													0x18,0x1a,0x1d,0x1f,0x21,0x27,0x29,0x2a,
 													0,0,0,0x1f,0x23,0x28,0x2a,0x2c};
+
+#endif
+
 /*static u1Byte	RSSI_THRESHOLD[RATESIZE] = {0,0,0,0,
 													0,0,0,0,0,0x24,0x26,0x2a,
 													0x1a,0x1c,0x1e,0x21,0x24,0x2a,0x2b,0x2d,
@@ -384,6 +408,9 @@ odm_RateDecision_8188E(
 		else if (pRaInfo->NscUp > N_THRESHOLD_HIGH[RateID])
 			odm_RateUp_8188E(pDM_Odm,pRaInfo);
 
+		if(pRaInfo->DecisionRate > pRaInfo->HighestRate)
+			pRaInfo->DecisionRate = pRaInfo->HighestRate;
+
 		if ((pRaInfo->DecisionRate)==(pRaInfo->PreRate))
 			DynamicTxRPTTimingCounter+=1;
 		else
@@ -455,7 +482,7 @@ odm_ARFBRefresh_8188E(
 			break;
 	}
 	// Highest rate
-	if (pRaInfo->RAUseRate)
+	if (pRaInfo->RAUseRate){
 		for (i=RATESIZE;i>=0;i--)
 		{
 			if((pRaInfo->RAUseRate)&BIT(i)){
@@ -463,19 +490,24 @@ odm_ARFBRefresh_8188E(
 				break;
 			}
 		}
-	else
+	}
+	else{
 		pRaInfo->HighestRate=0;
+	}
 	// Lowest rate
-	if (pRaInfo->RAUseRate)
+	if (pRaInfo->RAUseRate){
 		for (i=0;i<RATESIZE;i++)
 		{
-			if((pRaInfo->RAUseRate)&BIT(i)){
+			if((pRaInfo->RAUseRate)&BIT(i))
+			{
 				pRaInfo->LowestRate=i;
 				break;
 			}
 		}
-	else
+	}
+	else{
 		pRaInfo->LowestRate=0;
+	}
 
 #if POWER_TRAINING_ACTIVE == 1
 		if (pRaInfo->HighestRate >0x13)
@@ -490,9 +522,13 @@ odm_ARFBRefresh_8188E(
 				("ODM_ARFBRefresh_8188E(): PTModeSS=%d\n", pRaInfo->PTModeSS));
 
 #endif
+
+	if(pRaInfo->DecisionRate > pRaInfo->HighestRate)
+		pRaInfo->DecisionRate = pRaInfo->HighestRate;
+
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD,
-				("ODM_ARFBRefresh_8188E(): RateID=%d RateMask=%8.8x RAUseRate=%8.8x HighestRate=%d\n",
-				pRaInfo->RateID, pRaInfo->RateMask, pRaInfo->RAUseRate, pRaInfo->HighestRate));
+				("ODM_ARFBRefresh_8188E(): RateID=%d RateMask=%8.8x RAUseRate=%8.8x HighestRate=%d,DecisionRate=%d \n",
+				pRaInfo->RateID, pRaInfo->RateMask, pRaInfo->RAUseRate, pRaInfo->HighestRate,pRaInfo->DecisionRate));
 	return 0;
 }
 
@@ -645,10 +681,35 @@ ODM_RAInfo_Init(
 	)
 {
 	PODM_RA_INFO_T pRaInfo = &pDM_Odm->RAInfo[MacID];
+	#if 1
+	u1Byte WirelessMode=0xFF; //invalid value
+	u1Byte max_rate_idx = 0x13; //MCS7
+	if(pDM_Odm->pWirelessMode!=NULL){
+		WirelessMode=*(pDM_Odm->pWirelessMode);
+	}
 
+	if(WirelessMode != 0xFF ){
+		if(WirelessMode & ODM_WM_N24G)
+			max_rate_idx = 0x13;
+		else if(WirelessMode & ODM_WM_G)
+			max_rate_idx = 0x0b;
+		else if(WirelessMode & ODM_WM_B)
+			max_rate_idx = 0x03;
+	}
+
+	//printk("%s ==>WirelessMode:0x%08x ,max_raid_idx:0x%02x\n ",__FUNCTION__,WirelessMode,max_rate_idx);
+	ODM_RT_TRACE(pDM_Odm,ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD,
+				("ODM_RAInfo_Init(): WirelessMode:0x%08x ,max_raid_idx:0x%02x \n",
+				WirelessMode,max_rate_idx));
+
+	pRaInfo->DecisionRate = max_rate_idx;
+	pRaInfo->PreRate = max_rate_idx;
+	pRaInfo->HighestRate=max_rate_idx;
+	#else
 	pRaInfo->DecisionRate = 0x13;
 	pRaInfo->PreRate = 0x13;
-	pRaInfo->HighestRate=0x13;
+	pRaInfo->HighestRate= 0x13;
+	#endif
 	pRaInfo->LowestRate=0;
 	pRaInfo->RateID=0;
 	pRaInfo->RateMask=0xffffffff;
@@ -903,6 +964,18 @@ ODM_RA_TxRPT2Handle_8188E(
 #endif
 #endif
 
+				ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
+							("macid=%d R0=%d R1=%d R2=%d R3=%d R4=%d drop=%d valid0=%x RateID=%d SGI=%d\n",
+							MacId,
+							pRAInfo->RTY[0],
+							pRAInfo->RTY[1],
+							pRAInfo->RTY[2],
+							pRAInfo->RTY[3],
+							pRAInfo->RTY[4],
+							pRAInfo->DROP,
+							MacIDValidEntry0,
+							pRAInfo->DecisionRate,
+							pRAInfo->RateSGI));
 			}
 			else
 				ODM_RT_TRACE(pDM_Odm,ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD, (" TOTAL=0!!!!\n"));

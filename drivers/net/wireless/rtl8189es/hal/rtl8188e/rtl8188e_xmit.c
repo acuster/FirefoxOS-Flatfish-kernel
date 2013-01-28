@@ -25,11 +25,50 @@
 #include <sdio_ops.h>
 #include <rtl8188e_hal.h>
 
+#ifdef CONFIG_XMIT_ACK
+void dump_txrpt_ccx_88e(void *buf)
+{
+	struct txrpt_ccx_88e *txrpt_ccx = (struct txrpt_ccx_88e *)buf;
+
+	DBG_871X("%s:\n"
+		"tag1:%u, pkt_num:%u, txdma_underflow:%u, int_bt:%u, int_tri:%u, int_ccx:%u\n"
+		"mac_id:%u, pkt_ok:%u, bmc:%u\n"
+		"retry_cnt:%u, lifetime_over:%u, retry_over:%u\n"
+		"ccx_qtime:%u\n"
+		"final_data_rate:0x%02x\n"
+		"qsel:%u, sw:0x%03x\n"
+		, __func__
+		, txrpt_ccx->tag1, txrpt_ccx->pkt_num, txrpt_ccx->txdma_underflow, txrpt_ccx->int_bt, txrpt_ccx->int_tri, txrpt_ccx->int_ccx
+		, txrpt_ccx->mac_id, txrpt_ccx->pkt_ok, txrpt_ccx->bmc
+		, txrpt_ccx->retry_cnt, txrpt_ccx->lifetime_over, txrpt_ccx->retry_over
+		, txrpt_ccx_qtime_88e(txrpt_ccx)
+		, txrpt_ccx->final_data_rate
+		, txrpt_ccx->qsel, txrpt_ccx_sw_88e(txrpt_ccx)
+	);
+}
+
+void handle_txrpt_ccx_88e(_adapter *adapter, u8 *buf)
+{
+	struct txrpt_ccx_88e *txrpt_ccx = (struct txrpt_ccx_88e *)buf;
+
+	#ifdef DBG_CCX
+	dump_txrpt_ccx_88e(buf);
+	#endif
+
+	if (txrpt_ccx->int_ccx) {
+		if (txrpt_ccx->pkt_ok)
+			rtw_ack_tx_done(&adapter->xmitpriv, RTW_SCTX_DONE_SUCCESS);
+		else
+			rtw_ack_tx_done(&adapter->xmitpriv, RTW_SCTX_DONE_CCX_PKT_FAIL);
+	}
+}
+#endif //CONFIG_XMIT_ACK
+
 void _dbg_dump_tx_info(_adapter	*padapter,int frame_tag,struct tx_desc *ptxdesc)
 {
 	u8 bDumpTxPkt;
 	u8 bDumpTxDesc = _FALSE;
-	padapter->HalFunc.GetHalDefVarHandler(padapter, HAL_DEF_DBG_DUMP_TXPKT, &(bDumpTxPkt));
+	rtw_hal_get_def_var(padapter, HAL_DEF_DBG_DUMP_TXPKT, &(bDumpTxPkt));
 
 	if(bDumpTxPkt ==1){//dump txdesc for data frame
 		DBG_871X("dump tx_desc for data frame\n");
@@ -49,67 +88,19 @@ void _dbg_dump_tx_info(_adapter	*padapter,int frame_tag,struct tx_desc *ptxdesc)
 	if(bDumpTxDesc){
 		//	ptxdesc->txdw4 = cpu_to_le32(0x00001006);//RTS Rate=24M
 		//	ptxdesc->txdw6 = 0x6666f800;
-		printk("=====================================\n");
-		printk("txdw0(0x%08x)\n",ptxdesc->txdw0);
-		printk("txdw1(0x%08x)\n",ptxdesc->txdw1);
-		printk("txdw2(0x%08x)\n",ptxdesc->txdw2);
-		printk("txdw3(0x%08x)\n",ptxdesc->txdw3);
-		printk("txdw4(0x%08x)\n",ptxdesc->txdw4);
-		printk("txdw5(0x%08x)\n",ptxdesc->txdw5);
-		printk("txdw6(0x%08x)\n",ptxdesc->txdw6);
-		printk("txdw7(0x%08x)\n",ptxdesc->txdw7);
-		printk("=====================================\n");
+		DBG_8192C("=====================================\n");
+		DBG_8192C("txdw0(0x%08x)\n",ptxdesc->txdw0);
+		DBG_8192C("txdw1(0x%08x)\n",ptxdesc->txdw1);
+		DBG_8192C("txdw2(0x%08x)\n",ptxdesc->txdw2);
+		DBG_8192C("txdw3(0x%08x)\n",ptxdesc->txdw3);
+		DBG_8192C("txdw4(0x%08x)\n",ptxdesc->txdw4);
+		DBG_8192C("txdw5(0x%08x)\n",ptxdesc->txdw5);
+		DBG_8192C("txdw6(0x%08x)\n",ptxdesc->txdw6);
+		DBG_8192C("txdw7(0x%08x)\n",ptxdesc->txdw7);
+		DBG_8192C("=====================================\n");
 	}
 
 }
-
-
-/*
- *	Description:
- *		Translate QSEL to hardware tx FIFO address
- */
-//static
-u32 get_txfifo_hwaddr(struct xmit_frame *pxmitframe)
-{
-	u32 addr;
-	struct pkt_attrib *pattrib;
-	struct registry_priv *pregistrypriv;
-
-
-	pattrib = &pxmitframe->attrib;
-	switch (pattrib->qsel)
-	{
-		case 0:
-		case 3:
-			addr = WLAN_TX_LOQ_DEVICE_ID;
-			break;
-		case 1:
-		case 2:
-			pregistrypriv = &pxmitframe->padapter->registrypriv;
-			if (!pregistrypriv->wifi_spec)
-				addr = WLAN_TX_LOQ_DEVICE_ID;
-			else
-				addr = WLAN_TX_MIQ_DEVICE_ID;
-			break;
-		case 4:
-		case 5:
-			addr = WLAN_TX_MIQ_DEVICE_ID;
-			break;
-		case 6:
-		case 7:
-		case 0x10:
-		case 0x11://BC/MC in PS (HIQ)
-		case 0x12:
-			addr = WLAN_TX_HIQ_DEVICE_ID;
-			break;
-		default:
-			addr = WLAN_TX_LOQ_DEVICE_ID;
-			break;
-	}
-
-	return addr;
-}
-
 
 /*
  * Description:
@@ -155,9 +146,9 @@ InsertEMContent_8188E(
 	#ifdef DBG_EMINFO
 	{
 		int i;
-		printk("\n%s ==> pEMInfo->EMPktNum =%d\n",__FUNCTION__,pEMInfo->EMPktNum);
+		DBG_8192C("\n%s ==> pEMInfo->EMPktNum =%d\n",__FUNCTION__,pEMInfo->EMPktNum);
 		for(i=0;i< EARLY_MODE_MAX_PKT_NUM;i++){
-			printk("%s ==> pEMInfo->EMPktLen[%d] =%d\n",__FUNCTION__,i,pEMInfo->EMPktLen[i]);
+			DBG_8192C("%s ==> pEMInfo->EMPktLen[%d] =%d\n",__FUNCTION__,i,pEMInfo->EMPktLen[i]);
 		}
 
 	}
@@ -237,12 +228,12 @@ void UpdateEarlyModeInfo8188E(struct xmit_priv *pxmitpriv,struct xmit_buf *pxmit
 	pmem= pframe->buf_addr;
 
 	#ifdef DBG_EMINFO
-	printk("\n%s ==> agg_num:%d\n",__FUNCTION__, pframe->agg_num);
+	DBG_8192C("\n%s ==> agg_num:%d\n",__FUNCTION__, pframe->agg_num);
 	for(index=0;index<pframe->agg_num;index++){
 		offset = 	pxmitpriv->agg_pkt[index].offset;
 		pktlen = pxmitpriv->agg_pkt[index].pkt_len;
-		printk("%s ==> agg_pkt[%d].offset=%d\n",__FUNCTION__,index,offset);
-		printk("%s ==> agg_pkt[%d].pkt_len=%d\n",__FUNCTION__,index,pktlen);
+		DBG_8192C("%s ==> agg_pkt[%d].offset=%d\n",__FUNCTION__,index,offset);
+		DBG_8192C("%s ==> agg_pkt[%d].pkt_len=%d\n",__FUNCTION__,index,pktlen);
 	}
 	#endif
 
@@ -287,7 +278,7 @@ void UpdateEarlyModeInfo8188E(struct xmit_priv *pxmitpriv,struct xmit_buf *pxmit
 			}
 
 			#ifdef DBG_EMINFO
-			printk("%s ==> desc.pkt_len=%d\n",__FUNCTION__,ptxdesc->pktlen);
+			DBG_8192C("%s ==> desc.pkt_len=%d\n",__FUNCTION__,ptxdesc->pktlen);
 			#endif
 			InsertEMContent_8188E(&eminfo,pEMInfo_mem);
 		}

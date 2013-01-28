@@ -149,10 +149,13 @@ odm_ConfigBB_PHY_REG_PG_8188E(
 		ODM_delay_us(5);
 	else if (Addr == 0xf9)
 		ODM_delay_us(1);
-    // TODO: ODM_StorePwrIndexDiffRateOffset(...)
-	// storePwrIndexDiffRateOffset(Adapter, Addr, Bitmask, Data);
 
-    ODM_RT_TRACE(pDM_Odm,ODM_COMP_INIT, ODM_DBG_TRACE, ("===> ODM_ConfigBBWithHeaderFile: [PHY_REG] %08X %08X %08X\n", Addr, Bitmask, Data));
+	ODM_RT_TRACE(pDM_Odm,ODM_COMP_INIT, ODM_DBG_LOUD, ("===> @@@@@@@ ODM_ConfigBBWithHeaderFile: [PHY_REG] %08X %08X %08X\n", Addr, Bitmask, Data));
+
+#if	!(DM_ODM_SUPPORT_TYPE&ODM_AP)
+	storePwrIndexDiffRateOffset(pDM_Odm->Adapter, Addr, Bitmask, Data);
+#endif
+
 }
 
 void

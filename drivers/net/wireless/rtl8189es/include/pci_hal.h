@@ -71,6 +71,7 @@
 #define HAL_HW_PCI_8192CU_DEVICE_ID      	0x8191	//8192ce
 #define HAL_HW_PCI_8192DE_DEVICE_ID		0x8193	//8192de
 #define HAL_HW_PCI_002B_DEVICE_ID			0x002B	//8192de, provided by HW SD
+#define HAL_HW_PCI_8188EE_DEVICE_ID		0x8179
 
 #define HAL_MEMORY_MAPPED_IO_RANGE_8190PCI 		0x1000     //8190 support 16 pages of IO registers
 #define HAL_HW_PCI_REVISION_ID_8190PCI			0x00
@@ -164,6 +165,12 @@ void rtl8192ce_set_hal_ops(_adapter * padapter);
 #ifdef CONFIG_RTL8192D
 void rtl8192de_set_hal_ops(_adapter * padapter);
 #define hal_set_hal_ops	rtl8192de_set_hal_ops
+#endif
+
+
+#ifdef CONFIG_RTL8188E
+void rtl8188ee_set_hal_ops(_adapter * padapter);
+#define hal_set_hal_ops	rtl8188ee_set_hal_ops
 #endif
 
 #endif //__PCIE_HAL_H__
