@@ -733,7 +733,7 @@ static int ehci_run (struct usb_hcd *hcd)
 	u32			hcc_params;
 
 	hcd->uses_new_polling = 1;
-	printk("Line:%d:%s\n", __LINE__, __func__);
+	printk("[%s %d]\n", __func__, __LINE__);
 
 	/* EHCI spec section 4.1 */
 

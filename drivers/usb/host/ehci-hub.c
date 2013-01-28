@@ -565,7 +565,6 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 	int		ports, i, retval = 1;
 	unsigned long	flags;
 	u32		ppcd = 0;
-	printk("Line:%d:%s\n", __LINE__, __func__);
 
 	/* if !USB_SUSPEND, root hub timers won't get shut down ... */
 	if (ehci->rh_state != EHCI_RH_RUNNING)
@@ -1088,7 +1087,6 @@ error_exit:
 static void ehci_relinquish_port(struct usb_hcd *hcd, int portnum)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
-	printk("Line:%d:%s\n", __LINE__, __func__);
 
 	if (ehci_is_TDI(ehci))
 		return;

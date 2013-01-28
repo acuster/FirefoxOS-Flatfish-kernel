@@ -429,6 +429,7 @@ struct ehci_iso_stream {
 
 	/* output of (re)scheduling */
 	int			next_uframe;
+	ktime_t     next_ktime;
 	__hc32			splits;
 
 	/* the rest is derived from the endpoint descriptor,

@@ -1454,7 +1454,8 @@ iso_stream_schedule (
 		 * slot, not the time of the next available slot.
 		 */
 		excess = (stream->next_uframe - period - next) & (mod - 1);
-		if (excess >= mod - 2 * SCHEDULE_SLOP)
+		//if (excess >= mod - 2 * SCHEDULE_SLOP)
+		if (ktime_us_delta(stream->next_ktime, ktime_get()) < 0)
 			start = next + excess - mod + period *
 					DIV_ROUND_UP(mod - excess, period);
 		else
@@ -1614,6 +1615,16 @@ itd_link (struct ehci_hcd *ehci, unsigned frame, struct ehci_itd *itd)
 	*hw_p = cpu_to_hc32(ehci, itd->itd_dma | Q_TYPE_ITD);
 }
 
+static void get_next_uframe_ktime(struct ehci_hcd *ehci,
+	struct ehci_iso_stream	*stream)
+{
+	unsigned	mod = ehci->periodic_size << 3;
+	u32 		now =
+		ehci_readl(ehci, &ehci->regs->frame_index) & (mod - 1);
+
+	stream->next_ktime = ktime_add_us(ktime_get(),
+			((stream->next_uframe - now) & (mod - 1)) * 125);
+}
 /* fit urb's itds into the selected schedule slot; activate as needed */
 static int
 itd_link_urb (
@@ -1681,7 +1692,7 @@ itd_link_urb (
 		}
 	}
 	stream->next_uframe = next_uframe;
-
+    get_next_uframe_ktime(ehci, stream);
 	/* don't need that schedule data any more */
 	iso_sched_free (stream, iso_sched);
 	urb->hcpriv = NULL;
