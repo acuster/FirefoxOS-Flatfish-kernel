@@ -432,14 +432,14 @@ struct axp_mfd_chip_ops {
 #define AXP20_IRQ_USBVA     ( 1 << 29)
 #define AXP20_IRQ_NOECLO     ( 1 << 30)
 #define AXP20_IRQ_NOEOPE     ( 1 << 31)
-#define AXP20_IRQ_GPIO0TG     ( 1 << 32)
-#define AXP20_IRQ_GPIO1TG     ( 1 << 33)
-#define AXP20_IRQ_GPIO2TG     ( 1 << 34)
-#define AXP20_IRQ_GPIO3TG     ( 1 << 35)
+#define AXP20_IRQ_GPIO0TG     ((uint64_t)1 << 32)
+#define AXP20_IRQ_GPIO1TG     ((uint64_t)1 << 33)
+#define AXP20_IRQ_GPIO2TG     ((uint64_t)1 << 34)
+#define AXP20_IRQ_GPIO3TG     ((uint64_t)1 << 35)
 
-#define AXP20_IRQ_PEKFE     ( (uint64_t)1 << 37)
-#define AXP20_IRQ_PEKRE     ( (uint64_t)1 << 38)
-#define AXP20_IRQ_TIMER     ( (uint64_t)1 << 39)
+#define AXP20_IRQ_PEKFE     ((uint64_t)1 << 37)
+#define AXP20_IRQ_PEKRE     ((uint64_t)1 << 38)
+#define AXP20_IRQ_TIMER     ((uint64_t)1 << 39)
 
 /* Status Query Interface */
 /*  AXP18  */

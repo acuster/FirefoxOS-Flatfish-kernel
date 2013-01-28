@@ -477,7 +477,7 @@ static int __init axp_regulator_init(void)
 {
 	return platform_driver_register(&axp_regulator_driver);
 }
-module_init(axp_regulator_init);
+subsys_initcall(axp_regulator_init);
 
 static void __exit axp_regulator_exit(void)
 {

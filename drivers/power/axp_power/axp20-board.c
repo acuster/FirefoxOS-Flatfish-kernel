@@ -749,7 +749,7 @@ if (pmu_used)
         return -1;
 
 }
-fs_initcall(axp_board_init);
+arch_initcall(axp_board_init);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Krosspower axp board");

@@ -291,9 +291,9 @@ static int __devinit axp_mfd_probe(struct i2c_client *client,
 	chip = kzalloc(sizeof(struct axp_mfd_chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
-    printk("-------------------------------------------");
+    printk("-------------------------------------------\n");
     printk("%s:%s pmu probed !\n",__FUNCTION__,id->name);
-    printk("-------------------------------------------");
+    printk("-------------------------------------------\n");
 	axp = client;
 
 	chip->client = client;
@@ -334,7 +334,9 @@ static int __devinit axp_mfd_probe(struct i2c_client *client,
 
 	ret = axp_mfd_create_attrs(chip);
 	if(ret){
-		return ret;
+         printk("%s:%s pmu create_attrs failed !\n",__FUNCTION__,id->name);
+         pm_power_off=NULL;
+         goto out_free_irq;
 	}
 
 	/* set ac/usb_in shutdown mean restart */
@@ -384,7 +386,7 @@ static int __init axp_mfd_init(void)
 {
 	return i2c_add_driver(&axp_mfd_driver);
 }
-subsys_initcall(axp_mfd_init);
+arch_initcall(axp_mfd_init);
 
 static void __exit axp_mfd_exit(void)
 {

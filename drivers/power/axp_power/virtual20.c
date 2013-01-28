@@ -286,9 +286,11 @@ static int regulator_virtual_consumer_probe(struct platform_device *pdev)
 	//drvdata->regulator = regulator_get(NULL, "axp20_analog/fm");
 	if (IS_ERR(drvdata->regulator)) {
 		ret = PTR_ERR(drvdata->regulator);
+        printk(KERN_ERR "%s:can't get regulator: %s\n",__FUNCTION__,reg_id);
 		goto err;
 	}
 
+	 printk(KERN_DEBUG "%s:get regulator:%s ok\n",__FUNCTION__,reg_id);
 	for (i = 0; i < ARRAY_SIZE(attributes_virtual); i++) {
 		ret = device_create_file(&pdev->dev, attributes_virtual[i]);
 		if (ret != 0)
