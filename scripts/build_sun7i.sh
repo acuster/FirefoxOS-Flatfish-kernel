@@ -1,7 +1,17 @@
-#!/bin/bash
+# scripts/build_sun7i.h
+#
+# (c) Copyright 2013
+# Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+# James Deng <csjamesdeng@allwinnertech.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
 set -e
 
-#Setup common variables
+# Setup common variables
 export ARCH=arm
 export CROSS_COMPILE=arm-linux-gnueabi-
 export AS=${CROSS_COMPILE}as
@@ -15,257 +25,214 @@ export OBJDUMP=${CROSS_COMPILE}objdump
 
 KERNEL_VERSION="3.3"
 LICHEE_KDIR=`pwd`
-LICHEE_MOD_DIR==${LICHEE_KDIR}/output/lib/modules/${KERNEL_VERSION}
-
-#CONFIG_CHIP_ID=1125
-
-update_kern_ver()
-{
-#	if [ -r include/generated/utsrelease.h ]; then
-#		KERNEL_VERSION=`cat include/generated/utsrelease.h |awk -F\" '{print $2}'`
-#	fi
-	LICHEE_MOD_DIR=${LICHEE_KDIR}/output/lib/modules/${KERNEL_VERSION}
-}
-
-show_help()
-{
-	printf "
-Build script for Lichee platform
-
-Invalid Options:
-
-	help         - show this help
-	kernel       - build kernel
-	modules      - build kernel module in modules dir
-	clean        - clean kernel and modules
-
-"
-}
+LICHEE_MOD_DIR=${LICHEE_KDIR}/output/lib/modules/${KERNEL_VERSION}
 
 build_standby()
 {
-	echo "build standby"
-	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} KDIR=${LICHEE_KDIR} \
-		-C ${LICHEE_KDIR}/arch/arm/mach-sun7i/pm/standby all
+    echo "build standby"
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} KDIR=${LICHEE_KDIR} \
+        -C ${LICHEE_KDIR}/arch/arm/mach-sun7i/pm/standby all
 }
 
 NAND_ROOT=${LICHEE_KDIR}/modules/nand
 
 build_nand_lib()
 {
-	echo "build nand library ${NAND_ROOT}/lib"
-	if [ -d ${NAND_ROOT}/lib ]; then
-		echo "build nand library now"
-	make -C modules/nand/lib clean	2>/dev/null
-	make -C modules/nand/lib lib install
-	else
-		echo "build nand with existing library"
-	fi
+    echo "build nand library ${NAND_ROOT}/lib"
+    if [ -d ${NAND_ROOT}/lib ]; then
+        echo "build nand library now"
+        make -C modules/nand/lib clean 2> /dev/null
+        make -C modules/nand/lib lib install
+    else
+        echo "build nand with existing library"
+    fi
 }
 
 copy_nand_mod()
 {
-
-    cd $LICHEE_KDIR
+    cd ${LICHEE_KDIR}
     if [ -x "./scripts/build_rootfs.sh" ]; then
-        ./scripts/build_rootfs.sh e rootfs.cpio.gz >/dev/null
+        ./scripts/build_rootfs.sh e rootfs.cpio.gz > /dev/null
     else
-        echo "No such file: build_rootfs.sh"
+        echo "No such file: scripts/build_rootfs.sh"
         exit 1
     fi
 
-    if [ ! -d "./skel/lib/modules/$KERNEL_VERSION" ]; then
-        mkdir -p ./skel/lib/modules/$KERNEL_VERSION
-    fi
-    cp $LICHEE_MOD_DIR/nand.ko ./skel/lib/modules/$KERNEL_VERSION
+    mkdir -p ./skel/lib/modules/${KERNEL_VERSION}
+    cp ${LICHEE_MOD_DIR}/nand.ko ./skel/lib/modules/${KERNEL_VERSION}
     if [ $? -ne 0 ]; then
         echo "copy nand module error: $?"
         exit 1
     fi
-    if [ -f "./rootfs.cpio.gz" ]; then
-        rm rootfs.cpio.gz
-    fi
-    ./scripts/build_rootfs.sh c rootfs.cpio.gz >/dev/null
-#    rm -rf skel
 
+    rm -f rootfs.cpio.gz
+    ./scripts/build_rootfs.sh c rootfs.cpio.gz > /dev/null
+    rm -rf skel
 }
 
 build_kernel()
 {
-	if [ ! -e .config ]; then
-		echo -e "\n\t\tUsing default config... ...!\n"
-		cp arch/arm/configs/sun7ismp_defconfig .config
-	fi
+    echo "Building kernel"
 
-#	build_standby
-	make ARCH=arm CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage modules
-	build_standby
+    if [ ! -f .config ] ; then
+        printf "\nUsing default config ...\n\n"
+        cp arch/arm/configs/${LICHEE_KERN_DEFCONF} .config
+    fi
 
-	${OBJCOPY} -R .note.gnu.build-id -S -O binary vmlinux bImage
+    make ARCH=arm CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage modules
+    build_standby
 
-	update_kern_ver
+    ${OBJCOPY} -R .note.gnu.build-id -S -O binary vmlinux bImage
 
-	if [ -d output ]; then
-		rm -rf output
-	fi
-	mkdir -p $LICHEE_MOD_DIR
-	cp bImage output/
-	cp -vf arch/arm/boot/[zu]Image output/
-	cp .config output/
+    rm -rf output
+    mkdir -p ${LICHEE_MOD_DIR}
+    cp bImage output/
+    cp -f arch/arm/boot/[zu]Image output/
+    cp .config output/
 
+    for file in $(find drivers sound crypto block fs security net -name "*.ko"); do
+        cp $file ${LICHEE_MOD_DIR}
+    done
+    cp -f Module.symvers ${LICHEE_MOD_DIR}
 
-	for file in $(find drivers sound crypto block fs security net -name "*.ko"); do
-		cp $file ${LICHEE_MOD_DIR}
-	done
-	cp -f Module.symvers ${LICHEE_MOD_DIR}
-
-	#copy bcm4330 firmware and nvram.txt
-#	cp drivers/net/wireless/bcm4330/firmware/bcm4330.bin ${LICHEE_MOD_DIR}
-#	cp drivers/net/wireless/bcm4330/firmware/bcm4330.hcd ${LICHEE_MOD_DIR}
-#	cp drivers/net/wireless/bcm4330/firmware/nvram.txt ${LICHEE_MOD_DIR}/bcm4330_nvram.txt
-	echo "sun7i compile successful"
+    #cp drivers/net/wireless/bcm4330/firmware/bcm4330.bin ${LICHEE_MOD_DIR}
+    #cp drivers/net/wireless/bcm4330/firmware/bcm4330.hcd ${LICHEE_MOD_DIR}
+    #cp drivers/net/wireless/bcm4330/firmware/nvram.txt ${LICHEE_MOD_DIR}/bcm4330_nvram.txt
 }
 
 build_modules()
 {
-	echo "Building modules"
+    echo "Building modules"
 
-	if [ ! -f include/generated/utsrelease.h ]; then
-		printf "Please build kernel first!\n"
-		exit 1
-	fi
+    if [ ! -f include/generated/utsrelease.h ]; then
+        printf "Please build kernel first\n"
+        exit 1
+    fi
 
-	update_kern_ver
+    make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
+        install
 
-	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
-		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
+    make -C modules/axp_gpio_test LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
+        install
 
-	make -C modules/axp_gpio_test LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
-		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
-
-	build_nand_lib
-	make -C modules/nand LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
-	CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
-	copy_nand_mod
+    build_nand_lib
+    make -C modules/nand LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
+        install
+    copy_nand_mod
 
     (
-	export LANG=en_US.UTF-8
-	unset LANGUAGE
-	make -C modules/mali LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
-		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
-	)
+    export LANG=en_US.UTF-8
+    unset LANGUAGE
+    make -C modules/mali LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
+        install
+    )
 
-#	#build ar6302 sdio wifi module
-#	make -C modules/wifi/ar6302/AR6K_SDK_ISC.build_3.1_RC.329/host CROSS_COMPILE=${CROSS_COMPILE} \
-#	        ARCH=arm KERNEL_DIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} INSTALL_DIR=${LICHEE_MOD_DIR} \
-#	        all install
-#	#build ar6003 sdio wifi module
-#	make -C modules/wifi/ar6003/AR6kSDK.build_3.1_RC.514/host CROSS_COMPILE=${CROSS_COMPILE} \
-#	        ARCH=arm KERNEL_DIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} INSTALL_DIR=${LICHEE_MOD_DIR} \
-#	        all
-#	#build usi-bmc4329 sdio wifi module
-#	make -C modules/wifi/usi-bcm4329/v4.218.248.15/open-src/src/dhd/linux \
-#		CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
-#		LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} \
-#		INSTALL_DIR=${LICHEE_MOD_DIR} dhd-cdc-sdmmc-gpl
-#	#build bcm40181 sdio wifi module 5.90.125.69.2
-#	make -C modules/wifi/bcm40181/5.90.125.69.2/open-src/src/dhd/linux \
-#		CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
-#		LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} \
-#		INSTALL_DIR=${LICHEE_MOD_DIR} OEM_ANDROID=1 dhd-cdc-sdmmc-gpl
-#	#build bcm40183 sdio wifi module
-#	make -C modules/wifi/bcm40183/5.90.125.95.3/open-src/src/dhd/linux \
-#		CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
-#		LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} \
-#		INSTALL_DIR=${LICHEE_MOD_DIR} OEM_ANDROID=1 dhd-cdc-sdmmc-gpl
+    ##build ar6302 sdio wifi module
+    #make -C modules/wifi/ar6302/AR6K_SDK_ISC.build_3.1_RC.329/host CROSS_COMPILE=${CROSS_COMPILE} \
+    #    ARCH=arm KERNEL_DIR=${LICHEE_KDIR} INSTALL_DIR=${LICHEE_MOD_DIR} \
+    #    all install
+    ##build ar6003 sdio wifi module
+    #make -C modules/wifi/ar6003/AR6kSDK.build_3.1_RC.514/host CROSS_COMPILE=${CROSS_COMPILE} \
+    #    ARCH=arm KERNEL_DIR=${LICHEE_KDIR} INSTALL_DIR=${LICHEE_MOD_DIR} \
+    #    all
+    ##build usi-bmc4329 sdio wifi module
+    #make -C modules/wifi/usi-bcm4329/v4.218.248.15/open-src/src/dhd/linux \
+    #    CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
+    #    LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} \
+    #    INSTALL_DIR=${LICHEE_MOD_DIR} dhd-cdc-sdmmc-gpl
+    ##build bcm40181 sdio wifi module 5.90.125.69.2
+    #make -C modules/wifi/bcm40181/5.90.125.69.2/open-src/src/dhd/linux \
+    #    CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
+    #    LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} \
+    #    INSTALL_DIR=${LICHEE_MOD_DIR} OEM_ANDROID=1 dhd-cdc-sdmmc-gpl
+    ##build bcm40183 sdio wifi module
+    #make -C modules/wifi/bcm40183/5.90.125.95.3/open-src/src/dhd/linux \
+    #    CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
+    #    LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} \
+    #    INSTALL_DIR=${LICHEE_MOD_DIR} OEM_ANDROID=1 dhd-cdc-sdmmc-gpl
 }
 
 build_ramfs()
 {
-		cp rootfs.cpio.gz output/
-        mkbootimg --kernel output/bImage \
-                        --ramdisk rootfs.cpio.gz \
-                        --board 'sun7i' \
-                        --base 0x40000000 \
-                        -o output/boot.img
-
-        echo build_ramfs
+    echo "Building ramfs"
+    ${LICHEE_TOOLS_DIR}/pack/pctools/linux/android/mkbootimg \
+        --kernel output/bImage \
+        --ramdisk rootfs.cpio.gz \
+        --board 'sun7i' \
+        --base 0x40000000 \
+        -o output/boot.img
+    echo "Copy boot.img to output directory ..."
+    cp output/boot.img ${LICHEE_PLAT_OUT}
 }
 
+regen_rootfs()
+{
+    if [ -d ${LICHEE_BR_OUT}/target ] ; then
+        echo "Copy modules to target ..."
+        local module_dir="${LICHEE_BR_OUT}/target/lib/modules"
+        rm -rf ${module_dir}
+        mkdir -p ${module_dir}
+        cp -rf ${LICHEE_MOD_DIR} ${module_dir}
+    fi
+}
 
 clean_kernel()
 {
-	make clean
-	rm -rf output/*
-
-
-
+    make clean
+    rm -rf output/*
 }
 
 clean_modules()
 {
-	echo "Cleaning modules"
-	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
+    echo "Cleaning modules"
+    make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
 
-#	(
-#	export LANG=en_US.UTF-8
-#	unset LANGUAGE
-#	make -C modules/mali LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
-#	)
+    (
+    export LANG=en_US.UTF-8
+    unset LANGUAGE
+    make -C modules/mali LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
+    )
 
-#	#build ar6302 sdio wifi module
-#	make -C modules/wifi/ar6302/AR6K_SDK_ISC.build_3.1_RC.329/host CROSS_COMPILE=${CROSS_COMPILE} \
-#	        ARCH=arm KERNEL_DIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} INSTALL_DIR=${LICHEE_MOD_DIR} \
-#	        clean
-#	#build ar6003 sdio wifi module
-#	make -C modules/wifi/ar6003/AR6kSDK.build_3.1_RC.514/host CROSS_COMPILE=${CROSS_COMPILE} \
-#	        ARCH=arm KERNEL_DIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} INSTALL_DIR=${LICHEE_MOD_DIR} \
-#	        clean
-#	#build usi-bmc4329 sdio wifi module
-#	make -C modules/wifi/usi-bcm4329/v4.218.248.15/open-src/src/dhd/linux \
-#		CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
-#		LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} \
-#		INSTALL_DIR=${LICHEE_MOD_DIR} clean
-#	#build bcm40181 sdio wifi module 5.90.125.69.2
-#	make -C modules/wifi/bcm40181/5.90.125.69.2/open-src/src/dhd/linux \
-#		CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
-#		LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} \
-#		INSTALL_DIR=${LICHEE_MOD_DIR} clean
-#	#build bcm40183 sdio wifi module
-#	make -C modules/wifi/bcm40183/5.90.125.95.3/open-src/src/dhd/linux \
-#		CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
-#		LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} \
-#		INSTALL_DIR=${LICHEE_MOD_DIR} OEM_ANDROID=1 clean
+    ##build ar6302 sdio wifi module
+    #make -C modules/wifi/ar6302/AR6K_SDK_ISC.build_3.1_RC.329/host CROSS_COMPILE=${CROSS_COMPILE} \
+    #    ARCH=arm KERNEL_DIR=${LICHEE_KDIR} INSTALL_DIR=${LICHEE_MOD_DIR} \
+    #    clean
+    ##build ar6003 sdio wifi module
+    #make -C modules/wifi/ar6003/AR6kSDK.build_3.1_RC.514/host CROSS_COMPILE=${CROSS_COMPILE} \
+    #    ARCH=arm KERNEL_DIR=${LICHEE_KDIR} INSTALL_DIR=${LICHEE_MOD_DIR} \
+    #    clean
+    ##build usi-bmc4329 sdio wifi module
+    #make -C modules/wifi/usi-bcm4329/v4.218.248.15/open-src/src/dhd/linux \
+    #    CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
+    #    LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} \
+    #    INSTALL_DIR=${LICHEE_MOD_DIR} clean
+    ##build bcm40181 sdio wifi module 5.90.125.69.2
+    #make -C modules/wifi/bcm40181/5.90.125.69.2/open-src/src/dhd/linux \
+    #    CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
+    #    LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} \
+    #    INSTALL_DIR=${LICHEE_MOD_DIR} clean
+    ##build bcm40183 sdio wifi module
+    #make -C modules/wifi/bcm40183/5.90.125.95.3/open-src/src/dhd/linux \
+    #    CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
+    #    LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} \
+    #    INSTALL_DIR=${LICHEE_MOD_DIR} OEM_ANDROID=1 clean
 }
 
-#####################################################################
-#
-#                      Main Runtine
-#
-#####################################################################
-
-LICHEE_ROOT=`(cd ${LICHEE_KDIR}/..; pwd)`
-export PATH=${LICHEE_ROOT}/buildroot/output/external-toolchain/bin:${LICHEE_ROOT}/tools/pack/pctools/linux/android:$PATH
-
 case "$1" in
-kernel)
-	build_kernel
-	;;
-modules)
-	build_modules
-	;;
-clean)
-	clean_kernel
-	clean_modules
-	;;
-all)
-	build_kernel
-	build_modules
-	build_ramfs
-	;;
-*)
-	build_kernel
-	#show_help
-	;;
+    kernel)
+        build_kernel
+        ;;
+    modules)
+        build_modules
+        ;;
+    clean)
+        clean_kernel
+        clean_modules
+        ;;
+    *)
+        build_kernel
+        build_modules
+        build_ramfs
+        regen_rootfs
+        ;;
 esac
-echo "sun7i compile successful"
