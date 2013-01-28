@@ -12,6 +12,7 @@
 #include <mach/ccmu.h>
 #include <mach/hardware.h>
 #include "pm.h"
+#include "mem_mapping.h"
 
 #include "standby/super/super_clock.h"
 #include "standby/super/super_power.h"
@@ -31,6 +32,7 @@ typedef struct __MEM_TWIC_REG
     volatile __u32 reg_lctl;
 
 } __mem_twic_reg_t;
+
 
 struct gic_distributor_state{
 	//distributor
@@ -97,19 +99,10 @@ struct gic_cpu_interface_disc{
 	volatile __u32 reserved11;				//0ffset 0x1000, readonly or writeonly
 
 };
+
 struct gic_state{
 	struct gic_distributor_state m_distributor;
 	struct gic_cpu_interface_state m_interface;
-};
-
-struct clk_state{
-	__ccmu_reg_list_t   *CmuReg;
-	__u32    ccu_reg_back[15];
-};
-
-struct tmr_state{
-	__mem_tmr_reg_t  *TmrReg;
-	__u32 TmrIntCtl, Tmr0Ctl, Tmr0IntVal, Tmr0CntVal, Tmr1Ctl, Tmr1IntVal, Tmr1CntVal;
 };
 
 struct twi_state{
@@ -126,12 +119,6 @@ struct sram_state{
 };
 
 //save module state
-__s32 mem_int_save(struct gic_state *pint_state);
-__s32 mem_int_restore(struct gic_state *pint_state);
-__s32 mem_clk_save(struct clk_state *pclk_state);
-__s32 mem_clk_restore(struct clk_state *pclk_state);
-__s32 mem_tmr_save(struct tmr_state *ptmr_state);
-__s32 mem_tmr_restore(struct tmr_state *ptmr_state);
 __s32 mem_twi_save(struct twi_state *ptwi_state);
 __s32 mem_twi_restore(struct twi_state *ptwi_state);
 __s32 mem_gpio_save(struct gpio_state *pgpio_state);
@@ -140,7 +127,5 @@ __s32 mem_sram_save(struct sram_state *psram_state);
 __s32 mem_sram_restore(struct sram_state *psram_state);
 __s32 mem_ccu_save(__ccmu_reg_list_t *pReg);
 __s32 mem_ccu_restore(__ccmu_reg_list_t *pReg);
-void mem_serial_init(void);
-__u32 mem_serial_puts(char* buf, __u32 n);
 
 #endif /*_PM_I_H*/

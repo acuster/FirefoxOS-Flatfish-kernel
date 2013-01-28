@@ -1,7 +1,7 @@
 /*
 *********************************************************************************************************
 *                                                    LINUX-KERNEL
-*                                        AllWinner Linux Platform Develop Kits
+*                                        newbie Linux Platform Develop Kits
 *                                                   Kernel Module
 *
 *                                    (c) Copyright 2006-2011, kevin.z China

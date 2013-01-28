@@ -281,7 +281,7 @@ static __s32 suspend_with_nommu(void)
 
 #ifdef JUMP_WITH_NOMMU
 			//jump_to_resume0_nommu(0x40100000);
-			jump_to_resume0(0x40100000);
+			jump_to_resume0(DRAM_BACKUP_BASE_ADDR_PA);
 #endif
 
 #ifdef MEM_POWER_OFF
@@ -295,9 +295,10 @@ static __s32 suspend_with_nommu(void)
 
             if (likely(mem_para_info.axp_enable))
             {
-                while(mem_power_off_nommu()&&--retry){
+                int ret;
+                while(ret = mem_power_off_nommu()&&--retry){
                     if(unlikely((mem_para_info.debug_mask)&PM_STANDBY_PRINT_STANDBY)){
-                        printk_nommu("notify pmu to power off: failed one time, retry.... \n");
+                        printk_nommu("notify pmu to power off:%d: failed one time, retry.... \n", ret);
                     }
                     ;
                 }
@@ -345,7 +346,7 @@ static __s32 suspend_with_mmu(void)
 #endif
 
 #ifdef WITH_MMU
-	jump_to_resume0(0xc0100000);
+	jump_to_resume0(DRAM_BACKUP_BASE_ADDR);
 #endif
 
 	return 0;

@@ -167,10 +167,10 @@ __s32 mem_clk_set_pll_factor(struct pll_factor_t *pll_factor)
 {
 
 	CmuReg = (__ccmu_reg_list_t *)SW_VA_CCM_IO_BASE;
-	CmuReg->Pll1Ctl.FactorN = pll_factor->FactorN;
 	CmuReg->Pll1Ctl.FactorK = pll_factor->FactorK;
 	CmuReg->Pll1Ctl.FactorM = pll_factor->FactorM;
 	CmuReg->Pll1Ctl.PLLDivP = pll_factor->FactorP;
+	CmuReg->Pll1Ctl.FactorN = pll_factor->FactorN;
 
 	//busy_waiting();
 

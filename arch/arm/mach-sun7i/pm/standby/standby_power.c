@@ -17,6 +17,13 @@
 */
 #include "standby_i.h"
 
+#ifdef  CONFIG_ARCH_SUN7I
+#define NMI_CTL_REG            (0xf1c00030)
+#define NMI_IRG_PENDING_REG    (0xf1c00034)
+#define NMI_INT_ENABLE_REG     (0xf1c00038)
+#endif
+#define writel(v, addr)	(*((volatile unsigned long  *)(addr)) = (unsigned long)(v))
+
 
 //==============================================================================
 // POWER CHECK FOR SYSTEM STANDBY
@@ -103,7 +110,12 @@ __s32 standby_power_init(__u32 wakeup_src)
 		twi_byte_rw(TWI_OP_WR, AXP_ADDR,AXP20_IRQEN1, &reg_val);
 	}
 
-	return 0;
+#ifdef CONFIG_ARCH_SUN7I
+    writel(0x1,NMI_INT_ENABLE_REG);
+#endif
+
+
+    return 0;
 }
 
 
@@ -181,8 +193,11 @@ __s32 standby_power_exit(__u32 wakeup_src)
 		twi_byte_rw(TWI_OP_WR, AXP_ADDR,AXP20_IRQEN1, &reg_val);
 	}
 
-	standby_twi_exit();
-	return 0;
+#ifdef CONFIG_ARCH_SUN7I
+    writel(0x0,NMI_INT_ENABLE_REG);
+#endif
+    standby_twi_exit();
+    return 0;
 }
 
 

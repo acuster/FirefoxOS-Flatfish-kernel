@@ -12,6 +12,8 @@
 #include "pm_types.h"
 #include "./pm.h"
 
+struct saved_context saved_context;
+
 static struct saved_context default_copro_value = {
 	/* CR0 */
 	.cssr = 0x00000002,		 /* Cache Size Selection */
@@ -26,7 +28,7 @@ static struct saved_context default_copro_value = {
 #elif defined(CORTEX_A9)
 #elif defined(CORTEX_A7)
 	.cr = 0x00C50878,		/* Control */
-	.acr = 0x00006040,		/* Auxiliary Control Register*/
+	.acr = 0x00006040,		/* Auxiliary Control Register: needed for smp*/
 	.cacr = 0x00000000,		/* Coprocessor Access Control */
 	.sccfgr = 0x00000000,		/* Secure Config Register*/
 	.scdbgenblr = 0x00000000,	/* Secure Debug Enable Register*/
@@ -112,6 +114,10 @@ static struct saved_context default_copro_value = {
 	.potpid = 0x00000000,		/* Privileged only Thread and Process ID */
 
 };
+
+/*__save_processor_state: store the co-processor state into to location point by ctxt
+*@ctxt: indicate where to store co-processor state.
+*/
 void __save_processor_state(struct saved_context *ctxt)
 {
 	/* CR0 */
@@ -250,6 +256,9 @@ void __save_processor_state(struct saved_context *ctxt)
 #endif
 }
 
+/*__restore_processor_state: restore the co-processor state according the info point by ctxt
+*@ctxt: indicate where to get the backuped co-processor state.
+*/
 void __restore_processor_state(struct saved_context *ctxt)
 {
 	/* CR0 */
@@ -346,11 +355,8 @@ void __restore_processor_state(struct saved_context *ctxt)
 	asm volatile ("isb");
 }
 
-void mem_restore_processor_state(struct saved_context *ctxt)
-{
-	return;
-}
-
+/*disable_cache_invalidate: disable invalidate cache when cpu reset.
+*/
 void disable_cache_invalidate(void)
 {
 	#define CPU_CONFIG_REG (0XF1C20D3C)
@@ -362,6 +368,9 @@ void disable_cache_invalidate(void)
 	return;
 }
 
+/*set_copro_default: set co-processor to default state.
+*note: the api will effect visible addr space, be careful to call it.
+*/
 void set_copro_default(void)
 {
 	struct saved_context *ctxt = &default_copro_value;
@@ -449,5 +458,34 @@ void set_copro_default(void)
 	asm volatile ("mcr p15, 0, %0, c13, c0, 2" : : "r"(ctxt->urwtpid));
 	asm volatile ("mcr p15, 0, %0, c13, c0, 3" : : "r"(ctxt->urotpid));
 	asm volatile ("mcr p15, 0, %0, c13, c0, 4" : : "r"(ctxt->potpid));
+	return;
+}
+
+/*save_processor_state: save current co-proccessor state.*/
+void save_processor_state(void)
+{
+	__save_processor_state(&saved_context);
+}
+
+/*restore_processor_state: restore */
+void restore_processor_state(void)
+{
+	__restore_processor_state(&saved_context);
+}
+
+void restore_processor_ttbr0(void)
+{
+	asm volatile ("mcr p15, 0, %0, c2, c0, 0" : : "r"(saved_context.ttb_0r));
+	return;
+}
+
+void set_ttbr0(void)
+{
+	__u32 ttb = 0;
+	//read ttbr1
+	asm volatile ("mrc p15, 0, %0, c2, c0, 1"  : "=r"(ttb));
+	//write ttbr0
+	asm volatile ("mcr p15, 0, %0, c2, c0, 0" : : "r"(ttb));
+	asm volatile ("isb");
 	return;
 }

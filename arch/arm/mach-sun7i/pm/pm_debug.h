@@ -3,7 +3,7 @@
 
 #include "pm_config.h"
 /*
- * Copyright (c) 2011-2015 yanggq.young@newbietech.com
+ * Copyright (c) 2011-2015 yanggq.young@allwinnertech.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by
@@ -26,21 +26,22 @@
 #elif defined(CONFIG_ARCH_SUN6I)
 	#define STATUS_REG (0xf1f00100)
 	#define STATUS_REG_PA (0x01f00100)
-#elif defined(CONFIG_ARCH_SUN7I)
-	#define STATUS_REG (0xf1f00100)
-	#define STATUS_REG_PA (0x01f00100)
+
 #endif
+
 
 
 //#define GET_CYCLE_CNT
 //#define IO_MEASURE
 extern volatile int print_flag;
+
 enum counter_type_e{
 	I_CACHE_MISS = 0X01,
 	I_TLB_MISS = 0X02,
 	D_CACHE_MISS = 0X03,
 	D_TLB_MISS = 0X05,
 };
+
 void set_event_counter(enum counter_type_e type);
 int get_event_counter(enum counter_type_e type);
 void init_event_counter (__u32 do_reset, __u32 enable_divider);
@@ -78,25 +79,16 @@ void busy_waiting(void);
  * in case the data in dram be destoryed result in the system is re-resume in cycle.
 */
 void save_mem_flag(void);
+void clear_mem_flag(void);
 void save_mem_status(volatile __u32 val);
 void save_mem_status_nommu(volatile __u32 val);
 __u32 get_mem_status(void);
 __u32 save_sun5i_mem_status_nommu(volatile __u32 val);
 __u32 save_sun5i_mem_status(volatile __u32 val);
 
-
-void backup_perfcounter(void);
-void restore_perfcounter(void);
-__u32 get_cyclecount (void);
-void init_perfcounters (__u32 do_reset, __u32 enable_divider);
-void reset_counter(void);
-void change_runtime_env(__u32 mmu_flag);
-void delay_us(__u32 us);
-void delay_ms(__u32 ms);
 void io_init(void);
 void io_init_high(void);
 void io_init_low(void);
 void io_high(int num);
-
 
 #endif /*_PM_DEBUG_H*/

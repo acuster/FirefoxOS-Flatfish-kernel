@@ -62,6 +62,8 @@ __s32 mem_ccu_save(__ccmu_reg_list_t *pReg)
 	CmuReg.UsbClk       = pReg->UsbClk;
 //	CmuReg.GpsClk       = pReg->GpsClk;
 	CmuReg.Spi3Clk      = pReg->Spi3Clk;
+	CmuReg.I2s1Clk      = pReg->I2s1Clk;
+	CmuReg.I2s2Clk      = pReg->I2s2Clk;
 	CmuReg.DramGate     = pReg->DramGate;
 	CmuReg.DeBe0Clk     = pReg->DeBe0Clk;
 	CmuReg.DeBe1Clk     = pReg->DeBe1Clk;
@@ -85,6 +87,7 @@ __s32 mem_ccu_save(__ccmu_reg_list_t *pReg)
 	CmuReg.MaliClk      = pReg->MaliClk;
 
 	CmuReg.MBusClk      = pReg->MBusClk;
+	CmuReg.GmacClk      = pReg->GmacClk;
 	CmuReg.ClkOutA      = pReg->ClkOutA;
 	CmuReg.ClkOutB      = pReg->ClkOutB;
 
@@ -139,6 +142,8 @@ __s32 mem_ccu_restore(__ccmu_reg_list_t *pReg)
     pReg->UsbClk        = CmuReg.UsbClk;
 //    pReg->GpsClk        = CmuReg.GpsClk;
     pReg->Spi3Clk       = CmuReg.Spi3Clk;
+	pReg->I2s1Clk       = CmuReg.I2s1Clk;
+	pReg->I2s2Clk       = CmuReg.I2s2Clk;
     pReg->DramGate      = CmuReg.DramGate;
     pReg->DeBe0Clk      = CmuReg.DeBe0Clk;
     pReg->DeBe1Clk      = CmuReg.DeBe1Clk;
@@ -161,7 +166,8 @@ __s32 mem_ccu_restore(__ccmu_reg_list_t *pReg)
     pReg->HdmiClk       = CmuReg.HdmiClk;
     pReg->MaliClk       = CmuReg.MaliClk;
 
-    pReg->MBusClk	= CmuReg.MBusClk;
+    pReg->MBusClk	    = CmuReg.MBusClk;
+    pReg->GmacClk	    = CmuReg.GmacClk;
     pReg->ClkOutA       = CmuReg.ClkOutA;
     pReg->ClkOutB       = CmuReg.ClkOutB;
 

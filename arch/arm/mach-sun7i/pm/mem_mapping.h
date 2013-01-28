@@ -1,29 +1,21 @@
 /*
 *********************************************************************************************************
 *                                                    LINUX-KERNEL
-*                                        newbie Linux Platform Develop Kits
+*                                        AllWinner Linux Platform Develop Kits
 *                                                   Kernel Module
 *
-*                                    (c) Copyright 2006-2011, kevin.z China
+*                                    (c) Copyright 2006-2011, gq.yang China
 *                                             All Rights Reserved
 *
-* File    : standby_ir.h
-* By      : kevin.z
+* File    : mem_mapping.h
+* By      :
 * Version : v1.0
-* Date    : 2011-5-31 15:15
+* Date    : 2012-5-31 14:34
 * Descript:
 * Update  : date                auther      ver     notes
 *********************************************************************************************************
 */
+#ifndef __MEM_MAPPING_H__
+#define __MEM_MAPPING_H__
 
-#ifndef __STANDBY_IR_H__
-#define __STANDBY_IR_H__
-
-#include "standby_cfg.h"
-
-extern __s32 standby_ir_init(void);
-extern __s32 standby_ir_exit(void);
-extern __s32 standby_ir_detect(void);
-extern __s32 standby_ir_verify(void);
-
-#endif  /*__STANDBY_IR_H__*/
+#endif  /* __MEM_MAPPING_H__ */

@@ -42,6 +42,9 @@
 #define SUSPEND_WAKEUP_SRC_ALARM    (1<<4)  /* alarm event  */
 #define SUSPEND_WAKEUP_SRC_TIMEOFF  (1<<5)  /* set time to power off event  */
 
+#define WAKEUP_GPIO_PH(num)     (1 << (num))
+#define WAKEUP_GPIO_PI(num)     (1 << (num + 21))
+//#define WAKEUP_GPIO_AXP(num)    (1 << (num + 24))
 
 /**
 *@brief struct of pmu device arg

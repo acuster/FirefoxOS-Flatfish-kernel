@@ -33,6 +33,7 @@ enum power_vol_type_e{
 };
 
 #define AXP_ADDR        (0x34)
+#define AXP_IICBUS      (0)
 #define AXP20_LDO1      (0x00)
 #define AXP20_LDO2      (0x28)
 #define AXP20_LDO3      (0x29)
@@ -41,7 +42,6 @@ enum power_vol_type_e{
 #define AXP20_BUCK3     (0x27)
 
 #define AXP20_PEK    	(0x36)
-
 #define AXP20_IRQEN1    (0x40)
 #define AXP20_IRQEN2    (0x41)
 #define AXP20_IRQEN3    (0x42)
@@ -77,7 +77,6 @@ struct axp_info {
     int     vol_shift;
     int     vol_nbits;
 };
-
 
 extern __s32 standby_power_init(__u32 wakeup_src);
 extern __s32 standby_power_exit(__u32 wakeup_src);

@@ -20,6 +20,7 @@
 
 #include "../pm_types.h"
 #include "../pm.h"
+#include "../mem_int.h"
 
 #include <linux/power/aw_pm.h>
 #include <mach/platform.h>
@@ -33,7 +34,6 @@
 #include "standby_twi.h"
 #include "standby_ir.h"
 #include "standby_tmr.h"
-#include "standby_int.h"
 
 
 #define readb(addr)		(*((volatile unsigned char  *)(addr)))

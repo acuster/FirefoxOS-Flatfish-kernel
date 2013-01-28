@@ -250,6 +250,7 @@ __s32 twi_byte_rw(enum twi_op_type_e op, __u8 saddr, __u8 baddr, __u8 *data)
     state_tmp = twi_reg->reg_status;
     if(state_tmp != 0xf8)
     {
+	printk("(state_tmp) = 0x%x. %d\n",(state_tmp), __LINE__);
         goto stop_out;
     }
 
@@ -274,6 +275,7 @@ __s32 twi_byte_rw(enum twi_op_type_e op, __u8 saddr, __u8 baddr, __u8 *data)
     state_tmp = twi_reg->reg_status;
     if(state_tmp != 0x08)
     {
+	printk("(state_tmp) = 0x%x. %d\n",(state_tmp), __LINE__);
         goto stop_out;
     }
 
@@ -284,11 +286,13 @@ __s32 twi_byte_rw(enum twi_op_type_e op, __u8 saddr, __u8 baddr, __u8 *data)
     while((!(twi_reg->reg_ctl & 0x08))&&(--timeout));
     if(timeout == 0)
     {
+	printk("(timeout) = 0x%x. \n",(timeout));
         goto stop_out;
     }
     state_tmp = twi_reg->reg_status;
     if(state_tmp != 0x18)
     {
+	printk("(state_tmp) = 0x%x. %d\n",(state_tmp), __LINE__);
         goto stop_out;
     }
 
@@ -299,11 +303,13 @@ __s32 twi_byte_rw(enum twi_op_type_e op, __u8 saddr, __u8 baddr, __u8 *data)
     while((!(twi_reg->reg_ctl & 0x08))&&(--timeout));
     if(timeout == 0)
     {
+	printk("(state_tmp) = 0x%x. %d\n",(state_tmp), __LINE__);
         goto stop_out;
     }
     state_tmp = twi_reg->reg_status;
     if(state_tmp != 0x28)
     {
+	printk("(state_tmp) = 0x%x. %d\n",(state_tmp), __LINE__);
         goto stop_out;
     }
 
@@ -316,11 +322,13 @@ __s32 twi_byte_rw(enum twi_op_type_e op, __u8 saddr, __u8 baddr, __u8 *data)
         while((!(twi_reg->reg_ctl & 0x08))&&(--timeout));
         if(timeout == 0)
         {
+            printk("(state_tmp) = 0x%x. %d\n",(state_tmp), __LINE__);
             goto stop_out;
         }
         state_tmp = twi_reg->reg_status;
         if(state_tmp != 0x28)
         {
+            printk("(state_tmp) = 0x%x. %d\n",(state_tmp), __LINE__);
             goto stop_out;
         }
     }
@@ -332,11 +340,13 @@ __s32 twi_byte_rw(enum twi_op_type_e op, __u8 saddr, __u8 baddr, __u8 *data)
         while((!(twi_reg->reg_ctl & 0x08))&&(--timeout));
         if(timeout == 0)
         {
+            printk("(state_tmp) = 0x%x. %d\n",(state_tmp), __LINE__);
             goto stop_out;
         }
         state_tmp = twi_reg->reg_status;
         if(state_tmp != 0x10)
         {
+            printk("(state_tmp) = 0x%x. %d\n",(state_tmp), __LINE__);
             goto stop_out;
         }
 
@@ -347,11 +357,13 @@ __s32 twi_byte_rw(enum twi_op_type_e op, __u8 saddr, __u8 baddr, __u8 *data)
         while((!(twi_reg->reg_ctl & 0x08))&&(--timeout));
         if(timeout == 0)
         {
+            printk("(state_tmp) = 0x%x. %d\n",(state_tmp), __LINE__);
             goto stop_out;
         }
         state_tmp = twi_reg->reg_status;
         if(state_tmp != 0x40)
         {
+            printk("(state_tmp) = 0x%x. %d\n",(state_tmp), __LINE__);
             goto stop_out;
         }
 
@@ -361,12 +373,14 @@ __s32 twi_byte_rw(enum twi_op_type_e op, __u8 saddr, __u8 baddr, __u8 *data)
         while((!(twi_reg->reg_ctl & 0x08))&&(--timeout));
         if(timeout == 0)
         {
+            printk("(state_tmp) = 0x%x. %d\n",(state_tmp), __LINE__);
             goto stop_out;
         }
         *data = twi_reg->reg_data;
         state_tmp = twi_reg->reg_status;
         if(state_tmp != 0x58)
         {
+            printk("(state_tmp) = 0x%x. %d\n",(state_tmp), __LINE__);
           goto stop_out;
         }
     }
@@ -411,7 +425,7 @@ __s32 twi_byte_rw_nommu(enum twi_op_type_e op, __u8 saddr, __u8 baddr, __u8 *dat
     unsigned int   timeout;
     int   ret = -1;
 
-    twi_reg = (__twic_reg_t *)SW_PA_TWI1_IO_BASE;
+    twi_reg = (__twic_reg_t *)SW_PA_TWI0_IO_BASE;
     twi_reg->reg_efr = 0;/* 标准读写必须置0 */
 
     state_tmp = twi_reg->reg_status;

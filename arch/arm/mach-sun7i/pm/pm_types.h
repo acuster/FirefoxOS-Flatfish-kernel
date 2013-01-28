@@ -21,7 +21,7 @@ typedef signed long long    __s64;
 typedef unsigned long long  __u64;
 
 typedef unsigned int		size_t;
-typedef unsigned int		ptrdiff_t;
+//typedef unsigned int		ptrdiff_t;
 //------------------------------------------------------------------------------
 //return value defines
 //------------------------------------------------------------------------------

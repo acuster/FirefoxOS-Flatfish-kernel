@@ -11,6 +11,10 @@
  */
 
 #include <linux/linkage.h>
+/*
+ * function: mem_arch_suspend
+ * discription: save main part of general purpose register.
+ */
 	.text
 	.globl mem_arch_suspend
 mem_arch_suspend:
@@ -140,8 +144,11 @@ mem_arch_suspend:
 	 */
 	mov     pc, lr
 
+/*
+ * function: mem_arch_resume
+ * discription: retore main part of general purpose register.
+ */
 	.align	4
-
         .globl  mem_arch_resume
 mem_arch_resume:
 	push    {r0-r3}

@@ -1,7 +1,7 @@
 /*
 *********************************************************************************************************
 *                                                    LINUX-KERNEL
-*                                        newbie Linux Platform Develop Kits
+*                                        AllWinner Linux Platform Develop Kits
 *                                                   Kernel Module
 *
 *                                    (c) Copyright 2006-2011, kevin.z China
@@ -11,13 +11,14 @@
 * By      : kevin.z
 * Version : v1.0
 * Date    : 2011-5-27 14:08
-* Descript: power manager for newbies chips platform.
+* Descript: power manager for allwinners chips platform.
 * Update  : date                auther      ver     notes
 *********************************************************************************************************
 */
 
 #include <linux/module.h>
 #include <linux/suspend.h>
+#include <linux/cpufreq.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/module.h>
@@ -39,7 +40,6 @@
 #include <mach/system.h>
 
 //#define CROSS_MAPPING_STANDBY
-//#define CHECK_INT_SRC
 
 #define AW_PM_DBG   1
 #undef PM_DBG
@@ -75,10 +75,11 @@
 #define AW_PMU_MAJOR    267
 
 static int debug_mask = PM_STANDBY_PRINT_STANDBY | PM_STANDBY_PRINT_RESUME;
-module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static int standby_axp_enable = 1;
-module_param_named(standby_axp_enable, standby_axp_enable, int, S_IRUGO | S_IWUSR | S_IWGRP);
+
+static int suspend_freq = SUSPEND_FREQ;
+static int suspend_delay_ms = SUSPEND_DELAY_MS;
 
 extern char *standby_bin_start;
 extern char *standby_bin_end;
@@ -87,37 +88,23 @@ extern char *suspend_bin_end;
 extern char *resume0_bin_start;
 extern char *resume0_bin_end;
 
+/*mem_cpu_asm.S*/
 extern int mem_arch_suspend(void);
 extern int mem_arch_resume(void);
 extern asmlinkage int mem_clear_runtime_context(void);
-extern asmlinkage int mem_restore_runtime_context(void);
-extern asmlinkage int mem_save_runtime_context(void);
-
-extern void disable_cache(void);
-extern void disable_program_flow_prediction(void);
-extern void invalidate_branch_predictor(void);
-extern void enable_cache(void);
-extern void enable_program_flow_prediction(void);
-extern void disable_dcache(void);
-extern void disable_l2cache(void);
-extern void set_ttbr0(void);
-typedef  int (*suspend_func)(void);
-void jump_to_suspend(__u32 ttbr1, suspend_func p);
+extern void save_runtime_context(__u32 *addr);
 extern void clear_reg_context(void);
-extern void invalidate_dcache(void);
+
+/*mem_mapping.c*/
+void create_mapping(void);
+void save_mapping(unsigned long vaddr);
+void restore_mapping(unsigned long vaddr);
 
 int (*mem)(void) = 0;
 
 #ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
 extern void cpufreq_user_event_notify(void);
 #endif
-
-static struct map_desc mem_sram_md = {
-	.virtual = MEM_SW_VA_SRAM_BASE,
-	.pfn = __phys_to_pfn(MEM_SW_PA_SRAM_BASE),
-	.length = SZ_1M,
-	.type = MT_MEMORY_ITCM,
-	};
 
 static struct aw_pm_info standby_info = {
     .standby_para = {
@@ -168,46 +155,8 @@ standby_level_e standby_level = STANDBY_INITIAL;
 EXPORT_SYMBOL(standby_level);
 
 //static volatile int enter_flag = 0;
-static bool mem_allocated_flag = false;
 static int standby_mode = 1;
 static int suspend_status_flag = 0;
-module_param_named(standby_mode, standby_mode, int, S_IRUGO | S_IWUSR | S_IWGRP);
-
-extern void create_mapping(struct map_desc *md);
-extern void save_mapping(unsigned long vaddr);
-extern void restore_mapping(unsigned long vaddr);
-extern void save_mmu_state(struct mmu_state *saved_mmu_state);
-extern void clear_mem_flag(void);
-extern void save_runtime_context(__u32 *addr);
-void restore_processor_ttbr0(void);
-extern void flush_icache(void);
-extern void flush_dcache(void);
-
-#ifdef CHECK_INT_SRC
-static void check_int_src(void)
-{
-#define INT_REG_0 (0x10)
-#define INT_REG_1 (0x14)
-#define INT_REG_2 (0x18)
-
-
-	u32 data_0 = 0;
-	u32 data_1 = 0;
-	u32 data_2 = 0;
-
-	data_0 = *(volatile unsigned int *)(SW_VA_INT_IO_BASE + INT_REG_0);
-	data_1 = *(volatile unsigned int *)(SW_VA_INT_IO_BASE + INT_REG_1);
-	data_2 = *(volatile unsigned int *)(SW_VA_INT_IO_BASE + INT_REG_2);
-
-	pr_info("INT_REG_0 = %d \n", data_0);
-	pr_info("INT_REG_1 = %d \n", data_1);
-	pr_info("INT_REG_2 = %d \n", data_2);
-
-	return;
-
-}
-#endif
-
 
 /*
 *********************************************************************************************************
@@ -223,6 +172,7 @@ static void check_int_src(void)
 *
 *********************************************************************************************************
 */
+ extern bool console_suspend_enabled ;
 static int aw_pm_valid(suspend_state_t state)
 {
 #ifdef CHECK_IC_VERSION
@@ -230,6 +180,7 @@ static int aw_pm_valid(suspend_state_t state)
 #endif
 
     PM_DBG("valid\n");
+    console_suspend_enabled = 0;
 
     if(!((state > PM_SUSPEND_ON) && (state < PM_SUSPEND_MAX))){
         PM_DBG("state (%d) invalid!\n", state);
@@ -253,16 +204,18 @@ static int aw_pm_valid(suspend_state_t state)
 		}else{
 			standby_type = SUPER_STANDBY;
 		}
+        printk("standby_mode:%d, standby_type:%d, line:%d\n",standby_mode, standby_type, __LINE__);
 	}else if(PM_SUSPEND_MEM == state || PM_SUSPEND_BOOTFAST == state){
 		if(1 == standby_mode){
 			standby_type = SUPER_STANDBY;
 		}else{
 			standby_type = NORMAL_STANDBY;
 		}
+        printk("standby_mode:%d, standby_type:%d, line:%d\n",standby_mode, standby_type, __LINE__);
 	}
 
 	//allocat space for backup dram data
-	if((false == mem_allocated_flag) && (SUPER_STANDBY == standby_type)){
+	if(SUPER_STANDBY == standby_type){
 		if((DRAM_BACKUP_SIZE) < ((int)&resume0_bin_end - (int)&resume0_bin_start) ){
 			//judge the reserved space for resume0 is enough or not.
 			pr_info("Notice: reserved space for resume is not enough. \n");
@@ -271,16 +224,14 @@ static int aw_pm_valid(suspend_state_t state)
 
 		memcpy((void *)DRAM_BACKUP_BASE_ADDR, (void *)&resume0_bin_start, (int)&resume0_bin_end - (int)&resume0_bin_start);
 		dmac_flush_range((void *)DRAM_BACKUP_BASE_ADDR, (void *)(DRAM_BACKUP_BASE_ADDR + DRAM_BACKUP_SIZE -1) );
-
-		mem_allocated_flag = true;
-#ifdef GET_CYCLE_CNT
-	// init counters:
-	init_perfcounters (1, 0);
-#endif
 	}
 
-	//print_flag = 0;
-	return 1;
+#ifdef GET_CYCLE_CNT
+		// init counters:
+		init_perfcounters (1, 0);
+#endif
+
+    return 1;
 
 }
 
@@ -301,20 +252,31 @@ static int aw_pm_valid(suspend_state_t state)
 */
 int aw_pm_begin(suspend_state_t state)
 {
-    PM_DBG("%d state begin\n", state);
+	struct cpufreq_policy policy;
+
+	PM_DBG("%d state begin\n", state);
 
 	//set freq max
 #ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
-	cpufreq_user_event_notify();
+	//cpufreq_user_event_notify();
 #endif
 
-/*must init perfcounter, because delay_us and delay_ms is depandant perf counter*/
+	if (cpufreq_get_policy(&policy, 0))
+		goto out;
+
+	cpufreq_driver_target(&policy, suspend_freq, CPUFREQ_RELATION_L);
+
+
+	/*must init perfcounter, because delay_us and delay_ms is depandant perf counter*/
 #ifndef GET_CYCLE_CNT
-		backup_perfcounter();
-		init_perfcounters (1, 0);
+	backup_perfcounter();
+	init_perfcounters (1, 0);
 #endif
 
 	return 0;
+
+out:
+	return -1;
 }
 
 
@@ -388,6 +350,7 @@ static int aw_early_suspend(void)
 	mem_twi_save(&(saved_twi_state));
 	mem_sram_save(&(saved_sram_state));
 
+
 #if 1
     if (likely(mem_para_info.axp_enable))
     {
@@ -419,6 +382,7 @@ static int aw_early_suspend(void)
         mem_para_info.suspend_dcdc2 = -1;
         mem_para_info.suspend_dcdc3 = -1;
     }
+    printk("dcdc2:%d, dcdc3:%d\n", mem_para_info.suspend_dcdc2, mem_para_info.suspend_dcdc3);
 #endif
 
 	/*backup bus ratio*/
@@ -452,21 +416,21 @@ static int aw_early_suspend(void)
 	mem_arch_suspend();
 	save_processor_state();
 
+	//create 0x0000,0000 mapping table: 0x0000,0000 -> 0x0000,0000
+	create_mapping();
 	//before creating mapping, build the coherent between cache and memory
 	//clean and flush
 	__cpuc_flush_kern_all();
 	__cpuc_coherent_kern_range(0xc0000000, 0xffffffff-1);
 
-	//create 0x0000,0000 mapping table: 0x0000,0000 -> 0x0000,0000
-	create_mapping(&mem_sram_md);
 	mem_flush_tlb();
 
 #ifdef PRE_DISABLE_MMU
 	//jump to sram: dram enter selfresh, and power off.
-	mem = (int (*)(void))SRAM_FUNC_START_PA;
+	mem = (super_standby_func)SRAM_FUNC_START_PA;
 #else
 	//jump to sram: dram enter selfresh, and power off.
-	mem = (int (*)(void))SRAM_FUNC_START;
+	mem = (super_standby_func)SRAM_FUNC_START;
 #endif
     //move standby code to sram
     memcpy((void *)SRAM_FUNC_START, (void *)&suspend_bin_start, (int)&suspend_bin_end - (int)&suspend_bin_start);
@@ -532,11 +496,11 @@ static void aw_late_resume(void)
 	mem_para_info.mem_flag = 0;
 
 	//restore device state
-	mem_ccu_restore((__ccmu_reg_list_t *)(SW_VA_CCM_IO_BASE));
 	mem_gpio_restore(&(saved_gpio_state));
 	mem_twi_restore(&(saved_twi_state));
 	mem_tmr_restore(&(saved_tmr_state));
 	mem_sram_restore(&(saved_sram_state));
+	mem_ccu_restore((__ccmu_reg_list_t *)(SW_VA_CCM_IO_BASE));
 
 	return;
 }
@@ -577,6 +541,7 @@ mem_enter:
 	standby_level = STANDBY_WITH_POWER_OFF;
 	mem_para_info.resume_pointer = (void *)&&mem_enter;
 	mem_para_info.debug_mask = debug_mask;
+	mem_para_info.suspend_delay_ms = suspend_delay_ms;
 	//busy_waiting();
 	if(unlikely(debug_mask&PM_STANDBY_PRINT_STANDBY)){
 		pr_info("resume_pointer = 0x%x. \n", (unsigned int)(mem_para_info.resume_pointer));
@@ -633,8 +598,8 @@ suspend_err:
 */
 static int aw_pm_enter(suspend_state_t state)
 {
-	asm volatile ("stmfd sp!, {r1-r12, lr}" );
-	int (*standby)(struct aw_pm_info *arg) = 0;
+//	asm volatile ("stmfd sp!, {r1-r12, lr}" );
+	normal_standby_func standby;
 	int i = 0;
 
 	PM_DBG("enter state %d\n", state);
@@ -646,10 +611,19 @@ static int aw_pm_enter(suspend_state_t state)
 				IO_ADDRESS(SW_PA_PORTC_IO_BASE) + i*0x04, *(volatile __u32 *)(IO_ADDRESS(SW_PA_PORTC_IO_BASE) + i*0x04));
 		}
 	}
+
+	if(unlikely(debug_mask&PM_STANDBY_PRINT_CCU_STATUS)){
+		printk(KERN_INFO "CCU status as follow:");
+		for(i=0; i<(CCU_REG_LENGTH); i++){
+			printk(KERN_INFO "ADDR = %x, value = %x .\n", \
+				IO_ADDRESS(SW_VA_CCM_IO_BASE) + i*0x04,   \
+				*(volatile __u32 *)(IO_ADDRESS(SW_VA_CCM_IO_BASE) + i*0x04));
+		}
+	}
+
     standby_info.standby_para.axp_enable = standby_axp_enable;
 
 	if(NORMAL_STANDBY== standby_type){
-		print_call_info();
 		standby = (int (*)(struct aw_pm_info *arg))SRAM_FUNC_START;
 		//move standby code to sram
 		memcpy((void *)SRAM_FUNC_START, (void *)&standby_bin_start, (int)&standby_bin_end - (int)&standby_bin_start);
@@ -662,16 +636,17 @@ static int aw_pm_enter(suspend_state_t state)
 		standby_info.standby_para.event_enable = (SUSPEND_WAKEUP_SRC_EXINT | SUSPEND_WAKEUP_SRC_ALARM);
 
 		/* goto sram and run */
+        printk("standby_mode:%d, standby_type:%d, line:%d\n",standby_mode, standby_type, __LINE__);
 		standby(&standby_info);
-#ifdef CHECK_INT_SRC
-		check_int_src();
-#endif
+        printk("standby_mode:%d, standby_type:%d, line:%d\n",standby_mode, standby_type, __LINE__);
 	}else if(SUPER_STANDBY == standby_type){
+        printk("standby_mode:%d, standby_type:%d, line:%d\n",standby_mode, standby_type, __LINE__);
 			print_call_info();
 			aw_super_standby(state);
 	}
+    print_call_info();
 
-	asm volatile ("ldmfd sp!, {r1-r12, lr}" );
+//	asm volatile ("ldmfd sp!, {r1-r12, lr}" );
 	return 0;
 }
 
@@ -734,20 +709,10 @@ void aw_pm_finish(void)
 */
 void aw_pm_end(void)
 {
-
-	//standby_type = NON_STANDBY;
-	//uart_init(2, 115200);
-	//save_mem_status(LATE_RESUME_START |0x10);
-	//print_flag = 0;
 #ifndef GET_CYCLE_CNT
 	#ifndef IO_MEASURE
 			restore_perfcounter();
 	#endif
-#endif
-
-#ifdef IO_MEASURE
-	io_init();
-	io_high(1);
 #endif
 
 	PM_DBG("aw_pm_end!\n");
@@ -807,22 +772,99 @@ static struct platform_suspend_ops aw_pm_ops = {
 */
 static int __init aw_pm_init(void)
 {
-    script_item_u setting_mod;
-    script_item_value_type_e type;
+	script_item_u item;
+	script_item_u   *list = NULL;
+	int cpu0_en = 0;
+	int dram_selfresh_en = 0;
+	int wakeup_src_cnt = 0;
 
-    PM_DBG("aw_pm_init!\n");
-    type = script_get_item("pm_para", "standby_mode", &setting_mod);
-    if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	PM_DBG("aw_pm_init!\n");
+
+	//get standby_mode.
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("pm_para", "standby_mode", &item)){
 		pr_err("%s: script_parser_fetch err. \n", __func__);
 		standby_mode = 0;
-    }else{
-        standby_mode = setting_mod.val;
+		//standby_mode = 1;
+		pr_err("notice: standby_mode = %d.\n", standby_mode);
+	}else{
+		standby_mode = item.val;
 		pr_info("standby_mode = %d. \n", standby_mode);
-    }
+		if(1 != standby_mode){
+			pr_err("%s: not support super standby. \n",  __func__);
+		}
+	}
 
-    suspend_set_ops(&aw_pm_ops);
+	//get wakeup_src_para cpu_en
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("wakeup_src_para", "cpu_en", &item)){
+		cpu0_en = 0;
+	}else{
+		cpu0_en = item.val;
+	}
+	pr_info("cpu0_en = %d.\n", cpu0_en);
 
-    return 0;
+	//get dram_selfresh en
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("wakeup_src_para", "dram_selfresh_en", &item)){
+		dram_selfresh_en = 1;
+	}else{
+		dram_selfresh_en = item.val;
+	}
+	pr_info("dram_selfresh_en = %d.\n", dram_selfresh_en);
+
+	if(0 == dram_selfresh_en && 0 == cpu0_en){
+		pr_err("Notice: if u don't want the dram enter selfresh mode,\n \
+				make sure the cpu0 is not allowed to be powered off.\n");
+		goto script_para_err;
+	}else{
+		//defaultly, 0 == cpu0_en && 1 ==  dram_selfresh_en
+		if(1 == cpu0_en){
+			standby_mode = 0;
+			pr_info("notice: only support ns, standby_mode = %d.\n", standby_mode);
+		}
+	}
+
+	//get wakeup_src_cnt
+	wakeup_src_cnt = script_get_pio_list("wakeup_src_para",&list);
+	pr_info("wakeup src cnt is : %d. \n", wakeup_src_cnt);
+
+	//script_dump_mainkey("wakeup_src_para");
+	mem_para_info.cpus_gpio_wakeup = 0;
+
+/*to fix: add wake src in config.bin*/
+#if 0
+	if(0 != wakeup_src_cnt){
+        unsigned gpio = 0;
+        int i = 0;
+		while(wakeup_src_cnt--){
+			gpio = (list + (i++) )->gpio.gpio;
+			//pr_info("gpio == 0x%x.\n", gpio);
+			if( gpio > GPIO_INDEX_END){
+				pr_info("gpio config err. \n");
+			}else if( gpio >= AXP_NR_BASE){
+				mem_para_info.cpus_gpio_wakeup |= (WAKEUP_GPIO_AXP((gpio - AXP_NR_BASE)));
+				//pr_info("gpio - AXP_NR_BASE == 0x%x.\n", gpio - AXP_NR_BASE);
+			}else if( gpio >= PH_NR_BASE){
+				mem_para_info.cpus_gpio_wakeup |= (WAKEUP_GPIO_PM((gpio - PM_NR_BASE)));
+				//pr_info("gpio - PM_NR_BASE == 0x%x.\n", gpio - PM_NR_BASE);
+			}else if( gpio >= PH_NR_BASE){
+				mem_para_info.cpus_gpio_wakeup |= (WAKEUP_GPIO_PH((gpio - PH_NR_BASE)));
+				//pr_info("gpio - PL_NR_BASE == 0x%x.\n", gpio - PL_NR_BASE);
+			}else{
+				pr_info("cpux need care gpio %d. but, notice, currently, \
+					cpux not support it.\n", gpio);
+			}
+		}
+		super_standby_para_info.gpio_enable_bitmap = mem_para_info.cpus_gpio_wakeup;
+		pr_info("cpus need care gpio: mem_para_info.cpus_gpio_wakeup = 0x%x. \n",\
+			mem_para_info.cpus_gpio_wakeup);
+	}
+#endif
+	suspend_set_ops(&aw_pm_ops);
+
+	return 0;
+
+script_para_err:
+	return -1;
+
 }
 
 
@@ -843,11 +885,13 @@ static int __init aw_pm_init(void)
 static void __exit aw_pm_exit(void)
 {
 	PM_DBG("aw_pm_exit!\n");
-	if(true == mem_allocated_flag){
-		mem_allocated_flag = false;
-	}
 	suspend_set_ops(NULL);
 }
 
+module_param_named(standby_mode, standby_mode, int, S_IRUGO | S_IWUSR | S_IWGRP);
+module_param_named(standby_axp_enable, standby_axp_enable, int, S_IRUGO | S_IWUSR | S_IWGRP);
+module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
+module_param_named(suspend_freq, suspend_freq, int, S_IRUGO | S_IWUSR | S_IWGRP);
+module_param_named(suspend_delay_ms, suspend_delay_ms, int, S_IRUGO | S_IWUSR | S_IWGRP);
 module_init(aw_pm_init);
 module_exit(aw_pm_exit);

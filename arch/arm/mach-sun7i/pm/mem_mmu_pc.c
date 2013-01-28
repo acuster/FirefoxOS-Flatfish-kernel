@@ -95,18 +95,6 @@ void disable_mmu(void)
 }
 #endif
 
-void set_ttbr0(void)
-{
-	__u32 ttb = 0;
-	//read ttbr1
-	asm volatile ("mrc p15, 0, %0, c2, c0, 1"  : "=r"(ttb));
-	//write ttbr0
-	asm volatile ("mcr p15, 0, %0, c2, c0, 0" : : "r"(ttb));
-	asm volatile ("isb");
-	return;
-}
-
-
 //
 //void jump_to_resume(void* pointer)
 //{

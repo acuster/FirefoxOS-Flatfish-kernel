@@ -55,7 +55,7 @@ int arch_timer_common_register(void);
 static struct map_desc sun7i_io_desc[] __initdata = {
 	{IO_ADDRESS(SW_PA_IO_BASE), __phys_to_pfn(SW_PA_IO_BASE),  SW_IO_SIZE, MT_DEVICE_NONSHARED},
 	{IO_ADDRESS(SW_PA_SRAM_A1_BASE), __phys_to_pfn(SW_PA_SRAM_A1_BASE),  SW_SRAM_A1_SIZE, MT_MEMORY_ITCM},
-	{IO_ADDRESS(SW_PA_SRAM_A2_BASE), __phys_to_pfn(SW_PA_SRAM_A2_BASE),  SW_SRAM_A2_SIZE, MT_DEVICE_NONSHARED},
+	{IO_ADDRESS(SW_PA_SRAM_A2_BASE), __phys_to_pfn(SW_PA_SRAM_A2_BASE),  SW_SRAM_A2_SIZE, MT_MEMORY_ITCM},
 	{IO_ADDRESS(SW_PA_SRAM_A3_BASE), __phys_to_pfn(SW_PA_SRAM_A3_BASE),  SW_SRAM_A3_SIZE + SW_SRAM_A4_SIZE, MT_MEMORY_ITCM},
 	//{IO_ADDRESS(SW_PA_SRAM_A4_BASE), __phys_to_pfn(SW_PA_SRAM_A4_BASE),  SW_SRAM_A4_SIZE, MT_MEMORY_ITCM}, /* not page align, cause sun7i_map_io err,2013-1-10 */
 	{IO_ADDRESS(SW_PA_BROM_START), __phys_to_pfn(SW_PA_BROM_START), SW_BROM_SIZE, MT_DEVICE_NONSHARED},
@@ -137,7 +137,7 @@ void __init sun7i_init_early(void)
 	pr_info("%s: enter\n", __func__);
 }
 
-MACHINE_START(SUN7I, "Allwinner AW165x")
+MACHINE_START(SUN7I, "sun7i")
 	.atag_offset	= 0x100,
 	.fixup		= sun7i_fixup,
 	.reserve        = sun7i_reserve,

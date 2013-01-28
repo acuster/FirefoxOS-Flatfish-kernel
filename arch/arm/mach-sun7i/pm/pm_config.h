@@ -15,17 +15,9 @@
  #undef CONFIG_ARCH_SUN7I
  #endif
 
-#define __AC(X,Y)	(X##Y)
-#define _AC(X,Y)	__AC(X,Y)
-#define _AT(T,X)	((T)(X))
-#define UL(x) _AC(x, UL)
-#define IO_ADDRESS(x)		((x) + 0xf0000000)
-#define MEM_ADDRESS(x)		((x) + 0x80000000)
-
-
 #define CONFIG_ARCH_SUN7I
 #define ENABLE_SUPER_STANDBY
-#define SUN7I_FPGA_SIM
+//#define SUN7I_FPGA_SIM
 //#define CHECK_IC_VERSION
 
  //#define RETURN_FROM_RESUME0_WITH_MMU    //suspend: 0xf000, resume0: 0xc010, resume1: 0xf000
@@ -76,5 +68,14 @@
 
 #define AXP_MEM_WAKEUP              (AXP_WAKEUP_LOWBATT | AXP_WAKEUP_USB | AXP_WAKEUP_AC | AXP_WAKEUP_DESCEND | AXP_WAKEUP_ASCEND)
 #define AXP_BOOTFAST_WAKEUP         (AXP_WAKEUP_LOWBATT | AXP_WAKEUP_LONG_KEY)
+#define __AC(X,Y)	(X##Y)
+#define _AC(X,Y)	__AC(X,Y)
+#define _AT(T,X)	((T)(X))
+#define UL(x) _AC(x, UL)
+#define IO_ADDRESS(x)		((x) + 0xf0000000)
+#define MEM_ADDRESS(x)		((x) + 0x80000000)
+
+#define SUSPEND_FREQ (720000)	//720M
+#define SUSPEND_DELAY_MS (10)
 
 #endif /*_PM_CONFIG_H*/

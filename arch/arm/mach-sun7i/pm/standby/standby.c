@@ -20,8 +20,8 @@
 
 extern unsigned int save_sp(void);
 extern void restore_sp(unsigned int sp);
-extern void standby_flush_tlb(void);
-extern void standby_preload_tlb(void);
+extern void mem_flush_tlb(void);
+extern void mem_preload_tlb(void);
 extern char *__bss_start;
 extern char *__bss_end;
 extern char *__standby_start;
@@ -59,8 +59,11 @@ static __u8 dram_traning_area_back[DRAM_TRANING_SIZE];
 */
 int main(struct aw_pm_info *arg)
 {
-    char    *tmpPtr = (char *)&__bss_start;
+    char    *tmpPtr;
 
+    tmpPtr = (char *)&__bss_start;
+    printk("normal standby start!\n");
+    printk("__bss_start:%x!\n"),&__bss_start;
     if(!arg){
         /* standby parameter is invalid */
         return -1;
@@ -68,9 +71,9 @@ int main(struct aw_pm_info *arg)
 
     /* flush data and instruction tlb, there is 32 items of data tlb and 32 items of instruction tlb,
        The TLB is normally allocated on a rotating basis. The oldest entry is always the next allocated */
-    standby_flush_tlb();
+    mem_flush_tlb();
     /* preload tlb for standby */
-    standby_preload_tlb();
+    mem_preload_tlb();
 
     /* clear bss segment */
     do{*tmpPtr ++ = 0;}while(tmpPtr <= (char *)&__bss_end);
@@ -90,35 +93,35 @@ int main(struct aw_pm_info *arg)
     /* initialise standby modules */
     standby_clk_init();
     standby_clk_apbinit();
-    standby_int_init();
+    mem_int_init();
     standby_tmr_init();
-    //standby_power_init(pm_info.standby_para.axp_event);
+    standby_power_init(pm_info.standby_para.axp_src);
     /* init some system wake source */
     if(pm_info.standby_para.event_enable & SUSPEND_WAKEUP_SRC_EXINT){
-        standby_enable_int(INT_SOURCE_EXTNMI);
+        mem_enable_int(INT_SOURCE_EXTNMI);
     }
     if(pm_info.standby_para.event_enable & SUSPEND_WAKEUP_SRC_KEY){
         standby_key_init();
-        standby_enable_int(INT_SOURCE_LRADC);
+        mem_enable_int(INT_SOURCE_LRADC);
     }
     if(pm_info.standby_para.event_enable & SUSPEND_WAKEUP_SRC_IR){
         standby_ir_init();
-        standby_enable_int(INT_SOURCE_IR0);
-        standby_enable_int(INT_SOURCE_IR1);
+        mem_enable_int(INT_SOURCE_IR0);
+        mem_enable_int(INT_SOURCE_IR1);
     }
     if(pm_info.standby_para.event_enable & SUSPEND_WAKEUP_SRC_ALARM){
         //standby_alarm_init();???
-        standby_enable_int(INT_SOURCE_ALARM);
+        mem_enable_int(INT_SOURCE_ALARM);
     }
     if(pm_info.standby_para.event_enable & SUSPEND_WAKEUP_SRC_USB){
         standby_usb_init();
-        standby_enable_int(INT_SOURCE_USB0);
+        mem_enable_int(INT_SOURCE_USB0);
     }
     if(pm_info.standby_para.event_enable & SUSPEND_WAKEUP_SRC_TIMEOFF){
         /* set timer for power off */
         if(pm_info.standby_para.time_off) {
             standby_tmr_set(pm_info.standby_para.time_off);
-            standby_enable_int(INT_SOURCE_TIMER0);
+            mem_enable_int(INT_SOURCE_TIMER0);
         }
     }
 
@@ -130,16 +133,6 @@ int main(struct aw_pm_info *arg)
 
     /* process standby */
     standby();
-
-#if 0
-	change_runtime_env(1);
-	io_init();
-	io_init_high();
-	delay_ms(10);
-	io_init_low();
-	delay_ms(20);
-	io_init_high();
-#endif
 
     /* enable watch-dog to preserve dram training failed */
     standby_tmr_enable_watchdog();
@@ -166,9 +159,9 @@ int main(struct aw_pm_info *arg)
     if(pm_info.standby_para.event_enable & SUSPEND_WAKEUP_SRC_KEY){
         standby_key_exit();
     }
-    //standby_power_exit(pm_info.standby_para.axp_event);
+    standby_power_exit(pm_info.standby_para.axp_src);
     standby_tmr_exit();
-    standby_int_exit();
+    mem_int_exit();
     standby_clk_apbexit();
     standby_clk_exit();
 
@@ -221,10 +214,12 @@ static void standby(void)
         /* backup voltages */
         dcdc2 = standby_get_voltage(POWER_VOL_DCDC2);
         dcdc3 = standby_get_voltage(POWER_VOL_DCDC3);
+        printk("dcdc2:%d, dcdc3:%d!\n", dcdc2, dcdc3);
 
         /* adjust voltage */
         standby_set_voltage(POWER_VOL_DCDC3, STANDBY_DCDC3_VOL);
         standby_set_voltage(POWER_VOL_DCDC2, STANDBY_DCDC2_VOL);
+        printk("adjust dcdc2:%d, dcdc3:%d!\n", standby_get_voltage(POWER_VOL_DCDC2), standby_get_voltage(POWER_VOL_DCDC3));
     }
 
     /* set clock division cpu:axi:ahb:apb = 2:2:2:1 */
@@ -247,6 +242,7 @@ static void standby(void)
     #endif
 
     /* cpu enter sleep, wait wakeup by interrupt */
+//    printk("WFI!\n");
     asm("WFI");
 
     #if(ALLOW_DISABLE_HOSC)
@@ -270,12 +266,12 @@ static void standby(void)
     standby_clk_setdiv(&clk_div);
 
     /* check system wakeup event */
-    pm_info.standby_para.event |= standby_query_int(INT_SOURCE_EXTNMI)? 0:SUSPEND_WAKEUP_SRC_EXINT;
-    pm_info.standby_para.event |= standby_query_int(INT_SOURCE_USB0)? 0:SUSPEND_WAKEUP_SRC_USB;
-    pm_info.standby_para.event |= standby_query_int(INT_SOURCE_LRADC)? 0:SUSPEND_WAKEUP_SRC_KEY;
-    pm_info.standby_para.event |= standby_query_int(INT_SOURCE_IR0)? 0:SUSPEND_WAKEUP_SRC_IR;
-    pm_info.standby_para.event |= standby_query_int(INT_SOURCE_ALARM)? 0:SUSPEND_WAKEUP_SRC_ALARM;
-    pm_info.standby_para.event |= standby_query_int(INT_SOURCE_TIMER0)? 0:SUSPEND_WAKEUP_SRC_TIMEOFF;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_EXTNMI)? 0:SUSPEND_WAKEUP_SRC_EXINT;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_USB0)? 0:SUSPEND_WAKEUP_SRC_USB;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_LRADC)? 0:SUSPEND_WAKEUP_SRC_KEY;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_IR0)? 0:SUSPEND_WAKEUP_SRC_IR;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_ALARM)? 0:SUSPEND_WAKEUP_SRC_ALARM;
+    pm_info.standby_para.event |= mem_query_int(INT_SOURCE_TIMER0)? 0:SUSPEND_WAKEUP_SRC_TIMEOFF;
 
     if (pm_info.standby_para.axp_enable)
     {

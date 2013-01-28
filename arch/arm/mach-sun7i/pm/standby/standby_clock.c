@@ -255,7 +255,7 @@ __s32 standby_clk_hoscenable(void)
 */
 __s32 standby_clk_ldodisable(void)
 {
-    CmuReg->HoscCtl.KeyField = 0x538;
+    CmuReg->HoscCtl.KeyField = 0xA7;
     CmuReg->HoscCtl.LDOEn = 0;
     CmuReg->Pll5Ctl.LDO2En = 0;
     CmuReg->HoscCtl.KeyField = 0x00;
@@ -276,7 +276,7 @@ __s32 standby_clk_ldodisable(void)
 */
 __s32 standby_clk_ldoenable(void)
 {
-    CmuReg->HoscCtl.KeyField = 0x538;
+    CmuReg->HoscCtl.KeyField = 0xA7;
     CmuReg->HoscCtl.LDOEn = 1;
     CmuReg->Pll5Ctl.LDO2En = 1;
     CmuReg->HoscCtl.KeyField = 0x00;

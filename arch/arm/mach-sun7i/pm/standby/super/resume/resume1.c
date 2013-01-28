@@ -144,7 +144,7 @@ void restore_ccmu(void)
 	mem_clk_setdiv(&mem_para_info.clk_div);
 	mem_clk_set_pll_factor(&mem_para_info.pll_factor);
 	change_runtime_env(1);
-	delay_ms(5);
+	delay_ms(mem_para_info.suspend_delay_ms);
 
 #if 0
 	/* gating on dram clock */

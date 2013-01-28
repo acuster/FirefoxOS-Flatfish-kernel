@@ -30,7 +30,6 @@
 #include "super_power.h"
 #include "super_twi.h"
 #include "super_tmr.h"
-#include "super_int.h"
 
 extern struct aw_pm_info  pm_info;
 
