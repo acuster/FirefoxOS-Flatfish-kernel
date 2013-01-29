@@ -131,14 +131,25 @@ void serial_init(void)
 
 	p2clk = (24000000);
 
+	//judge uart clk
+	
 	//config uart clk
 	reg = (volatile unsigned int *)(CCU_UART_VA);
+	*reg &= ~(1 << (16 + port));
+	for( i = 0; i < 100; i++ );
+	*reg |=  (1 << (16 + port));
+	//de-assert uart reset
+	reg = (volatile unsigned int *)(IO_ADDRESS(CCU_UART_RESET_PA));
 	*reg &= ~(1 << (16 + port));
 	for( i = 0; i < 100; i++ );
 	*reg |=  (1 << (16 + port));
 	// config uart gpio
 	// config tx gpio
 	//fpga not need care gpio config;
+	reg = (volatile unsigned int *)(0xf1c20800 + 0x104);
+	*reg &= ~(0x77 << (16 + port));
+	for( i = 0; i < 100; i++ );
+	*reg |=  (0x22 << (16 + port));
 
 	/* set baudrate */
 	df = (p2clk + (SUART_BAUDRATE<<3))/(SUART_BAUDRATE<<4);

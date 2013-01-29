@@ -622,10 +622,12 @@ _func_enter_;
 			(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)== _TRUE) )
 			rtw_free_assoc_resources(padapter, 1);
 
-
-		if((check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE) || (*pold_state==Ndis802_11Infrastructure) ||(*pold_state==Ndis802_11IBSS))
+		if((*pold_state == Ndis802_11Infrastructure) ||(*pold_state == Ndis802_11IBSS))
+	       {
+			if(check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
 		{		
 			rtw_indicate_disconnect(padapter); //will clr Linked_state; before this function, we must have chked whether  issue dis-assoc_cmd or not
+			}
 		}
 		
 		*pold_state = networktype;

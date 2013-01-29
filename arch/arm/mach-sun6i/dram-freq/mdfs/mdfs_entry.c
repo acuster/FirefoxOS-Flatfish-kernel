@@ -14,7 +14,6 @@
 
 #include "mdfs.h"
 
-
 static unsigned int sp_backup;
 struct aw_mdfs_info mdfs_info;
 
@@ -27,16 +26,18 @@ extern int  mdfs_start(struct aw_mdfs_info *mdfs);
 
 int mdfs_main(struct aw_mdfs_info *mdfs)
 {
-	/* clear bss section */
-	mdfs_memset(__bss_start, 0, (unsigned int)(__bss_end - __bss_start));
+    MDFS_DBG("%s enter\n", __func__);
+    /* clear bss section */
+    mdfs_memset(__bss_start, 0, (unsigned int)(__bss_end - __bss_start));
     /* save stack pointer registger, switch stack to sram */
     sp_backup = save_sp();
-	/* copy mdfs info to sram space */
+    /* copy mdfs info to sram space */
     mdfs_memcpy(&mdfs_info, mdfs, sizeof(struct aw_mdfs_info));
     /* start mdfs */
     mdfs_start(&mdfs_info);
     /* restore stack pointer */
     restore_sp(sp_backup);
+    MDFS_DBG("%s done\n", __func__);
 
-	return 0;
+    return 0;
 }

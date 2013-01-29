@@ -435,8 +435,8 @@ __s32 tcon0_cfg(__u32 sel, __panel_para_t * panel)
 	}
 
 	tcon0_frm(sel,panel->lcd_frm);
-    tcon_gamma(sel,panel->lcd_gamma_en,panel->lcd_gamma_tbl);
-	tcon_cmap(sel,panel->lcd_cmap,panel->lcd_cmap_tbl);
+    tcon_gamma(sel,panel->lcd_gamma_en,panel->lcd_extend_para.lcd_gamma_tbl);
+	tcon_cmap(sel,panel->lcd_cmap_en,panel->lcd_extend_para.lcd_cmap_tbl);
 
 	lcd_dev[sel]->tcon0_ctl.bits.rb_swap = panel->lcd_rb_swap;
 	lcd_dev[sel]->tcon0_io_tri.bits.rgb_endian = panel->lcd_rgb_endian;

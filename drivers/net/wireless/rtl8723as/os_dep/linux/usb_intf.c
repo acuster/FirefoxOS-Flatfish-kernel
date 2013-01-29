@@ -1531,6 +1531,19 @@ static void rtw_usb_if1_deinit(_adapter *if1)
 	rtw_unregister_early_suspend(&if1->pwrctrlpriv);
 #endif
 
+
+	if(usb_drv->drv_registered == _TRUE)
+	{
+		//DBG_871X("r871xu_dev_remove():padapter->bSurpriseRemoved == _TRUE\n");
+		if1->bSurpriseRemoved = _TRUE;
+	}
+	/*else
+	{
+		//DBG_871X("r871xu_dev_remove():module removed\n");
+		padapter->hw_init_completed = _FALSE;
+	}*/
+	
+
 	rtw_pm_set_ips(if1, IPS_NONE);
 	rtw_pm_set_lps(if1, PS_MODE_ACTIVE);
 
@@ -1539,18 +1552,6 @@ static void rtw_usb_if1_deinit(_adapter *if1)
 	if(check_fwstate(pmlmepriv, _FW_LINKED))
 		disconnect_hdl(if1, NULL);
 
-	#if 0
-	if(usb_drv->drv_registered == _TRUE)
-	{
-		//DBG_871X("r871xu_dev_remove():padapter->bSurpriseRemoved == _TRUE\n");
-		padapter->bSurpriseRemoved = _TRUE;
-	}
-	/*else
-	{
-		//DBG_871X("r871xu_dev_remove():module removed\n");
-		padapter->hw_init_completed = _FALSE;
-	}*/
-	#endif
 
 #ifdef CONFIG_AP_MODE
 	free_mlme_ap_info(if1);

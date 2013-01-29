@@ -609,18 +609,22 @@ static int sw_ehci_hcd_suspend(struct device *dev)
 		return 0;
 	}
 
- 	DMSG_INFO("[%s]: sw_ehci_hcd_suspend\n", sw_ehci->hci_name);
+    if(sw_ehci->not_suspend){
+ 	    DMSG_INFO("[%s]: not suspend\n", sw_ehci->hci_name);
+    }else{
+     	DMSG_INFO("[%s]: sw_ehci_hcd_suspend\n", sw_ehci->hci_name);
 
-	spin_lock_irqsave(&ehci->lock, flags);
-	ehci_prepare_ports_for_controller_suspend(ehci, device_may_wakeup(dev));
-	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
-	(void)ehci_readl(ehci, &ehci->regs->intr_enable);
+    	spin_lock_irqsave(&ehci->lock, flags);
+    	ehci_prepare_ports_for_controller_suspend(ehci, device_may_wakeup(dev));
+    	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
+    	(void)ehci_readl(ehci, &ehci->regs->intr_enable);
 
-	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+    	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
-	spin_unlock_irqrestore(&ehci->lock, flags);
+    	spin_unlock_irqrestore(&ehci->lock, flags);
 
-	sw_stop_ehci(sw_ehci);
+    	sw_stop_ehci(sw_ehci);
+    }
 
 	return 0;
 }
@@ -677,54 +681,57 @@ static int sw_ehci_hcd_resume(struct device *dev)
 		return 0;
 	}
 
- 	DMSG_INFO("[%s]: sw_ehci_hcd_resume\n", sw_ehci->hci_name);
+    if(sw_ehci->not_suspend){
+ 	    DMSG_INFO("[%s]: controller not suspend, need not resume\n", sw_ehci->hci_name);
+    }else{
+     	DMSG_INFO("[%s]: sw_ehci_hcd_resume\n", sw_ehci->hci_name);
 
-	sw_start_ehci(sw_ehci);
+    	sw_start_ehci(sw_ehci);
 
-	/* Mark hardware accessible again as we are out of D3 state by now */
-	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+    	/* Mark hardware accessible again as we are out of D3 state by now */
+    	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
-	if (ehci_readl(ehci, &ehci->regs->configured_flag) == FLAG_CF) {
-		int	mask = INTR_MASK;
+    	if (ehci_readl(ehci, &ehci->regs->configured_flag) == FLAG_CF) {
+    		int	mask = INTR_MASK;
 
-		ehci_prepare_ports_for_controller_resume(ehci);
+    		ehci_prepare_ports_for_controller_resume(ehci);
 
-		if (!hcd->self.root_hub->do_remote_wakeup){
-			mask &= ~STS_PCD;
-		}
+    		if (!hcd->self.root_hub->do_remote_wakeup){
+    			mask &= ~STS_PCD;
+    		}
 
-		ehci_writel(ehci, mask, &ehci->regs->intr_enable);
-		ehci_readl(ehci, &ehci->regs->intr_enable);
+    		ehci_writel(ehci, mask, &ehci->regs->intr_enable);
+    		ehci_readl(ehci, &ehci->regs->intr_enable);
 
-		return 0;
-	}
+    		return 0;
+    	}
 
- 	DMSG_INFO("[%s]: lost power, restarting\n", sw_ehci->hci_name);
+     	DMSG_INFO("[%s]: lost power, restarting\n", sw_ehci->hci_name);
 
-	usb_root_hub_lost_power(hcd->self.root_hub);
+    	usb_root_hub_lost_power(hcd->self.root_hub);
 
-	/* Else reset, to cope with power loss or flush-to-storage
-	 * style "resume" having let BIOS kick in during reboot.
-	 */
-	(void) ehci_halt(ehci);
-	(void) ehci_reset(ehci);
+    	/* Else reset, to cope with power loss or flush-to-storage
+    	 * style "resume" having let BIOS kick in during reboot.
+    	 */
+    	(void) ehci_halt(ehci);
+    	(void) ehci_reset(ehci);
 
-	/* emptying the schedule aborts any urbs */
-	spin_lock_irq(&ehci->lock);
-	if (ehci->reclaim)
-		end_unlink_async(ehci);
-	ehci_work(ehci);
-	spin_unlock_irq(&ehci->lock);
+    	/* emptying the schedule aborts any urbs */
+    	spin_lock_irq(&ehci->lock);
+    	if (ehci->reclaim)
+    		end_unlink_async(ehci);
+    	ehci_work(ehci);
+    	spin_unlock_irq(&ehci->lock);
 
-	ehci_writel(ehci, ehci->command, &ehci->regs->command);
-	ehci_writel(ehci, FLAG_CF, &ehci->regs->configured_flag);
-	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */
+    	ehci_writel(ehci, ehci->command, &ehci->regs->command);
+    	ehci_writel(ehci, FLAG_CF, &ehci->regs->configured_flag);
+    	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */
 
-	/* here we "know" root ports should always stay powered */
-	ehci_port_power(ehci, 1);
+    	/* here we "know" root ports should always stay powered */
+    	ehci_port_power(ehci, 1);
 
-
-	hcd->state = HC_STATE_SUSPENDED;
+    	hcd->state = HC_STATE_SUSPENDED;
+    }
 
 	return 0;
 

@@ -10,6 +10,43 @@
  *
  */
 
+/*
+*******************************************************************************
+*
+*                                   欧孚 EM55
+*
+* 模组内部默认状态:
+* vbat  : 低
+* power : 高
+* reset : 高
+* sleep : 高
+*
+* 开机:
+* (1)、sleep拉低
+* (2)、vbat拉高
+* (3)、延时1.2s
+* (4)、power拉低
+* (5)、延时2s
+* (6)、power拉高
+*
+* 关机:
+* (1)、复位关机，执行复位过程
+*
+* 复位:
+* (1)、reset拉低
+* (2)、延时60ms
+* (3)、reset拉高
+* (4)、延时10ms
+*
+* 休眠:
+* (1)、sleep拉高
+*
+* 唤醒:
+* (1)、sleep拉低
+*
+*******************************************************************************
+*/
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
@@ -79,9 +116,9 @@ static void em55_sleep(struct sw_modem *modem, u32 sleep)
     modem_dbg("%s modem %s\n", modem->name, (sleep ? "sleep" : "wakeup"));
 
     if(sleep){
-        modem_sleep(modem, 1);
-    }else{
         modem_sleep(modem, 0);
+    }else{
+        modem_sleep(modem, 1);
     }
 
     return;
@@ -148,7 +185,7 @@ void em55_power(struct sw_modem *modem, u32 on)
     modem_dbg("set %s modem power %s\n", modem->name, (on ? "on" : "off"));
 
     if(on){
-        modem_sleep(modem, 0);
+        modem_sleep(modem, 1);
 
     	/* power on */
 		modem_vbat(modem, 1);
@@ -283,8 +320,8 @@ static void __exit em55_exit(void)
     platform_device_unregister(&em55_device);
 }
 
-//late_initcall(em55_init);
-module_init(em55_init);
+late_initcall(em55_init);
+//module_init(em55_init);
 module_exit(em55_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);

@@ -704,5 +704,11 @@ void SetBcnCtrlReg(PADAPTER padapter, u8 SetBits, u8 ClearBits);
 void rtl8188e_clone_haldata(_adapter *dst_adapter, _adapter *src_adapter);
 void rtl8188e_start_thread(_adapter *padapter);
 void rtl8188e_stop_thread(_adapter *padapter);
+
+void rtw_IOL_cmd_tx_pkt_buf_dump(ADAPTER *Adapter,int data_len);
+#ifdef CONFIG_IOL_EFUSE_PATCH
+s32 rtl8188e_iol_efuse_patch(PADAPTER padapter);
+#endif//CONFIG_IOL_EFUSE_PATCH
+
 #endif //__RTL8188E_HAL_H__
 

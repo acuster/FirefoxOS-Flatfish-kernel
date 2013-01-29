@@ -180,12 +180,14 @@ __s32 BSP_disp_tv_open(__u32 sel)
 
         tv_mod = gdisp.screen[sel].tv_mode;
 
-        image_clk_on(sel);
+        image_clk_on(sel, 1);
         Image_open(sel);//set image normal channel start bit , because every de_clk_off( )will reset this bit
 
         disp_clk_cfg(sel,DISP_OUTPUT_TYPE_TV, tv_mod);
         tve_clk_on(sel);
-        lcdc_clk_on(sel);
+        lcdc_clk_on(sel, 1, 0);
+        lcdc_clk_on(sel, 1, 1);
+        tcon_init(sel);
 
         BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_TV);
         DE_BE_set_display_size(sel, tv_mode_to_width(tv_mod), tv_mode_to_height(tv_mod));
@@ -244,7 +246,7 @@ __s32 BSP_disp_tv_close(__u32 sel)
         Disp_TVEC_Close(sel);
 
         tve_clk_off(sel);
-        image_clk_off(sel);
+        image_clk_off(sel, 1);
         lcdc_clk_off(sel);
         
 #ifdef __LINUX_OSAL__

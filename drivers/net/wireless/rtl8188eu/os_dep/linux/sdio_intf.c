@@ -504,6 +504,7 @@ _adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct sdio_device_i
 	rtw_init_netdev_name(pnetdev, padapter->registrypriv.ifname);
 
 	rtw_macaddr_cfg(padapter->eeprompriv.mac_addr);
+	rtw_init_wifidirect_addrs(padapter, padapter->eeprompriv.mac_addr, padapter->eeprompriv.mac_addr);
 	_rtw_memcpy(pnetdev->dev_addr, padapter->eeprompriv.mac_addr, ETH_ALEN);
 
 	rtw_hal_disable_interrupt(padapter);
@@ -1047,8 +1048,13 @@ int rtw_resume_process(_adapter *padapter)
 
 #ifdef CONFIG_LAYER2_ROAMING_RESUME
 #ifdef CONFIG_WOWLAN
-	if(!padapter->pwrctrlpriv.wowlan_mode)
+	if(!padapter->pwrctrlpriv.wowlan_mode){
 		rtw_roaming(padapter, NULL);
+	} else if (padapter->pwrctrlpriv.wowlan_wake_reason & FWDecisionDisconnect){
+		rtw_indicate_disconnect(padapter, 0);
+	} else if (padapter->pwrctrlpriv.wowlan_wake_reason & Rx_GTK){
+		rtw_roaming(padapter, NULL);
+	}
 #else
 	rtw_roaming(padapter, NULL);
 #endif //CONFOG_WOWLAN

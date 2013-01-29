@@ -116,7 +116,6 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_WOWLAN,
 #endif
 	HW_VAR_NAV_UPPER,
-	HW_VAR_C2H_HANDLE,
 	HW_VAR_RPT_TIMER_SETTING,
 	HW_VAR_TX_RPT_MAX_MACID,	
 	HW_VAR_H2C_MEDIA_STATUS_RPT,
@@ -138,6 +137,8 @@ typedef enum _HAL_DEF_VARIABLE{
 	HW_VAR_MAX_RX_AMPDU_FACTOR,
 	HW_DEF_RA_INFO_DUMP,
 	HAL_DEF_DBG_DUMP_TXPKT,
+	HW_DEF_FA_CNT_DUMP,
+	HW_DEF_ODM_DBG_FLAG,
 }HAL_DEF_VARIABLE;
 
 typedef enum _HAL_ODM_VARIABLE{
@@ -253,6 +254,7 @@ struct hal_ops {
 #endif
 	void (*hal_notch_filter)(_adapter * adapter, bool enable);
 	void (*hal_reset_security_engine)(_adapter * adapter);
+	s32 (*c2h_handler)(_adapter *padapter, struct c2h_evt_hdr *c2h_evt);
 };
 
 typedef	enum _RT_EEPROM_TYPE{
@@ -455,6 +457,8 @@ s32 rtw_hal_xmit_thread_handler(_adapter *padapter);
 
 void rtw_hal_notch_filter(_adapter * adapter, bool enable);
 void rtw_hal_reset_security_engine(_adapter * adapter);
+
+s32 rtw_hal_c2h_handler(_adapter *adapter, struct c2h_evt_hdr *c2h_evt);
 
 #endif //__HAL_INTF_H__
 

@@ -159,6 +159,10 @@ static u32 rtl8188eu_InitPowerOn(_adapter *padapter)
 {
 	u16 value16;
 	// HW Power on sequence
+	HAL_DATA_TYPE	*pHalData	= GET_HAL_DATA(padapter);
+	if(_TRUE == pHalData->bMacPwrCtrlOn)
+		return _SUCCESS;
+	
 	if(!HalPwrSeqCmdParsing(padapter, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_USB_MSK, Rtl8188E_NIC_PWR_ON_FLOW))
 	{
 		DBG_871X(KERN_ERR "%s: run power on flow fail\n", __func__);
@@ -177,7 +181,7 @@ static u32 rtl8188eu_InitPowerOn(_adapter *padapter)
 	// for SDIO - Set CR bit10 to enable 32k calibration. Suggested by SD1 Gimmy. Added by tynli. 2011.08.31.
 	
 	rtw_write16(padapter, REG_CR, value16);
-	
+	pHalData->bMacPwrCtrlOn = _TRUE;
 
 	return _SUCCESS;
 
@@ -356,11 +360,14 @@ _InitInterrupt(
 	// 1; Use bulk endpoint to upload interrupt pkt,	
 	usb_opt = rtw_read8(Adapter, REG_USB_SPECIAL_OPTION);
 
-#ifdef CONFIG_USB_INTERRUPT_IN_PIPE	
-	if(pHalData->RtIntInPipe == 0x05)	
-		usb_opt = usb_opt & (~INT_BULK_SEL);	
+
+	if(!adapter_to_dvobj(Adapter)->ishighspeed
+		#ifdef CONFIG_USB_INTERRUPT_IN_PIPE
+		|| pHalData->RtIntInPipe == 0x05
+		#endif
+	)
+		usb_opt = usb_opt & (~INT_BULK_SEL);
 	else	
-#endif	
 		usb_opt = usb_opt | (INT_BULK_SEL);
 
 	rtw_write8(Adapter, REG_USB_SPECIAL_OPTION, usb_opt );			
@@ -1482,7 +1489,6 @@ rt_rf_power_state RfOnOffDetect(IN	PADAPTER pAdapter )
 
 void _ps_open_RF(_adapter *padapter);
 
-
 u32 rtl8188eu_hal_init(PADAPTER Adapter)
 {
 	u8	value8 = 0;
@@ -1506,13 +1512,15 @@ u32 rtl8188eu_hal_init(PADAPTER Adapter)
 	enum HAL_INIT_STAGES {
 		HAL_INIT_STAGES_BEGIN = 0,
 		HAL_INIT_STAGES_INIT_PW_ON,
-		HAL_INIT_STAGES_INIT_LLTT,
+		HAL_INIT_STAGES_MISC01,
 		HAL_INIT_STAGES_DOWNLOAD_FW,
 		HAL_INIT_STAGES_MAC,
-		HAL_INIT_STAGES_MISC01,
-		HAL_INIT_STAGES_MISC02,
 		HAL_INIT_STAGES_BB,
-		HAL_INIT_STAGES_RF,
+		HAL_INIT_STAGES_RF,	
+		HAL_INIT_STAGES_EFUSE_PATCH,
+		HAL_INIT_STAGES_INIT_LLTT,	
+		
+		HAL_INIT_STAGES_MISC02,
 		HAL_INIT_STAGES_TURN_ON_BLOCK,
 		HAL_INIT_STAGES_INIT_SECURITY,
 		HAL_INIT_STAGES_MISC11,
@@ -1521,13 +1529,13 @@ u32 rtl8188eu_hal_init(PADAPTER Adapter)
 		HAL_INIT_STAGES_IQK,
 		HAL_INIT_STAGES_PW_TRACK,
 		HAL_INIT_STAGES_LCK,
-		HAL_INIT_STAGES_MISC21,
+		//HAL_INIT_STAGES_MISC21,
 		//HAL_INIT_STAGES_INIT_PABIAS,
 		#ifdef CONFIG_BT_COEXIST
 		HAL_INIT_STAGES_BT_COEXIST,
 		#endif
 		//HAL_INIT_STAGES_ANTENNA_SEL,
-		HAL_INIT_STAGES_MISC31,
+		//HAL_INIT_STAGES_MISC31,
 		HAL_INIT_STAGES_END,
 		HAL_INIT_STAGES_NUM
 	};
@@ -1535,13 +1543,14 @@ u32 rtl8188eu_hal_init(PADAPTER Adapter)
 	char * hal_init_stages_str[] = {
 		"HAL_INIT_STAGES_BEGIN",
 		"HAL_INIT_STAGES_INIT_PW_ON",
-		"HAL_INIT_STAGES_INIT_LLTT",
-		"HAL_INIT_STAGES_DOWNLOAD_FW",
-		"HAL_INIT_STAGES_MAC",
 		"HAL_INIT_STAGES_MISC01",
-		"HAL_INIT_STAGES_MISC02",
+		"HAL_INIT_STAGES_DOWNLOAD_FW",		
+		"HAL_INIT_STAGES_MAC",		
 		"HAL_INIT_STAGES_BB",
 		"HAL_INIT_STAGES_RF",
+		"HAL_INIT_STAGES_EFUSE_PATCH",
+		"HAL_INIT_STAGES_INIT_LLTT",
+		"HAL_INIT_STAGES_MISC02",		
 		"HAL_INIT_STAGES_TURN_ON_BLOCK",
 		"HAL_INIT_STAGES_INIT_SECURITY",
 		"HAL_INIT_STAGES_MISC11",
@@ -1550,12 +1559,12 @@ u32 rtl8188eu_hal_init(PADAPTER Adapter)
 		"HAL_INIT_STAGES_IQK",
 		"HAL_INIT_STAGES_PW_TRACK",
 		"HAL_INIT_STAGES_LCK",
-		"HAL_INIT_STAGES_MISC21",
+		//"HAL_INIT_STAGES_MISC21",
 		#ifdef CONFIG_BT_COEXIST
 		"HAL_INIT_STAGES_BT_COEXIST",
 		#endif
 		//"HAL_INIT_STAGES_ANTENNA_SEL",
-		"HAL_INIT_STAGES_MISC31",
+		//"HAL_INIT_STAGES_MISC31",
 		"HAL_INIT_STAGES_END",
 	};
 
@@ -1629,6 +1638,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_BEGIN);
 
 		goto exit;
 	}
+	
 
 HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_PW_ON);
 	status = rtl8188eu_InitPowerOn(Adapter);
@@ -1637,7 +1647,22 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_PW_ON);
 		goto exit;
 	}
 
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_LLTT);
+	// Set RF type for BB/RF configuration	
+	_InitRFType(Adapter);//->_ReadRFType()
+
+	// Save target channel
+	// <Roger_Notes> Current Channel will be updated again later.
+	pHalData->CurrentChannel = 6;//default set to 6
+	if(pwrctrlpriv->reg_rfoff == _TRUE){
+		pwrctrlpriv->rf_pwrstate = rf_off;
+	}
+
+	// 2010/08/09 MH We need to check if we need to turnon or off RF after detecting
+	// HW GPIO pin. Before PHY_RFConfig8192C.
+	//HalDetectPwrDownMode(Adapter);
+	// 2010/08/26 MH If Efuse does not support sective suspend then disable the function.
+	//HalDetectSelectiveSuspendMode(Adapter);
+
 	if (!pregistrypriv->wifi_spec) {
 		txpktbuf_bndy = TX_PAGE_BOUNDARY_88E;
 	} else {
@@ -1645,11 +1670,134 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_LLTT);
 		txpktbuf_bndy = WMM_NORMAL_TX_PAGE_BOUNDARY_88E;
 	}
 	
+HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC01);
+	_InitQueueReservedPage(Adapter);		
+	_InitQueuePriority(Adapter);
+	_InitPageBoundary(Adapter);	
+	_InitTransferPageSize(Adapter);
+	
+#ifdef CONFIG_IOL_IOREG_CFG
+	_InitTxBufferBoundary(Adapter, 0);		
+#endif
+
+
+
+HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_DOWNLOAD_FW);
+#if (MP_DRIVER == 1)
+	if (Adapter->registrypriv.mp_mode == 1)
+	{
+		_InitRxSetting(Adapter);
+		Adapter->bFWReady = _FALSE;
+		pHalData->fw_ractrl = _FALSE;
+	}
+	else
+#endif  //MP_DRIVER == 1
+	{
+	#if 0		
+		Adapter->bFWReady = _FALSE; //because no fw for test chip	
+		pHalData->fw_ractrl = _FALSE;
+	#else
+
+#ifdef CONFIG_WOWLAN
+	status = rtl8188e_FirmwareDownload(Adapter, _FALSE);
+#else
+		status = rtl8188e_FirmwareDownload(Adapter);
+#endif //CONFIG_WOWLAN
+
+		if (status != _SUCCESS) {
+			DBG_871X("%s: Download Firmware failed!!\n", __FUNCTION__);
+			Adapter->bFWReady = _FALSE;
+			pHalData->fw_ractrl = _FALSE;
+			return status;
+		} else {
+			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("Initializepadapter8192CSdio(): Download Firmware Success!!\n"));
+			Adapter->bFWReady = _TRUE;
+			pHalData->fw_ractrl = _FALSE;
+		}
+	#endif
+	}
+
+
+	rtl8188e_InitializeFirmwareVars(Adapter);
+
+
+HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MAC);
+#if (HAL_MAC_ENABLE == 1)
+	status = PHY_MACConfig8188E(Adapter);
+	if(status == _FAIL)
+	{
+		DBG_871X(" ### Failed to init MAC ...... \n ");				
+		goto exit;
+	}
+#endif	
+
+	//
+	//d. Initialize BB related configurations.
+	//
+HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_BB);
+#if (HAL_BB_ENABLE == 1)
+	status = PHY_BBConfig8188E(Adapter);
+	if(status == _FAIL)
+	{
+		DBG_871X(" ### Failed to init BB ...... \n ");
+		goto exit;
+	}
+#endif
+
+
+HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_RF);
+#if (HAL_RF_ENABLE == 1)
+	status = PHY_RFConfig8188E(Adapter);	
+	if(status == _FAIL)
+	{
+		DBG_871X(" ### Failed to init RF ...... \n ");
+		goto exit;
+	}
+#endif
+
+HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_EFUSE_PATCH);
+#if defined(CONFIG_IOL_EFUSE_PATCH)		
+	status = rtl8188e_iol_efuse_patch(Adapter);
+	if(status == _FAIL){	
+		DBG_871X("%s  rtl8188e_iol_efuse_patch failed \n",__FUNCTION__);
+		goto exit;
+	}	
+#endif
+
+	_InitTxBufferBoundary(Adapter, txpktbuf_bndy);	
+
+HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_LLTT);
 	status =  InitLLTTable(Adapter, txpktbuf_bndy);
 	if(status == _FAIL){
 		RT_TRACE(_module_hci_hal_init_c_, _drv_err_, ("Failed to init LLT table\n"));
 		goto exit;
 	}
+	
+HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC02);
+	// Get Rx PHY status in order to report RSSI and others.
+	_InitDriverInfoSize(Adapter, DRVINFO_SZ);
+
+	_InitInterrupt(Adapter);
+	hal_init_macaddr(Adapter);//set mac_address
+	_InitNetworkType(Adapter);//set msr	
+	_InitWMACSetting(Adapter);
+	_InitAdaptiveCtrl(Adapter);
+	_InitEDCA(Adapter);
+	//_InitRateFallback(Adapter);//just follow MP Team ???Georgia
+	_InitRetryFunction(Adapter);
+	InitUsbAggregationSetting(Adapter);
+	_InitOperationMode(Adapter);//todo
+	_InitBeaconParameters(Adapter);
+	_InitBeaconMaxError(Adapter, _TRUE);
+
+	//
+	// Init CR MACTXEN, MACRXEN after setting RxFF boundary REG_TRXFF_BNDY to patch
+	// Hw bug which Hw initials RxFF boundry size to a value which is larger than the real Rx buffer size in 88E. 
+	//
+	// Enable MACTXEN/MACRXEN block
+	value16 = rtw_read16(Adapter, REG_CR);
+	value16 |= (MACTXEN | MACRXEN);
+	rtw_write8(Adapter, REG_CR, value16);		
 
 #if ENABLE_USB_DROP_INCORRECT_OUT
 	_InitHardwareDropIncorrectBulkOut(Adapter);
@@ -1702,106 +1850,6 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_LLTT);
 		rtw_write8(Adapter, REG_EARLY_MODE_CONTROL, 0);
 	}
 	
-
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_DOWNLOAD_FW);
-#if (MP_DRIVER == 1)
-	if (Adapter->registrypriv.mp_mode == 1)
-	{
-	_InitRxSetting(Adapter);
-	Adapter->bFWReady = _FALSE;
-	pHalData->fw_ractrl = _FALSE;
-	}
-	else
-#endif  //MP_DRIVER == 1
-	{
-	#if 0		
-	Adapter->bFWReady = _FALSE; //because no fw for test chip	
-	pHalData->fw_ractrl = _FALSE;
-	#else
-
-#ifdef CONFIG_WOWLAN
-	status = rtl8188e_FirmwareDownload(Adapter, _FALSE);
-#else
-	status = rtl8188e_FirmwareDownload(Adapter);
-#endif //CONFIG_WOWLAN
-
-	if (status != _SUCCESS) {
-		DBG_871X("%s: Download Firmware failed!!\n", __FUNCTION__);
-		Adapter->bFWReady = _FALSE;
-		pHalData->fw_ractrl = _FALSE;
-		return status;
-	} else {
-		RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("Initializepadapter8192CSdio(): Download Firmware Success!!\n"));
-		Adapter->bFWReady = _TRUE;
-		pHalData->fw_ractrl = _FALSE;
-	}
-	#endif
-	}
-
-
-	rtl8188e_InitializeFirmwareVars(Adapter);
-	
-	if(pwrctrlpriv->reg_rfoff == _TRUE){
-		pwrctrlpriv->rf_pwrstate = rf_off;
-	}
-
-	// 2010/08/09 MH We need to check if we need to turnon or off RF after detecting
-	// HW GPIO pin. Before PHY_RFConfig8192C.
-	//HalDetectPwrDownMode(Adapter);
-	// 2010/08/26 MH If Efuse does not support sective suspend then disable the function.
-	//HalDetectSelectiveSuspendMode(Adapter);
-
-	// Set RF type for BB/RF configuration	
-	_InitRFType(Adapter);//->_ReadRFType()
-
-	// Save target channel
-	// <Roger_Notes> Current Channel will be updated again later.
-	pHalData->CurrentChannel = 6;//default set to 6
-
-
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MAC);
-#if (HAL_MAC_ENABLE == 1)
-	status = PHY_MACConfig8188E(Adapter);
-	if(status == _FAIL)
-	{
-		goto exit;
-	}
-#endif
-	
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC01);
-	_InitQueueReservedPage(Adapter);
-	_InitTxBufferBoundary(Adapter, txpktbuf_bndy);		
-	_InitQueuePriority(Adapter);
-	_InitPageBoundary(Adapter);	
-	_InitTransferPageSize(Adapter);
-
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC02);
-	// Get Rx PHY status in order to report RSSI and others.
-	_InitDriverInfoSize(Adapter, DRVINFO_SZ);
-
-	_InitInterrupt(Adapter);
-	hal_init_macaddr(Adapter);//set mac_address
-	_InitNetworkType(Adapter);//set msr	
-	_InitWMACSetting(Adapter);
-	_InitAdaptiveCtrl(Adapter);
-	_InitEDCA(Adapter);
-	//_InitRateFallback(Adapter);//just follow MP Team ???Georgia
-	_InitRetryFunction(Adapter);
-	InitUsbAggregationSetting(Adapter);
-	_InitOperationMode(Adapter);//todo
-	_InitBeaconParameters(Adapter);
-	_InitBeaconMaxError(Adapter, _TRUE);
-
-	//
-	// Init CR MACTXEN, MACRXEN after setting RxFF boundary REG_TRXFF_BNDY to patch
-	// Hw bug which Hw initials RxFF boundry size to a value which is larger than the real Rx buffer size in 88E. 
-	//
-	// Enable MACTXEN/MACRXEN block
-	value16 = rtw_read16(Adapter, REG_CR);
-	value16 |= (MACTXEN | MACRXEN);
-	rtw_write8(Adapter, REG_CR, value16);	
-	
-
 #if defined(CONFIG_CONCURRENT_MODE) || defined(CONFIG_TX_MCAST2UNI)
 
 #ifdef CONFIG_CHECK_AC_LIFETIME
@@ -1823,32 +1871,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC02);
 	_InitHWLed(Adapter);
 #endif //CONFIG_LED
 
-	//
-	//d. Initialize BB related configurations.
-	//
-
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_BB);
-#if (HAL_BB_ENABLE == 1)
-	status = PHY_BBConfig8188E(Adapter);
-	if(status == _FAIL)
-	{
-		goto exit;
-	}
-#endif
-
-	// 92CU use 3-wire to r/w RF
-	//pHalData->Rf_Mode = RF_OP_By_SW_3wire;
-
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_RF);
-#if (HAL_RF_ENABLE == 1)
-	status = PHY_RFConfig8188E(Adapter);	
-	if(status == _FAIL)
-	{
-		goto exit;
-	}
-
-#endif
-
+	
 	//
 	// Joseph Note: Keep RfRegChnlVal for later use.
 	//
@@ -2037,23 +2060,8 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_LCK);
 	}
 }
 
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC21);
-
-
 //HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_PABIAS);
 //	_InitPABias(Adapter);
-
-#ifdef CONFIG_BT_COEXIST
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_BT_COEXIST);
-	_InitBTCoexist(Adapter);
-#endif
-
-	// 2010/08/23 MH According to Alfred's suggestion, we need to to prevent HW enter
-	// suspend mode automatically.
-	//HwSuspendModeEnable92Cu(Adapter, _FALSE);
-
-HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC31);
-
 	rtw_write8(Adapter, REG_USB_HRPWM, 0);
 
 #ifdef CONFIG_XMIT_ACK
@@ -2105,7 +2113,7 @@ CardDisableRTL8188EU(
 	u8 	val8;
 	u16	val16;
 	u32	val32;
-	
+	HAL_DATA_TYPE	*pHalData	= GET_HAL_DATA(Adapter);
 
 	RT_TRACE(COMP_INIT, DBG_LOUD, ("CardDisableRTL8188EU\n"));
 
@@ -2174,6 +2182,8 @@ CardDisableRTL8188EU(
 	rtw_write8(Adapter, REG_GPIO_IO_SEL+1, val8|0x0F);//Reg0x43
 	rtw_write32(Adapter, REG_BB_PAD_CTRL, 0x00080808);//set LNA ,TRSW,EX_PA Pin to output mode
 #endif
+	pHalData->bMacPwrCtrlOn = _FALSE;
+	Adapter->bFWReady = _FALSE;
 }
 static void rtl8192cu_hw_power_down(_adapter *padapter)
 {
@@ -2214,7 +2224,7 @@ u32 rtl8188eu_hal_deinit(PADAPTER Adapter)
 				rtl8192cu_hw_power_down(Adapter);
 			
 		}
-	}		
+	}	
 	return _SUCCESS;
  }
 
@@ -3041,6 +3051,7 @@ readAdapterInfo_8188EU(
 #else //CONFIG_EFUSE_CONFIG_FILE	
 	Hal_EfuseParseMACAddr_8188EU(padapter, pEEPROM->efuse_eeprom_data, pEEPROM->bautoload_fail_flag);
 #endif //CONFIG_EFUSE_CONFIG_FILE	
+
 	Hal_ReadPowerSavingMode88E(padapter, pEEPROM->efuse_eeprom_data, pEEPROM->bautoload_fail_flag);
 	Hal_ReadTxPowerInfo88E(padapter, pEEPROM->efuse_eeprom_data, pEEPROM->bautoload_fail_flag);	
 	Hal_EfuseParseEEPROMVer88E(padapter, pEEPROM->efuse_eeprom_data, pEEPROM->bautoload_fail_flag);
@@ -3425,7 +3436,11 @@ static void hw_var_set_opmode(PADAPTER Adapter, u8 variable, u8* val)
 	
 		        //enable BCN0 Function for if1
 			//don't enable update TSF0 for if1 (due to TSF update when beacon/probe rsp are received)
+			#if defined(CONFIG_INTERRUPT_BASED_TXBCN_BCN_OK_ERR)
 			rtw_write8(Adapter, REG_BCN_CTRL, (DIS_TSF_UDT0_NORMAL_CHIP|EN_BCN_FUNCTION | EN_TXBCN_RPT|BIT(1)));
+			#else
+			rtw_write8(Adapter, REG_BCN_CTRL, (DIS_TSF_UDT0_NORMAL_CHIP|EN_BCN_FUNCTION |BIT(1)));
+			#endif
 
 #ifdef CONFIG_CONCURRENT_MODE
 			if(check_buddy_fwstate(Adapter, WIFI_FW_NULL_STATE))
@@ -4363,14 +4378,14 @@ _func_enter_;
 				rtl8188e_set_FwJoinBssReport_cmd(Adapter, mstatus);
 			}
 			break;
-#ifdef CONFIG_P2P
+#ifdef CONFIG_P2P_PS
 		case HW_VAR_H2C_FW_P2P_PS_OFFLOAD:
 			{
 				u8	p2p_ps_state = (*(u8 *)val);
-				//rtl8192c_set_p2p_ps_offload_cmd(Adapter, p2p_ps_state);
+				rtl8188e_set_p2p_ps_offload_cmd(Adapter, p2p_ps_state);
 			}
 			break;
-#endif //CONFIG_P2P
+#endif //CONFIG_P2P_PS
 #ifdef CONFIG_TDLS
 		case HW_VAR_TDLS_WRCR:
 			rtw_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR)&(~RCR_CBSSID_DATA ));
@@ -4520,6 +4535,11 @@ _func_enter_;
 #endif
 			break;
 
+	case HW_VAR_APFM_ON_MAC:
+			pHalData->bMacPwrCtrlOn = *val;
+			DBG_871X("%s: bMacPwrCtrlOn=%d\n", __func__, pHalData->bMacPwrCtrlOn);
+			break;
+
 #ifdef CONFIG_WOWLAN
 		case HW_VAR_WOWLAN:
 		{
@@ -4613,6 +4633,7 @@ _func_enter_;
 		break;
 #endif //CONFIG_WOWLAN
 
+
 	#if (RATE_ADAPTIVE_SUPPORT == 1)
 		case HW_VAR_TX_RPT_MAX_MACID:
 			{
@@ -4691,6 +4712,9 @@ _func_enter_;
 #endif
 		case HW_VAR_EFUSE_BYTES: // To get EFUE total used bytes, added by Roger, 2008.12.22.
 			*((u16 *)(val)) = pHalData->EfuseUsedBytes;	
+			break;
+		case HW_VAR_APFM_ON_MAC:
+			*val = pHalData->bMacPwrCtrlOn;
 			break;
 		case HW_VAR_CHK_HI_QUEUE_EMPTY:
 			*val = ((rtw_read32(Adapter, REG_HGQ_INFORMATION)&0x0000ff00)==0) ? _TRUE:_FALSE;

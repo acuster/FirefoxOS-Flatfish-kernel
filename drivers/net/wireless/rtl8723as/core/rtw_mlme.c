@@ -1436,22 +1436,30 @@ _func_enter_;
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("+rtw_indicate_connect\n"));
  
 	pmlmepriv->to_join = _FALSE;
+
+	if(!check_fwstate(&padapter->mlmepriv, _FW_LINKED)) 
+	{
+
 #ifdef CONFIG_SW_ANTENNA_DIVERSITY
-	rtw_hal_set_hwreg(padapter, HW_VAR_ANTENNA_DIVERSITY_LINK, 0);
+		rtw_hal_set_hwreg(padapter, HW_VAR_ANTENNA_DIVERSITY_LINK, 0);
 #endif
-	set_fwstate(pmlmepriv, _FW_LINKED);
 
-	rtw_led_control(padapter, LED_CTL_LINK);
+		set_fwstate(pmlmepriv, _FW_LINKED);
 
+		rtw_led_control(padapter, LED_CTL_LINK);
+
+	
 #ifdef CONFIG_DRVEXT_MODULE
-	if(padapter->drvextpriv.enable_wpa)
-	{
-		indicate_l2_connect(padapter);
-	}
-	else
+		if(padapter->drvextpriv.enable_wpa)
+		{
+			indicate_l2_connect(padapter);
+		}
+		else
 #endif
-	{
-		rtw_os_indicate_connect(padapter);
+		{
+			rtw_os_indicate_connect(padapter);
+		}
+
 	}
 
 	#ifdef CONFIG_LAYER2_ROAMING
@@ -1485,9 +1493,15 @@ _func_enter_;
 	
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("+rtw_indicate_disconnect\n"));
 
-	_clr_fwstate_(pmlmepriv, _FW_LINKED|_FW_UNDER_LINKING|WIFI_UNDER_WPS);
+	_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING|WIFI_UNDER_WPS);
 
-	rtw_led_control(padapter, LED_CTL_NO_LINK);
+        //DBG_871X("clear wps when %s\n", __func__);
+
+#ifdef CONFIG_LAYER2_ROAMING
+	if(pmlmepriv->to_roaming > 0)
+		_clr_fwstate_(pmlmepriv, _FW_LINKED);
+#endif
+	
 
 #ifdef CONFIG_WAPI_SUPPORT
 	psta = rtw_get_stainfo(pstapriv,cur_network->MacAddress);
@@ -1502,10 +1516,18 @@ _func_enter_;
 	}
 #endif
 
-	#ifdef CONFIG_LAYER2_ROAMING
-	if(pmlmepriv->to_roaming<=0)
-	#endif
+	if(check_fwstate(&padapter->mlmepriv, _FW_LINKED) 
+#ifdef CONFIG_LAYER2_ROAMING
+		|| (pmlmepriv->to_roaming<=0)
+#endif
+	)
+	{
 		rtw_os_indicate_disconnect(padapter);
+
+	      _clr_fwstate_(pmlmepriv, _FW_LINKED);
+
+		rtw_led_control(padapter, LED_CTL_NO_LINK);
+	}
 
 #ifdef CONFIG_LPS
 #ifdef CONFIG_WOWLAN
@@ -1538,12 +1560,12 @@ void rtw_scan_abort(_adapter *adapter)
 	while (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)
 		&& rtw_get_passing_time_ms(start) <= 200) {
 
-		DBG_871X("%s : fw_state=_FW_UNDER_SURVEY!\n", __func__);
+		DBG_871X(FUNC_NDEV_FMT"fw_state=_FW_UNDER_SURVEY!\n", FUNC_NDEV_ARG(adapter->pnetdev));
 		rtw_msleep_os(20);
 	}
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)) {
-		DBG_871X("waiting for scan_abort time out!\n");
+		DBG_871X(FUNC_NDEV_FMT"waiting for scan_abort time out!\n", FUNC_NDEV_ARG(adapter->pnetdev));
 		#ifdef CONFIG_PLATFORM_MSTAR_TITANIA12	
 		//_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY);
 		set_survey_timer(pmlmeext, 0);

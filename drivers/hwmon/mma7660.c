@@ -495,6 +495,11 @@ static void mma7660_init_events (struct work_struct *work)
 
 	result = mma7660_init_client(mma7660_i2c_client);
 	assert(result==0);
+	if(result != 0)
+	{
+		printk("<%s> init err !", __func__);
+		return;
+	}
 	dprintk(DEBUG_INIT, "mma7660 init events end\n");
 }
 
@@ -518,22 +523,8 @@ static int __devinit mma7660_probe(struct i2c_client *client,
  					 I2C_FUNC_SMBUS_BYTE_DATA);
 	assert(result);
 
-	mma7660_init_wq = create_singlethread_workqueue("mma7660_init");
-	if (mma7660_init_wq == NULL) {
-		printk("create mma7660_init_wq fail!\n");
-		return -ENOMEM;
-	}
-
-	/* Initialize the MMA7660 chip */
-	queue_work(mma7660_init_wq, &mma7660_init_work);
-
 	//result = 1; // debug by lchen
 	dprintk(DEBUG_INIT, "<%s> mma7660_init_client result %d\n", __func__, result);
-	if(result != 0)
-	{
-		printk("<%s> init err !", __func__);
-		return result;
-	}
 
 	hwmon_dev = hwmon_device_register(&client->dev);
 	assert(!(IS_ERR(hwmon_dev)));
@@ -580,6 +571,14 @@ static int __devinit mma7660_probe(struct i2c_client *client,
 	data->pollDev = mma7660_idev;
 	i2c_set_clientdata(client, data);
 
+	mma7660_init_wq = create_singlethread_workqueue("mma7660_init");
+	if (mma7660_init_wq == NULL) {
+		printk("create mma7660_init_wq fail!\n");
+		return -ENOMEM;
+	}
+
+	/* Initialize the MMA7660 chip */
+	queue_work(mma7660_init_wq, &mma7660_init_work);
 
 	mma7660_resume_wq = create_singlethread_workqueue("mma7660_resume");
 	if (mma7660_resume_wq == NULL) {

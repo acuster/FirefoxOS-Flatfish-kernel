@@ -272,8 +272,9 @@ typedef enum _HT_IOT_PEER
 	HT_IOT_PEER_INTEL 				= 12, 
 	HT_IOT_PEER_RTK_APCLIENT 		= 13, 
 	HT_IOT_PEER_REALTEK_81XX 		= 14,	
-	HT_IOT_PEER_REALTEK_WOW 		= 15,	
-	HT_IOT_PEER_MAX 				= 16
+	HT_IOT_PEER_REALTEK_WOW 		= 15,
+	HT_IOT_PEER_TENDA 				= 16,
+	HT_IOT_PEER_MAX 				= 17
 }HT_IOT_PEER_E, *PHTIOT_PEER_E;
 
 
@@ -305,7 +306,10 @@ struct	ss_res
 	int	bss_cnt;
 	int	channel_idx;
 	int	scan_mode;
+	u8 ssid_num;
+	u8 ch_num;
 	NDIS_802_11_SSID ssid[RTW_SSID_SCAN_AMOUNT];
+	struct rtw_ieee80211_channel ch[RTW_CHANNEL_SCAN_AMOUNT];
 };
 
 //#define AP_MODE				0x0C
@@ -457,7 +461,7 @@ typedef struct _RT_CHANNEL_INFO
 #endif
 }RT_CHANNEL_INFO, *PRT_CHANNEL_INFO;
 
-extern int rtw_is_channel_set_contains_channel(RT_CHANNEL_INFO *channel_set, const u32 channel_num);
+int rtw_ch_set_search_ch(RT_CHANNEL_INFO *ch_set, const u32 ch);
 
 struct mlme_ext_priv
 {
@@ -472,6 +476,11 @@ struct mlme_ext_priv
 	unsigned char	cur_bwmode;
 	unsigned char	cur_ch_offset;//PRIME_CHNL_OFFSET
 	unsigned char	cur_wireless_mode;	// NETWORK_TYPE
+
+	unsigned char	oper_channel; //saved channel info when call set_channel_bw
+	unsigned char	oper_bwmode;
+	unsigned char	oper_ch_offset;//PRIME_CHNL_OFFSET
+	
 	unsigned char	max_chan_nums;
 	RT_CHANNEL_INFO		channel_set[MAX_CHANNEL_NUM];
 	unsigned char	basicrate[NumRates];
@@ -502,6 +511,11 @@ struct mlme_ext_priv
 	//recv_decache check for Action_public frame 
 	u8 action_public_dialog_token;
 	u16 	 action_public_rxseq;
+
+#ifdef CONFIG_ACTIVE_KEEP_ALIVE_CHECK
+	u8 active_keep_alive_check;
+#endif
+	
 };
 
 int init_mlme_ext_priv(_adapter* padapter);
@@ -634,7 +648,8 @@ void issue_auth(_adapter *padapter, struct sta_info *psta, unsigned short status
 void issue_probereq(_adapter *padapter, NDIS_802_11_SSID *pssid, u8 blnbc);
 int issue_nulldata(_adapter *padapter, unsigned char *da, unsigned int power_mode, int try_cnt, int wait_ms);
 int issue_qos_nulldata(_adapter *padapter, unsigned char *da, u16 tid, int try_cnt, int wait_ms);
-void issue_deauth(_adapter *padapter, unsigned char *da, unsigned short reason);
+int issue_deauth(_adapter *padapter, unsigned char *da, unsigned short reason, u8 wait_ack);
+void issue_action_spct_ch_switch(_adapter *padapter, u8 *ra, u8 new_ch, u8 ch_offset);
 void issue_action_BA(_adapter *padapter, unsigned char *raddr, unsigned char action, unsigned short status);
 unsigned int send_delba(_adapter *padapter, u8 initiator, u8 *addr);
 unsigned int send_beacon(_adapter *padapter);
@@ -657,10 +672,11 @@ unsigned int OnAuthClient(_adapter *padapter, union recv_frame *precv_frame);
 unsigned int OnDeAuth(_adapter *padapter, union recv_frame *precv_frame);
 unsigned int OnAction(_adapter *padapter, union recv_frame *precv_frame);
 
+unsigned int on_action_spct(_adapter *padapter, union recv_frame *precv_frame);
 unsigned int OnAction_qos(_adapter *padapter, union recv_frame *precv_frame);
 unsigned int OnAction_dls(_adapter *padapter, union recv_frame *precv_frame);
 unsigned int OnAction_back(_adapter *padapter, union recv_frame *precv_frame);
-unsigned int OnAction_public(_adapter *padapter, union recv_frame *precv_frame);
+unsigned int on_action_public(_adapter *padapter, union recv_frame *precv_frame);
 unsigned int OnAction_ht(_adapter *padapter, union recv_frame *precv_frame);
 unsigned int OnAction_wmm(_adapter *padapter, union recv_frame *precv_frame);
 unsigned int OnAction_p2p(_adapter *padapter, union recv_frame *precv_frame);
@@ -750,6 +766,7 @@ u8 add_ba_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 mlme_evt_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 h2c_msg_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 tx_beacon_hdl(_adapter *padapter, unsigned char *pbuf);
+u8 set_ch_hdl(_adapter *padapter, u8 *pbuf);
 u8 set_chplan_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 led_blink_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 set_csa_hdl(_adapter *padapter, unsigned char *pbuf);	//Kurt: Handling DFS channel switch announcement ie.
@@ -809,7 +826,7 @@ struct cmd_hdl wlancmds[] =
 	GEN_MLME_EXT_HANDLER(0, NULL)
 	GEN_MLME_EXT_HANDLER(0, NULL)
 	GEN_MLME_EXT_HANDLER(sizeof(struct addBaReq_parm), add_ba_hdl)	
-	GEN_MLME_EXT_HANDLER(0, NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct set_ch_parm), set_ch_hdl) /* 46 */
 	GEN_MLME_EXT_HANDLER(0, NULL)
 	GEN_MLME_EXT_HANDLER(0, NULL)
 	GEN_MLME_EXT_HANDLER(0, NULL)

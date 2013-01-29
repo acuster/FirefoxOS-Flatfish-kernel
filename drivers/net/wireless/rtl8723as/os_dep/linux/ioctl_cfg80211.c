@@ -4110,6 +4110,10 @@ static s32 cfg80211_rtw_remain_on_channel(struct wiphy *wiphy, struct net_device
 	pcfg80211_wdinfo->remain_on_ch_cookie= *cookie;	
 
 	rtw_scan_abort(padapter);
+#ifdef CONFIG_CONCURRENT_MODE		
+	if(rtw_buddy_adapter_up(padapter))	
+		rtw_scan_abort(padapter->pbuddy_adapter);			
+#endif //CONFIG_CONCURRENT_MODE
 
 	//if(!rtw_p2p_chk_role(pwdinfo, P2P_ROLE_CLIENT) && !rtw_p2p_chk_role(pwdinfo, P2P_ROLE_GO))
 	if(rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE))
@@ -4130,7 +4134,7 @@ static s32 cfg80211_rtw_remain_on_channel(struct wiphy *wiphy, struct net_device
 	
 	
 	if(duration < 400)
-		duration = duration*2;//extend from exper.
+		duration = duration*3;//extend from exper.
 
 
 #ifdef	CONFIG_CONCURRENT_MODE
@@ -4156,7 +4160,7 @@ static s32 cfg80211_rtw_remain_on_channel(struct wiphy *wiphy, struct net_device
 					(remain_ch != pmlmeext->cur_channel))
 				{
 					DBG_8192C("%s, issue nulldata pwrbit=1\n", __func__);		
-					issue_nulldata(padapter->pbuddy_adapter, 1);
+					issue_nulldata(padapter->pbuddy_adapter, NULL, 1, 3, 500);
 				
 					ATOMIC_SET(&pwdev_priv->switch_ch_to, 0);
 			
@@ -4333,6 +4337,18 @@ static int	_cfg80211_rtw_mgmt_tx(struct net_device *ndev, u8 tx_ch,
 	     */		
 
 		rtw_scan_abort(padapter);
+#ifdef CONFIG_CONCURRENT_MODE		
+		if(rtw_buddy_adapter_up(padapter))	
+			rtw_scan_abort(padapter->pbuddy_adapter);			
+#endif //CONFIG_CONCURRENT_MODE
+
+		if(padapter->cfg80211_wdinfo.is_ro_ch == _TRUE)
+		{
+			DBG_8192C("%s, cancel ro ch timer\n", __func__);
+			_cancel_timer_ex(&padapter->cfg80211_wdinfo.remain_on_ch_timer);
+			padapter->cfg80211_wdinfo.is_ro_ch = _FALSE;
+		}
+		
 	}
 
 #ifdef CONFIG_CONCURRENT_MODE
@@ -4350,7 +4366,8 @@ static int	_cfg80211_rtw_mgmt_tx(struct net_device *ndev, u8 tx_ch,
 			if(ATOMIC_READ(&pwdev_priv->switch_ch_to)==1)
 			{		
 				DBG_8192C("%s, issue nulldata pwrbit=1\n", __func__);				
-				issue_nulldata(padapter->pbuddy_adapter, 1);					
+				issue_nulldata(padapter->pbuddy_adapter, NULL, 1, 3, 500);
+				
 
 				ATOMIC_SET(&pwdev_priv->switch_ch_to, 0);
 
@@ -4625,7 +4642,7 @@ static int	cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct net_device *ndev,
 			if(ATOMIC_READ(&pwdev_priv->switch_ch_to)==1)
 			{		
 				DBG_8192C("%s, issue nulldata pwrbit=1\n", __func__);				
-				issue_nulldata(padapter->pbuddy_adapter, 1);					
+				issue_nulldata(padapter->pbuddy_adapter, NULL, 1, 3, 500);
 
 				ATOMIC_SET(&pwdev_priv->switch_ch_to, 0);
 
@@ -5210,6 +5227,7 @@ static void rtw_cfg80211_preinit_wiphy(_adapter *padapter, struct wiphy *wiphy)
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0))
 	wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+	wiphy->flags |= WIPHY_FLAG_OFFCHAN_TX | WIPHY_FLAG_HAVE_AP_SME;
 #endif
 
 	if(padapter->registrypriv.power_mgnt != PS_MODE_ACTIVE)

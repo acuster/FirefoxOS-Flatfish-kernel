@@ -21,4 +21,16 @@ config AW_ASIC_EVB_PLATFORM
 
 endchoice
 
+config SUNXI_SYSFS
+	bool "Allwinner SUNXI Sysfs"
+    depends on ARCH_SUN6I
+	help
+	  Support /sys/class/sunxi for kernel.
+
+config SUNXI_POWER_SCENE
+	bool "support scene change notify"
+    depends on SUNXI_SYSFS
+	help
+	  Support /sys/class/sunxi/power/scene for kernel.
+
 

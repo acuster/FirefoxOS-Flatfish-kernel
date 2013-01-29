@@ -137,6 +137,7 @@ static void rtw_dev_remove(struct usb_interface *pusb_intf);
 	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x817F)},/* 8188RU */ \
 	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x818A)},/* RTL8188CUS-VL */ \
 	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x018A)},/* RTL8188CTV */ \
+	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x17C0)}, /* RTK demoboard - USB-N10E */ \
 	/****** 8192CUS ********/ \
 	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8177)},/* 8191cu 1*2 */ \
 	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8178)},/* 8192cu 2*2 */ \
@@ -161,8 +162,17 @@ static void rtw_dev_remove(struct usb_interface *pusb_intf);
 	{USB_DEVICE(0x0DF6, 0x005C)},/* Sitecom - Edimax */ \
 	{USB_DEVICE(0x0BDA, 0x5088)},/* Thinkware - CC&C */ \
 	{USB_DEVICE(0x4856, 0x0091)},/* NetweeN - Feixun */ \
+	{USB_DEVICE(0x0846, 0x9041)}, /* Netgear - Cameo */ \
 	{USB_DEVICE(0x2019, 0x4902)},/* Planex - Etop */ \
 	{USB_DEVICE(0x2019, 0xAB2E)},/* SW-WF02-AD15 -Abocom */ \
+	{USB_DEVICE(0x2001, 0x330B)}, /* D-LINK - T&W */ \
+	{USB_DEVICE(0xCDAB, 0x8010)}, /* - - compare */ \
+	{USB_DEVICE(0x0B05, 0x17BA)}, /* ASUS - Edimax */ \
+	{USB_DEVICE(0x0BDA, 0x1E1E)}, /* Intel - - */ \
+	{USB_DEVICE(0x04BB, 0x094c)}, /* I-O DATA - Edimax */ \
+	/****** 8188CTV ********/ \
+	{USB_DEVICE(0xCDAB, 0x8011)}, /* - - compare */ \
+	{USB_DEVICE(0x0BDA, 0x0A8A)}, /* Sony - Foxconn */ \
 	/****** 8188 RU ********/ \
 	{USB_DEVICE(0x0BDA, 0x317F)},/* Netcore,Netcore */ \
 	/****** 8188CE-VAU ********/ \
@@ -187,14 +197,22 @@ static void rtw_dev_remove(struct usb_interface *pusb_intf);
 	{USB_DEVICE(0x07B8, 0x8178)},/* Abocom - Abocom */ \
 	{USB_DEVICE(0x07AA, 0x0056)},/* ATKK - Gemtek */ \
 	{USB_DEVICE(0x4855, 0x0091)},/*  - Feixun */ \
-	{USB_DEVICE(0x2001, 0x3307)},/* D-Link-Cameo */ \
 	{USB_DEVICE(0x050D, 0x2102)},/* Belkin - Sercomm */ \
 	{USB_DEVICE(0x050D, 0x2103)},/* Belkin - Edimax */ \
 	{USB_DEVICE(0x20F4, 0x624D)},/* TRENDnet */ \
 	{USB_DEVICE(0x0DF6, 0x0061)},/* Sitecom - Edimax */ \
 	{USB_DEVICE(0x0B05, 0x17AB)},/* ASUS - Edimax */ \
 	{USB_DEVICE(0x0846, 0x9021)},/* Netgear - Sercomm */ \
+	{USB_DEVICE(0x0846, 0xF001)}, /* Netgear - Sercomm */ \
 	{USB_DEVICE(0x0E66, 0x0019)},/* Hawking,Edimax */ \
+	{USB_DEVICE(0x0E66, 0x0020)}, /* Hawking  - Edimax */ \
+	{USB_DEVICE(0x050D, 0x1004)}, /* Belkin - Edimax */ \
+	{USB_DEVICE(0x0BDA, 0x2E2E)}, /* Intel - - */ \
+	{USB_DEVICE(0x2357, 0x0100)}, /* TP-Link - TP-Link */ \
+	{USB_DEVICE(0x06F8, 0xE035)}, /* Hercules - Edimax */ \
+	{USB_DEVICE(0x04BB, 0x0950)}, /* IO-DATA - Edimax */ \
+	{USB_DEVICE(0x0DF6, 0x0070)}, /* Sitecom - Edimax */ \
+	{USB_DEVICE(0x0789, 0x016D)}, /* LOGITEC - Edimax */ \
 	/****** 8192CE-VAU  ********/ \
 	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8186)},/* Intel-Xavi( Azwave) */
 
@@ -213,7 +231,12 @@ static void rtw_dev_remove(struct usb_interface *pusb_intf);
 	{USB_DEVICE(0x2019, 0x4904)},/* PCI - ETOP */ \
 	{USB_DEVICE(0x07B8, 0x8193)},/* Abocom - Abocom */ \
 	/****** 8192DU-VS ********/ \
-	{USB_DEVICE(0x20F4, 0x664B)},/* TRENDnet */ \
+	{USB_DEVICE(0x20F4, 0x664B)}, /* TRENDnet - Cameo */ \
+	{USB_DEVICE(0x050D, 0x110A)}, /* Belkin - Edimax */ \
+	{USB_DEVICE(0x050D, 0x1105)}, /* Belkin - Edimax */ \
+	{USB_DEVICE(0x050D, 0x120A)}, /* Belkin - Edimax */ \
+	{USB_DEVICE(0x1668, 0x8102)}, /*  -  */ \
+	{USB_DEVICE(0x0BDA, 0xE194)}, /*  - Edimax */ \
 	/****** 8192DU-WiFi Display Dongle ********/ \
 	{USB_DEVICE(0x2019, 0xAB2D)},/* Planex - Abocom ,5G dongle for WiFi Display */
 
@@ -224,7 +247,8 @@ static void rtw_dev_remove(struct usb_interface *pusb_intf);
 	
 #define RTL8188E_USB_IDS \
 	/*=== Realtek demoboard ===*/ \
-	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8179)},/* Default ID */
+	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8179)}, /* 8188EUS */ \
+	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x0179)}, /* 8188ETV */
 
 #ifndef CONFIG_RTL8192C
 	#undef RTL8192C_USB_IDS
@@ -1475,6 +1499,7 @@ _adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	// alloc dev name after read efuse.
 	rtw_init_netdev_name(pnetdev, padapter->registrypriv.ifname);
 	rtw_macaddr_cfg(padapter->eeprompriv.mac_addr);
+	rtw_init_wifidirect_addrs(padapter, padapter->eeprompriv.mac_addr, padapter->eeprompriv.mac_addr);
 	_rtw_memcpy(pnetdev->dev_addr, padapter->eeprompriv.mac_addr, ETH_ALEN);
 	DBG_871X("MAC Address from pnetdev->dev_addr= " MAC_FMT "\n", MAC_ARG(pnetdev->dev_addr));	
 

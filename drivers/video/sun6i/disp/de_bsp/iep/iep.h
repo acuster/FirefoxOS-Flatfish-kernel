@@ -37,7 +37,8 @@ extern __s32 iep_cmu_resume(__u32 sel);
 extern __s32 iep_cmu_late_resume(__u32 sel);
 
 //DRC
-extern __s32 drc_enable(__u32 sel, __u32 en);
+extern __s32 drc_clk_open(__u32 sel,__u32 type);
+extern __s32 drc_clk_close(__u32 sel,__u32 type);
 extern __s32 IEP_Drc_Init(__u32 sel);
 extern __s32 IEP_Drc_Exit(__u32 sel);
 extern __s32 IEP_Drc_Enable(__u32 sel, __u32 en);
@@ -51,8 +52,11 @@ extern __s32 iep_drc_suspend(__u32 sel);//save register
 extern __s32 iep_drc_resume (__u32 sel);//restore register
 extern __s32 iep_drc_late_resume(__u32 sel);//open clk
 extern __s32 IEP_Drc_Set_Imgsize(__u32 sel, __u32 width, __u32 height);
+extern __s32 drc_enable(__u32 sel, __u32 en);
 
 //DEU
+extern __s32 deu_clk_open(__u32 sel,__u32 type);
+extern __s32 deu_clk_close(__u32 sel,__u32 type);
 extern __s32 IEP_Deu_Enable(__u32 sel, __u32 enable);
 extern __s32 IEP_Deu_Set_Luma_Sharpness_Level(__u32 sel, __u32 level);
 extern __s32 IEP_Deu_Set_Chroma_Sharpness_Level(__u32 sel, __u32 level);

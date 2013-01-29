@@ -1328,6 +1328,12 @@ static u32 rtl8723as_hal_init(PADAPTER padapter)
 
 //	pHalData->PreRpwmVal = SdioLocalCmd52Read1Byte(padapter, SDIO_REG_HRPWM1) & 0x80;
 
+#ifdef CONFIG_XMIT_ACK
+	//ack for xmit mgmt frames.
+	rtw_write32(padapter, REG_FWHW_TXQ_CTRL, rtw_read32(padapter, REG_FWHW_TXQ_CTRL)|BIT(12));
+#endif //CONFIG_XMIT_ACK
+
+
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("-%s\n", __FUNCTION__));
 
 	return _SUCCESS;
@@ -1736,21 +1742,23 @@ Hal_CustomizeByCustomerID_8723AS(
 
 #ifdef CONFIG_EFUSE_CONFIG_FILE
 static u32 Hal_readPGDataFromConfigFile(
-	PADAPTER	padapter,
-	u8		*PROMContent)
+	PADAPTER	padapter)
 {
 	u32 i;
 	struct file *fp;
 	mm_segment_t fs;
 	u8 temp[3];
 	loff_t pos = 0;
+	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
+	u8	*PROMContent = pEEPROM->efuse_eeprom_data;
 
 
 	temp[2] = 0; // add end of string '\0'
 
-	fp = filp_open("/system/etc/wifi/rtk_efuse.map", O_RDONLY,  0);
+	fp = filp_open("/system/etc/wifi/wifi_efuse.map", O_RDWR,  0644);
 	if (IS_ERR(fp)) {
-		RT_TRACE(_module_hci_hal_init_c_, _drv_err_, ("Error, Efuse configure file doesn't exist.\n"));
+		pEEPROM->bloadfile_fail_flag = _TRUE;
+		DBG_871X("Error, Efuse configure file doesn't exist.\n");
 		return _FAIL;
 	}
 
@@ -1758,7 +1766,7 @@ static u32 Hal_readPGDataFromConfigFile(
 	set_fs(KERNEL_DS);
 
 	DBG_871X("Efuse configure file:\n");
-	for (i=0; i<HWSET_MAX_SIZE; i++) {
+	for (i=0; i<HWSET_MAX_SIZE_88E; i++) {
 		vfs_read(fp, temp, 2, &pos);
 		PROMContent[i] = simple_strtoul(temp, NULL, 16 );
 		pos += 1; // Filter the space character
@@ -1768,7 +1776,7 @@ static u32 Hal_readPGDataFromConfigFile(
 	set_fs(fs);
 
 	filp_close(fp, NULL);
-
+	pEEPROM->bloadfile_fail_flag = _FALSE;
 	return _SUCCESS;
 }
 
@@ -1794,7 +1802,8 @@ Hal_ReadMACAddrFromFile_8723AS(
 
 	fp = filp_open("/data/wifimac.txt", O_RDWR,  0644);
 	if (IS_ERR(fp)) {
-		RT_TRACE(_module_hci_hal_init_c_, _drv_err_, ("Error, wifi mac address file doesn't exist.\n"));
+		pEEPROM->bloadmac_fail_flag = _TRUE;
+		DBG_871X("Error, wifi mac address file doesn't exist.\n");
 	} else {
 		fs = get_fs();
 		set_fs(KERNEL_DS);
@@ -1821,7 +1830,7 @@ Hal_ReadMACAddrFromFile_8723AS(
 		}
 		DBG_871X("\n");
 		set_fs(fs);
-
+		pEEPROM->bloadmac_fail_flag = _FALSE;
 		filp_close(fp, NULL);
 	}
 
@@ -1835,11 +1844,10 @@ Hal_ReadMACAddrFromFile_8723AS(
 		pEEPROM->mac_addr[5] = (u8)((curtime>>16) & 0xff) ;
 	}
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_,
-		 ("Hal_ReadMACAddrFromFile_8723AS: Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
+	DBG_871X("Hal_ReadMACAddrFromFile_8723AS: Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
 		  pEEPROM->mac_addr[0], pEEPROM->mac_addr[1],
 		  pEEPROM->mac_addr[2], pEEPROM->mac_addr[3],
-		  pEEPROM->mac_addr[4], pEEPROM->mac_addr[5]));
+		  pEEPROM->mac_addr[4], pEEPROM->mac_addr[5]);
 }
 #endif
 
@@ -2054,6 +2062,13 @@ GetHalDefVar8723ASDIO(
 		case HW_VAR_MAX_RX_AMPDU_FACTOR:
 			*(( u32*)pValue) = MAX_AMPDU_FACTOR_64K;
 			break;	
+		case HW_DEF_ODM_DBG_FLAG:
+			{
+				u8Byte	DebugComponents = *((u32*)pValue);	
+				PDM_ODM_T	pDM_Odm = &(pHalData->odmpriv);
+				printk("pDM_Odm->DebugComponents = 0x%llx \n",pDM_Odm->DebugComponents );			
+			}
+			break;
 		default:
 			//RT_TRACE(COMP_INIT, DBG_WARNING, ("GetHalDefVar8723ASDIO(): Unkown variable: %d!\n", eVariable));
 			bResult = _FAIL;
@@ -2119,6 +2134,24 @@ SetHalDefVar8723ASDIO(
 					podmpriv->SupportAbility = DYNAMIC_ALL_FUNC_ENABLE;
 					DBG_8192C("==> Turn on all dynamic function...\n");
 				}			
+			}
+			break;
+		case HW_DEF_FA_CNT_DUMP:
+			{
+				u8 bRSSIDump = *((u8*)pValue);	
+				PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
+				if(bRSSIDump)
+					pDM_Odm->DebugComponents	=	ODM_COMP_DIG|ODM_COMP_FA_CNT	;					
+				else
+					pDM_Odm->DebugComponents	= 0;					
+				
+			}
+			break;
+		case HW_DEF_ODM_DBG_FLAG:
+			{
+				u8Byte	DebugComponents = *((u8Byte*)pValue);	
+				PDM_ODM_T	pDM_Odm = &(pHalData->odmpriv);
+				pDM_Odm->DebugComponents = DebugComponents;			
 			}
 			break;
 		default:

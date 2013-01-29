@@ -241,7 +241,7 @@ __s32 BSP_disp_deu_enable(__u8 sel, __u32 hid,  __u32 enable)
                 {      
                     if(scaler->out_fb.mode == DISP_MOD_NON_MB_PLANAR)
                     {
-                        out_type.fmt = Scaler_sw_para_to_reg(3, scaler->out_fb.format);
+                        out_type.fmt = Scaler_sw_para_to_reg(3, scaler->out_fb.mode, scaler->out_fb.format, scaler->out_fb.seq);
                     }
                     else
                     {   
@@ -268,7 +268,7 @@ __s32 BSP_disp_deu_enable(__u8 sel, __u32 hid,  __u32 enable)
                         return DIS_FAIL;
                     }
                 }  
-                out_type.byte_seq = Scaler_sw_para_to_reg(2,scaler->out_fb.seq);
+                out_type.byte_seq = Scaler_sw_para_to_reg(2,scaler->out_fb.mode, scaler->out_fb.format, scaler->out_fb.seq);
                 out_type.alpha_en = 1;
                 out_type.alpha_coef_type = 0;
 
@@ -292,7 +292,7 @@ __s32 BSP_disp_deu_enable(__u8 sel, __u32 hid,  __u32 enable)
             {      
                 if(scaler->out_fb.mode == DISP_MOD_NON_MB_PLANAR)
                 {
-                    out_type.fmt = Scaler_sw_para_to_reg(3, scaler->out_fb.format);
+                    out_type.fmt = Scaler_sw_para_to_reg(3, scaler->out_fb.mode, scaler->out_fb.format, scaler->out_fb.seq);
                 }
                 else
                 {   
@@ -319,7 +319,7 @@ __s32 BSP_disp_deu_enable(__u8 sel, __u32 hid,  __u32 enable)
                     return DIS_FAIL;
                 }
             }  
-            out_type.byte_seq = Scaler_sw_para_to_reg(2,scaler->out_fb.seq);
+            out_type.byte_seq = Scaler_sw_para_to_reg(2,scaler->out_fb.mode, scaler->out_fb.format, scaler->out_fb.seq);
             out_type.alpha_en = 1;
             out_type.alpha_coef_type = 0;
 

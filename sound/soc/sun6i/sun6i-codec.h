@@ -62,6 +62,7 @@
 /*DAC FIFO Control Register 
 * codecbase+0x04
 */
+#define FIR_VERSION				  (28)
 #define LAST_SE                   (26)
 #define TX_FIFO_MODE              (24)
 #define DRA_LEVEL                 (21)
@@ -160,8 +161,8 @@
 #define LADCMIXMUTEPHONEPN		  (4)
 #define LADCMIXMUTEPHONEP		  (3)
 #define LADCMIXMUTELINEINL		  (2)
-#define LADCMIXMUTEROUTPUT		  (1)
-#define LADCMIXMUTELOUTPUT		  (0)
+#define LADCMIXMUTELOUTPUT		  (1)
+#define LADCMIXMUTEROUTPUT		  (0)
 
 #define RADCMIXMUTE				  (7)
 #define LADCMIXMUTE				  (0)
@@ -171,7 +172,7 @@
 */
 #define PA_SLOPE_SECECT			  (30)
 #define DITHER				   	  (25)
-
+#define ZERO_CROSS_EN			  (22)
 /*bias&DA16 Calibration verify register
 * codecbase+0x34
 */

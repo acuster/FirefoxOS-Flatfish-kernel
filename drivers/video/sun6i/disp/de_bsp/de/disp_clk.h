@@ -61,8 +61,8 @@ typedef struct __CCMU_MIPI_PLL_BIAS_REG0240
 
 __s32 image_clk_init(__u32 sel);
 __s32 image_clk_exit(__u32 sel);
-__s32 image_clk_on(__u32 sel);
-__s32 image_clk_off(__u32 sel);
+__s32 image_clk_on(__u32 sel, __u32 type);
+__s32 image_clk_off(__u32 sel, __u32 type);
 
 __s32 scaler_clk_init(__u32 sel);
 __s32 scaler_clk_exit(__u32 sel);
@@ -71,7 +71,7 @@ __s32 scaler_clk_off(__u32 sel);
 
 __s32 lcdc_clk_init(__u32 sel);
 __s32 lcdc_clk_exit(__u32 sel);
-__s32 lcdc_clk_on(__u32 sel);
+__s32 lcdc_clk_on(__u32 sel, __u32 tcon_index, __u32 type);
 __s32 lcdc_clk_off(__u32 sel);
 
 __s32 tve_clk_init(__u32 sel);

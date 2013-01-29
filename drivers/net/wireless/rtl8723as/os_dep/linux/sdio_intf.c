@@ -981,14 +981,6 @@ static int rtw_sdio_suspend(struct device *dev)
 	DBG_871X_LEVEL(_drv_always_, "sdio suspend success in %d ms\n",
 			rtw_get_passing_time_ms(start_time));
 
-/** BEGIN: add for 8723as must call sdio_reset when bt is on
-	wifi enter suspend in case sdio comm err when resume **/
-#ifdef CONFIG_SDIO_SUSPEND_RESET
-			printk("%s: call rtw_sdio_reset\n", __func__);
-			rtw_sdio_reset(func);
-#endif
-/************************ END ********************************/
-
 exit:
 
 #if (defined CONFIG_WOWLAN) || (!(defined ANDROID_2X) && (defined CONFIG_PLATFORM_SPRD))
@@ -1022,6 +1014,13 @@ exit:
 #endif // CONFIG_RTL8188E
 #endif // CONFIG_WOWLAN
 #endif // CONFIG_PLATFORM_SPRD
+
+/** BEGIN: add for 8723as must call sdio_reset when bt is on
+	wifi enter suspend in case sdio comm err when resume,warining call twice **/
+#ifdef CONFIG_SDIO_SUSPEND_RESET
+	printk("%s: call rtw_sdio_reset\n", __func__);
+	rtw_sdio_reset(func);
+#endif
 
 	DBG_871X("<===  %s return %d.............. in %dms\n", __FUNCTION__
 		, ret, rtw_get_passing_time_ms(start_time));

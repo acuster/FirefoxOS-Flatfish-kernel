@@ -147,13 +147,14 @@ struct sw_hci_hcd{
 	script_item_u restrict_gpio_set;
 	u32 drv_vbus_gpio_valid;
 	u32 usb_restrict_valid;
-	__u32 power_flag;                   /* flag. 是否供电       */
+	__u8 power_flag;                    /* flag. 是否供电       */
 
-    __u32 used;                         /* flag. 控制器是否被使用 */
-	__u32 probe;                        /* 控制器初始化 */
-	__u32 host_init_state;				/* usb 控制器的初始化状态。0 : 不工作. 1 : 工作 */
-	__u32 usb_restrict_flag;
-	__u32 usbc_type;                    /* usb controller type  */
+    __u8 used;                          /* flag. 控制器是否被使用 */
+	__u8 probe;                         /* 控制器初始化 */
+	__u8 host_init_state;				/* usb 控制器的初始化状态。0 : 不工作. 1 : 工作 */
+	__u8 usb_restrict_flag;
+	__u8 usbc_type;                     /* usb controller type  */
+	__u8 not_suspend;                   /* flag. 不休眠         */
 
 	int (* open_clock)(struct sw_hci_hcd *sw_hci, u32 ohci);
 	int (* close_clock)(struct sw_hci_hcd *sw_hci, u32 ohci);

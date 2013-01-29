@@ -92,37 +92,37 @@ static void sw_usb_3g_config(struct sw_hci_hcd *sw_hci)
     if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
         usb_3g_used = item_temp.val;
     }else{
-        DMSG_PANIC("ERR: script_parser_fetch usb_3g_used failed\n");
-        usb_3g_used = 0;
+        //DMSG_PANIC("WRN: script_parser_fetch usb_3g_used failed\n");
+        return;
     }
 
-    if(usb_3g_used){
-        /* 3g_usbc_num */
-        type = script_get_item("3g_para", "3g_usbc_num", &item_temp);
-        if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
-            usb_3g_usbc_num = item_temp.val;
-        }else{
-            DMSG_PANIC("ERR: script_parser_fetch usb_3g_usbc_num failed\n");
-            usb_3g_usbc_num = 0;
-        }
+    /* 3g_usbc_num */
+    type = script_get_item("3g_para", "3g_usbc_num", &item_temp);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+        usb_3g_usbc_num = item_temp.val;
+    }else{
+        //DMSG_PANIC("WRN: script_parser_fetch usb_3g_usbc_num failed\n");
+        return;
+    }
 
-        /* 3g_usbc_type */
-        type = script_get_item("3g_para", "3g_usbc_type", &item_temp);
-        if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
-            usb_3g_usbc_type = item_temp.val;
-        }else{
-            DMSG_PANIC("ERR: script_parser_fetch usb_3g_usbc_type failed\n");
-            usb_3g_usbc_type = 0;
-        }
+    /* 3g_usbc_type */
+    type = script_get_item("3g_para", "3g_usbc_type", &item_temp);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+        usb_3g_usbc_type = item_temp.val;
+    }else{
+        //DMSG_PANIC("WRN: script_parser_fetch usb_3g_usbc_type failed\n");
+        return;
+    }
 
-        /* 只开3G使用的那个模组 */
-        if(sw_hci->usbc_no == usb_3g_usbc_num){
-            sw_hci->used = 0;
-            if(sw_hci->usbc_type == usb_3g_usbc_type){
-                sw_hci->used = 1;
-            }
+    /* 只开3G使用的那个控制器 */
+    if(sw_hci->usbc_no == usb_3g_usbc_num){
+        sw_hci->used = 0;
+        if(sw_hci->usbc_type == usb_3g_usbc_type){
+            sw_hci->used = 1;
         }
     }
+
+    return;
 }
 
 /*
@@ -194,6 +194,14 @@ static s32 get_usb_cfg(struct sw_hci_hcd *sw_hci)
 	}else{
 		DMSG_PANIC("ERR: get usb_restrict_flag failed\n");
 		sw_hci->usb_restrict_flag = 0;
+	}
+
+	type = script_get_item(usbc_name[sw_hci->usbc_no], "usb_not_suspend", &item_temp);
+	if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+		sw_hci->not_suspend = item_temp.val;
+	}else{
+		DMSG_PANIC("ERR: get usb_restrict_flag failed\n");
+		sw_hci->not_suspend = 0;
 	}
 
 	sw_usb_3g_config(sw_hci);

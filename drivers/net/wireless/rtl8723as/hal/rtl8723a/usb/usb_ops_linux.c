@@ -553,7 +553,7 @@ static void usb_read_interrupt_complete(struct urb *purb, struct pt_regs *regs)
 
 	if (purb->status == 0)//SUCCESS
 	{
-		C2H_EVT_HDR *c2h_evt = (C2H_EVT_HDR *)purb->transfer_buffer;
+		struct c2h_evt_hdr *c2h_evt = (struct c2h_evt_hdr *)purb->transfer_buffer;
 
 		if (purb->actual_length > USB_INTR_CONTENT_LENGTH) {
 			DBG_8192C("usb_read_interrupt_complete: purb->actual_length > USB_INTR_CONTENT_LENGTH\n");
@@ -562,7 +562,7 @@ static void usb_read_interrupt_complete(struct urb *purb, struct pt_regs *regs)
 		InterruptRecognized8723AU(padapter, purb->transfer_buffer, purb->actual_length);
 
 		if (c2h_evt_exist(c2h_evt)) {
-			if ((c2h_evt = (C2H_EVT_HDR *)rtw_malloc(16)) != NULL) {
+			if ((c2h_evt = (struct c2h_evt_hdr *)rtw_malloc(16)) != NULL) {
 				_rtw_memcpy(c2h_evt, purb->transfer_buffer, 16);
 				rtw_c2h_wk_cmd(padapter, (u8 *)c2h_evt);
 			}

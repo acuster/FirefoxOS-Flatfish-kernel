@@ -506,7 +506,7 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	unsigned long flags;
 	
 	devp = filp->private_data;
-	
+
 	switch (cmd)
 	{
    		case IOCTL_ENGINE_REQ:
@@ -672,8 +672,8 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		case IOCTL_SET_VE_FREQ:	
 			{
 				int arg_rate = (int)arg;
-				int v_div = 0;
 #if 0
+				int v_div = 0;
 				v_div = (pll4clk_rate/1000000 + (arg_rate-1))/arg_rate;
 				if (v_div <= 8 && v_div >= 1) {
 					if (clk_set_rate(ve_moduleclk, pll4clk_rate/v_div)) {
@@ -690,10 +690,10 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 						clk_get_rate(ve_moduleclk)/1000000 != arg_rate) {
 					if(!clk_set_rate(ve_pll4clk, arg_rate*1000000)) {
 						pll4clk_rate = clk_get_rate(ve_pll4clk);
-						v_div = (pll4clk_rate/1000000 + (arg_rate-1))/arg_rate;
-						if(clk_set_rate(ve_moduleclk, pll4clk_rate/v_div)) {
+						if(clk_set_rate(ve_moduleclk, pll4clk_rate)) {
 							printk("set ve clock failed\n");
 						}
+
 					} else {
 						printk("set pll4 clock failed\n");
 					}

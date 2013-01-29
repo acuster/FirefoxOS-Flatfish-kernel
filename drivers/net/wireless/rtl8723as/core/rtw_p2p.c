@@ -3217,7 +3217,10 @@ _func_enter_;
 	{
 		return;
 	}
-
+#ifdef CONFIG_CONCURRENT_MODE
+	if(padapter->iface_type != IFACE_PORT0) 
+		return;
+#endif
 	if(IELength <= _BEACON_IE_OFFSET_)
 		return;
 	
@@ -3354,7 +3357,8 @@ _func_enter_;
 		if(rtw_p2p_chk_state(pwdinfo, P2P_STATE_TX_PROVISION_DIS_REQ) || rtw_p2p_chk_state(pwdinfo, P2P_STATE_RX_PROVISION_DIS_RSP))
 		{
 			set_channel_bwmode(padapter, pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
-			issue_nulldata( pbuddy_adapter, 0 );
+			
+			issue_nulldata(pbuddy_adapter, NULL, 0, 3, 500);
 		}
 	}
 #endif
@@ -3439,7 +3443,7 @@ _func_enter_;
 
 		set_channel_bwmode(padapter, pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
 		
-		issue_nulldata( pbuddy_adapter, 0 );
+		issue_nulldata(pbuddy_adapter, NULL, 0, 3, 500);
 
 #else //CONFIG_IOCTL_CFG80211
 		if(rtw_p2p_chk_state(pwdinfo, P2P_STATE_IDLE))
@@ -3449,7 +3453,7 @@ _func_enter_;
 			if ( pwdinfo->ext_listen_period > 0 )
 			{
 				DBG_8192C( "[%s] P2P_STATE_IDLE, ext_listen_period = %d\n", __FUNCTION__, pwdinfo->ext_listen_period );
-				issue_nulldata( pbuddy_adapter, 1 );
+				issue_nulldata(pbuddy_adapter, NULL, 1, 3, 500);
 				set_channel_bwmode(padapter, pwdinfo->listen_channel, HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
 				rtw_p2p_set_state(pwdinfo, P2P_STATE_LISTEN);
 				val8 = 1;
@@ -3469,7 +3473,7 @@ _func_enter_;
 			rtw_hal_set_hwreg(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
 			rtw_p2p_set_state(pwdinfo, P2P_STATE_IDLE);
 			set_channel_bwmode(padapter, pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
-			issue_nulldata( pbuddy_adapter, 0 );
+			issue_nulldata(pbuddy_adapter, NULL, 0, 3, 500);
 			//	Todo: To check the value of pwdinfo->ext_listen_interval is equal to 0 or not.
 			_set_timer( &pwdinfo->ap_p2p_switch_timer, pwdinfo->ext_listen_interval );
 		}
@@ -3479,7 +3483,7 @@ _func_enter_;
 			val8 = 0;
 			rtw_hal_set_hwreg(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
 			set_channel_bwmode(padapter, pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
-			issue_nulldata( pbuddy_adapter, 0 );
+			issue_nulldata(pbuddy_adapter, NULL, 0, 3, 500);
 		}
 		else if(rtw_p2p_chk_state(pwdinfo, P2P_STATE_TX_PROVISION_DIS_REQ))
 		{
@@ -4271,10 +4275,11 @@ int rtw_init_wifi_display_info(_adapter* padapter)
 	struct wifi_display_info *pwfd_info = &padapter->wfd_info;
 
 	// Used in P2P and TDLS
-	pwfd_info->rtsp_ctrlport = 554;
+	//pwfd_info->rtsp_ctrlport = 8554; // by sw 2013-1-23 10:08:59
 	pwfd_info->peer_rtsp_ctrlport = 0;	//	Reset to 0
-	pwfd_info->wfd_enable = _FALSE;
-	pwfd_info->wfd_device_type = WFD_DEVINFO_PSINK;
+	//pwfd_info->wfd_enable = _FALSE; // set wfd role will reset this. by sw 2013-1-23 10:06:29
+	pwfd_info->wfd_enable = _TRUE;
+	//pwfd_info->wfd_device_type = WFD_DEVINFO_PSINK;
 
 	// Used in P2P	
 	pwfd_info->peer_session_avail = _TRUE;

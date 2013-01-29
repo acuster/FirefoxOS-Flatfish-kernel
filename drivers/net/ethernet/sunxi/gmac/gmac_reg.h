@@ -19,7 +19,7 @@
 #ifndef __GMAC_REG_H__
 #define __GMAC_REG_H__
 
-#define GMAC_BASE			0x01c30000
+#define GMAC_BASE		0x01c30000
 
 /******************************************************************************
  *
@@ -39,29 +39,29 @@
 #define GMAC_ADDR_LO(reg)	(0x44 + (reg<<3)) /* lower 32bits of MAC address */
 #define GMAC_RGMII_STATUS	(0xD8) /* S/R-GMII status */
 
-#define RGMII_IRQ			0x00000001
+#define RGMII_IRQ		0x00000001
 
 /* GMAC_CONTROL value */
-#define GMAC_CTL_TC			0x01000000 /* Transmit Configuration in RGMII */
-#define GMAC_CTL_WD			0x00800000 /* Watchdog Disable */
-#define GMAC_CTL_JD			0x00400000 /* Jabber Disable */
-#define GMAC_CTL_BE			0x00200000 /* Frame Burst Enable (only Half) */
-#define GMAC_CTL_JE			0x00100000 /* Jumbo Frame Enable */
+#define GMAC_CTL_TC		0x01000000 /* Transmit Configuration in RGMII */
+#define GMAC_CTL_WD		0x00800000 /* Watchdog Disable */
+#define GMAC_CTL_JD		0x00400000 /* Jabber Disable */
+#define GMAC_CTL_BE		0x00200000 /* Frame Burst Enable (only Half) */
+#define GMAC_CTL_JE		0x00100000 /* Jumbo Frame Enable */
 #define GMAC_CTL_IFG		0x000E0000 /* Inter-Frame Gap */
 #define GMAC_CTL_DCRS		0x00010000 /* Disable Carrier Sense During Transmission (only Half) */
-#define GMAC_CTL_PS			0x00008000 /* Port Select 0:GMII, 1:MII */
+#define GMAC_CTL_PS		0x00008000 /* Port Select 0:GMII, 1:MII */
 #define GMAC_CTL_FES		0x00004000 /* Indicates the speed in Fast Ethernet(MII) mode */
 #define GMAC_CTL_ROD		0x00002000 /* Receive own disable (only half-duplex) */
-#define GMAC_CTL_LM			0x00001000 /* Loopback mode */
-#define GMAC_CTL_DM			0x00000800 /* Duplex mode */
+#define GMAC_CTL_LM		0x00001000 /* Loopback mode */
+#define GMAC_CTL_DM		0x00000800 /* Duplex mode */
 #define GMAC_CTL_IPC		0x00000400 /* Checksum Offload */
-#define GMAC_CTL_DR			0x00000200 /* Retry disable (only half-duplex) */
+#define GMAC_CTL_DR		0x00000200 /* Retry disable (only half-duplex) */
 #define GMAC_CTL_LUD		0x00000100 /* Link Up/Down (only RGMII/SGMII) */
 #define GMAC_CTL_ACS		0x00000080 /* Automatic Pad/CRC Stripping */
-#define GMAC_CTL_BL			0x00000060 /* Back-off limit.(only half-duplex) */
-#define GMAC_CTL_DC			0x00000010 /* Deferral Check.(only half-duplex) */
-#define GMAC_CTL_TE			0x00000008 /* Transmit Enable */
-#define GMAC_CTL_RE			0x00000004 /* Receiver Enalbe */
+#define GMAC_CTL_BL		0x00000060 /* Back-off limit.(only half-duplex) */
+#define GMAC_CTL_DC		0x00000010 /* Deferral Check.(only half-duplex) */
+#define GMAC_CTL_TE		0x00000008 /* Transmit Enable */
+#define GMAC_CTL_RE		0x00000004 /* Receiver Enalbe */
 
 #define GMAC_CORE_INIT (GMAC_CTL_JD | GMAC_CTL_PS | GMAC_CTL_ACS | \
 			GMAC_CTL_JE | GMAC_CTL_BE)
@@ -86,10 +86,10 @@
 #define GMAC_FLOW_CTRL_FCB_BPA	0x00000001	/* Flow Control Busy ... */
 
 /* GMAC_GMII_ADDR value */
-#define MII_BUSY			0x00000001
-#define MII_WRITE			0x00000002
+#define MII_BUSY		0x00000001
+#define MII_WRITE		0x00000002
 #define MII_PHY_MASK		0x0000FFC0
-#define MII_CR_MASK			0x0000001C
+#define MII_CR_MASK		0x0000001C
 
 /******************************************************************************
  *
@@ -101,7 +101,7 @@
 #define GDMA_RCV_POLL		(0x1008) /* Received Poll Demand */
 #define GDMA_RCV_LIST		(0x100C) /* Receive List Base */
 #define GDMA_XMT_LIST		(0x1010) /* Transmit List Base */
-#define GDMA_STATUS			(0x1014) /* Status Register */
+#define GDMA_STATUS		(0x1014) /* Status Register */
 #define GDMA_OP_MODE		(0x1018) /* DMA Operational Mode */
 #define GDMA_INTR_ENA		(0x101c) /* Interrupt Enable */
 #define GDMA_MISSED_FRAME	(0x1020) /* Missed Frame and Buffer Overflow Counter */
@@ -111,8 +111,8 @@
 #define GDMA_CUR_RX_BUF		(0x1054) /* Current Host Received Buffer Address */
 
 /*	GDMA_BUS_MODE value */
-#define SOFT_RESET			0x00000001 /* Software reset gdma */
-#define BUS_MODE_DA			0x00000002 /* DMA Arbitration */
+#define SOFT_RESET		0x00000001 /* Software reset gdma */
+#define BUS_MODE_DA		0x00000002 /* DMA Arbitration */
 #define BUS_ADDR_ALIGN		0x02000000 /* Address-Aligned Beats */
 #define BUS_MODE_4PBL		0x01000000 /* 4xPBL Mode */
 #define BUS_MODE_USP		0x00800000
@@ -152,29 +152,29 @@
 
 #define STATUS_TS_MASK		0x00700000
 #define STATUS_TS_SHIFT		20
-#define TS_STOP				0x00000000
+#define TS_STOP			0x00000000
 #define TS_FETCH_DESC		0x00100000
 #define TS_WAIT_STAT		0x00200000
 #define TS_READ_DATA		0x00300000
-#define TS_SUSP				0x00600000
+#define TS_SUSP			0x00600000
 #define TS_CLOSE_DESC		0x00700000
 
 #define STATUS_RS_MASK		0x000E0000
 #define STATUS_RS_SHIFT		17
-#define RS_STOP				0x00000000
+#define RS_STOP			0x00000000
 #define RS_FETCH_DESC		0x00020000
 #define RS_WAIT_STAT		0x00060000
-#define RS_SUSP				0x00080000
+#define RS_SUSP			0x00080000
 #define RS_CLOSE_DESC		0x000A0000
 #define RS_WRITE_HOST		0x000E0000
 
 /* GDMA_OP_MODE value */
-#define OP_MODE_RSF			0x02000000	/* Receive Store and Forward */
-#define OP_MODE_DFF			0x01000000 	/* Disable Flushing of Received Frames */
+#define OP_MODE_RSF		0x02000000	/* Receive Store and Forward */
+#define OP_MODE_DFF		0x01000000 	/* Disable Flushing of Received Frames */
 #define OP_MODE_RFA2		0x00800000 	/* MSB of Threshold for Activating Flow Control */
 #define OP_MODE_RFD2		0x00400000 	/* MSB of Threshold for Deactivating Flow Control */
-#define OP_MODE_TSF			0x00200000 	/* Transmit Store and Forward */
-#define OP_MODE_FTF			0x00100000 	/* Flush Transmit FIFO */
+#define OP_MODE_TSF		0x00200000 	/* Transmit Store and Forward */
+#define OP_MODE_FTF		0x00100000 	/* Flush Transmit FIFO */
 #define OP_MODE_TTC_MASK	0x0001C000 	/* Transmit Threshold Control */
 #define OP_MODE_TTC_SHIFT	14
 enum ttc_control {
@@ -188,12 +188,12 @@ enum ttc_control {
 	OP_MODE_TTC_16	= 0x0001c000,
 };
 
-#define OP_MODE_ST			0x00002000 	/* Start/Stop Transmission Command */
-#define OP_MODE_RFD			0x00001800 	/* Threshold for deactivating flow control */
-#define OP_MODE_RFA			0x00000600 	/* Threshold for activating flow control */
-#define OP_MODE_EFC			0x00000100 	/* Enable HW flow control */
-#define OP_MODE_FEF			0x00000080 	/* Forward Error Frames */
-#define OP_MODE_FUF			0x00000040 	/* Forward Undersized Frames */
+#define OP_MODE_ST		0x00002000 	/* Start/Stop Transmission Command */
+#define OP_MODE_RFD		0x00001800 	/* Threshold for deactivating flow control */
+#define OP_MODE_RFA		0x00000600 	/* Threshold for activating flow control */
+#define OP_MODE_EFC		0x00000100 	/* Enable HW flow control */
+#define OP_MODE_FEF		0x00000080 	/* Forward Error Frames */
+#define OP_MODE_FUF		0x00000040 	/* Forward Undersized Frames */
 #define OP_MODE_RTC_MASK	0x00000018 	/* Receive Threshold Control */
 #define OP_MODE_RTC_SHIFT	3
 enum rtc_control {
@@ -203,8 +203,8 @@ enum rtc_control {
 	OP_MODE_RTC_128	= 0x00000018,
 };
 
-#define OP_MODE_OSF			0x00000004 	/* Operate on Second Frame */
-#define OP_MODE_SR			0x00000002 	/* Start/Stop Receive */
+#define OP_MODE_OSF		0x00000004 	/* Operate on Second Frame */
+#define OP_MODE_SR		0x00000002 	/* Start/Stop Receive */
 
 #define OP_MODE_TC_TX_MASK	0xfffe3fff
 #define OP_MODE_TC_RX_MASK	0xffffffe7
@@ -248,28 +248,28 @@ enum rtc_control {
  * the system register for gmac.
  *
  *****************************************************************************/
-#define GPIO_BASE			0x01C20800
-#define PA_CFG0				(0x00)
-#define PA_CFG1				(0x04)
-#define PA_CFG2				(0x08)
-#define PA_CFG3				(0x0C)
+#define GPIO_BASE		0x01C20800
+#define PA_CFG0			(0x00)
+#define PA_CFG1			(0x04)
+#define PA_CFG2			(0x08)
+#define PA_CFG3			(0x0C)
 
 /* Clk control */
-#define CCMU_BASE			0x01c20000
+#define CCMU_BASE		0x01c20000
 
 #ifdef GET_SYSCLK_SELF
 
-#define PLL1_CFG			0x00
-#define PLL6_CFG			0x28
+#define PLL1_CFG		0x00
+#define PLL6_CFG		0x28
 
-#define AXI_CFG				(0x50)
-#define AXI_SRC_SEL			0x00030000
+#define AXI_CFG			(0x50)
+#define AXI_SRC_SEL		0x00030000
 #define AXI_SRC_LOSC		0x00000000
 #define AXI_SRC_OSC24M		0x00010000
 #define AXI_SRC_PLL1		0x00020000
-#define AXI_CLK_DIV			0x00000007
+#define AXI_CLK_DIV		0x00000007
 
-#define AHB1_CFG			(0x54)
+#define AHB1_CFG		(0x54)
 #define AHB1_SRC_SEL		0x00003000
 #define AHB1_SRC_LOSC		0x00000000
 #define AHB1_SRC_OSC24M		0x00001000
@@ -280,8 +280,8 @@ enum rtc_control {
 
 #endif
 
-#define AHB1_GATING			(0x60)
-#define GMAC_AHB_BIT		0x00000200
+#define AHB1_GATING		(0x60)
+#define GMAC_AHB_BIT		0x00020000
 #define AHB1_MOD_RESET		(0x2c0)
 #define GMAC_RESET_BIT		0x00020000
 
@@ -289,22 +289,22 @@ enum rtc_control {
 #define GMAC_CLK_GPIT		0x00000004
 
 /* PHY address */
-#define PHY_ADDR			0x01
-#define PHY_DM				0x0010
+#define PHY_ADDR		0x01
+#define PHY_DM			0x0010
 #define PHY_AUTO_NEG		0x0020
 #define PHY_POWERDOWN		0x0080
-#define PHY_NEG_EN			0x1000
+#define PHY_NEG_EN		0x1000
 
-#define MII_CLK				0x00000008
-/* bits 4 3 2 | AHB1 Clock     | MDC Clock
+#define MII_CLK			0x00000008
+/* bits 4 3 2 | AHB1 Clock	| MDC Clock
  * -------------------------------------------------------
- *      0 0 0 |	60 ~ 100 MHz   | div-42
- *      0 0 1 | 100 ~ 150 MHz  | div-62
- *      0 1 0 | 20 ~ 35 MHz	   | div-16
- *      0 1 1 | 35 ~ 60 MHz    | div-26
- *      1 0 0 | 150 ~ 250 MHz  | div-102
- *      1 0 1 | 250 ~ 300 MHz  | div-124
- *      1 1 x | Reserved       |
+ *      0 0 0 | 60 ~ 100 MHz	| div-42
+ *      0 0 1 | 100 ~ 150 MHz	| div-62
+ *      0 1 0 | 20 ~ 35 MHz	| div-16
+ *      0 1 1 | 35 ~ 60 MHz	| div-26
+ *      1 0 0 | 150 ~ 250 MHz	| div-102
+ *      1 0 1 | 250 ~ 300 MHz	| div-124
+ *      1 1 x | Reserved	|
  */
 
 /* Default tx descriptor */

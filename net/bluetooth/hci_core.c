@@ -713,8 +713,8 @@ int hci_dev_reset(__u16 dev)
 
 	hci_dev_lock(hdev);
 	inquiry_cache_flush(hdev);
-	hci_conn_hash_flush(hdev);
 	hci_dev_unlock(hdev);
+	hci_conn_hash_flush(hdev);
 
 	if (hdev->flush)
 		hdev->flush(hdev);

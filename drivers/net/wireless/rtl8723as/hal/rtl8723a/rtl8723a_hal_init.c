@@ -702,7 +702,10 @@ FirmwareDownloadBT(IN PADAPTER Adapter, PRT_FIRMWARE_8723A pFirmware)
 
 #endif
 
-
+#ifdef CONFIG_FILE_FWIMG
+extern char *rtw_fw_file_path;
+u8	fw_buffer_8723a[FW_8723A_SIZE];
+#endif //CONFIG_FILE_FWIMG
 //
 //	Description:
 //		Download 8192C firmware code.
@@ -748,12 +751,22 @@ s32 rtl8723a_FirmwareDownload(PADAPTER padapter)
 		}
 		else if (IS_8723A_B_CUT(pHalData->VersionID))
 		{
-            // WLAN Fw.
+		    #ifdef CONFIG_MP_INCLUDED
+         	if(padapter->registrypriv.mp_mode == 1)
+         	{
+			FwImage = (u8*)Rtl8723_FwUMCBCutMPImageArray;
+			FwImageLen = Rtl8723_UMCBCutMPImgArrayLength;
+			DBG_871X(" Rtl8723_FwUMCBCutMPImageArray for RTL8723A B CUT\n");
+			}	
+			else
+			#endif //20121224 version,complied error bugfix by sw 2013-1-23 9:46:47
+			{
+			// WLAN Fw.
 			FwImage = (u8*)Rtl8723_FwUMCBCutImageArray;
 			FwImageLen = Rtl8723_UMCBCutImgArrayLength;
 			DBG_871X(" Rtl8723_FwUMCBCutImageArray for RTL8723A B CUT\n");
-
-      		pFwImageFileName = R8723FwImageFileName_UMC_B;
+			}
+	      		pFwImageFileName = R8723FwImageFileName_UMC_B;
 		}
 		else
 		{
@@ -773,16 +786,33 @@ s32 rtl8723a_FirmwareDownload(PADAPTER padapter)
 
 //	RT_TRACE(_module_hal_init_c_, _drv_err_, ("rtl8723a_FirmwareDownload: %s\n", pFwImageFileName));
 
-#ifdef CONFIG_EMBEDDED_FWIMG
-	pFirmware->eFWSource = FW_SOURCE_HEADER_FILE;
-#else
-	pFirmware->eFWSource = FW_SOURCE_IMG_FILE; // We should decided by Reg.
-#endif
+	#ifdef CONFIG_FILE_FWIMG
+	if(rtw_is_file_readable(rtw_fw_file_path) == _TRUE)
+	{
+		DBG_871X("%s accquire FW from file:%s\n", __FUNCTION__, rtw_fw_file_path);
+		pFirmware->eFWSource = FW_SOURCE_IMG_FILE; // We should decided by Reg.
+	}
+	else
+	#endif //CONFIG_FILE_FWIMG
+	{
+		DBG_871X("%s accquire FW from embedded image\n", __FUNCTION__);
+		pFirmware->eFWSource = FW_SOURCE_HEADER_FILE;
+	}
 
 	switch(pFirmware->eFWSource)
 	{
 		case FW_SOURCE_IMG_FILE:
-			//TODO:
+			#ifdef CONFIG_FILE_FWIMG
+			rtStatus = rtw_retrive_from_file(rtw_fw_file_path, fw_buffer_8723a, FW_8723A_SIZE);
+			pFirmware->ulFwLength = rtStatus>=0?rtStatus:0;
+			pFirmware->szFwBuffer = fw_buffer_8723a;
+			#endif //CONFIG_FILE_FWIMG
+
+			if(pFirmware->ulFwLength <= 0)
+			{
+				rtStatus = _FAIL;
+				goto Exit;
+			}
 			break;
 		case FW_SOURCE_HEADER_FILE:
 			if (FwImageLen > FW_8723A_SIZE) {
@@ -795,6 +825,13 @@ s32 rtl8723a_FirmwareDownload(PADAPTER padapter)
 			pFirmware->ulFwLength = FwImageLen;
 			break;
 	}
+
+	#ifdef DBG_FW_STORE_FILE_PATH //used to store firmware to file...
+	if(pFirmware->ulFwLength > 0)
+	{
+		rtw_store_to_file(DBG_FW_STORE_FILE_PATH, pFirmware->szFwBuffer, pFirmware->ulFwLength);
+	}
+	#endif
 
 	pFirmwareBuf = pFirmware->szFwBuffer;
 	FirmwareLen = pFirmware->ulFwLength;
@@ -2536,6 +2573,73 @@ void hal_notch_filter_8723a(_adapter *adapter, bool enable)
 		rtw_write8(adapter, rOFDM0_RxDSP+1, rtw_read8(adapter, rOFDM0_RxDSP+1) & ~BIT1);
 	}
 }
+
+static s32 c2h_handler_8723a(_adapter *padapter, struct c2h_evt_hdr *c2h_evt)
+{
+	s32 ret = _SUCCESS;
+	u8 i = 0;
+
+	if (c2h_evt == NULL) {
+		DBG_8192C("%s c2h_evt is NULL\n",__FUNCTION__);
+		ret = _FAIL;
+		goto exit;
+	}
+
+	switch (c2h_evt->id) {
+	case C2H_DBG:
+		RT_TRACE(_module_hal_init_c_, _drv_info_, ("C2HCommandHandler: %s\n", c2h_evt->payload));
+		break;
+
+	case C2H_CCX_TX_RPT:
+		handle_txrpt_ccx_8723a(padapter, c2h_evt->payload);
+		break;
+
+#ifdef CONFIG_BT_COEXIST
+#ifdef CONFIG_PCI_HCI
+	case C2H_BT_RSSI:
+		BT_FwC2hBtRssi(padapter, c2h_evt->payload);
+		break;
+#endif
+#endif
+
+	case C2H_EXT_RA_RPT:
+//		C2HExtRaRptHandler(padapter, tmpBuf, C2hEvent.CmdLen);
+		break;
+
+	case C2H_HW_INFO_EXCH:
+		RT_TRACE(_module_hal_init_c_, _drv_info_, ("[BT], C2H_HW_INFO_EXCH\n"));
+		for (i = 0; i < c2h_evt->plen; i++) {
+			RT_TRACE(_module_hal_init_c_, _drv_info_, ("[BT], tmpBuf[%d]=0x%x\n", i, c2h_evt->payload[i]));
+		}
+		break;
+
+	case C2H_C2H_H2C_TEST:
+		RT_TRACE(_module_hal_init_c_, _drv_info_, ("[BT], C2H_H2C_TEST\n"));
+		RT_TRACE(_module_hal_init_c_, _drv_info_, ("[BT], tmpBuf[0]/[1]/[2]/[3]/[4]=0x%x/ 0x%x/ 0x%x/ 0x%x/ 0x%x\n",
+			c2h_evt->payload[0], c2h_evt->payload[1], c2h_evt->payload[2], c2h_evt->payload[3], c2h_evt->payload[4]));
+		break;
+
+#ifdef CONFIG_BT_COEXIST
+	case C2H_BT_INFO:
+		BT_FwC2hBtInfo(padapter, c2h_evt->payload, c2h_evt->plen);
+		break;
+#endif
+
+#ifdef CONFIG_MP_INCLUDED
+	case C2H_BT_MP_INFO:
+		DBG_8192C("%s ,  Got  C2H_BT_MP_INFO \n",__FUNCTION__);
+		MPTBT_FwC2hBtMpCtrl(padapter, c2h_evt->payload, c2h_evt->plen);
+		break;
+#endif
+	default:
+		ret = _FAIL;
+		break;
+	}
+
+exit:
+	return ret;
+}
+
 void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 {
 	pHalFunc->free_hal_data = &rtl8723a_free_hal_data;
@@ -2594,6 +2698,8 @@ void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->xmit_thread_handler = &hal_xmit_handler;
 #endif
 	pHalFunc->hal_notch_filter = &hal_notch_filter_8723a;
+
+	pHalFunc->c2h_handler = c2h_handler_8723a;
 }
 
 void rtl8723a_InitAntenna_Selection(PADAPTER padapter)
@@ -3934,6 +4040,13 @@ void rtl8723a_fill_default_txdesc(
 		ptxdesc->rty_lmt_en = 1; // retry limit enable
 		ptxdesc->data_rt_lmt = 6; // retry limit = 6
 
+#ifdef CONFIG_XMIT_ACK
+		//CCX-TXRPT ack for xmit mgmt frames.
+		if (pxmitframe->ack_report) {
+			ptxdesc->ccx = 1;
+		}
+#endif //CONFIG_XMIT_ACK
+
 #ifdef CONFIG_INTEL_PROXIM
 		if((padapter->proximity.proxim_on==_TRUE)&&(pattrib->intel_proxim==_TRUE)){
 			DBG_871X("\n %s pattrib->rate=%d\n",__FUNCTION__,pattrib->rate);
@@ -4562,174 +4675,6 @@ static void hw_var_set_mlme_join(PADAPTER padapter, u8 variable, u8 *val)
 	rtw_write16(padapter, REG_RL, RetryLimit << RETRY_LIMIT_SHORT_SHIFT | RetryLimit << RETRY_LIMIT_LONG_SHIFT);
 }
 
-static void process_c2h_event(PADAPTER padapter, PC2H_EVT_HDR pC2hEvent, u8 *c2hBuf)
-{
-	u8				index = 0;
-	PHAL_DATA_TYPE	pHalData=GET_HAL_DATA(padapter);
-
-
-	if (c2hBuf == NULL) {
-		DBG_8192C("%s c2hbuff is NULL\n",__FUNCTION__);
-		return;
-	}
-
-#if 0
-	//
-	// Because the EDCA queue field here is different from the definition in the tx desc,
-	// we need to translate it. By Bruce, 2010-09-08.
-	//
-	switch (GET_92C_C2H_TX_RPT_EDCA_QUEUE(tmpBuf))
-	{
-		case HAL_92C_C2H_TX_RPT_EDCA_VO:
-			QueueID = VO_QUEUE;
-			break;
-
-		case HAL_92C_C2H_TX_RPT_EDCA_VI:
-			QueueID = VI_QUEUE;
-			break;
-
-		case HAL_92C_C2H_TX_RPT_EDCA_BE:
-			QueueID = BE_QUEUE;
-			break;
-
-		case HAL_92C_C2H_TX_RPT_EDCA_BK:
-			QueueID = BK_QUEUE;
-			break;
-
-		default:
-			QueueID = MGNT_QUEUE;
-			break;
-	}
-#endif
-	switch (pC2hEvent->CmdID)
-	{
-		case C2H_DBG:
-			{
-				RT_TRACE(_module_hal_init_c_, _drv_info_, ("C2HCommandHandler: %s\n", c2hBuf));
-			}
-			break;
-
-		case C2H_CCX_TX_RPT:
-			handle_txrpt_ccx_8723a(padapter, c2hBuf);
-			break;
-
-#ifdef CONFIG_BT_COEXIST
-#ifdef CONFIG_PCI_HCI
-		case C2H_BT_RSSI:
-//			fwc2h_ODM(padapter, tmpBuf, &C2hEvent);
-			BT_FwC2hBtRssi(padapter, c2hBuf);
-			break;
-#endif
-#endif
-
-		case C2H_EXT_RA_RPT:
-//			C2HExtRaRptHandler(padapter, tmpBuf, C2hEvent.CmdLen);
-			break;
-
-		case C2H_HW_INFO_EXCH:
-			RT_TRACE(_module_hal_init_c_, _drv_info_, ("[BT], C2H_HW_INFO_EXCH\n"));
-			for (index = 0; index < pC2hEvent->CmdLen; index++)
-			{
-				RT_TRACE(_module_hal_init_c_, _drv_info_, ("[BT], tmpBuf[%d]=0x%x\n", index, c2hBuf[index]));
-			}
-			break;
-
-		case C2H_C2H_H2C_TEST:
-			RT_TRACE(_module_hal_init_c_, _drv_info_, ("[BT], C2H_H2C_TEST\n"));
-			RT_TRACE(_module_hal_init_c_, _drv_info_, ("[BT], tmpBuf[0]/[1]/[2]/[3]/[4]=0x%x/ 0x%x/ 0x%x/ 0x%x/ 0x%x\n",
-				c2hBuf[0], c2hBuf[1], c2hBuf[2], c2hBuf[3], c2hBuf[4]));
-			break;
-
-#ifdef CONFIG_BT_COEXIST
-		case C2H_BT_INFO:
-			BT_FwC2hBtInfo(padapter, c2hBuf, pC2hEvent->CmdLen);
-			break;
-#endif
-
-#ifdef CONFIG_MP_INCLUDED
-		case C2H_BT_MP_INFO:
-				DBG_8192C("%s ,  Got  C2H_BT_MP_INFO \n",__FUNCTION__);
-				MPTBT_FwC2hBtMpCtrl(padapter, c2hBuf, pC2hEvent->CmdLen);
-				break;
-#endif
-		default:
-			break;
-	}
-
-	// Clear event to notify FW we have read the command.
-	// Note:
-	//	If this field isn't clear, the FW won't update the next command message.
-	rtw_write8(padapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
-}
-//
-//C2H event format:
-// Field	 TRIGGER		CONTENT	   CMD_SEQ 	CMD_LEN		 CMD_ID
-// BITS	 [127:120]	[119:16]      [15:8]		  [7:4]	 	   [3:0]
-//2009.10.08. by tynli.
-static void C2HCommandHandler(PADAPTER padapter, C2H_EVT_HDR *c2h_evt)
-{
-	C2H_EVT_HDR		C2hEvent;
-#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
-
-	u8				*tmpBuf = NULL;
-	u8				index = 0;
-	u8				bCmdMsgReady = _FALSE;
-	u8				U1bTmp = 0;
-//	u8				QueueID = 0;
-
-
-	_rtw_memset(&C2hEvent, 0, sizeof(C2H_EVT_HDR));
-
-	U1bTmp = rtw_read8(padapter, REG_C2HEVT_MSG_NORMAL);
-	C2hEvent.CmdID = U1bTmp & 0xF;
-	C2hEvent.CmdLen = (U1bTmp & 0xF0) >> 4;
-	C2hEvent.CmdSeq = rtw_read8(padapter, REG_C2HEVT_MSG_NORMAL + 1);
-
-	RT_PRINT_DATA(_module_hal_init_c_, _drv_info_, "C2HCommandHandler(): ",
-		&C2hEvent , sizeof(C2hEvent));
-
-	U1bTmp = rtw_read8(padapter, REG_C2HEVT_CLEAR);
-
-	if (U1bTmp == C2H_EVT_HOST_CLOSE)
-	{
-		// Not ready.
-		return;
-	}
-	else if (U1bTmp == C2H_EVT_FW_CLOSE)
-	{
-		bCmdMsgReady = _TRUE;
-	}
-	else
-	{
-		// Not a valid value, reset the clear event.
-		rtw_write8(padapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
-		return;
-	}
-
-	tmpBuf = rtw_zmalloc(C2hEvent.CmdLen);
-	if (tmpBuf == NULL)
-		return;
-
-	// Read the content
-	for (index = 0; index < C2hEvent.CmdLen; index++)
-	{
-		tmpBuf[index] = rtw_read8(padapter, REG_C2HEVT_MSG_NORMAL + sizeof(C2hEvent)+ index);
-	}
-
-	RT_PRINT_DATA(_module_hal_init_c_, _drv_info_, "C2HCommandHandler(): Command Content:\n", tmpBuf, C2hEvent.CmdLen);
-
-	process_c2h_event(padapter,&C2hEvent, tmpBuf);
-
-	if (tmpBuf)
-		rtw_mfree(tmpBuf, C2hEvent.CmdLen);
-	
-#elif defined(CONFIG_USB_HCI)
-
-	process_c2h_event(padapter, c2h_evt, c2h_evt->payload);
-
-#endif
-}
-
 void SetHwReg8723A(PADAPTER padapter, u8 variable, u8 *val)
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(padapter);
@@ -5356,10 +5301,6 @@ _func_enter_;
 			}
 			break;
 
-		case HW_VAR_C2H_HANDLE:
-			C2HCommandHandler(padapter, (C2H_EVT_HDR *)val);
-			break;
-
 		case HW_VAR_BCN_VALID:
 			//BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2, write 1 to clear, Clear by sw
 			rtw_write8(padapter, REG_TDECTRL+2, rtw_read8(padapter, REG_TDECTRL+2) | BIT0);
@@ -5545,8 +5486,9 @@ void rtl8723a_start_thread(_adapter *padapter)
 #ifndef CONFIG_SDIO_TX_TASKLET
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 
-	pHalData->SdioXmitThread = kernel_thread(rtl8723as_xmit_thread, padapter, CLONE_FS|CLONE_FILES);
-	if (pHalData->SdioXmitThread < 0) {
+	pHalData->SdioXmitThread = kthread_run(rtl8723as_xmit_thread, padapter, "RTWHALXT");
+	if (IS_ERR(pHalData->SdioXmitThread))
+	{
 		RT_TRACE(_module_hal_xmit_c_, _drv_err_, ("%s: start rtl8723as_xmit_thread FAIL!!\n", __FUNCTION__));
 	}
 #endif

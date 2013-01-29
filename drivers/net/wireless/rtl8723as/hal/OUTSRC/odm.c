@@ -2050,12 +2050,12 @@ odm_DIG(
 		else
 		{
 		//2 Modify DIG upper bound
-		if((pDM_Odm->RSSI_Min + 20) > dm_dig_max )
-			pDM_DigTable->rx_gain_range_max = dm_dig_max;
+			if((pDM_Odm->RSSI_Min + 20) > dm_dig_max )
+				pDM_DigTable->rx_gain_range_max = dm_dig_max;
 			else if((pDM_Odm->RSSI_Min + 20) < dm_dig_min )
 				pDM_DigTable->rx_gain_range_max = dm_dig_min;
-		else
-			pDM_DigTable->rx_gain_range_max = pDM_Odm->RSSI_Min + 20;
+			else
+				pDM_DigTable->rx_gain_range_max = pDM_Odm->RSSI_Min + 20;
 			
 		
 		//2 Modify DIG lower bound

@@ -6,7 +6,8 @@ INCLUDE   = -I. \
 
 MDFS_OBJ = mdfs_entry.o \
            mdfs.o   \
-           mem_mmu_pc_asm.o
+           mem_mmu_pc_asm.o \
+           mem_divlib.o
 
 CC = $(CROSS_COMPILE)gcc
 
@@ -19,6 +20,7 @@ all:
 	$(CC) $(INCLUDE) $(CFLAGS) mdfs_entry.c           		-o mdfs_entry.o
 	$(CC) $(INCLUDE) $(CFLAGS) mdfs.c           			-o mdfs.o
 	$(CC) $(INCLUDE) $(CFLAGS) mem_mmu_pc_asm.S				-o mem_mmu_pc_asm.o
+	$(CC) $(INCLUDE) $(CFLAGS) mem_divlib.S					-o mem_divlib.o
 
 	$(CROSS_COMPILE)ld -T mdfs.ld $(LD_FLAGS) $(LIBS) -EL  $(MDFS_OBJ) -o mdfs.elf  -Map mdfs.map
 	$(CROSS_COMPILE)objdump -D mdfs.elf > mdfs.lst

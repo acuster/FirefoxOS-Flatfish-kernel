@@ -444,8 +444,8 @@ void	expire_timeout_chk(_adapter *padapter)
 			
 				rtw_list_delete(&psta->asoc_list);
 				
-				DBG_871X("asoc expire %02X%02X%02X%02X%02X%02X\n",
-					psta->hwaddr[0],psta->hwaddr[1],psta->hwaddr[2],psta->hwaddr[3],psta->hwaddr[4],psta->hwaddr[5]);
+				DBG_871X("asoc expire %02X%02X%02X%02X%02X%02X, state=0x%x\n",
+					psta->hwaddr[0],psta->hwaddr[1],psta->hwaddr[2],psta->hwaddr[3],psta->hwaddr[4],psta->hwaddr[5], psta->state);
 #if 0
 				//tear down Rx AMPDU
 				send_delba(padapter, 0, psta->hwaddr);// recipient

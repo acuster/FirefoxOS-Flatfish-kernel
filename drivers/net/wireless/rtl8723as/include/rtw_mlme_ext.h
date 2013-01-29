@@ -632,8 +632,8 @@ void issue_auth(_adapter *padapter, struct sta_info *psta, unsigned short status
 //	blnbc: 1 -> broadcast probe request
 //	blnbc: 0 -> unicast probe request. The address 1 will be the BSSID.
 void issue_probereq(_adapter *padapter, NDIS_802_11_SSID *pssid, u8 blnbc);
-void issue_nulldata(_adapter *padapter, unsigned int power_mode);
-void issue_qos_nulldata(_adapter *padapter, unsigned char *da, u16 tid);
+int issue_nulldata(_adapter *padapter, unsigned char *da, unsigned int power_mode, int try_cnt, int wait_ms);
+int issue_qos_nulldata(_adapter *padapter, unsigned char *da, u16 tid, int try_cnt, int wait_ms);
 void issue_deauth(_adapter *padapter, unsigned char *da, unsigned short reason);
 void issue_action_BA(_adapter *padapter, unsigned char *raddr, unsigned char action, unsigned short status);
 unsigned int send_delba(_adapter *padapter, u8 initiator, u8 *addr);

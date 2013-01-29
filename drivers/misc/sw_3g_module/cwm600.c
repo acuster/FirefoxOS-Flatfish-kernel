@@ -128,15 +128,15 @@ void cwm600_power(struct sw_modem *modem, u32 on)
 
     	/* power on */
 		modem_vbat(modem, 1);
-		msleep(4000);
+		msleep(100);
 
         modem_power_on_off(modem, 0);
         sw_module_mdelay(700);
         modem_power_on_off(modem, 1);
     }else{
-        modem_power_on_off(modem, 0);
-        sw_module_mdelay(2500);
-        modem_power_on_off(modem, 1);
+        //modem_power_on_off(modem, 0);
+        //sw_module_mdelay(2500);
+        //modem_power_on_off(modem, 1);
 		modem_vbat(modem, 0);
     }
 
@@ -255,6 +255,7 @@ static void __exit cwm600_exit(void)
 }
 
 late_initcall(cwm600_init);
+//module_init(cwm600_init);
 module_exit(cwm600_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);

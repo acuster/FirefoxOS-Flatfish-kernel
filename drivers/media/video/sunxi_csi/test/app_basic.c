@@ -726,7 +726,7 @@ int main_test (void)
 			
 			
 	parms.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	parms.parm.capture.timeperframe.denominator = 1;
+	parms.parm.capture.timeperframe.numerator = 1;
 	parms.parm.capture.timeperframe.denominator = fps;
 	parms.parm.capture.capturemode = V4L2_MODE_VIDEO; //V4L2_MODE_IMAGE
 	printf ("VIDIOC_S_PARM\n");

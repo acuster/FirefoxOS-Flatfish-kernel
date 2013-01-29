@@ -49,9 +49,11 @@
 #else
 #define MAX_XMITBUF_SZ	(2048)
 #endif
-
+#ifdef CONFIG_SINGLE_XMIT_BUF
+#define NR_XMITBUFF	(1)
+#else
 #define NR_XMITBUFF	(4)
-
+#endif //CONFIG_SINGLE_XMIT_BUF
 #elif defined (CONFIG_PCI_HCI)
 #define MAX_XMITBUF_SZ	(1664)
 #define NR_XMITBUFF	(128)
@@ -371,6 +373,7 @@ struct  submit_ctx{
 };
 
 enum {
+	RTW_SCTX_SUBMITTED = -1,
 	RTW_SCTX_DONE_SUCCESS = 0,
 	RTW_SCTX_DONE_UNKNOWN,
 	RTW_SCTX_DONE_TIMEOUT,

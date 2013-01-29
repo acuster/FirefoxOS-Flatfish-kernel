@@ -1410,6 +1410,8 @@ __s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t *fb_para)
                     info->var.hsync_len = tt.hor_sync_time;
                     info->var.vsync_len = tt.ver_sync_time;
                 }
+                info->var.width = BSP_disp_get_screen_physical_width(sel);
+                info->var.height = BSP_disp_get_screen_physical_height(sel);
             }
 
             if(fb_para->fb_mode == FB_MODE_DUAL_SAME_SCREEN_TB)

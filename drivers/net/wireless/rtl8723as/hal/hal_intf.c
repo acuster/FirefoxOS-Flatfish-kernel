@@ -497,3 +497,11 @@ void rtw_hal_reset_security_engine(_adapter * adapter)
 		adapter->HalFunc.hal_reset_security_engine(adapter);
 }
 
+s32 rtw_hal_c2h_handler(_adapter *adapter, struct c2h_evt_hdr *c2h_evt)
+{
+	s32 ret = _FAIL;
+	if (adapter->HalFunc.c2h_handler)
+		ret = adapter->HalFunc.c2h_handler(adapter, c2h_evt);
+	return ret;
+}
+

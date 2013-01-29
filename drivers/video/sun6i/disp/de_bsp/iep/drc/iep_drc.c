@@ -40,8 +40,6 @@ __s32 drc_clk_init(__u32 sel)
 	    h_drcdramclk0 = OSAL_CCMU_OpenMclk(DRAM_CLK_DRC0);
 	    h_drcmclk0 = OSAL_CCMU_OpenMclk(MOD_CLK_IEPDRC0);
 
-		OSAL_CCMU_MclkReset(h_drcmclk0, RST_INVAILD);
-
 		OSAL_CCMU_SetMclkSrc(h_drcmclk0, SYS_CLK_PLL10);
 
 		pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10);
@@ -52,10 +50,14 @@ __s32 drc_clk_init(__u32 sel)
         }
 		OSAL_CCMU_SetMclkDiv(h_drcmclk0, mclk_div);
 		
-		OSAL_CCMU_MclkOnOff(h_drcahbclk0, CLK_ON);
-		OSAL_CCMU_MclkOnOff(h_drcmclk0, CLK_ON);
-		
-		g_drc_clk_status  |= (CLK_DRC0_AHB_ON | CLK_DRC0_MOD_ON);
+        OSAL_CCMU_MclkOnOff(h_drcahbclk0, CLK_ON);
+        OSAL_CCMU_MclkOnOff(h_drcahbclk0, CLK_OFF);
+        OSAL_CCMU_MclkOnOff(h_drcdramclk0, CLK_ON);
+        OSAL_CCMU_MclkOnOff(h_drcdramclk0, CLK_OFF);
+	    OSAL_CCMU_MclkOnOff(h_drcmclk0, CLK_ON);
+        OSAL_CCMU_MclkOnOff(h_drcmclk0, CLK_OFF);
+        OSAL_CCMU_MclkReset(h_drcmclk0, RST_INVAILD);
+        
 	}
 	else
 	{
@@ -75,10 +77,13 @@ __s32 drc_clk_init(__u32 sel)
         }
 		OSAL_CCMU_SetMclkDiv(h_drcmclk1, mclk_div);
 				
-		OSAL_CCMU_MclkOnOff(h_drcahbclk1, CLK_ON);
-		OSAL_CCMU_MclkOnOff(h_drcmclk1, CLK_ON);
-		
-		g_drc_clk_status  |= (CLK_DRC1_AHB_ON | CLK_DRC1_MOD_ON);
+        OSAL_CCMU_MclkOnOff(h_drcahbclk1, CLK_ON);
+        OSAL_CCMU_MclkOnOff(h_drcahbclk1, CLK_OFF);
+        OSAL_CCMU_MclkOnOff(h_drcdramclk1, CLK_ON);
+        OSAL_CCMU_MclkOnOff(h_drcdramclk1, CLK_OFF);
+	    OSAL_CCMU_MclkOnOff(h_drcmclk1, CLK_ON);
+        OSAL_CCMU_MclkOnOff(h_drcmclk1, CLK_OFF);
+        OSAL_CCMU_MclkReset(h_drcmclk1, RST_INVAILD);
 	}
 	return DIS_SUCCESS;
 }
@@ -138,36 +143,75 @@ __s32 drc_clk_exit(__u32 sel)
     return DIS_SUCCESS;
 }
 
-__s32 drc_clk_open(__u32 sel)
+//0: mod clk gating, rst
+//1: dram clk gating
+__s32 drc_clk_open(__u32 sel, __u32 type)
 {
 	if(!sel)
 	{
-		OSAL_CCMU_MclkOnOff(h_drcdramclk0, CLK_ON);
-
-		g_drc_clk_status |= (CLK_DRC0_DRAM_ON);
+		if(type == 0)
+        {
+            //OSAL_CCMU_MclkReset(h_drcmclk0, RST_INVAILD);
+            OSAL_CCMU_MclkOnOff(h_drcahbclk0, CLK_ON);
+		    OSAL_CCMU_MclkOnOff(h_drcmclk0, CLK_ON);
+            g_drc_clk_status |= (CLK_DRC0_AHB_ON | CLK_DRC0_MOD_ON);
+        }
+        else
+        {
+            OSAL_CCMU_MclkOnOff(h_drcdramclk0, CLK_ON);
+            g_drc_clk_status |= (CLK_DRC0_DRAM_ON);
+        }
 	}
 	else
 	{
-		OSAL_CCMU_MclkOnOff(h_drcdramclk1, CLK_ON);
-
-		g_drc_clk_status |= (CLK_DRC1_DRAM_ON);
+		if(type == 0)
+        {
+            //OSAL_CCMU_MclkReset(h_drcmclk1, RST_INVAILD);
+            OSAL_CCMU_MclkOnOff(h_drcahbclk1, CLK_ON);
+		    OSAL_CCMU_MclkOnOff(h_drcmclk1, CLK_ON);
+            g_drc_clk_status |= (CLK_DRC1_AHB_ON | CLK_DRC1_MOD_ON);
+        }
+        else
+        {
+            OSAL_CCMU_MclkOnOff(h_drcdramclk1, CLK_ON);
+            g_drc_clk_status |= (CLK_DRC1_DRAM_ON);
+        }
 	}
 	return DIS_SUCCESS;
 }
-
-__s32 drc_clk_close(__u32 sel)
+//0: mod clk gating, rst
+//1: dram clk gating
+__s32 drc_clk_close(__u32 sel, __u32 type)
 {
 	if(!sel)
 	{
-		OSAL_CCMU_MclkOnOff(h_drcdramclk0, CLK_OFF);
-
-		g_drc_clk_status &= (CLK_DRC0_DRAM_OFF);
+		if(type == 0)
+        {
+            OSAL_CCMU_MclkOnOff(h_drcahbclk0, CLK_OFF);
+		    OSAL_CCMU_MclkOnOff(h_drcmclk0, CLK_OFF);
+            //OSAL_CCMU_MclkReset(h_drcmclk0, RST_VAILD);
+            g_drc_clk_status &= (CLK_DRC0_AHB_OFF & CLK_DRC0_MOD_OFF);
+        }
+        else
+        {
+            OSAL_CCMU_MclkOnOff(h_drcdramclk0, CLK_OFF);
+            g_drc_clk_status &= (CLK_DRC0_DRAM_OFF);
+        }
 	}
 	else
 	{
-		OSAL_CCMU_MclkOnOff(h_drcdramclk1, CLK_OFF);
-
-		g_drc_clk_status &= (CLK_DRC1_DRAM_OFF);
+		if(type == 0)
+        {
+            OSAL_CCMU_MclkOnOff(h_drcahbclk1, CLK_OFF);
+		    OSAL_CCMU_MclkOnOff(h_drcmclk1, CLK_OFF);
+            //OSAL_CCMU_MclkReset(h_drcmclk1, RST_VAILD);
+            g_drc_clk_status &= (CLK_DRC1_AHB_OFF & CLK_DRC1_MOD_OFF);
+        }
+        else
+        {
+            OSAL_CCMU_MclkOnOff(h_drcdramclk1, CLK_OFF);
+            g_drc_clk_status &= (CLK_DRC1_DRAM_OFF);
+        }
 	}
 	return DIS_SUCCESS;	
 }
@@ -239,7 +283,7 @@ __s32 drc_enable(__u32 sel, __u32 en)
 __s32 drc_init(__u32 sel)
 {
 	//DRC clk
-	drc_clk_open(sel);
+	drc_clk_open(sel, 1);
 	
 	//DRC module 		
 	DRC_EBIOS_Set_Mode(sel, 2);		
@@ -474,7 +518,7 @@ __s32 drc_close_proc(__u32 sel)
     //BSP_disp_set_output_csc(sel, gdisp.screen[sel].output_type, 0);	//TBD
 
 	//DRC clk
-	drc_clk_close(sel);
+	drc_clk_close(sel, 1);
 	
 	g_iep_status[sel] &= DRC_USED_MASK;
 	g_iep_status[sel] &= DRC_NEED_CLOSED_MASK;

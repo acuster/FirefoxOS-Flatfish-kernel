@@ -3,7 +3,7 @@
 //
 //  File name	:	iep_cmu.c
 //
-//  Description	:	Color Management Unit base functions implement for aw1633
+//  Description	:	Color Management Unit base functions implement for A31
 //     
 //  History		:
 //					2012/06/01	yuputang	v1.0	Initial version

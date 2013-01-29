@@ -474,6 +474,7 @@ static PADAPTER rtw_gspi_if1_init(struct dvobj_priv *dvobj)
 	rtw_init_netdev_name(pnetdev, padapter->registrypriv.ifname);
 
 	rtw_macaddr_cfg(padapter->eeprompriv.mac_addr);
+	rtw_init_wifidirect_addrs(padapter, padapter->eeprompriv.mac_addr, padapter->eeprompriv.mac_addr);
 	_rtw_memcpy(pnetdev->dev_addr, padapter->eeprompriv.mac_addr, ETH_ALEN);
 
 	rtw_hal_disable_interrupt(padapter);

@@ -105,7 +105,7 @@ enum TXDESC_SC{
 #define SGI					BIT(6)
 #define USB_TXAGG_NUM_SHT	24
 
-typedef struct txdescriptor_8188e
+typedef struct txdesc_88e
 {
 	//Offset 0
 	u32 pktlen:16;
@@ -206,11 +206,16 @@ typedef struct txdescriptor_8188e
 
 	//Offset 28
 	u32 checksum:16;	// TxBuffSize(PCIe)/CheckSum(USB)
-	u32 mcsg4_max_len:4;
-	u32 mcsg5_max_len:4;
-	u32 mcsg6_max_len:4;
+	u32 sw0:8; /* offset 30 */
+	u32 sw1:4;
 	u32 mcs15_sgi_max_len:4;
 }TXDESC, *PTXDESC;
+
+#define txdesc_set_ccx_sw_88e(txdesc, value) \
+	do { \
+		((struct txdesc_88e *)(txdesc))->sw1 = (((value)>>8) & 0x0f); \
+		((struct txdesc_88e *)(txdesc))->sw0 = ((value) & 0xff); \
+	} while (0)
 
 struct txrpt_ccx_88e {
 	/* offset 0 */
@@ -227,13 +232,13 @@ struct txrpt_ccx_88e {
 	u8 bmc:1;
 
 	/* offset 2 */
-	u8 retry_count:6;
+	u8 retry_cnt:6;
 	u8 lifetime_over:1;
 	u8 retry_over:1;
 
 	/* offset 3 */
-	u8 ccx_qtime_0;
-	u8 ccx_qtime_1;
+	u8 ccx_qtime0;
+	u8 ccx_qtime1;
 
 	/* offset 5 */
 	u8 final_data_rate;
@@ -246,7 +251,8 @@ struct txrpt_ccx_88e {
 	u8 sw0;
 };
 
-#define txrpt_ccx_88e_sw(txrpt_ccx) ((txrpt_ccx)->sw0 + ((txrpt_ccx)->sw1<<8))
+#define txrpt_ccx_sw_88e(txrpt_ccx) ((txrpt_ccx)->sw0 + ((txrpt_ccx)->sw1<<8))
+#define txrpt_ccx_qtime_88e(txrpt_ccx) ((txrpt_ccx)->ccx_qtime0+((txrpt_ccx)->ccx_qtime1<<8))
 
 void rtl8188e_fill_fake_txdesc(PADAPTER	padapter,u8*pDesc,u32 BufferLen,u8 IsPsPoll,u8	IsBTQosNull);
 #ifdef CONFIG_SDIO_HCI

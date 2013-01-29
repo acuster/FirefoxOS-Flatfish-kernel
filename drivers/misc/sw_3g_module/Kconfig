@@ -31,3 +31,27 @@ config OVIPHONE_EM55
 
 endchoice
 
+choice
+
+    prompt "3G suspend/resume mode support"
+    depends on SW_3G_MODULE
+    help
+        3G suspend/resume mode slecet.
+
+config SW_3G_SLEEP_BY_GPIO_WAKEUP_BY_GPIO
+    boolean "bp sleep by gpio, ap wakeup by gpio"
+    help
+        bp sleep by gpio, ap wakeup by gpio.
+
+config SW_3G_SLEEP_BY_USB_WAKEUP_BY_USB
+    boolean "bp sleep by usb, ap wakeup by usb"
+    help
+        bp sleep by usb, ap wakeup by usb.
+
+config SW_3G_SLEEP_BY_USB_WAKEUP_BY_GPIO
+    boolean "bp sleep by usb, ap wakeup by gpio"
+    help
+        bp sleep by usb, ap wakeup by gpio.
+
+endchoice
+

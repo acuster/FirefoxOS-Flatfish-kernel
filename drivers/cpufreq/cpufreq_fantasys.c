@@ -131,14 +131,12 @@ static int hotplug_rq_def[4][2] = {
 
 /*
  * define frequncy loading policy table for cpu hotplug
- * if(freq > hotplug_freq[x][1]) cpu hotplug in;
- * if(freq < hotplug_freq[x][0]) cpu hotplug out;
  */
 static int hotplug_freq_def[4][2] = {
-    {0         , 800000*100},
-    {400000*100, 800000*100},
-    {500000*100, 800000*100},
-    {600000*100, 0         },
+    {0 , 80},    /* if(freq > policy->max * 80%) cpu hotplug in */
+    {40, 80},    /* if(freq > policy->max * 80%) cpu hotplug in, if(freq < policy->max * 40%) cpu hotplug out */
+    {50, 80},    /* if(freq > policy->max * 80%) cpu hotplug in, if(freq < policy->max * 50%) cpu hotplug out */
+    {60, 0 },    /* if(freq < policy->max * 60%) cpu hotplug out */
 };
 
 #ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
@@ -147,9 +145,9 @@ static int hotplug_freq_def[4][2] = {
  */
 static int usrevent_freq_def[4] = {
     100,        /* switch cpu frequency to policy->max * 100% if single core currently */
-    90 ,        /* switch cpu frequency to policy->max * 80% if dule core currently    */
-    80 ,        /* switch cpu frequency to policy->max * 70% if dule core currently    */
-    80 ,        /* switch cpu frequency to policy->max * 60% if dule core currently    */
+    90 ,        /* switch cpu frequency to policy->max * 90% if dule core currently    */
+    80 ,        /* switch cpu frequency to policy->max * 80% if triple core currently  */
+    80 ,        /* switch cpu frequency to policy->max * 80% if quad core currently    */
 };
 #endif
 
@@ -245,7 +243,7 @@ struct cpufreq_governor cpufreq_gov_fantasys = {
 /*
  * CPU hotplug lock interface
  */
-static atomic_t g_hotplug_lock = ATOMIC_INIT(0);
+atomic_t g_hotplug_lock = ATOMIC_INIT(0);
 
 /*
  * apply cpu hotplug lock, up or down cpu
@@ -608,7 +606,7 @@ static void cpu_down_work(struct work_struct *work)
 /*
  * check if need plug in one cpu core
  */
-static int check_up(void)
+static int check_up(struct cpufreq_policy *policy)
 {
     struct cpu_usage *usage;
     int i, online, freq, rq_avg, up_freq, up_rq, up_rate;
@@ -626,7 +624,7 @@ static int check_up(void)
         return 0;
 
     online = num_online_cpus();
-    up_freq = hotplug_freq[online-1][1];
+    up_freq = policy->max * hotplug_freq[online-1][1];
     up_rq = hotplug_rq[online-1][1];
 
     /* check if count of the cpu reached the max value */
@@ -686,7 +684,7 @@ static int check_up(void)
 /*
  * check if need plug out one cpu core
  */
-static int check_down(void)
+static int check_down(struct cpufreq_policy *policy)
 {
     struct cpu_usage *usage;
     int i, cpu, online, freq, rq_avg, down_freq, down_rq;
@@ -701,7 +699,7 @@ static int check_down(void)
         return 0;
 
     online = num_online_cpus();
-    down_freq = hotplug_freq[online-1][0];
+    down_freq = policy->max * hotplug_freq[online-1][0];
     down_rq = hotplug_rq[online-1][0];
 
     /* just one cpu, can't be plug out */
@@ -1098,9 +1096,9 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
     hotplug_history->usage[num_hist].iowait_avg  /= num_online_cpus();
 
     /* Check for CPU hotplug */
-    if (check_up()) {
+    if (check_up(policy)) {
         queue_work_on(this_dbs_info->cpu, dvfs_workqueue, &this_dbs_info->up_work);
-    } else if (check_down()) {
+    } else if (check_down(policy)) {
         queue_work_on(this_dbs_info->cpu, dvfs_workqueue, &this_dbs_info->down_work);
     }
 

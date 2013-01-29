@@ -4872,8 +4872,8 @@ static int rtw_p2p_connect(struct net_device *dev,
 		{
 			//	Have to enter the power saving with the AP
 			set_channel_bwmode(padapter, pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
-			issue_nulldata( pbuddy_adapter, 1 );
-			issue_nulldata( pbuddy_adapter, 1 );
+			
+			issue_nulldata(pbuddy_adapter, NULL, 1, 3, 500);
 		}
 #endif // CONFIG_CONCURRENT_MODE
 
@@ -5086,8 +5086,8 @@ static int rtw_p2p_invite_req(struct net_device *dev,
 		{
 			//	Have to enter the power saving with the AP
 			set_channel_bwmode(padapter, pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
-			issue_nulldata( pbuddy_adapter, 1 );
-			issue_nulldata( pbuddy_adapter, 1 );
+			
+			issue_nulldata(pbuddy_adapter, NULL, 1, 3, 500);
 		}
 		else
 		{
@@ -5597,8 +5597,8 @@ static int rtw_p2p_prov_disc(struct net_device *dev,
 		{
 			//	Have to enter the power saving with the AP
 			set_channel_bwmode(padapter, pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
-			issue_nulldata( pbuddy_adapter, 1 );
-			issue_nulldata( pbuddy_adapter, 1 );
+			
+			issue_nulldata(pbuddy_adapter, NULL, 1, 3, 500);
 		}
 		else
 		{
@@ -6559,9 +6559,10 @@ static int rtw_dbg_port(struct net_device *dev,
 					DBG_871X("rtw driver version=%s\n", DRIVERVERSION);
 					break;
 				case 0x11:
-					{
+					{						
 						DBG_871X("turn %s Rx RSSI display function\n",(extra_arg==1)?"on":"off");
-						padapter->bRxRSSIDisplay = extra_arg ;						
+						padapter->bRxRSSIDisplay = extra_arg ;		
+						rtw_hal_set_def_var(padapter, HW_DEF_FA_CNT_DUMP,&extra_arg);	
 					}
 					break;
 				case 0x12: //set rx_stbc
@@ -6600,6 +6601,35 @@ static int rtw_dbg_port(struct net_device *dev,
 					
 				}
 				break;
+				case 0x16:
+				{
+					if(arg == 0xff){
+						printk("ODM_COMP_DIG\t\tBIT0\n");
+						printk("ODM_COMP_RA_MASK\t\tBIT1\n");
+						printk("ODM_COMP_DYNAMIC_TXPWR\tBIT2\n");
+						printk("ODM_COMP_FA_CNT\t\tBIT3\n");
+						printk("ODM_COMP_RSSI_MONITOR\tBIT4\n");
+						printk("ODM_COMP_CCK_PD\t\tBIT5\n");
+						printk("ODM_COMP_ANT_DIV\t\tBIT6\n");
+						printk("ODM_COMP_PWR_SAVE\t\tBIT7\n");
+						printk("ODM_COMP_PWR_TRAIN\tBIT8\n");
+						printk("ODM_COMP_RATE_ADAPTIVE\tBIT9\n");
+						printk("ODM_COMP_PATH_DIV\t\tBIT10\n");
+						printk("ODM_COMP_PSD	\tBIT11\n");
+						printk("ODM_COMP_DYNAMIC_PRICCA\tBIT12\n");
+						printk("ODM_COMP_RXHP\t\tBIT13\n");
+						printk("ODM_COMP_EDCA_TURBO\tBIT16\n");
+						printk("ODM_COMP_EARLY_MODE\tBIT17\n");
+						printk("ODM_COMP_TX_PWR_TRACK\tBIT24\n");
+						printk("ODM_COMP_RX_GAIN_TRACK\tBIT25\n");
+						printk("ODM_COMP_CALIBRATION\tBIT26\n");						
+						rtw_hal_get_def_var(padapter, HW_DEF_ODM_DBG_FLAG,&extra_arg);	
+					}
+					else{
+						rtw_hal_set_def_var(padapter, HW_DEF_ODM_DBG_FLAG,&extra_arg);	
+					}
+				}
+					break;
 				case 0xaa:
 					{
 						if(extra_arg> 0x13) extra_arg = 0xFF;
@@ -8339,10 +8369,13 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 			struct iw_request_info *info,
 			union iwreq_data *wdata, char *extra)
 {
-	struct iw_point *wrqu;
-	PADAPTER padapter;
-	PHAL_DATA_TYPE pHalData;
+	PADAPTER padapter = rtw_netdev_priv(dev);
+	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
+	PHAL_DATA_TYPE pHalData = GET_HAL_DATA(padapter);
 	PEFUSE_HAL pEfuseHal;
+	struct iw_point *wrqu;
+	
+	u8	*PROMContent = pEEPROM->efuse_eeprom_data;
 	u8 ips_mode,lps_mode;
 	struct pwrctrl_priv *pwrctrlpriv ;
 	u8 *data = NULL;
@@ -8351,13 +8384,11 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 	u16 i=0, j=0, mapLen=0, addr=0, cnts=0;
 	u16 max_available_size=0, raw_cursize=0, raw_maxsize=0;
 	int err;
-
-
+	
 	wrqu = (struct iw_point*)wdata;
-	padapter = rtw_netdev_priv(dev);
-	pHalData = GET_HAL_DATA(padapter);
 	pwrctrlpriv = &padapter->pwrctrlpriv; 
 	pEfuseHal = &pHalData->EfuseHal;
+
 	err = 0;
 	data = _rtw_zmalloc(EFUSE_BT_MAX_MAP_LEN);
 	if (data == NULL)
@@ -8398,8 +8429,37 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 		tmp[i] = token;
 		i++;
 	}
+	
+	if(strcmp(tmp[0], "status") == 0){
+		sprintf(extra, "Load File efuse=%s,Load File MAC=%s",(pEEPROM->bloadfile_fail_flag? "FAIL" : "OK"),(pEEPROM->bloadmac_fail_flag? "FAIL" : "OK"));
 
-	if (strcmp(tmp[0], "realmap") == 0)
+		  goto exit;
+	}
+	else if (strcmp(tmp[0], "filemap") == 0)
+	{
+		mapLen = EFUSE_MAP_SIZE;
+		
+		sprintf(extra, "\n");
+		for (i = 0; i < EFUSE_MAP_SIZE; i += 16)
+		{
+//			DBG_871X("0x%02x\t", i);
+			sprintf(extra, "%s0x%02x\t", extra, i);
+			for (j=0; j<8; j++) {
+//				DBG_871X("%02X ", data[i+j]);
+				sprintf(extra, "%s%02X ", extra, PROMContent[i+j]);
+			}
+//			DBG_871X("\t");
+			sprintf(extra, "%s\t", extra);
+			for (; j<16; j++) {
+//				DBG_871X("%02X ", data[i+j]);
+				sprintf(extra, "%s%02X ", extra, PROMContent[i+j]);
+			}
+//			DBG_871X("\n");
+			sprintf(extra,"%s\n",extra);
+		}
+//		DBG_871X("\n");
+	}
+	else if (strcmp(tmp[0], "realmap") == 0)
 	{
 		mapLen = EFUSE_MAP_SIZE;
 		if (rtw_efuse_map_read(padapter, 0, mapLen, pEfuseHal->fakeEfuseInitMap) == _FAIL)
@@ -10497,7 +10557,7 @@ static int rtw_mp_SetBT(struct net_device *dev,
 	{
 		BtReq.opCodeVer=1;
 		BtReq.OpCode=2;
-		BtReq.paraLength=1; 
+		BtReq.paraLength=cnts/2; 
 	}
 	if( setgen==0 )
 	{	
@@ -11961,8 +12021,9 @@ static void loopbackTest(PADAPTER padapter, u32 cnt, u32 size, u8* pmsg)
 	ploopback->bstop = _FALSE;
 	ploopback->cnt = cnt;
 	ploopback->size = size;
-	ploopback->lbkthread = kernel_thread(lbk_thread, padapter, CLONE_FS|CLONE_FILES);
-	if (ploopback->lbkthread < 0) {
+	ploopback->lbkthread = kthread_run(lbk_thread, padapter, "RTW_LBK_THREAD");
+	if (IS_ERR(padapter->lbkthread))
+	{
 		freeLoopback(padapter);
 		sprintf(pmsg, "loopback start FAIL! cnt=%d", cnt);
 		return;

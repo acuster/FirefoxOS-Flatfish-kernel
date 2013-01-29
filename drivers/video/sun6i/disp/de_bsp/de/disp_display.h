@@ -170,6 +170,7 @@ typedef struct
     __disp_screen_t         screen[2];
     __disp_scaler_t         scaler[2];
     __disp_pwm_t            pwm[4];
+    __u32                   print_level;
 }__disp_dev_t;
 
 extern __disp_dev_t gdisp;

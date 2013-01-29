@@ -574,7 +574,7 @@ typedef struct hal_data_8188e
 	u8			SdioTxFIFOFreePage[SDIO_TX_FREE_PG_QUEUE];
 	_lock		SdioTxFIFOFreePageLock;
 #ifndef CONFIG_SDIO_TX_TASKLET
-	_thread_hdl_	SdioXmitThread;
+	_thread_hdl_ 	SdioXmitThread;
 	_sema		SdioXmitSema;
 	_sema		SdioXmitTerminateSema;
 #endif

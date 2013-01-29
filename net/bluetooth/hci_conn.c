@@ -287,8 +287,6 @@ static void hci_conn_timeout(struct work_struct *work)
 	if (atomic_read(&conn->refcnt))
 		return;
 
-	hci_dev_lock(hdev);
-
 	switch (conn->state) {
 	case BT_CONNECT:
 	case BT_CONNECT2:
@@ -308,8 +306,6 @@ static void hci_conn_timeout(struct work_struct *work)
 		conn->state = BT_CLOSED;
 		break;
 	}
-
-	hci_dev_unlock(hdev);
 }
 
 /* Enter sniff mode */

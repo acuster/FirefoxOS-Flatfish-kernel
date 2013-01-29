@@ -27,7 +27,8 @@
 #define SUN6I_DRAMFREQ_MAX			(312000000)	/* config the maximum frequency of sun6i dram */
 #define SUN6I_DRAMFREQ_MIN			 (39000000)	/* config the minimum frequency of sun6i dram */
 #define SUN6I_DRAMFREQ_POLLING_MS        (1000)	/* config the polling interval, based on ms   */
-#define MASTER_INFO_SIZE                   (28)
+#define SUN6I_DRAMFREQ_TABLE_SIZE          (16) /* mdfs table size */
+#define MASTER_INFO_SIZE                   (28) /* sum of all master */
 
 struct dramfreq_frequency_table {
 	unsigned int frequency; /* kHz */
@@ -83,10 +84,10 @@ struct dramfreq_udata {
 	unsigned long freq_to_max;	/* set dram frequency to max */
 };
 
+extern struct dramfreq_frequency_table sun6i_dramfreq_tbl[];
 extern struct platform_device sun6i_dramfreq_device;
 extern int dramfreq_user_notify_enable;
 extern int dramfreq_auto_scaling;
-extern struct dramfreq_frequency_table sun6i_dramfreq_tbl[];
 extern struct master_info master_info_list[MASTER_INFO_SIZE];
 
 extern int dramfreq_register_notifier(struct notifier_block *nb);

@@ -35,7 +35,6 @@ __s32 deu_clk_init(__u32 sel)
 	    h_deudramclk0 = OSAL_CCMU_OpenMclk(DRAM_CLK_DEU0);
 	    h_deumclk0 = OSAL_CCMU_OpenMclk(MOD_CLK_IEPDEU0);
 
-		OSAL_CCMU_MclkReset(h_deumclk0, RST_INVAILD);
 		
 		OSAL_CCMU_SetMclkSrc(h_deumclk0, SYS_CLK_PLL10);	//FIX CONNECT TO  PLL10
 		OSAL_CCMU_SetMclkDiv(h_deumclk0, 1);
@@ -47,10 +46,13 @@ __s32 deu_clk_init(__u32 sel)
         }
 		OSAL_CCMU_SetMclkDiv(h_deumclk0, mclk_div);
 		
-		OSAL_CCMU_MclkOnOff(h_deuahbclk0, CLK_ON);
-		OSAL_CCMU_MclkOnOff(h_deumclk0, CLK_ON);
-		
-		g_deu_clk_status  |= (CLK_DEU0_AHB_ON | CLK_DEU0_MOD_ON);
+        OSAL_CCMU_MclkOnOff(h_deuahbclk0, CLK_ON);
+        OSAL_CCMU_MclkOnOff(h_deuahbclk0, CLK_OFF);
+        OSAL_CCMU_MclkOnOff(h_deudramclk0, CLK_ON);
+        OSAL_CCMU_MclkOnOff(h_deudramclk0, CLK_OFF);
+	    OSAL_CCMU_MclkOnOff(h_deumclk0, CLK_ON);
+        OSAL_CCMU_MclkOnOff(h_deumclk0, CLK_OFF);
+        OSAL_CCMU_MclkReset(h_deumclk0, RST_INVAILD);
 	}
 	else
 	{
@@ -58,8 +60,7 @@ __s32 deu_clk_init(__u32 sel)
 	    h_deudramclk1 = OSAL_CCMU_OpenMclk(DRAM_CLK_DEU1);
 	    h_deumclk1 = OSAL_CCMU_OpenMclk(MOD_CLK_IEPDEU1);
 
-		OSAL_CCMU_MclkReset(h_deumclk1, RST_INVAILD);
-		OSAL_CCMU_SetMclkSrc(h_deumclk1, SYS_CLK_PLL10);	//FIX CONNECT TO PLL10
+		OSAL_CCMU_SetMclkSrc(h_deumclk1, SYS_CLK_PLL10);	//FIX CONNECT TO PLL9
 		OSAL_CCMU_SetMclkDiv(h_deumclk1, 1);
         pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10);
         mclk_div = 1;
@@ -69,10 +70,13 @@ __s32 deu_clk_init(__u32 sel)
         }
 		OSAL_CCMU_SetMclkDiv(h_deumclk1, mclk_div);
 		
-		OSAL_CCMU_MclkOnOff(h_deuahbclk1, CLK_ON);
-		OSAL_CCMU_MclkOnOff(h_deumclk1, CLK_ON);
-		
-		g_deu_clk_status  |= (CLK_DEU1_AHB_ON | CLK_DEU1_MOD_ON);
+        OSAL_CCMU_MclkOnOff(h_deuahbclk1, CLK_ON);
+        OSAL_CCMU_MclkOnOff(h_deuahbclk1, CLK_OFF);
+        OSAL_CCMU_MclkOnOff(h_deudramclk1, CLK_ON);
+        OSAL_CCMU_MclkOnOff(h_deudramclk1, CLK_OFF);
+	    OSAL_CCMU_MclkOnOff(h_deumclk1, CLK_ON);
+        OSAL_CCMU_MclkOnOff(h_deumclk1, CLK_OFF);
+        OSAL_CCMU_MclkReset(h_deumclk1, RST_INVAILD);
 	}
 	return DIS_SUCCESS;
 }
@@ -132,36 +136,78 @@ __s32 deu_clk_exit(__u32 sel)
     return DIS_SUCCESS;
 }
 
-__s32 deu_clk_open(__u32 sel)
+//0: mod clk gating, rst
+//1: dram clk gating
+__s32 deu_clk_open(__u32 sel, __u32 type)
 {
 	if(!sel)
 	{
-		OSAL_CCMU_MclkOnOff(h_deudramclk0, CLK_ON);
+		if(type == 0)
+        {
+            //OSAL_CCMU_MclkReset(h_deumclk0, RST_INVAILD);
+            OSAL_CCMU_MclkOnOff(h_deuahbclk0, CLK_ON);
+    		OSAL_CCMU_MclkOnOff(h_deumclk0, CLK_ON);
 
-		g_deu_clk_status |= (CLK_DEU0_DRAM_ON);
+    		g_deu_clk_status  |= (CLK_DEU0_AHB_ON | CLK_DEU0_MOD_ON);
+        }
+        else
+        {
+            OSAL_CCMU_MclkOnOff(h_deudramclk0, CLK_ON);
+            g_deu_clk_status |= (CLK_DEU0_DRAM_ON);
+        }
 	}
 	else
 	{
-		OSAL_CCMU_MclkOnOff(h_deudramclk1, CLK_ON);
+		if(type == 0)
+        {
+            //OSAL_CCMU_MclkReset(h_deumclk1, RST_INVAILD);
+            OSAL_CCMU_MclkOnOff(h_deuahbclk1, CLK_ON);
+    		OSAL_CCMU_MclkOnOff(h_deumclk1, CLK_ON);
 
-		g_deu_clk_status |= (CLK_DEU1_DRAM_ON);
+    		g_deu_clk_status  |= (CLK_DEU1_AHB_ON | CLK_DEU1_MOD_ON);
+        }
+        else
+        {
+            OSAL_CCMU_MclkOnOff(h_deudramclk1, CLK_ON);
+            g_deu_clk_status |= (CLK_DEU1_DRAM_ON);
+        }
 	}
 	return DIS_SUCCESS;
 }
 
-__s32 deu_clk_close(__u32 sel)
+//0: mod clk gating, rst
+//1: dram clk gating
+__s32 deu_clk_close(__u32 sel, __u32 type)
 {
 	if(!sel)
 	{
-		OSAL_CCMU_MclkOnOff(h_deudramclk0, CLK_OFF);
-
-		g_deu_clk_status &= (CLK_DEU0_DRAM_OFF);
+		if(type == 0)
+        {
+            OSAL_CCMU_MclkOnOff(h_deumclk0, CLK_OFF);
+            OSAL_CCMU_MclkOnOff(h_deuahbclk0, CLK_OFF);
+            //OSAL_CCMU_MclkReset(h_deumclk0, RST_VAILD);
+            g_deu_clk_status &= (CLK_DEU0_AHB_OFF & CLK_DEU0_MOD_OFF);
+        }
+        else
+        {
+            OSAL_CCMU_MclkOnOff(h_deudramclk0, CLK_OFF);
+            g_deu_clk_status &= (CLK_DEU0_DRAM_OFF);
+        }
 	}
 	else
 	{
-		OSAL_CCMU_MclkOnOff(h_deudramclk1, CLK_OFF);
-
-		g_deu_clk_status &= (CLK_DEU1_DRAM_OFF);
+		if(type == 0)
+        {
+            OSAL_CCMU_MclkOnOff(h_deumclk1, CLK_OFF);
+            OSAL_CCMU_MclkOnOff(h_deuahbclk1, CLK_OFF);
+            //OSAL_CCMU_MclkReset(h_deumclk1, RST_VAILD);
+            g_deu_clk_status &= (CLK_DEU1_AHB_OFF & CLK_DEU1_MOD_OFF);
+        }
+        else
+        {
+            OSAL_CCMU_MclkOnOff(h_deudramclk1, CLK_OFF);
+            g_deu_clk_status &= (CLK_DEU1_DRAM_OFF);
+        }
 	}
 	return DIS_SUCCESS;	
 }
@@ -228,7 +274,12 @@ __s32 DEU_ALG(__u32 sel)
 		dctimode = 1;	//1d dcti
 	}
 
-	scalefact = (frameinfo.out_size.width<<2)/frameinfo.in_size.width;	//scale factor X4
+	if(frameinfo.in_size.width == 0)
+    {
+        frameinfo.in_size.width = 2;
+        DE_WRN("DEU_ALG, input width is ZERO\n");
+    }
+    scalefact = (frameinfo.out_size.width<<2)/frameinfo.in_size.width;  //scale factor X4
 
 	if (scalefact<5)
 	{
@@ -278,7 +329,7 @@ __s32 IEP_Deu_Enable(__u32 sel, __u32 enable)
     strtab_addr =(__u32)g_strtab_addr;
 	if(enable == 1)
 	{
-		deu_clk_open(sel);
+		deu_clk_open(sel, 1);
 		DEU_EBIOS_Enable(sel, 1);
 
 		__inf("vir_addr:0x%08x, phy_addr:0x%08x\n", strtab_addr, (__u32)(__pa(strtab_addr)));
@@ -443,7 +494,7 @@ __s32 IEP_Deu_Operation_In_Vblanking(__u32 sel)
 	if(g_deu_status[sel] & DEU_NEED_CLOSED)
 	{
 		g_deu_status[sel] &= (DEU_USED_MASK & DEU_NEED_CLOSED_MASK);
-		deu_clk_close(sel);
+		deu_clk_close(sel, 1);
 	}
 
     return DIS_SUCCESS;

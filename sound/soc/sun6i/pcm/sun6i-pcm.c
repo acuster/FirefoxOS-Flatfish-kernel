@@ -42,10 +42,10 @@
 /*#define I2S_COMMUNICATION*/
 #define PCM_COMMUNICATION
 /*-----------------------------------------------*/
-static unsigned long over_sample_rate = 256;		/*128fs/192fs/256fs/384fs/512fs/768fs*/
+static unsigned long over_sample_rate = 512; //256;		/*128fs/192fs/256fs/384fs/512fs/768fs*/
 static unsigned long sample_resolution = 16;		/*16bits/20bits/24bits*/
 static unsigned long word_select_size = 32;			/*16bits/20bits/24bits/32bits*/
-static unsigned long pcm_sync_period = 256;			/*16/32/64/128/256*/
+static unsigned long pcm_sync_period = 64;			/*16/32/64/128/256*/
 static unsigned long msb_lsb_first = 0;				/*0: msb first; 1: lsb first*/
 static unsigned long slot_index = 0;				/*slot index: 0: the 1st slot - 3: the 4th slot*/
 static unsigned long slot_width = 16;				/*8 bit width / 16 bit width*/
@@ -359,11 +359,11 @@ static int sun6i_pcm_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int div
 	fs = div;
 	mclk = over_sample_rate;
 	
-#ifdef PCM_COMMUNICATION
+#ifdef I2S_COMMUNICATION
 	wss = word_select_size;
 #endif
 
-#ifdef PCM_COMMUNICATION
+#ifdef I2S_COMMUNICATION
 	/*mclk div caculate*/
 	switch(fs)
 	{
@@ -513,8 +513,8 @@ static int sun6i_pcm_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int div
 	/*bclk div caculate*/
 	bclk_div = mclk/(2*wss);
 #else
-	mclk_div = 2;
-	bclk_div = 6;
+	mclk_div = 4;
+	bclk_div = 12;
 #endif
 
 	/*calculate MCLK Divide Ratio*/

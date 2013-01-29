@@ -360,20 +360,10 @@ _func_enter_;
 	pslv = PS_STATE(pslv);
 
 
-	if (_TRUE == padapter->pwrctrlpriv.btcoex_rfon)
+	if (_TRUE == pwrpriv->btcoex_rfon)
 	{
 		if (pslv < PS_STATE_S4)
 			pslv = PS_STATE_S3;
-
-		if (pwrpriv->rpwm == pslv) {
-			struct reportpwrstate_parm report;
-			report.state = PS_STATE_S3;
-#ifdef CONFIG_LPS_LCLK
-			//cpwm_int_hdl(padapter, &report);
-			_set_workitem(&padapter->pwrctrlpriv.cpwm_event);
-#endif
-			return;
-		}
 	}
 
 #ifdef CONFIG_LPS_RPWM_TIMER
@@ -439,25 +429,12 @@ _func_enter_;
 
 	pwrpriv->tog += 0x80;
 
-
-	if (_TRUE == padapter->pwrctrlpriv.btcoex_rfon)
-	{
-		struct reportpwrstate_parm report;
-		report.state = pslv;
-#ifdef CONFIG_LPS_LCLK
-		//cpwm_int_hdl(padapter, &report);
-		_set_workitem(&padapter->pwrctrlpriv.cpwm_event);
-#endif
-	}
-	else
-	{
 #ifdef CONFIG_LPS_LCLK
 	// No LPS 32K, No Ack
 	if (!(rpwm & PS_ACK))
 #endif
 	{
 		pwrpriv->cpwm = pslv;
-	}
 	}
 
 _func_exit_;
@@ -470,8 +447,8 @@ u8 PS_RDY_CHECK(_adapter * padapter)
 	struct pwrctrl_priv	*pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
 
-	curr_time = rtw_get_current_time();	
 
+	curr_time = rtw_get_current_time();	
 	delta_time = curr_time -pwrpriv->DelayLPSLastTimeStamp;
 
 	if(delta_time < LPS_DELAY_TIME)
@@ -546,9 +523,9 @@ _func_enter_;
 	//if(pwrpriv->pwr_mode == PS_MODE_ACTIVE)
 	if(ps_mode == PS_MODE_ACTIVE)
 	{
-#ifdef CONFIG_P2P
+#ifdef CONFIG_P2P_PS
 		if(pwdinfo->opp_ps == 0)
-#endif //CONFIG_P2P
+#endif //CONFIG_P2P_PS
 		{
 			DBG_871X("rtw_set_ps_mode: Leave 802.11 power save\n");
 
@@ -581,9 +558,13 @@ _func_enter_;
 	}
 	else
 	{
-		if(PS_RDY_CHECK(padapter))
+		if (PS_RDY_CHECK(padapter)
+#ifdef CONFIG_BT_COEXIST
+			|| (BT_1Ant(padapter) == _TRUE)
+#endif
+			)
 		{
-			DBG_871X("rtw_set_ps_mode: Enter 802.11 power save\n");
+			DBG_871X("%s: Enter 802.11 power save\n", __FUNCTION__);
 
 #ifdef CONFIG_TDLS
 			_enter_critical_bh(&pstapriv->sta_hash_lock, &irqL);
@@ -612,12 +593,11 @@ _func_enter_;
 			pwrpriv->bcn_ant_mode = bcn_ant_mode;
 			rtw_hal_set_hwreg(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
 
-#ifdef CONFIG_P2P
+#ifdef CONFIG_P2P_PS
 			// Set CTWindow after LPS
 			if(pwdinfo->opp_ps == 1)
-			//if(pwdinfo->p2p_ps_enable == _TRUE)
 				p2p_ps_wk_cmd(padapter, P2P_PS_ENABLE, 0);
-#endif //CONFIG_P2P
+#endif //CONFIG_P2P_PS
 
 #ifdef CONFIG_LPS_LCLK
 			if (pwrpriv->alives == 0)
@@ -626,10 +606,6 @@ _func_enter_;
 			rtw_set_rpwm(padapter, PS_STATE_S2);
 #endif
 		}
-		//else
-		//{
-		//	pwrpriv->pwr_mode = PS_MODE_ACTIVE;
-		//}
 	}
 
 #ifdef CONFIG_LPS_LCLK
@@ -715,6 +691,9 @@ _func_enter_;
 			#elif defined(CONFIG_P2P)
 			|| !rtw_p2p_chk_state(b_pwdinfo, P2P_STATE_NONE)
 			#endif
+			#ifdef CONFIG_SET_SCAN_DENY_TIMER
+			|| (ATOMIC_READ(&b_pmlmepriv->set_scan_deny)==1)
+			#endif //CONFIG_SET_SCAN_DENY_TIMER			
 		) {
 			return;
 		}
@@ -724,7 +703,7 @@ _func_enter_;
 	if (PS_RDY_CHECK(padapter) == _FALSE)
 		return;
 
-	if (pwrpriv->bLeisurePs)
+	if (_TRUE == pwrpriv->bLeisurePs)
 	{
 		// Idle for a while if we connect to AP a while ago.
 		if(pwrpriv->LpsIdleCount >= 2) //  4 Sec 
@@ -732,7 +711,9 @@ _func_enter_;
 			if(pwrpriv->pwr_mode == PS_MODE_ACTIVE)
 			{
 				pwrpriv->bpower_saving = _TRUE;
-				rtw_set_ps_mode(padapter, pwrpriv->power_mgnt, padapter->registrypriv.smart_ps, 0);
+				DBG_871X("%s smart_ps:%d\n", __func__, pwrpriv->smart_ps);
+				//For Tenda W311R IOT issue
+				rtw_set_ps_mode(padapter, pwrpriv->power_mgnt, pwrpriv->smart_ps, 0);
 			}
 		}
 		else
@@ -743,7 +724,6 @@ _func_enter_;
 
 _func_exit_;
 }
-
 
 //
 //	Description:
@@ -772,7 +752,8 @@ _func_enter_;
 		{
 			rtw_set_ps_mode(padapter, PS_MODE_ACTIVE, 0, 0);
 
-			LPS_RF_ON_check(padapter, LPS_LEAVE_TIMEOUT_MS);
+			if(pwrpriv->pwr_mode == PS_MODE_ACTIVE)
+				LPS_RF_ON_check(padapter, LPS_LEAVE_TIMEOUT_MS);
 		}
 	}
 
@@ -782,7 +763,6 @@ _func_enter_;
 
 _func_exit_;
 }
-
 #endif
 
 //
@@ -803,9 +783,9 @@ _func_enter_;
 		enqueue = 1;
 #endif
 
-#ifdef CONFIG_P2P
+#ifdef CONFIG_P2P_PS
 		p2p_ps_wk_cmd(Adapter, P2P_PS_DISABLE, enqueue);
-#endif //CONFIG_P2P
+#endif //CONFIG_P2P_PS
 
 #ifdef CONFIG_LPS
 		rtw_lps_ctrl_wk_cmd(Adapter, LPS_CTRL_LEAVE, enqueue);
@@ -1062,11 +1042,20 @@ s32 rtw_register_tx_alive(PADAPTER padapter)
 {
 	s32 res;
 	struct pwrctrl_priv *pwrctrl;
+	u8 pslv;
 
 _func_enter_;
 
 	res = _SUCCESS;
 	pwrctrl = &padapter->pwrctrlpriv;
+#ifdef CONFIG_BT_COEXIST
+	if (_TRUE == padapter->pwrctrlpriv.btcoex_rfon)
+		pslv = PS_STATE_S3;
+	else
+#endif
+	{
+		pslv = PS_STATE_S2;
+	}
 
 	_enter_pwrlock(&pwrctrl->lock);
 
@@ -1078,10 +1067,12 @@ _func_enter_;
 				 ("rtw_register_tx_alive: cpwm=0x%02x alives=0x%08x\n",
 				  pwrctrl->cpwm, pwrctrl->alives));
 
-		if (pwrctrl->cpwm < PS_STATE_S2) {
-			if (pwrctrl->rpwm < PS_STATE_S2)
-				rtw_set_rpwm(padapter, PS_STATE_S2);
-			res = _FAIL;
+		if (pwrctrl->cpwm < pslv)
+		{
+			if (pwrctrl->cpwm < PS_STATE_S2)
+				res = _FAIL;
+			if (pwrctrl->rpwm < pslv)
+				rtw_set_rpwm(padapter, pslv);
 		}
 	}
 
@@ -1109,11 +1100,20 @@ s32 rtw_register_cmd_alive(PADAPTER padapter)
 {
 	s32 res;
 	struct pwrctrl_priv *pwrctrl;
+	u8 pslv;
 
 _func_enter_;
 
 	res = _SUCCESS;
 	pwrctrl = &padapter->pwrctrlpriv;
+#ifdef CONFIG_BT_COEXIST
+	if (_TRUE == padapter->pwrctrlpriv.btcoex_rfon)
+		pslv = PS_STATE_S3;
+	else
+#endif
+	{
+		pslv = PS_STATE_S2;
+	}
 
 	_enter_pwrlock(&pwrctrl->lock);
 
@@ -1121,14 +1121,16 @@ _func_enter_;
 
 	if (pwrctrl->bFwCurrentInPSMode == _TRUE)
 	{
-		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
+		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_info_,
 				 ("rtw_register_cmd_alive: cpwm=0x%02x alives=0x%08x\n",
 				  pwrctrl->cpwm, pwrctrl->alives));
 
-		if (pwrctrl->cpwm < PS_STATE_S2) {
-			if (pwrctrl->rpwm < PS_STATE_S2)
-				rtw_set_rpwm(padapter, PS_STATE_S2);
+		if (pwrctrl->cpwm < pslv)
+		{
+			if (pwrctrl->cpwm < PS_STATE_S2)
 			res = _FAIL;
+			if (pwrctrl->rpwm < pslv)
+				rtw_set_rpwm(padapter, pslv);
 		}
 	}
 
@@ -1224,8 +1226,8 @@ _func_enter_;
 		(pwrctrl->bFwCurrentInPSMode == _TRUE))
 	{
 		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
-				 ("rtw_unregister_tx_alive: cpwm=0x%02x alives=0x%08x\n",
-				  pwrctrl->cpwm, pwrctrl->alives));
+				 ("%s: cpwm=0x%02x alives=0x%08x\n",
+				  __FUNCTION__, pwrctrl->cpwm, pwrctrl->alives));
 
 		if ((pwrctrl->alives == 0) &&
 			(pwrctrl->cpwm > PS_STATE_S0))
@@ -1261,9 +1263,9 @@ _func_enter_;
 	if ((pwrctrl->pwr_mode != PS_MODE_ACTIVE) &&
 		(pwrctrl->bFwCurrentInPSMode == _TRUE))
 	{
-		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
-				 ("rtw_unregister_cmd_alive: cpwm=0x%02x alives=0x%08x\n",
-				  pwrctrl->cpwm, pwrctrl->alives));
+		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_info_,
+				 ("%s: cpwm=0x%02x alives=0x%08x\n",
+				  __FUNCTION__, pwrctrl->cpwm, pwrctrl->alives));
 
 		if ((pwrctrl->alives == 0) &&
 			(pwrctrl->cpwm > PS_STATE_S0))
@@ -1374,6 +1376,8 @@ _func_enter_;
 	pwrctrlpriv->bcn_ant_mode = 0;
 
 	pwrctrlpriv->tog = 0x80;
+
+	pwrctrlpriv->btcoex_rfon = _FALSE;
 
 #ifdef CONFIG_LPS_LCLK
 	rtw_hal_set_hwreg(padapter, HW_VAR_SET_RPWM, (u8 *)(&pwrctrlpriv->rpwm));

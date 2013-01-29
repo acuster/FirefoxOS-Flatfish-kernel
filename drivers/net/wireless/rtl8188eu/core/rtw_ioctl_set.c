@@ -119,7 +119,7 @@ _func_enter_;
 		{
 			RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_info_,("rtw_do_join(): site survey if scanned_queue is empty\n."));
 			// submit site_survey_cmd
-			if(_SUCCESS!=(ret=rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1)) ) {
+			if(_SUCCESS!=(ret=rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1, NULL, 0)) ) {
 				pmlmepriv->to_join = _FALSE;
 				RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_err_,("rtw_do_join(): site survey return error\n."));
 			}
@@ -187,7 +187,7 @@ _func_enter_;
 						// funk will reconnect, but funk will not sitesurvey before reconnect
 						RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_info_,("for funk to do roaming"));
 						if(pmlmepriv->sitesurveyctrl.traffic_busy==_FALSE)
-							rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1);
+							rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1, NULL, 0);
 					}
 				
 				}				
@@ -202,7 +202,7 @@ _func_enter_;
 				)
 				{
 					//DBG_871X("rtw_do_join() when   no desired bss in scanning queue \n");
-					if( _SUCCESS!=(ret=rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1)) ){
+					if( _SUCCESS!=(ret=rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1, NULL, 0)) ){
 						pmlmepriv->to_join = _FALSE;
 						RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_err_,("do_join(): site survey return error\n."));
 					}
@@ -741,7 +741,7 @@ _func_enter_;
 		
 		_enter_critical_bh(&pmlmepriv->lock, &irqL);		
 		
-		res = rtw_sitesurvey_cmd(padapter, pssid, ssid_max_num);
+		res = rtw_sitesurvey_cmd(padapter, pssid, ssid_max_num, NULL, 0);
 		
 		_exit_critical_bh(&pmlmepriv->lock, &irqL);
 	}
@@ -1434,16 +1434,20 @@ int rtw_set_channel_plan(_adapter *adapter, u8 channel_plan)
 */
 int rtw_set_country(_adapter *adapter, const char *country_code)
 {
-	int channel_plan = RT_CHANNEL_DOMAIN_ETSI;
+	int channel_plan = RT_CHANNEL_DOMAIN_WORLD_WIDE_5G;
+
+	DBG_871X("%s country_code:%s\n", __func__, country_code);
 
 	//TODO: should have a table to match country code and RT_CHANNEL_DOMAIN
-	//TODO: should consider 2-character and 3-character counter code
+	//TODO: should consider 2-character and 3-character country code
 	if(0 == strcmp(country_code, "US"))
 		channel_plan = RT_CHANNEL_DOMAIN_FCC;
 	else if(0 == strcmp(country_code, "EU"))
 		channel_plan = RT_CHANNEL_DOMAIN_ETSI;
 	else if(0 == strcmp(country_code, "JP"))
 		channel_plan = RT_CHANNEL_DOMAIN_MKK;
+	else if(0 == strcmp(country_code, "CN"))
+		channel_plan = RT_CHANNEL_DOMAIN_CHINA;
 	else
 		DBG_871X("%s unknown country_code:%s\n", __FUNCTION__, country_code);
 	

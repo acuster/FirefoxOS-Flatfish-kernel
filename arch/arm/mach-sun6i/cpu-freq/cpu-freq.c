@@ -128,7 +128,7 @@ static int sunxi_cpufreq_target(struct cpufreq_policy *policy, __u32 freq, __u32
     /* update the target frequency */
     freq_cfg.pll = sunxi_freq_tbl[index].frequency * 1000;
     freq_cfg.div = *(struct sunxi_clk_div_t *)&sunxi_freq_tbl[index].index;
-    CPUFREQ_DBG("target frequency find is %u, entry %u\n", freq_cfg.pll, index);
+    CPUFREQ_ERR("target frequency find is %u, entry %u\n", freq_cfg.pll, index);
 
     /* notify that cpu clock will be adjust if needed */
     if (policy) {
@@ -191,7 +191,7 @@ static int sunxi_cpufreq_target(struct cpufreq_policy *policy, __u32 freq, __u32
     }
 
     last_target = freq;
-    CPUFREQ_DBG("set cpu frequency to %uMHz ok\n", freq / 1000);
+    CPUFREQ_ERR("set cpu frequency to %uMHz ok\n", freq / 1000);
 
 out:
 #ifdef CONFIG_CPU_FREQ_SETFREQ_DEBUG

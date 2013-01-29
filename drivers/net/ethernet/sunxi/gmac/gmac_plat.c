@@ -33,6 +33,7 @@
 
 #include <mach/gpio.h>
 #include <mach/irqs.h>
+#include <mach/clock.h>
 
 #include "sunxi_gmac.h"
 
@@ -44,13 +45,12 @@ static int gmac_system_init(struct gmac_priv *priv)
 	/* configure system io */
 	if(priv->gpiobase){
 		writel(0x22222222, priv->gpiobase + PA_CFG0);
-		reg_value = readl(priv->gpiobase + PA_CFG0);
 
 		writel(0x22222222, priv->gpiobase + PA_CFG1);
-		reg_value = readl(priv->gpiobase + PA_CFG1);
 
 		writel(0x22222222, priv->gpiobase + PA_CFG2);
-		reg_value = readl(priv->gpiobase + PA_CFG2);
+
+		writel(0x00002222, priv->gpiobase + PA_CFG3);
 	}
 #else
 	int i = 0;
@@ -67,7 +67,7 @@ static int gmac_system_init(struct gmac_priv *priv)
 			goto gpio_err;
 		}
 	}
-	
+
 	ret = sw_gpio_setall_range(&priv->gpio_hd[0].gpio, priv->gpio_cnt);
 	if (unlikely(ret)){
 		printk(KERN_ERR "ERROR: gpio set all range is error!\n");
@@ -90,7 +90,7 @@ static int gmac_sys_request(struct platform_device *pdev, struct gmac_priv *priv
 {
 	int ret = 0;
 #ifndef CONFIG_GMAC_CLK_SYS
-	struct resource *io_clk; 
+	struct resource *io_clk;
 #endif
 #ifndef CONFIG_GMAC_SCRIPT_SYS
 	struct resource *io_gpio;
@@ -135,13 +135,13 @@ static int gmac_sys_request(struct platform_device *pdev, struct gmac_priv *priv
 		goto out_release_clk;
 	}
 #else
-	priv->gmac_ahb_clk = clk_get(&pdev->dev, "ahb_gmac");
+	priv->gmac_ahb_clk = clk_get(&pdev->dev, CLK_AHB_GMAC);
 	if (unlikely(!priv->gmac_ahb_clk || IS_ERR(priv->gmac_ahb_clk))) {
 		printk(KERN_ERR "ERROR: Get clock is failed!\n");
 		ret = -1;
 		goto out;
 	}
-	priv->gmac_mod_clk = clk_get(&pdev->dev, "mod_gmac");
+	priv->gmac_mod_clk = clk_get(&pdev->dev, CLK_MOD_GMAC);
 	if (unlikely(!priv->gmac_mod_clk || IS_ERR(priv->gmac_mod_clk))) {
 		printk(KERN_ERR "ERROR: Get mod gmac is failed!\n");
 		ret = -1;
@@ -178,9 +178,9 @@ static int gmac_sys_request(struct platform_device *pdev, struct gmac_priv *priv
 out_release_gpio:
 	release_mem_region(io_gpio->start, resource_size(io_gpio));
 out_unmap_clk:
-	iounmap(priv->clkbase);
 #endif
 #ifndef CONFIG_GMAC_CLK_SYS
+	iounmap(priv->clkbase);
 out_release_clk:
 	release_mem_region(io_clk->start, resource_size(io_clk));
 out_clk_reg:
@@ -204,7 +204,7 @@ static void gmac_sys_release(struct platform_device *pdev)
 	release_mem_region(res->start, resource_size(res));
 #else
 	int i;
-	if (priv->gpio_hd){ 
+	if (priv->gpio_hd){
 		for (i = 0; i < priv->gpio_cnt; i++)
 			gpio_free(priv->gpio_hd[i].gpio.gpio);
 		priv->gpio_hd = NULL;
@@ -213,6 +213,7 @@ static void gmac_sys_release(struct platform_device *pdev)
 #endif
 
 	iounmap(priv->gmac_clk_reg);
+
 #ifndef CONFIG_GMAC_CLK_SYS
 	iounmap((void *)priv->clkbase);
 #else
@@ -373,12 +374,12 @@ static struct resource gmac_resources[] = {
 	[2] = {
 		.name	= "gpio",
 		.start	= GPIO_BASE,
-		.end	= GPIO_BASE + 0x2c0,
+		.end	= GPIO_BASE + 0x0c,
 		.flags	= IORESOURCE_MEM,
 	},
 	[3] = {
 		.name	= "gmac_clk_reg",
-		.start	= CCMU_BASE + GMAC_CLK_REG,
+		.start	= CCMU_BASE,
 		.end	= CCMU_BASE + GMAC_CLK_REG,
 		.flags	= IORESOURCE_MEM,
 	},
@@ -401,9 +402,9 @@ static struct gmac_mdio_bus_data gmac_mdio_data = {
 static struct gmac_plat_data gmac_platdata ={
 	.bus_id = 0,
 	.phy_addr = 1,
-	.phy_interface = PHY_INTERFACE_MODE_MII,
-	.clk_csr = 2,
-	
+	.phy_interface = PHY_INTERFACE_MODE_RGMII,
+	.clk_csr = 4,
+
 	.tx_coe = 1,
 	.bugged_jumbo = 0,
 	.force_sf_dma_mode = 1,

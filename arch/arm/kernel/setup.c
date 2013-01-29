@@ -53,6 +53,9 @@
 #include <asm/traps.h>
 #include <asm/unwind.h>
 #include <asm/memblock.h>
+#ifdef CONFIG_ARCH_SUN6I
+#include <mach/system.h>
+#endif
 
 #if defined(CONFIG_DEPRECATED_PARAM_STRUCT)
 #include "compat.h"
@@ -1046,15 +1049,23 @@ static const char *hwcap_str[] = {
 };
 
 
+#ifdef CONFIG_ARCH_SUN6I
 extern int axp_chip_id_get(uint8_t chip_id[16]);
+#endif
+
 static int c_show(struct seq_file *m, void *v)
 {
 	int i;
+
+#ifdef CONFIG_ARCH_SUN6I
 	uint32_t chipid[4];
+    enum sw_ic_ver  ic_ver;
 	int ret;
 
 	memset(chipid, 0, sizeof(chipid));
 	ret = axp_chip_id_get((uint8_t *)chipid);
+    ic_ver = sw_get_ic_ver();
+#endif
 
 	seq_printf(m, "Processor\t: %s rev %d (%s)\n",
 		   cpu_name, read_cpuid_id() & 15, elf_platform);
@@ -1110,8 +1121,15 @@ static int c_show(struct seq_file *m, void *v)
 	seq_printf(m, "Hardware\t: %s\n", machine_name);
 	seq_printf(m, "Revision\t: %04x\n", system_rev);
 
+#ifdef CONFIG_ARCH_SUN6I
+	seq_printf(m, "Revision\t: %04x\n", ic_ver);
 	seq_printf(m, "Serial\t\t: %08x%08x%08x%08x\n",
 		   chipid[0], chipid[1], chipid[2], chipid[3]);
+#else
+	seq_printf(m, "Revision\t: %04x\n", system_rev);
+	seq_printf(m, "Serial\t\t: %08x%08x\n",
+		   system_serial_high, system_serial_low);
+#endif
 
 	return 0;
 }

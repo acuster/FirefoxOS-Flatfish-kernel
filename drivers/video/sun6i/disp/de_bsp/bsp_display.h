@@ -56,19 +56,19 @@ typedef unsigned int __hdle;
 #include "../OSAL/OSAL.h"
 #include "iep/iep.h"
 
-#if 1
+#if 0
 #define OSAL_PRINTF(msg...) {printk(KERN_WARNING "[DISP] ");printk(msg);}
 #define __inf(msg...)       
 #define __msg(msg...)
 #define __wrn(msg...)       {printk(KERN_WARNING "[DISP WRN] file:%s,line:%d:    ",__FILE__,__LINE__);printk(msg);}
 #define __here__
 #else
-#define OSAL_PRINTF(msg...) {printk(KERN_WARNING "[DISP] ");printk(msg);}
-#define __inf(msg...)       {printk(KERN_WARNING "[DISP] ");printk(msg);}
-#define __msg(msg...)       {printk(KERN_WARNING "[DISP] file:%s,line:%d:    ",__FILE__,__LINE__);printk(msg);}
+#define OSAL_PRINTF(msg...) do{printk(KERN_WARNING "[DISP] ");printk(msg);}while(0)
+#define __inf(msg...)       do{if(bsp_disp_get_print_level()){printk(KERN_WARNING "[DISP] ");printk(msg);}}while(0)
+#define __msg(msg...)       do{if(bsp_disp_get_print_level()){printk(KERN_WARNING "[DISP] file:%s,line:%d:    ",__FILE__,__LINE__);printk(msg);}}while(0)
 #define __wrn(msg...)       {printk(KERN_WARNING "[DISP WRN] file:%s,line:%d:    ",__FILE__,__LINE__);printk(msg);}
-#define __here__            {printk(KERN_WARNING "[DISP] file:%s,line:%d\n",__FILE__,__LINE__);}
-#define __debug(msg...)       {printk(KERN_WARNING "[DISP] ");printk(msg);}
+#define __here__            do{if(bsp_disp_get_print_level()){printk(KERN_WARNING "[DISP] file:%s,line:%d\n",__FILE__,__LINE__);}}while(0)
+#define __debug(msg...)     do{if(bsp_disp_get_print_level()){printk(KERN_WARNING "[DISP] ");printk(msg);}}while(0)
 #endif
 
 
@@ -109,6 +109,7 @@ typedef struct
     __u32 base_deu1;
     __u32 base_dsi0;
     __u32 base_dsi1;
+    __u32 base_timer;
 
 	void (*tve_interrup) (__u32 sel);
 	__s32 (*hdmi_set_mode)(__disp_tv_mode_t mode);
@@ -135,6 +136,9 @@ extern __s32 BSP_disp_exit(__u32 mode);
 extern __s32 BSP_disp_open(void);
 extern __s32 BSP_disp_close(void);
 extern __s32 BSP_disp_print_reg(__bool b_force_on, __u32 id);
+extern __s32 bsp_disp_set_print_level(__u32 print_level);
+extern __s32 bsp_disp_get_print_level(void);
+
 extern __s32 BSP_disp_cmd_cache(__u32 sel);
 extern __s32 BSP_disp_cmd_submit(__u32 sel);
 extern __s32 BSP_disp_set_bk_color(__u32 sel, __disp_color_t *color);
@@ -145,6 +149,8 @@ extern __s32 BSP_disp_set_palette_table(__u32 sel, __u32 *pbuffer, __u32 offset,
 extern __s32 BSP_disp_get_palette_table(__u32 sel, __u32 * pbuffer, __u32 offset,__u32 size);
 extern __s32 BSP_disp_get_screen_height(__u32 sel);
 extern __s32 BSP_disp_get_screen_width(__u32 sel);
+extern __s32 BSP_disp_get_screen_physical_height(__u32 sel);
+extern __s32 BSP_disp_get_screen_physical_width(__u32 sel);
 extern __s32 BSP_disp_get_output_type(__u32 sel);
 extern __s32 BSP_disp_get_frame_rate(__u32 sel);
 extern __s32 BSP_disp_gamma_correction_enable(__u32 sel);
@@ -258,6 +264,10 @@ extern __s32 BSP_disp_close_lcd_backlight(__u32 sel);
 extern __s32 BSP_disp_lcd_set_bright_dimming(__u32 sel, __u32 bright_dimming);  //for drc 
 extern __s32 BSP_disp_lcd_used(__u32 sel);
 extern __s32 BSP_disp_restore_lcdc_reg(__u32 sel);
+extern __s32 bsp_disp_lcd_get_bright_curve_en(__u32 sel);
+extern __s32 bsp_disp_lcd_set_bright_curve_en(__u32 sel, __u32 en);
+extern __s32 bsp_disp_get_fps(__u32 sel);
+
 
 extern __s32 BSP_disp_tv_open(__u32 sel);
 extern __s32 BSP_disp_tv_close(__u32 sel);

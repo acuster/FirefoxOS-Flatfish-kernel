@@ -29,7 +29,9 @@ typedef enum{
 	PM_STANDBY_PRINT_RESUME = (1U << 1),
 	PM_STANDBY_PRINT_IO_STATUS = (1U << 2),
 	PM_STANDBY_PRINT_CACHE_TLB_MISS = (1U << 3),
-	PM_STANDBY_PRINT_CCU_STATUS = (1U << 4)
+	PM_STANDBY_PRINT_CCU_STATUS = (1U << 4),
+	PM_STANDBY_PRINT_CPUS_IO_STATUS = (1U << 5),
+	PM_STANDBY_PRINT_RESUME_IO_STATUS = (1U << 6)
 }debug_mask_flag;
 
 #ifdef CONFIG_ARCH_SUN4I
@@ -41,9 +43,11 @@ typedef enum{
 #define GPIO_REG_LENGTH	((0x218+0x4)>>2)
 #define SRAM_REG_LENGTH	((0x94+0x4)>>2)
 #elif defined CONFIG_ARCH_SUN6I
-#define GPIO_REG_LENGTH	((0x278+0x4)>>2)
-#define SRAM_REG_LENGTH	((0x94+0x4)>>2)
-#define CCU_REG_LENGTH	((0x308+0x4)>>2)
+#define GPIO_REG_LENGTH		((0x278+0x4)>>2)
+#define CPUS_GPIO_REG_LENGTH	((0x238+0x4)>>2)
+#define SRAM_REG_LENGTH		((0x94+0x4)>>2)
+#define CCU_REG_LENGTH		((0x308+0x4)>>2)
+
 #elif defined CONFIG_ARCH_SUN7I
 #define GPIO_REG_LENGTH	((0x218+0x4)>>2)
 #define SRAM_REG_LENGTH	((0x94+0x4)>>2)

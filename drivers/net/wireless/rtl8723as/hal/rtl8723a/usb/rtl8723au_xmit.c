@@ -321,10 +321,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 #ifdef CONFIG_XMIT_ACK
 		//CCX-TXRPT ack for xmit mgmt frames.
 		if(pxmitframe->ack_report) {
-			//static u16 ccx_sw = 0;
 			ptxdesc->txdw2 |= cpu_to_le32(BIT(19));
-			//ptxdesc->txdw7 |= cpu_to_le32(((ccx_sw++)<<16)&0x0fff0000);
-			//DBG_871X("%s 0x%08x\n", __func__, le32_to_cpu(ptxdesc->txdw7));
 		}
 #endif //CONFIG_XMIT_ACK
 
@@ -418,7 +415,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 #endif
 
 	rtl8192cu_cal_txdesc_chksum(ptxdesc);
-		
+
 	return pull;
 		
 }

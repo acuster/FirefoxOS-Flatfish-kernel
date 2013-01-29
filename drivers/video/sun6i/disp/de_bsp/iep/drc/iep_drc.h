@@ -70,8 +70,8 @@ typedef struct
 
 __s32 drc_clk_init(__u32 sel);
 __s32 drc_clk_exit(__u32 sel);
-__s32 drc_clk_open(__u32 sel);
-__s32 drc_clk_close(__u32 sel);
+__s32 drc_clk_open(__u32 sel, __u32 type);
+__s32 drc_clk_close(__u32 sel, __u32 type);
 __s32 drc_enable(__u32 sel, __u32 en);
 __s32 drc_init(__u32 sel);
 __s32 drc_proc(__u32 sel);

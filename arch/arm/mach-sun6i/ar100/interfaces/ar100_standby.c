@@ -168,3 +168,96 @@ int ar100_cpux_ready_notify(void)
 	return 0;
 }
 EXPORT_SYMBOL(ar100_cpux_ready_notify);
+
+/**
+ * enter talk standby.
+ * @para:  parameter for enter talk standby.
+ *
+ * return: result, 0 - talk standby successed,
+ *                !0 - talk standby failed;
+ */
+int ar100_standby_talk(struct super_standby_para *para)
+{
+	struct ar100_message *pmessage;
+	
+	/* allocate a message frame */
+	pmessage = ar100_message_allocate(AR100_MESSAGE_ATTR_HARDSYN);
+	if (pmessage == NULL) {
+		AR100_ERR("allocate message for talk-standby request failed\n");
+		return -ENOMEM;
+	}
+	
+	/* check super_standby_para size valid or not */
+	if (sizeof(struct super_standby_para) > sizeof(pmessage->paras)) {
+		AR100_ERR("talk-standby parameters number too long\n");
+		return -EINVAL;
+	}
+	
+	/* initialize message */
+	pmessage->type     = AR100_TSTANDBY_ENTER_REQ;
+	pmessage->attr     = AR100_MESSAGE_ATTR_HARDSYN;
+	memcpy(pmessage->paras, para, sizeof(struct super_standby_para));
+	pmessage->state    = AR100_MESSAGE_INITIALIZED;
+	
+	/* notify hwspinlock and hwmsgbox will enter super-standby */
+	ar100_hwspinlock_standby_suspend();
+	ar100_hwmsgbox_standby_suspend();
+	
+	/* before creating mapping, build the coherent between cache and memory */
+	/* clean and flush */
+	__cpuc_flush_kern_all();
+	__cpuc_coherent_kern_range(0xc0000000, 0xffffffff-1);
+	
+	/* send enter super-standby request to ar100 */
+	ar100_hwmsgbox_send_message(pmessage, AR100_SEND_MSG_TIMEOUT);
+	
+	/* enter super-standby fail, notify hwspinlock and hwmsgbox resume */
+	ar100_hwmsgbox_standby_resume();
+	ar100_hwspinlock_standby_resume();
+	
+	return 0;
+}
+EXPORT_SYMBOL(ar100_standby_talk);
+
+/**
+ * notify ar100 cpux talk-standby restored.
+ * @para:  none.
+ *
+ * return: result, 0 - notify successed, !0 - notify failed;
+ */
+int ar100_cpux_talkstandby_ready_notify(void)
+{
+	struct ar100_message *pmessage;
+	
+	/* notify hwspinlock and hwmsgbox resume first */
+	ar100_hwmsgbox_standby_resume();
+	ar100_hwspinlock_standby_resume();
+	
+	/* allocate a message frame */
+	pmessage = ar100_message_allocate(AR100_MESSAGE_ATTR_HARDSYN);
+	if (pmessage == NULL) {
+		AR100_WRN("allocate message failed\n");
+		return -ENOMEM;
+	}
+	
+	/* initialize message */
+	pmessage->type     = AR100_TSTANDBY_RESTORE_NOTIFY;
+	pmessage->attr     = AR100_MESSAGE_ATTR_HARDSYN;
+	pmessage->state    = AR100_MESSAGE_INITIALIZED;
+	
+	ar100_hwmsgbox_send_message(pmessage, AR100_SEND_MSG_TIMEOUT);
+	
+	/* record wakeup event */
+	wakeup_event   = pmessage->paras[0];
+	if (ar100_debug_dram_crc_en) {
+		dram_crc_error = pmessage->paras[1];
+		dram_crc_total_count++;
+		dram_crc_error_count += (dram_crc_error ? 1 : 0);
+	}
+	
+	/* free message */
+	ar100_message_free(pmessage);
+	
+	return 0;
+}
+EXPORT_SYMBOL(ar100_cpux_talkstandby_ready_notify);

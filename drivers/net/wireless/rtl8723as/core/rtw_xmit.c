@@ -413,7 +413,6 @@ _func_exit_;
 
 }
 
-
 static void update_attrib_vcs_info(_adapter *padapter, struct xmit_frame *pxmitframe)
 {
 	u32	sz;
@@ -3758,7 +3757,7 @@ void rtw_sctx_init(struct submit_ctx *sctx, int timeout_ms)
 #ifdef PLATFORM_LINUX /* TODO: add condition wating interface for other os */
 	init_completion(&sctx->done);
 #endif
-	sctx->status = RTW_SCTX_DONE_SUCCESS;
+	sctx->status = RTW_SCTX_SUBMITTED;
 }
 
 int rtw_sctx_wait(struct submit_ctx *sctx)
@@ -3816,15 +3815,46 @@ void rtw_sctx_done(struct submit_ctx **sctx)
 }
 
 #ifdef CONFIG_XMIT_ACK
+
+#ifdef CONFIG_XMIT_ACK_POLLING
+s32 c2h_cmd_hdl(_adapter *adapter, struct c2h_evt_hdr *c2h_evt);
+int rtw_ack_tx_polling(struct xmit_priv *pxmitpriv, u32 timeout_ms)
+{
+	int ret = _FAIL;
+	struct submit_ctx *pack_tx_ops = &pxmitpriv->ack_tx_ops;
+	_adapter *adapter = container_of(pxmitpriv, _adapter, xmitpriv);
+
+	pack_tx_ops->submit_time = rtw_get_current_time();
+	pack_tx_ops->timeout_ms = timeout_ms;
+	pack_tx_ops->status = RTW_SCTX_SUBMITTED;
+
+	do {
+		c2h_cmd_hdl(adapter, NULL);
+		if (pack_tx_ops->status != RTW_SCTX_SUBMITTED)
+			break;
+		rtw_msleep_os(30);
+	} while (rtw_get_passing_time_ms(pack_tx_ops->submit_time) < timeout_ms);
+
+	if (pack_tx_ops->status == RTW_SCTX_DONE_SUCCESS)
+		ret = _SUCCESS;
+
+	return ret;
+}
+#endif
+
 int rtw_ack_tx_wait(struct xmit_priv *pxmitpriv, u32 timeout_ms)
 {
+#ifdef CONFIG_XMIT_ACK_POLLING
+	return rtw_ack_tx_polling(pxmitpriv, timeout_ms);
+#else
 	struct submit_ctx *pack_tx_ops = &pxmitpriv->ack_tx_ops;
 
 	pack_tx_ops->submit_time = rtw_get_current_time();
 	pack_tx_ops->timeout_ms = timeout_ms;
-	pack_tx_ops->status = RTW_SCTX_DONE_SUCCESS;
+	pack_tx_ops->status = RTW_SCTX_SUBMITTED;
 
 	return rtw_sctx_wait(pack_tx_ops);
+#endif
 }
 
 void rtw_ack_tx_done(struct xmit_priv *pxmitpriv, int status)

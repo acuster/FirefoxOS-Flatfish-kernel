@@ -13257,7 +13257,7 @@ void btdm_BTCoexist8723AHandler(PADAPTER padapter)
 
 	if (!BTDM_IsSameCoexistState(padapter))
 	{
-		RTPRINT(FBT, BT_TRACE, ("[BTCoex], Coexist State[bitMap] change from 0x%x to 0x%x\n",
+		RTPRINT(FBT, BT_TRACE, ("[BTCoex], Coexist State[bitMap] change from %llu to %llu\n",
 			pHalData->bt_coexist.PreviousState,
 			pHalData->bt_coexist.CurrentState));
 		pHalData->bt_coexist.PreviousState = pHalData->bt_coexist.CurrentState;

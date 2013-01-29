@@ -39,6 +39,7 @@ typedef struct
     __u32                   base_cmu1;
     __u32                   base_dsi0;
     __u32                   base_dsi1;
+    __u32                   base_timer;
 	
     __disp_init_t           disp_init;
     

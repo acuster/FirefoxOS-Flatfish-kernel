@@ -1970,6 +1970,12 @@ unsigned int OnAssocReq(_adapter *padapter, union recv_frame *precv_frame)
 		bss_cap_update_on_sta_join(padapter, pstat);
 		sta_info_update(padapter, pstat);
 		
+		//issue assoc rsp before notify station join event.
+		if (frame_type == WIFI_ASSOCREQ)
+			issue_asocrsp(padapter, status, pstat, WIFI_ASSOCRSP);
+		else
+			issue_asocrsp(padapter, status, pstat, WIFI_REASSOCRSP);
+		
 		//.2 - report to upper layer 
 		DBG_871X("indicate_sta_join_event to upper layer - hostapd\n");
 		{
@@ -2012,10 +2018,13 @@ unsigned int OnAssocReq(_adapter *padapter, union recv_frame *precv_frame)
 		//.3-(1) report sta add event
 		report_add_sta_event(padapter, pstat->hwaddr, pstat->aid);
 		
+/*		
+		//issue assoc rsp before notify station join event.
 		if (frame_type == WIFI_ASSOCREQ)
 			issue_asocrsp(padapter, status, pstat, WIFI_ASSOCRSP);
 		else
 			issue_asocrsp(padapter, status, pstat, WIFI_REASSOCRSP);
+*/			
 	
 #endif
 	}
@@ -5959,7 +5968,7 @@ s32 dump_mgntframe_and_wait_ack(_adapter *padapter, struct xmit_frame *pmgntfram
 
 	if(padapter->bSurpriseRemoved == _TRUE ||
 		padapter->bDriverStopped == _TRUE)
-		return ret;
+		return -1;
 
 	_enter_critical_mutex(&pxmitpriv->ack_tx_mutex, NULL);
 	pxmitpriv->ack_tx = _TRUE;
@@ -7422,8 +7431,11 @@ exit:
 	return;
 }
 
-void issue_nulldata(_adapter *padapter, unsigned int power_mode)
+//when wait_ack is ture, this function shoule be called at process context
+//da == NULL for station mode
+static int _issue_nulldata(_adapter *padapter, unsigned char *da, unsigned int power_mode, int wait_ack)
 {
+	int ret = _SUCCESS;
 	struct xmit_frame			*pmgntframe;
 	struct pkt_attrib			*pattrib;
 	unsigned char					*pframe;
@@ -7436,7 +7448,7 @@ void issue_nulldata(_adapter *padapter, unsigned int power_mode)
 	//DBG_871X("%s:%d\n", __FUNCTION__, power_mode);
 
 	if(!padapter)
-		return;
+		return -1;
 
 	pxmitpriv = &(padapter->xmitpriv);
 	pmlmeext = &(padapter->mlmeextpriv);
@@ -7444,7 +7456,7 @@ void issue_nulldata(_adapter *padapter, unsigned int power_mode)
 
 	if ((pmgntframe = alloc_mgtxmitframe(pxmitpriv)) == NULL)
 	{
-		return;
+		return -1;
 	}
 
 	//update attribute
@@ -7460,7 +7472,7 @@ void issue_nulldata(_adapter *padapter, unsigned int power_mode)
 	fctrl = &(pwlanhdr->frame_ctl);
 	*(fctrl) = 0;
 
-	if((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE)
+	if((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE || da)
 	{
 		SetFrDs(fctrl);
 	}
@@ -7474,9 +7486,18 @@ void issue_nulldata(_adapter *padapter, unsigned int power_mode)
 		SetPwrMgt(fctrl);
 	}
 
-	_rtw_memcpy(pwlanhdr->addr1, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
-	_rtw_memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN);
-	_rtw_memcpy(pwlanhdr->addr3, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
+	if(da) //for ap mode
+	{
+		_rtw_memcpy(pwlanhdr->addr1, da, ETH_ALEN);
+		_rtw_memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN);
+		_rtw_memcpy(pwlanhdr->addr3, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
+	}
+	else
+	{
+		_rtw_memcpy(pwlanhdr->addr1, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
+		_rtw_memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN);
+		_rtw_memcpy(pwlanhdr->addr3, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
+	}	
 
 	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
 	pmlmeext->mgnt_seq++;
@@ -7486,14 +7507,51 @@ void issue_nulldata(_adapter *padapter, unsigned int power_mode)
 	pattrib->pktlen = sizeof(struct rtw_ieee80211_hdr_3addr);
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
-	dump_mgntframe(padapter, pmgntframe);
 
-	return;
+	if(wait_ack)
+	{
+		ret = dump_mgntframe_and_wait_ack(padapter, pmgntframe);
+	}
+	else
+	{
+		dump_mgntframe(padapter, pmgntframe);
+	}
+	
+	return ret;
 }
 
 
-void issue_qos_nulldata(_adapter *padapter, unsigned char *da, u16 tid)
+//when wait_ms >0 , this function shoule be called at process context
+//da == NULL for station mode
+int issue_nulldata(_adapter *padapter, unsigned char *da, unsigned int power_mode, int try_cnt, int wait_ms)
 {
+	int ret;
+	int i = 0;
+	
+	do
+	{
+		ret = _issue_nulldata(padapter, da, power_mode, wait_ms>0?_TRUE:_FALSE);
+
+		i++;
+
+		if((wait_ms>0)&&( ret==_FAIL))
+			rtw_msleep_os(wait_ms);
+
+	}while((i<try_cnt) && ((ret==_FAIL)||(wait_ms==0)));
+
+	if(ret != _FAIL)
+		ret = _SUCCESS;
+	else
+		DBG_871X("%s, FAIL!, try_cnt=%d, wait_ms=%d\n", __func__, try_cnt, wait_ms); 
+
+	return ret;		
+}
+
+//when wait_ack is ture, this function shoule be called at process context
+//da == NULL for station mode
+static int _issue_qos_nulldata(_adapter *padapter, unsigned char *da, u16 tid, int wait_ack)
+{
+	int ret = _SUCCESS;
 	struct xmit_frame			*pmgntframe;
 	struct pkt_attrib			*pattrib;
 	unsigned char					*pframe;
@@ -7507,7 +7565,7 @@ void issue_qos_nulldata(_adapter *padapter, unsigned char *da, u16 tid)
 
 	if ((pmgntframe = alloc_mgtxmitframe(pxmitpriv)) == NULL)
 	{
-		return;
+		return -1;
 	}
 
 	//update attribute
@@ -7528,7 +7586,7 @@ void issue_qos_nulldata(_adapter *padapter, unsigned char *da, u16 tid)
 	fctrl = &(pwlanhdr->frame_ctl);
 	*(fctrl) = 0;
 
-	if((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE)
+	if((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE || da)
 	{
 		SetFrDs(fctrl);
 	}
@@ -7548,9 +7606,19 @@ void issue_qos_nulldata(_adapter *padapter, unsigned char *da, u16 tid)
 
 	SetAckpolicy(qc, pattrib->ack_policy);
 
-	_rtw_memcpy(pwlanhdr->addr1, da, ETH_ALEN);
-	_rtw_memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN);
-	_rtw_memcpy(pwlanhdr->addr3, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
+
+	if(da) //for ap mode
+	{
+		_rtw_memcpy(pwlanhdr->addr1, da, ETH_ALEN);
+		_rtw_memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN);
+		_rtw_memcpy(pwlanhdr->addr3, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
+	}
+	else
+	{
+		_rtw_memcpy(pwlanhdr->addr1, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
+		_rtw_memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN);
+		_rtw_memcpy(pwlanhdr->addr3, get_my_bssid(&(pmlmeinfo->network)), ETH_ALEN);
+	}	
 
 	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
 	pmlmeext->mgnt_seq++;
@@ -7560,8 +7628,43 @@ void issue_qos_nulldata(_adapter *padapter, unsigned char *da, u16 tid)
 	pattrib->pktlen = sizeof(struct rtw_ieee80211_hdr_3addr_qos);
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
-	dump_mgntframe(padapter, pmgntframe);
 	
+	if(wait_ack)
+	{
+		ret = dump_mgntframe_and_wait_ack(padapter, pmgntframe);
+	}
+	else
+	{
+		dump_mgntframe(padapter, pmgntframe);
+	}
+
+	return ret;	
+}
+
+//when wait_ms >0 , this function shoule be called at process context
+//da == NULL for station mode
+int issue_qos_nulldata(_adapter *padapter, unsigned char *da, u16 tid, int try_cnt, int wait_ms)
+{
+	int ret;
+	int i = 0;
+	
+	do
+	{
+		ret = _issue_qos_nulldata(padapter, da, tid, wait_ms>0?_TRUE:_FALSE);
+
+		i++;
+
+		if((wait_ms>0)&&( ret==_FAIL))
+			rtw_msleep_os(wait_ms);
+
+	}while((i<try_cnt) && ((ret==_FAIL)||(wait_ms==0)));
+
+	if(ret != _FAIL)
+		ret = _SUCCESS;
+	else
+		DBG_871X("%s, FAIL!, try_cnt=%d, wait_ms=%d\n", __func__, try_cnt, wait_ms); 
+
+	return ret;		
 }
 
 void issue_deauth(_adapter *padapter, unsigned char *da, unsigned short reason)
@@ -8374,21 +8477,21 @@ void site_survey(_adapter *padapter)
 
 			if (is_client_associated_to_ap(padapter) == _TRUE)
 			{
-				//issue null data 
-				issue_nulldata(padapter, 0);
+				issue_nulldata(padapter, NULL, 0, 3, 500);
 				
 #ifdef CONFIG_CONCURRENT_MODE
 				if(is_client_associated_to_ap(padapter->pbuddy_adapter) == _TRUE)
 				{
 					DBG_871X("adapter is surveydone(buddy_adapter is linked), issue nulldata(pwrbit=0)\n");
-					issue_nulldata(padapter->pbuddy_adapter, 0);				
+					
+					issue_nulldata(padapter->pbuddy_adapter, NULL, 0, 3, 500);
 				}
 #endif	
 			}
 #ifdef CONFIG_CONCURRENT_MODE
 			else if(is_client_associated_to_ap(padapter->pbuddy_adapter) == _TRUE)
 			{
-				issue_nulldata(padapter->pbuddy_adapter, 0);				
+				issue_nulldata(padapter->pbuddy_adapter, NULL, 0, 3, 500);
 			}
 #endif	
 
@@ -9735,14 +9838,17 @@ void _linked_rx_signal_strehgth_display(_adapter *padapter)
 	}
 	
 	rtw_hal_get_def_var(padapter, HW_DEF_RA_INFO_DUMP,&mac_id);	
-	
+	#if 0
 	DBG_871X("============ RX GAIN / FALSE ALARM  ===================\n");
 	DBG_871X(" DIG PATH-A(0x%02x), PATH-B(0x%02x)\n",rtw_read8(padapter,0xc50),rtw_read8(padapter,0xc58));
 	DBG_871X(" OFDM -Alarm DA2(0x%04x),DA4(0x%04x),DA6(0x%04x),DA8(0x%04x)\n",
 		rtw_read16(padapter,0xDA2),rtw_read16(padapter,0xDA4),rtw_read16(padapter,0xDA6),rtw_read16(padapter,0xDA8));
 
 	DBG_871X(" CCK -Alarm A5B(0x%02x),A5C(0x%02x)\n",rtw_read8(padapter,0xA5B),rtw_read8(padapter,0xA5C));
-	rtw_hal_get_def_var(padapter, HAL_DEF_UNDERCORATEDSMOOTHEDPWDB, &UndecoratedSmoothedPWDB);
+	#endif
+
+
+	rtw_hal_get_def_var(padapter, HAL_DEF_UNDERCORATEDSMOOTHEDPWDB, &UndecoratedSmoothedPWDB);	
 	DBG_871X("UndecoratedSmoothedPWDB:%d\n",UndecoratedSmoothedPWDB);
 
 }
@@ -9848,7 +9954,7 @@ void linked_status_chk(_adapter *padapter)
 					#ifdef DBG_EXPIRATION_CHK
 					DBG_871X("%s issue_nulldata 0\n", __FUNCTION__);
 					#endif
-					issue_nulldata(padapter, 0);
+					issue_nulldata(padapter, NULL, 0, 3, 500);
 					pmlmeinfo->link_count = 0;
 				}
 			}
@@ -10092,7 +10198,7 @@ void link_timer_hdl(_adapter *padapter)
 			{
 				if (tx_cnt == pxmitpriv->tx_pkts)
 				{
-					issue_nulldata(padapter, 0);
+					issue_nulldata(padapter, NULL, 0, 0, 0);
 				}
 
 				tx_cnt = pxmitpriv->tx_pkts;
@@ -10542,15 +10648,14 @@ u8 sitesurvey_cmd_hdl(_adapter *padapter, u8 *pbuf)
 		{
 			pmlmeext->sitesurvey_res.state = SCAN_TXNULL;
 
-			issue_nulldata(padapter, 1);
-			issue_nulldata(padapter, 1);
+			issue_nulldata(padapter, NULL, 1, 3, 500);
 
 #ifdef CONFIG_CONCURRENT_MODE
 			if(is_client_associated_to_ap(padapter->pbuddy_adapter) == _TRUE)
 			{
 				DBG_871X("adapter is scanning(buddy_adapter is linked), issue nulldata(pwrbit=1)\n");
-				issue_nulldata(padapter->pbuddy_adapter, 1);
-				issue_nulldata(padapter->pbuddy_adapter, 1);
+				
+				issue_nulldata(padapter->pbuddy_adapter, NULL, 1, 3, 500);
 			}
 #endif			
 			bdelayscan = _TRUE;
@@ -10567,8 +10672,7 @@ u8 sitesurvey_cmd_hdl(_adapter *padapter, u8 *pbuf)
 
 			pmlmeext->sitesurvey_res.state = SCAN_TXNULL;
 
-			issue_nulldata(padapter->pbuddy_adapter, 1);
-			issue_nulldata(padapter->pbuddy_adapter, 1);
+			issue_nulldata(padapter->pbuddy_adapter, NULL, 1, 3, 500);
 
 			bdelayscan = _TRUE;			
 		}
@@ -11205,7 +11309,7 @@ u8 dc_handle_join_request(_adapter *padapter)
 		}
 		else	 if (is_client_associated_to_ap(pbuddy_adapter) == _TRUE)
 		{
-			issue_nulldata(pbuddy_adapter, 1);
+			issue_nulldata(pbuddy_adapter, NULL, 1, 0, 0);
 		}
 	}
 
@@ -11349,7 +11453,7 @@ void dc_handle_join_done(_adapter *padapter, u8 join_res)
 				set_channel_bwmode(padapter, pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
 			}
 		
-			issue_nulldata(pbuddy_adapter, 0);
+			issue_nulldata(pbuddy_adapter, NULL, 0, 0, 0);
 		}
 	}
 }
@@ -11385,8 +11489,7 @@ u8 dc_handle_site_survey(_adapter *padapter)
 		{
 			pmlmeext->sitesurvey_res.state = SCAN_TXNULL;
 		
-			issue_nulldata(pbuddy_adapter, 1);
-			issue_nulldata(pbuddy_adapter, 1);
+			issue_nulldata(pbuddy_adapter, NULL, 1, 2, 0);			
 
 			return _TRUE;
 		}
@@ -11451,7 +11554,7 @@ void dc_set_channel_bwmode_survey_done(_adapter *padapter)
 		if (is_client_associated_to_ap(pbuddy_adapter) == _TRUE)
 		{
 			//issue null data 
-			issue_nulldata(pbuddy_adapter, 0);
+			issue_nulldata(pbuddy_adapter, NULL, 0, 0, 0);
 		}
 
 		if(((pbuddy_mlmeinfo->state&0x03) == WIFI_FW_AP_STATE) &&
@@ -12052,7 +12155,7 @@ u8 tdls_hdl(_adapter *padapter, unsigned char *pbuf)
 								TDLS_PEER_AT_OFF_STATE | 
 								TDLS_AT_OFF_CH_STATE);
 			DBG_871X("go back to base channel\n ");
-			issue_nulldata(padapter, 0);
+			issue_nulldata(padapter, NULL, 0, 0, 0);
 			break;
 		case TDLS_INIT_CH_SEN:
 			rtw_hal_set_hwreg(padapter, HW_VAR_TDLS_INIT_CH_SEN, 0);
@@ -12094,7 +12197,7 @@ u8 tdls_hdl(_adapter *padapter, unsigned char *pbuf)
 					ptdls_sta->tdls_sta_state |= TDLS_APSD_CHSW_STATE;
 				}else{
 					//send null data with pwrbit==1 before send ch_switching_req to peer STA.
-					issue_nulldata(padapter, 1);
+					issue_nulldata(padapter, NULL, 1, 0, 0);
 
 					ptdls_sta->tdls_sta_state |= TDLS_CH_SW_INITIATOR_STATE;
 
@@ -12104,7 +12207,7 @@ u8 tdls_hdl(_adapter *padapter, unsigned char *pbuf)
 			}
 			break;
 		case TDLS_OFF_CH:
-			issue_nulldata(padapter, 1);
+			issue_nulldata(padapter, NULL, 1, 0, 0);
 			SelectChannel(padapter, ptdls_sta->off_ch);
 
 			DBG_871X("change channel to tar ch:%02x\n", ptdls_sta->off_ch);
@@ -12120,18 +12223,18 @@ u8 tdls_hdl(_adapter *padapter, unsigned char *pbuf)
 								TDLS_PEER_AT_OFF_STATE | 
 								TDLS_AT_OFF_CH_STATE);
 			DBG_871X("go back to base channel\n ");
-			issue_nulldata(padapter, 0);
+			issue_nulldata(padapter, NULL, 0, 0, 0);
 			_set_timer(&ptdls_sta->option_timer, (u32)ptdls_sta->ch_switch_time);
 			break;
 		case TDLS_P_OFF_CH:
 			SelectChannel(padapter, pmlmeext->cur_channel);
-			issue_nulldata(padapter, 0);
+			issue_nulldata(padapter, NULL, 0, 0, 0);
 			DBG_871X("change channel to base ch:%02x\n", pmlmeext->cur_channel);
 			ptdls_sta->tdls_sta_state &= ~(TDLS_PEER_AT_OFF_STATE| TDLS_AT_OFF_CH_STATE);
 			_set_timer(&ptdls_sta->off_ch_timer, TDLS_STAY_TIME);
 			break;
 		case TDLS_P_BASE_CH:
-			issue_nulldata(ptdls_sta->padapter, 1);
+			issue_nulldata(ptdls_sta->padapter, NULL, 1, 0, 0);
 			SelectChannel(padapter, ptdls_sta->off_ch);
 			DBG_871X("change channel to off ch:%02x\n", ptdls_sta->off_ch);
 			ptdls_sta->tdls_sta_state |= TDLS_AT_OFF_CH_STATE;

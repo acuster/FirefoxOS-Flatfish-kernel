@@ -1,10 +1,10 @@
 ===========================================
 
-Version: V1_20
+Version: V1_21
 
 Author:  raymonxiu
 
-Date:     2013-1-11 19:17
+Date:     2013-1-17 15:39:42
 
 Description:
 
@@ -52,3 +52,11 @@ CSI: Optimizing ov5640 and add preview mode(s5k4ec)
 1) Modify ov5640 to auto fps
 2) Reduce denoise level and enhance sharpness in ov5640
 3) Add preview mode in ov5640 and s5k4ec
+
+V1_21
+CSI: Optimizing ov5640/gc2035 and fix bugs
+1) Optimizing lens and cmx parameter for LA ov5640 module
+2) Disable ov5640 oe before s_fmt and enable oe after s_fmt
+3) Fix af firmware download error
+4) Fix fps setting bug on test app
+5) Optimizing gc2035 power timing

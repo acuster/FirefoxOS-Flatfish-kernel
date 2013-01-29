@@ -194,13 +194,19 @@ int gmac_mdio_register(struct net_device *ndev)
 		}
 	}
 
-	if (!found)
+	if (!found){
 		printk(KERN_WARNING "%s: No PHY found\n", ndev->name);
+		err = -ENXIO;
+		goto out_err;
+	}
 
 	return 0;
 
+out_err:
+	mdiobus_unregister(new_bus);
 bus_register_fail:
 	mdiobus_free(new_bus);
+	priv->mii = NULL;
 	return err;
 }
 

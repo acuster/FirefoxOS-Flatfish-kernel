@@ -324,6 +324,12 @@ static __init int aw_gpio_init(void)
 		printk("%s(%d) err: platform_device_register failed\n", __func__, __LINE__);
 	if(platform_driver_register(&sw_gpio_driver))
 		printk("%s(%d) err: platform_driver_register failed\n", __func__, __LINE__);
+
+#if (CONFIG_ARCH_SUN6I == 1) /* pull up all pl pin, in case electricity leak, sunny */
+	for(i = PL_NR_BASE; i < PL_NR_BASE + PL_NR - 1; i++)
+		WARN_ON(sw_gpio_setpull(i, 0b01));
+#endif
+
 end:
 	if(0 != uret)
 		printk("%s err, line %d\n", __func__, uret);

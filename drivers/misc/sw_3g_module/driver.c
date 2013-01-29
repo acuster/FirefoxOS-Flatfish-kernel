@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/signal.h>
+#include <linux/kthread.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/pm.h>
@@ -60,6 +61,11 @@ struct sw_module_dev{
 	struct device *class_dev;
     struct platform_device *pdev;
     spinlock_t lock;
+
+	/* modem init */
+	struct task_struct *thread;
+	struct completion thread_started;
+	struct completion thread_exited;
 
     struct sw_modem *modem;
 
@@ -103,7 +109,6 @@ static ssize_t sw_module_set_power(struct device *dev,
 
     sscanf(buf, "%d", &value);
     g_sw_module_power = value;
-
     if(g_sw_module_power){
         if(mdev->modem->ops->start){
             mdev->modem->ops->start(mdev->modem);
@@ -123,6 +128,36 @@ static struct device_attribute sw_module_attrs[] = {
 
 	__ATTR_NULL,
 };
+
+static int __sw_modem_start(void * pArg)
+{
+	struct sw_module_dev *mdev = pArg;
+
+	allow_signal(SIGTERM);
+	complete(&mdev->thread_started);
+
+    if(mdev->modem->ops->start){
+        mdev->modem->ops->start(mdev->modem);
+    }
+
+	return 0;
+}
+
+static int sw_modem_start(struct sw_module_dev *mdev)
+{
+	init_completion(&mdev->thread_started);
+
+    mdev->thread = kthread_create(__sw_modem_start, mdev, "sw-3g");
+    if (IS_ERR(mdev->thread)) {
+        modem_err("%s: failed to create kernel_thread (%ld)!\n", __func__, PTR_ERR(mdev->thread));
+        return -1;
+    }
+
+    wake_up_process(mdev->thread);
+    wait_for_completion(&mdev->thread_started);
+
+    return 0;
+}
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void sw_module_early_suspend(struct early_suspend *h)
@@ -184,13 +219,10 @@ static int __init sw_module_probe(struct platform_device *pdev)
     }
 #endif
 
-    /* module probe */
-	if(mdev->modem->ops->start){
-    	ret = mdev->modem->ops->start(mdev->modem);
-    	if(ret != 0){
-    		modem_err("err: probe %s failed\n", mdev->name);
-    		goto err_modem_start;
-    	}
+    ret = sw_modem_start(mdev);
+    if(ret != 0){
+		modem_err("err: probe %s failed\n", mdev->name);
+		goto err_modem_start;
 	}
 
 	return 0;
@@ -231,9 +263,6 @@ static int sw_module_remove(struct platform_device *pdev)
     }
 #endif
 
-	if(mdev->modem->ops->stop){
-	    mdev->modem->ops->stop(mdev->modem);
-	}
     device_destroy(sw_module_class, 0);
 
     return 0;
@@ -387,6 +416,7 @@ static void __exit sw_module_exit(void)
 }
 
 late_initcall(sw_module_init);
+//module_init(sw_module_init);
 module_exit(sw_module_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);

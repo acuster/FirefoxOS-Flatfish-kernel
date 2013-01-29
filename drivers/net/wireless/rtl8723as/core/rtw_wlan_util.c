@@ -512,7 +512,6 @@ void set_channel_bwmode(_adapter *padapter, unsigned char channel, unsigned char
 	u8 center_ch;
 	unsigned int scanMode;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-	
 
 	if((bwmode == HT_CHANNEL_WIDTH_20)||(channel_offset == HAL_PRIME_CHNL_OFFSET_DONT_CARE))
 	{

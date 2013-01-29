@@ -623,6 +623,9 @@ static char *translate_scan(_adapter *padapter,
 	iwe.u.qual.level = (u8) translate_percentage_to_dbm(ss);//dbm
 	#else
 	iwe.u.qual.level = (u8)ss;//%
+	#ifdef CONFIG_BT_COEXIST
+	BT_SignalCompensation(padapter, &iwe.u.qual.level, NULL);
+	#endif // CONFIG_BT_COEXIST
 	#endif
 	
 	iwe.u.qual.qual = (u8)sq;   // signal quality
@@ -1916,6 +1919,23 @@ if (padapter->registrypriv.mp_mode == 1)
 		goto exit;
 	} 
 
+#ifdef CONFIG_BT_COEXIST
+	{
+		u32 curr_time, delta_time;
+
+		// under DHCP(Special packet)
+		curr_time = rtw_get_current_time();
+		delta_time = curr_time - padapter->pwrctrlpriv.DelayLPSLastTimeStamp;
+		delta_time = rtw_systime_to_ms(delta_time);
+		if (delta_time < 500) // 500ms
+		{
+			DBG_871X("%s: send DHCP pkt before %d ms, Skip scan\n", __FUNCTION__, delta_time);
+			ret = -1;
+			goto exit;
+		}
+	}
+#endif
+
 #ifdef CONFIG_CONCURRENT_MODE
 	if (check_buddy_fwstate(padapter,
 		_FW_UNDER_SURVEY|_FW_UNDER_LINKING|WIFI_UNDER_WPS) == _TRUE)
@@ -1984,7 +2004,7 @@ if (padapter->registrypriv.mp_mode == 1)
 		
 			_enter_critical_bh(&pmlmepriv->lock, &irqL);				
 		
-			_status = rtw_sitesurvey_cmd(padapter, ssid, 1);
+			_status = rtw_sitesurvey_cmd(padapter, ssid, 1, NULL, 0);
 		
 			_exit_critical_bh(&pmlmepriv->lock, &irqL);
 			
@@ -2211,7 +2231,7 @@ static int rtw_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
 
 		//report network only if the current channel set contains the channel to which this network belongs
-		if( _TRUE == rtw_is_channel_set_contains_channel(padapter->mlmeextpriv.channel_set, pnetwork->network.Configuration.DSConfig)
+		if(rtw_ch_set_search_ch(padapter->mlmeextpriv.channel_set, pnetwork->network.Configuration.DSConfig) >= 0
 			#ifdef CONFIG_VALIDATE_SSID
 			&& _TRUE == rtw_validate_ssid(&(pnetwork->network.Ssid))
 			#endif
@@ -3468,7 +3488,7 @@ static int rtw_wx_set_channel_plan(struct net_device *dev,
 	#endif
 
 	if( _SUCCESS == rtw_set_chplan_cmd(padapter, channel_plan_req, 1) ) {
-		DBG_871X("\n======== Set channel_plan = 0x%02X ========\n", pmlmepriv->ChannelPlan);
+		DBG_871X("%s set channel_plan = 0x%02X\n", __func__, pmlmepriv->ChannelPlan);
 	} else 
 		return -EPERM;
 
@@ -6044,30 +6064,30 @@ void rf_reg_dump(_adapter *padapter)
 void mac_reg_dump(_adapter *padapter)
 {
 	int i,j=1;		
-	DBG_871X("\n======= MAC REG =======\n");
+	printk("\n======= MAC REG =======\n");
 	for(i=0x0;i<0x300;i+=4)
 	{	
-		if(j%4==1)	DBG_871X("0x%02x",i);
-		DBG_871X(" 0x%08x ",rtw_read32(padapter,i));		
-		if((j++)%4 == 0)	DBG_871X("\n");	
+		if(j%4==1)	printk("0x%02x",i);
+		printk(" 0x%08x ",rtw_read32(padapter,i));		
+		if((j++)%4 == 0)	printk("\n");	
 	}
 	for(i=0x400;i<0x800;i+=4)
 	{	
-		if(j%4==1)	DBG_871X("0x%02x",i);
-		DBG_871X(" 0x%08x ",rtw_read32(padapter,i));		
-		if((j++)%4 == 0)	DBG_871X("\n");	
+		if(j%4==1)	printk("0x%02x",i);
+		printk(" 0x%08x ",rtw_read32(padapter,i));		
+		if((j++)%4 == 0)	printk("\n");	
 	}									
 }
 void bb_reg_dump(_adapter *padapter)
 {
 	int i,j=1;		
-	DBG_871X("\n======= BB REG =======\n");
+	printk("\n======= BB REG =======\n");
 	for(i=0x800;i<0x1000;i+=4)
 	{
-		if(j%4==1) DBG_871X("0x%02x",i);
+		if(j%4==1) printk("0x%02x",i);
 				
-		DBG_871X(" 0x%08x ",rtw_read32(padapter,i));		
-		if((j++)%4 == 0)	DBG_871X("\n");	
+		printk(" 0x%08x ",rtw_read32(padapter,i));		
+		if((j++)%4 == 0)	printk("\n");	
 	}		
 }
 void rf_reg_dump(_adapter *padapter)
@@ -6077,7 +6097,7 @@ void rf_reg_dump(_adapter *padapter)
 	u8 rf_type,path_nums = 0;
 	rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 		
-	DBG_871X("\n======= RF REG =======\n");
+	printk("\n======= RF REG =======\n");
 	if((RF_1T2R == rf_type) ||(RF_1T1R ==rf_type ))	
 		path_nums = 1;
 	else	
@@ -6085,14 +6105,14 @@ void rf_reg_dump(_adapter *padapter)
 		
 	for(path=0;path<path_nums;path++)
 	{
-		DBG_871X("\nRF_Path(%x)\n",path);
+		printk("\nRF_Path(%x)\n",path);
 		for(i=0;i<0x100;i++)
 		{								
 			//value = PHY_QueryRFReg(padapter, (RF_RADIO_PATH_E)path,i, bMaskDWord);
 			value = rtw_hal_read_rfreg(padapter, path, i, 0xffffffff);
-			if(j%4==1)	DBG_871X("0x%02x ",i);
-			DBG_871X(" 0x%08x ",value);
-			if((j++)%4==0)	DBG_871X("\n");	
+			if(j%4==1)	printk("0x%02x ",i);
+			printk(" 0x%08x ",value);
+			if((j++)%4==0)	printk("\n");	
 		}	
 	}
 }
@@ -6208,7 +6228,7 @@ static int rtw_dbg_port(struct net_device *dev,
 						rtw_IOL_append_LLT_cmd(xmit_frame, page_boundary);
 
 
-						if(_SUCCESS != rtw_IOL_exec_cmds_sync(padapter, xmit_frame, 500) )
+						if(_SUCCESS != rtw_IOL_exec_cmds_sync(padapter, xmit_frame, 500,0) )
 							ret = -EPERM;
 					}
 				}
@@ -6229,12 +6249,19 @@ static int rtw_dbg_port(struct net_device *dev,
 						}
 
 						for(i=0;i<blink_num;i++){
+							#ifdef CONFIG_IOL_NEW_GENERATION
+							rtw_IOL_append_WB_cmd(xmit_frame, reg, 0x00,0xff);
+							rtw_IOL_append_DELAY_MS_cmd(xmit_frame, blink_delay_ms);
+							rtw_IOL_append_WB_cmd(xmit_frame, reg, 0x08,0xff);
+							rtw_IOL_append_DELAY_MS_cmd(xmit_frame, blink_delay_ms);
+							#else
 							rtw_IOL_append_WB_cmd(xmit_frame, reg, 0x00);
 							rtw_IOL_append_DELAY_MS_cmd(xmit_frame, blink_delay_ms);
 							rtw_IOL_append_WB_cmd(xmit_frame, reg, 0x08);
 							rtw_IOL_append_DELAY_MS_cmd(xmit_frame, blink_delay_ms);
+							#endif
 						}
-						if(_SUCCESS != rtw_IOL_exec_cmds_sync(padapter, xmit_frame, (blink_delay_ms*blink_num*2)+200) )
+						if(_SUCCESS != rtw_IOL_exec_cmds_sync(padapter, xmit_frame, (blink_delay_ms*blink_num*2)+200,0) )
 							ret = -EPERM;
 					}
 				}
@@ -6257,9 +6284,13 @@ static int rtw_dbg_port(struct net_device *dev,
 						}
 
 						for(i=0;i<write_num;i++){
+							#ifdef CONFIG_IOL_NEW_GENERATION
+							rtw_IOL_append_WB_cmd(xmit_frame, reg, i+start_value,0xFF);
+							#else
 							rtw_IOL_append_WB_cmd(xmit_frame, reg, i+start_value);
+							#endif
 						}
-						if(_SUCCESS != rtw_IOL_exec_cmds_sync(padapter, xmit_frame, 5000))
+						if(_SUCCESS != rtw_IOL_exec_cmds_sync(padapter, xmit_frame, 5000,0))
 							ret = -EPERM;
 					}
 
@@ -6289,9 +6320,13 @@ static int rtw_dbg_port(struct net_device *dev,
 						}
 
 						for(i=0;i<write_num;i++){
+							#ifdef CONFIG_IOL_NEW_GENERATION
+							rtw_IOL_append_WW_cmd(xmit_frame, reg, i+start_value,0xFFFF);
+							#else
 							rtw_IOL_append_WW_cmd(xmit_frame, reg, i+start_value);
+							#endif
 						}
-						if(_SUCCESS !=rtw_IOL_exec_cmds_sync(padapter, xmit_frame, 5000))
+						if(_SUCCESS !=rtw_IOL_exec_cmds_sync(padapter, xmit_frame, 5000,0))
 							ret = -EPERM;
 					}
 
@@ -6321,9 +6356,13 @@ static int rtw_dbg_port(struct net_device *dev,
 						}
 
 						for(i=0;i<write_num;i++){
+							#ifdef CONFIG_IOL_NEW_GENERATION
+							rtw_IOL_append_WD_cmd(xmit_frame, reg, i+start_value,0xFFFFFFFF);
+							#else
 							rtw_IOL_append_WD_cmd(xmit_frame, reg, i+start_value);
+							#endif
 						}
-						if(_SUCCESS !=rtw_IOL_exec_cmds_sync(padapter, xmit_frame, 5000))
+						if(_SUCCESS !=rtw_IOL_exec_cmds_sync(padapter, xmit_frame, 5000,0))
 							ret = -EPERM;
 							
 					}
@@ -6359,8 +6398,7 @@ static int rtw_dbg_port(struct net_device *dev,
 			break;
 		case 0x7a:
 			receive_disconnect(padapter, pmlmeinfo->network.MacAddress
-				, 65535// indicate disconnect caused by no rx
-			);
+				, WLAN_REASON_EXPIRATION_CHK);
 			break;
 		case 0x7F:
 			switch(minor_cmd)
@@ -7437,36 +7475,6 @@ static int rtw_hostapd_sta_flush(struct net_device *dev)
 
 	flush_all_cam_entry(padapter);	//clear CAM
 
-#if 0
-	phead = &pstapriv->asoc_list;
-	plist = get_next(phead);
-	
-	//free sta asoc_queue
-	while ((rtw_end_of_queue_search(phead, plist)) == _FALSE)	
-	{		
-		psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
-		
-		plist = get_next(plist);
-
-		rtw_list_delete(&psta->asoc_list);		
-
-		//tear down Rx AMPDU
-		send_delba(padapter, 0, psta->hwaddr);// recipient
-	
-		//tear down TX AMPDU
-		send_delba(padapter, 1, psta->hwaddr);// // originator
-		psta->htpriv.agg_enable_bitmap = 0x0;//reset
-		psta->htpriv.candidate_tid_bitmap = 0x0;//reset
-
-		issue_deauth(padapter, psta->hwaddr, WLAN_REASON_DEAUTH_LEAVING);
-
-		_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);					
-		rtw_free_stainfo(padapter, psta);
-		_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
-		
-	}
-#endif
-
 	ret = rtw_sta_flush(padapter);	
 
 	return ret;
@@ -7601,7 +7609,7 @@ static int rtw_del_sta(struct net_device *dev, struct ieee_param *param)
 		psta->htpriv.agg_enable_bitmap = 0x0;//reset
 		psta->htpriv.candidate_tid_bitmap = 0x0;//reset
 		
-		issue_deauth(padapter, psta->hwaddr, WLAN_REASON_DEAUTH_LEAVING);
+		issue_deauth(padapter, psta->hwaddr, WLAN_REASON_DEAUTH_LEAVING, _TRUE);
 		
 		_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);		
 		rtw_free_stainfo(padapter,  psta);		
@@ -7614,7 +7622,8 @@ static int rtw_del_sta(struct net_device *dev, struct ieee_param *param)
 		if(rtw_is_list_empty(&psta->asoc_list)==_FALSE)
 		{			
 			rtw_list_delete(&psta->asoc_list);
-			updated = ap_free_sta(padapter, psta);
+			pstapriv->asoc_list_cnt--;
+			updated = ap_free_sta(padapter, psta, _TRUE, WLAN_REASON_DEAUTH_LEAVING);
 
 		}
 		_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
@@ -8278,29 +8287,8 @@ static int rtw_wx_set_priv(struct net_device *dev,
 		case ANDROID_WIFI_CMD_COUNTRY :
 			{
 				char country_code[10];
-				int channel_plan = RT_CHANNEL_DOMAIN_FCC;
-				union iwreq_data wrqd;
-				int ret_inner;
-					
-				sscanf(ext,"%*s %s",country_code);
-		
-				if(0 == strcmp(country_code, "US"))
-					channel_plan = RT_CHANNEL_DOMAIN_FCC;
-				else if(0 == strcmp(country_code, "EU"))
-					channel_plan = RT_CHANNEL_DOMAIN_ETSI;
-				else if(0 == strcmp(country_code, "JP"))
-					channel_plan = RT_CHANNEL_DOMAIN_MKK1;
-				else if(0 == strcmp(country_code, "CN"))
-					channel_plan = RT_CHANNEL_DOMAIN_CHINA;
-				else
-					DBG_871X("%s unknown country_code:%s, set to RT_CHANNEL_DOMAIN_FCC\n", __FUNCTION__, country_code);
-				
-				_rtw_memcpy(&wrqd, &channel_plan, sizeof(int));
-				
-				if( 0!=(ret_inner=rtw_wx_set_channel_plan(dev, info, &wrqd, extra)) ){
-					DBG_871X("%s rtw_wx_set_channel_plan error\n", __FUNCTION__);
-				}
-				
+				sscanf(ext, "%*s %s", country_code);
+				rtw_set_country(padapter, country_code);
 				sprintf(ext, "OK");
 			}
 			break;
@@ -8384,6 +8372,9 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 	u16 i=0, j=0, mapLen=0, addr=0, cnts=0;
 	u16 max_available_size=0, raw_cursize=0, raw_maxsize=0;
 	int err;
+	#ifdef CONFIG_IOL
+	u8 org_fw_iol = padapter->registrypriv.fw_iol;// 0:Disable, 1:enable, 2:by usb speed
+	#endif
 	
 	wrqu = (struct iw_point*)wdata;
 	pwrctrlpriv = &padapter->pwrctrlpriv; 
@@ -8429,6 +8420,9 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 		tmp[i] = token;
 		i++;
 	}
+	#ifdef CONFIG_IOL
+	padapter->registrypriv.fw_iol = 0;// 0:Disable, 1:enable, 2:by usb speed
+	#endif
 	
 	if(strcmp(tmp[0], "status") == 0){
 		sprintf(extra, "Load File efuse=%s,Load File MAC=%s",(pEEPROM->bloadfile_fail_flag? "FAIL" : "OK"),(pEEPROM->bloadmac_fail_flag? "FAIL" : "OK"));
@@ -8859,7 +8853,9 @@ exit:
 	#ifdef CONFIG_LPS	
 	rtw_pm_set_lps(padapter, lps_mode);
 	#endif
-	
+	#ifdef CONFIG_IOL
+	padapter->registrypriv.fw_iol = org_fw_iol;// 0:Disable, 1:enable, 2:by usb speed
+	#endif
 	return err;
 }
 
@@ -9485,7 +9481,8 @@ static int rtw_mp_read_reg(struct net_device *dev,
 
 	ret = 0;
 	width = width_str[0];
-	switch (width) {
+	switch (width)
+	{
 		case 'b':
 			// 1 byte
 			// *(u8*)data = rtw_read8(padapter, addr);
@@ -12571,6 +12568,13 @@ static struct iw_statistics *rtw_get_wireless_stats(struct net_device *dev)
 		tmp_level = translate_percentage_to_dbm(padapter->recvpriv.signal_strength); 
 		#else
 		tmp_level = padapter->recvpriv.signal_strength;
+		#ifdef CONFIG_BT_COEXIST
+		{
+			u8 signal = (u8)tmp_level;
+			BT_SignalCompensation(padapter, &signal, NULL);
+			tmp_level= signal;
+		}
+		#endif // CONFIG_BT_COEXIST
 		#endif
 		
 		tmp_qual = padapter->recvpriv.signal_qual;

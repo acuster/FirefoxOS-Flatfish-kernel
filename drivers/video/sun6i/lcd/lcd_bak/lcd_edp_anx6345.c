@@ -65,7 +65,6 @@ __u8 SP_TX_Read_Reg(__u8 dev_addr, __u8 offset, __u8 *d)
 void anx6345_init(__panel_para_t * info)
 {
     __u8 c;
-    int i;
     __u32 count = 0;
     __u32 lanes;
     __u32 data_rate;
@@ -130,6 +129,7 @@ void anx6345_init(__panel_para_t * info)
 	
 		 SP_TX_Write_Reg(0x70, SP_TX_SYS_CTRL1_REG, 0x00);
 		 LCD_delay_ms(10);
+#if 0
 		 for(i=0;i<50;i++)
 		{
 			SP_TX_Read_Reg(0x70, SP_TX_SYS_CTRL1_REG, &c);
@@ -143,6 +143,7 @@ void anx6345_init(__panel_para_t * info)
 	
 			LCD_delay_ms(10);
 		}
+#endif
 		   //check whether clock is stable
 	
 	/*	for(i=0;i<50;i++)

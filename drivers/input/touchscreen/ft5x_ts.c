@@ -1123,8 +1123,9 @@ static void ft5x_resume_events (struct work_struct *work)
 	struct ft5x_ts_data *data = i2c_get_clientdata(this_client);
 
 	ctp_wakeup(0,20);
-	if ((STANDBY_WITH_POWER_OFF == standby_level) || (data->is_suspended == true)) {
+	if ((STANDBY_WITH_POWER_OFF == standby_level) && (data->is_suspended == true)) {
 	        msleep(100);
+		dprintk(DEBUG_SUSPEND,"==ft5x_ts_resume 100ms delay== \n");
 	}
 	sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,1);
 }

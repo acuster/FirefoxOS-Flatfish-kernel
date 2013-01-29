@@ -38,8 +38,8 @@ typedef struct
 
 __s32 deu_clk_init(__u32 sel);
 __s32 deu_clk_exit(__u32 sel);
-__s32 deu_clk_open(__u32 sel);
-__s32 deu_clk_close(__u32 sel);
+__s32 deu_clk_open(__u32 sel, __u32 type);
+__s32 deu_clk_close(__u32 sel, __u32 type);
 
 __s32 DEU_ALG(__u32 sel);
 

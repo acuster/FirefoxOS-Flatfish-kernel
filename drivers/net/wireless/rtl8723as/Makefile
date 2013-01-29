@@ -103,7 +103,9 @@ endif
 OUTSRC_FILES += hal/OUTSRC/$(RTL871X)/odm_RTL8192C.o\
 								hal/OUTSRC/$(RTL871X)/HalDMOutSrc8192C_CE.o
 
-CHIP_FILES := hal/$(RTL871X)/$(RTL871X)_sreset.o
+CHIP_FILES := \
+	hal/$(RTL871X)/$(RTL871X)_sreset.o \
+	hal/$(RTL871X)/$(RTL871X)_xmit.o
 CHIP_FILES += $(OUTSRC_FILES)
 
 endif

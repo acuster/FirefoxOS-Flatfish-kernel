@@ -27,6 +27,38 @@ struct platform_device hdmi_device =
 	.dev            = {}
 };
 
+static ssize_t hdmi_print_level_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", hdmi_print);
+}
+
+static ssize_t hdmi_print_level_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int err;
+    unsigned long val;
+    
+	err = strict_strtoul(buf, 10, &val);
+	if (err) {
+		printk("Invalid size\n");
+		return err;
+	}
+
+    if(val == 0)
+    {
+        hdmi_print = 0;
+    }else
+    {
+        hdmi_print = 1;
+	}
+    
+	return count;
+}
+
+static DEVICE_ATTR(print_level, S_IRUGO|S_IWUSR|S_IWGRP,
+		hdmi_print_level_show, hdmi_print_level_store);
 
 static int __init hdmi_probe(struct platform_device *pdev)
 {
@@ -109,8 +141,7 @@ long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 
-static const struct file_operations hdmi_fops = 
-{
+static const struct file_operations hdmi_fops = {
 	.owner		= THIS_MODULE,
 	.open		= hdmi_open,
 	.release    = hdmi_release,
@@ -118,6 +149,16 @@ static const struct file_operations hdmi_fops =
 	.read		= hdmi_read,
 	.unlocked_ioctl	= hdmi_ioctl,
 	.mmap       = hdmi_mmap,
+};
+
+static struct attribute *hdmi_attributes[] = {
+    &dev_attr_print_level.attr,
+    NULL
+};
+
+static struct attribute_group hdmi_attribute_group = {
+	.name = "attr",
+	.attrs = hdmi_attributes
 };
 
 int __init hdmi_module_init(void)
@@ -143,6 +184,11 @@ int __init hdmi_module_init(void)
         __wrn("class_create fail\n");
         return -1;
     }
+
+    ghdmi.dev = device_create(hdmi_class, NULL, devid, NULL, "hdmi");
+
+    ret = sysfs_create_group(&ghdmi.dev->kobj,
+                             &hdmi_attribute_group);
     
 	ret |= hdmi_i2c_add_driver();
 
@@ -171,7 +217,6 @@ static void __exit hdmi_module_exit(void)
 
     cdev_del(my_cdev);
 }
-
 
 
 late_initcall(hdmi_module_init);

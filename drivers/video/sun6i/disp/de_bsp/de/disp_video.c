@@ -133,9 +133,9 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     	    g_video[sel][id].diagintp_en = FALSE;
     	}
         
-    	in_type.fmt= Scaler_sw_para_to_reg(0,scaler->in_fb.format);
-    	in_type.mod= Scaler_sw_para_to_reg(1,scaler->in_fb.mode);
-    	in_type.ps= Scaler_sw_para_to_reg(2,scaler->in_fb.seq);
+    	in_type.fmt= Scaler_sw_para_to_reg(0,scaler->in_fb.mode, scaler->in_fb.format, scaler->in_fb.seq);
+        in_type.mod= Scaler_sw_para_to_reg(1,scaler->in_fb.mode, scaler->in_fb.format, scaler->in_fb.seq);
+        in_type.ps= Scaler_sw_para_to_reg(2,scaler->in_fb.mode, scaler->in_fb.format, (__u8)scaler->in_fb.seq);
     	in_type.byte_seq = 0;
     	in_type.sample_method = 0;
 

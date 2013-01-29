@@ -25,7 +25,8 @@ static dev_t devid ;
 static struct class *disp_class;
 struct device	*display_dev;
 
-__u32 disp_cmd_print_level = 0;
+__u32 disp_print_cmd_level = 0;
+__u32 disp_cmd_print = 0xffff;   //print cmd which eq disp_cmd_print
 
 static struct resource disp_resource[DISP_IO_NUM] =
 {
@@ -455,6 +456,7 @@ __s32 DRV_DISP_Init(void)
     para.base_deu0       = (__u32)g_fbi.base_deu0;
     para.base_deu1       = (__u32)g_fbi.base_deu1;
     para.base_dsi0       = (__u32)g_fbi.base_dsi0;
+    para.base_timer       = (__u32)g_fbi.base_timer;
 
 	para.disp_int_process       = DRV_disp_int_process;
     para.vsync_event            = DRV_disp_vsync_event;
@@ -619,6 +621,7 @@ static int __init disp_probe(struct platform_device *pdev)//called when platform
 	info->base_ccmu     = AW_VIR_CCM_BASE;
 	info->base_pioc     = AW_VIR_PIO_BASE;
 	info->base_pwm      = AW_VIR_PWM_BASE;
+    info->base_timer    = AW_VIR_TIMER_BASE;
     
 
 	__inf("SCALER0 base 0x%08x\n", info->base_scaler0);
@@ -637,6 +640,7 @@ static int __init disp_probe(struct platform_device *pdev)//called when platform
 	__inf("CCMU base 0x%08x\n", info->base_ccmu);
 	__inf("PIO base 0x%08x\n", info->base_pioc);
 	__inf("PWM base 0x%08x\n", info->base_pwm);
+    __inf("timer base 0x%08x\n", info->base_pwm);
 
 	disp_dram_ctrl_init();
 
@@ -718,7 +722,7 @@ void backlight_late_resume(struct early_suspend *h)
     {
         BSP_disp_clk_on(2);
     }
-    for(i=1; i>=0; i--)
+    for(i=0; i<2; i++)
     {
         if(suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
         {
@@ -1003,15 +1007,22 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         return -1;
     }
     
-    if(disp_cmd_print_level == 1)
+    if(disp_print_cmd_level == 1)
     {
         if(cmd!=DISP_CMD_TV_GET_INTERFACE && cmd!=DISP_CMD_HDMI_GET_HPD_STATUS && cmd!=DISP_CMD_GET_OUTPUT_TYPE 
         	&& cmd!=DISP_CMD_SCN_GET_WIDTH && cmd!=DISP_CMD_SCN_GET_HEIGHT
         	&& cmd!=DISP_CMD_VIDEO_SET_FB && cmd!=DISP_CMD_VIDEO_GET_FRAME_ID
         	&& cmd!=DISP_CMD_VSYNC_EVENT_EN)
         {
-            OSAL_PRINTF("cmd:0x%x,%ld,%ld\n",cmd, ubuffer[0], ubuffer[1]);
+            if(cmd != disp_cmd_print)
+            {
+                OSAL_PRINTF("cmd:0x%x,%ld,%ld\n",cmd, ubuffer[0], ubuffer[1]);
+            }
         }
+    }
+    if(cmd == disp_cmd_print)
+    {
+        OSAL_PRINTF("cmd:0x%x,%ld,%ld\n",cmd, ubuffer[0], ubuffer[1]);
     }
 
     switch(cmd)

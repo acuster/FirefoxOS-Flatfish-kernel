@@ -1537,20 +1537,20 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 		case CSI_SUBDEV_STBY_ON:
 			csi_dev_dbg("CSI_SUBDEV_STBY_ON\n");
 			//reset off io
-			csi_gpio_write(sd,&dev->reset_io,CSI_RST_OFF);
-			mdelay(10);
+//			csi_gpio_write(sd,&dev->reset_io,CSI_RST_OFF);
+//			mdelay(10);
 			//standby on io
-			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_ON);
-			mdelay(10);
-			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_OFF);
-			mdelay(10);
+//			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_ON);
+//			mdelay(10);
+//			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_OFF);
+//			mdelay(10);
 			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_ON);
 			mdelay(10);
 			//inactive mclk after stadby in
 			clk_disable(dev->csi_module_clk);
 			//reset on io
 //			csi_gpio_write(sd,&dev->reset_io,CSI_RST_ON);
-			mdelay(10);
+//			mdelay(10);
 			break;
 		case CSI_SUBDEV_STBY_OFF:
 			csi_dev_dbg("CSI_SUBDEV_STBY_OFF\n");

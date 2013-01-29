@@ -62,6 +62,7 @@
 #define	WIFI_UNDER_WPS			0x00000100
 //#define	WIFI_UNDER_CMD			0x00000200
 //#define	WIFI_UNDER_P2P			0x00000400
+#define	WIFI_STA_ALIVE_CHK_STATE	0x00000400
 #define	WIFI_SITE_MONITOR			0x00000800		//to indicate the station is under site surveying
 
 #ifdef WDS
@@ -311,8 +312,9 @@ struct wifidirect_info{
 	u16						ext_listen_interval;	//	The interval to be available with legacy AP (ms)
 	u16						ext_listen_period;	//	The time period to be available for P2P listen state (ms)
 #endif
-	u8						p2p_ps_enable;
-	enum P2P_PS				p2p_ps; // indicate p2p ps state
+#ifdef CONFIG_P2P_PS
+	enum P2P_PS_MODE		p2p_ps_mode; // indicate p2p ps mode
+	enum P2P_PS_STATE		p2p_ps_state; // indicate p2p ps state
 	u8						noa_index; // Identifies and instance of Notice of Absence timing.
 	u8						ctwindow; // Client traffic window. A period of time in TU after TBTT.
 	u8						opp_ps; // opportunistic power save.
@@ -321,6 +323,7 @@ struct wifidirect_info{
 	u32						noa_duration[P2P_MAX_NOA_NUM]; // Max duration for owner, preferred or min acceptable duration for client.
 	u32						noa_interval[P2P_MAX_NOA_NUM]; // Length of interval for owner, preferred or max acceptable interval of client.
 	u32						noa_start_time[P2P_MAX_NOA_NUM]; // schedule expressed in terms of the lower 4 bytes of the TSF timer.
+#endif // CONFIG_P2P_PS
 };
 
 struct tdls_ss_record{	//signal strength record
@@ -459,12 +462,12 @@ struct mlme_priv {
 	u8 *wps_beacon_ie;	
 	//u8 *wps_probe_req_ie;
 	u8 *wps_probe_resp_ie;
-	u8 *wps_assoc_resp_ie; // for CONFIG_IOCTL_CFG80211, this IE could include p2p ie
+	u8 *wps_assoc_resp_ie; // for CONFIG_IOCTL_CFG80211, this IE could include p2p ie / wfd ie
 
 	u32 wps_beacon_ie_len;
 	//u32 wps_probe_req_ie_len;
 	u32 wps_probe_resp_ie_len;
-	u32 wps_assoc_resp_ie_len;
+	u32 wps_assoc_resp_ie_len; // for CONFIG_IOCTL_CFG80211, this IE len could include p2p ie / wfd ie
 	
 	u8 *p2p_beacon_ie;
 	u8 *p2p_probe_req_ie;
@@ -495,6 +498,22 @@ struct mlme_priv {
 	
 	
 #endif //#if defined (CONFIG_AP_MODE) && defined (CONFIG_NATIVEAP_MLME)
+
+#if defined(CONFIG_WFD) && defined(CONFIG_IOCTL_CFG80211)
+	
+	u8 *wfd_beacon_ie;
+	u8 *wfd_probe_req_ie;
+	u8 *wfd_probe_resp_ie;	
+	u8 *wfd_go_probe_resp_ie; //for GO	
+	u8 *wfd_assoc_req_ie;
+
+	u32 wfd_beacon_ie_len;
+	u32 wfd_probe_req_ie_len;
+	u32 wfd_probe_resp_ie_len;
+	u32 wfd_go_probe_resp_ie_len; //for GO
+	u32 wfd_assoc_req_ie_len;
+
+#endif
 
 #ifdef RTK_DMP_PLATFORM
 	// DMP kobject_hotplug function  signal need in passive level
@@ -663,6 +682,7 @@ __inline static void up_scanned_network(struct mlme_priv *pmlmepriv)
 #ifdef CONFIG_CONCURRENT_MODE
 sint rtw_buddy_adapter_up(_adapter *padapter);
 sint check_buddy_fwstate(_adapter *padapter, sint state);
+sint check_buddy_fw_link(_adapter *padapter);
 #endif //CONFIG_CONCURRENT_MODE
 
 __inline static void down_scanned_network(struct mlme_priv *pmlmepriv)

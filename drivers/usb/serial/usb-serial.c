@@ -1154,7 +1154,7 @@ void usb_serial_disconnect(struct usb_interface *interface)
 }
 EXPORT_SYMBOL_GPL(usb_serial_disconnect);
 
-#if defined(CONFIG_USB_3G_SLEEP_BY_USB_WAKEUP_BY_GPIO) || defined(CONFIG_USB_3G_SLEEP_BY_USB_WAKEUP_BY_USB)
+#if defined(CONFIG_SW_3G_SLEEP_BY_USB_WAKEUP_BY_USB)
 
 #include  <linux/usb/ch9.h>
 #include  <linux/usb/ch11.h>
@@ -1272,7 +1272,7 @@ int usb_serial_suspend(struct usb_interface *intf, pm_message_t message)
 			kill_traffic(port);
 	}
 
-#if defined(CONFIG_USB_3G_SLEEP_BY_USB_WAKEUP_BY_GPIO) || defined(CONFIG_USB_3G_SLEEP_BY_USB_WAKEUP_BY_USB)
+#if defined(CONFIG_SW_3G_SLEEP_BY_USB_WAKEUP_BY_USB)
     serial_remote_wakeup(interface_to_usbdev(intf), 1);
 #endif
 
@@ -1286,7 +1286,7 @@ int usb_serial_resume(struct usb_interface *intf)
 	struct usb_serial *serial = usb_get_intfdata(intf);
 	int rv;
 
-#if defined(CONFIG_USB_3G_SLEEP_BY_USB_WAKEUP_BY_GPIO) || defined(CONFIG_USB_3G_SLEEP_BY_USB_WAKEUP_BY_USB)
+#if defined(CONFIG_SW_3G_SLEEP_BY_USB_WAKEUP_BY_USB)
     serial_remote_wakeup(interface_to_usbdev(intf), 0);
 #endif
 

@@ -479,7 +479,7 @@ static void aw_late_resume(void)
 {
 	memcpy((void *)&mem_para_info, (void *)phys_to_virt(DRAM_BACKUP_BASE_ADDR1_PA), sizeof(mem_para_info));
 	mem_para_info.mem_flag = 0;
-
+	
 	//restore device state
 	mem_clk_restore(&(saved_clk_state));
 	mem_gpio_restore(&(saved_gpio_state));
@@ -506,6 +506,7 @@ static void aw_late_resume(void)
 static int aw_super_standby(suspend_state_t state)
 {
 	int result = 0;
+	int i = 0;
 	suspend_status_flag = 0;
 
 mem_enter:
@@ -562,6 +563,15 @@ mem_enter:
 	}
 
 resume:
+	if(unlikely(debug_mask&PM_STANDBY_PRINT_RESUME_IO_STATUS)){
+		printk("before aw_late_resume. \n");
+		printk(KERN_INFO "IO status as follow:");
+		for(i=0; i<(GPIO_REG_LENGTH); i++){
+			printk(KERN_INFO "ADDR = %x, value = %x .\n", \
+				IO_ADDRESS(AW_PIO_BASE) + i*0x04, *(volatile __u32 *)(IO_ADDRESS(AW_PIO_BASE) + i*0x04));
+		}
+	}
+	
 	aw_late_resume();
 
 	//have been disable dcache in resume1
@@ -617,6 +627,14 @@ static int aw_pm_enter(suspend_state_t state)
 		}
 	}
 
+	if(unlikely(debug_mask&PM_STANDBY_PRINT_CPUS_IO_STATUS)){
+		printk(KERN_INFO "CPUS IO status as follow:");
+		for(i=0; i<(CPUS_GPIO_REG_LENGTH); i++){
+			printk(KERN_INFO "ADDR = %x, value = %x .\n", \
+				IO_ADDRESS(AW_R_PIO_BASE) + i*0x04, *(volatile __u32 *)(IO_ADDRESS(AW_R_PIO_BASE) + i*0x04));
+		}
+	}
+
 	if(unlikely(debug_mask&PM_STANDBY_PRINT_CCU_STATUS)){
 		printk(KERN_INFO "CCU status as follow:");
 		for(i=0; i<(CCU_REG_LENGTH); i++){
@@ -664,7 +682,7 @@ static int aw_pm_enter(suspend_state_t state)
 
 		ar100_cpux_ready_notify();
 		ar100_query_wakeup_source((unsigned long *)(&(mem_para_info.axp_event)));
-		PM_DBG("platform wakeup, super standby wakesource is:0x%x\n", mem_para_info.axp_event);
+		PM_DBG("platform wakeup, super standby wakesource is:0x%x\n", mem_para_info.axp_event);	
 	}
 
 	return 0;

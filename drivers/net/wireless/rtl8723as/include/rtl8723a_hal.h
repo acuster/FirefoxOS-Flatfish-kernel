@@ -402,16 +402,6 @@ typedef enum _RTL8192C_C2H_EVT
 	MAX_C2HEVENT
 } RTL8192C_C2H_EVT;
 
-typedef struct _C2H_EVT_HDR
-{
-	u8	CmdID: 4;
-	u8	CmdLen: 4;
-	u8	CmdSeq;
-	u8	payload[0];
-} __attribute__((__packed__)) C2H_EVT_HDR, *PC2H_EVT_HDR;
-
-#define c2h_evt_exist(c2h_evt) ((c2h_evt)->CmdID || (c2h_evt)->CmdLen)
-
 typedef struct hal_data_8723a
 {
 	HAL_VERSION			VersionID;
@@ -645,7 +635,7 @@ typedef struct hal_data_8723a
 	// HIQ, MID, LOW, PUB free pages; padapter->xmitpriv.free_txpg
 	u8			SdioTxFIFOFreePage[SDIO_TX_FREE_PG_QUEUE];
 	_lock		SdioTxFIFOFreePageLock;
-	_thread_hdl_	SdioXmitThread;
+	_thread_hdl_ 	SdioXmitThread;
 	_sema		SdioXmitSema;
 	_sema		SdioXmitTerminateSema;
 
@@ -669,107 +659,6 @@ typedef struct hal_data_8723a HAL_DATA_TYPE, *PHAL_DATA_TYPE;
 
 #define INCLUDE_MULTI_FUNC_BT(_Adapter)		(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_BT)
 #define INCLUDE_MULTI_FUNC_GPS(_Adapter)	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_GPS)
-
-
-typedef struct txdescriptor_8723a
-{
-	u32 pktlen:16;
-	u32 offset:8;
-	u32 bmc:1;
-	u32 htc:1;
-	u32 ls:1;
-	u32 fs:1;
-	u32 linip:1;
-	u32 noacm:1;
-	u32 gf:1;
-	u32 own:1;
-
-	u32 macid:5;
-	u32 agg_en:1;
-	u32 bk:1;
-	u32 rd_en:1;
-	u32 qsel:5;
-	u32 rd_nav_ext:1;
-	u32 lsig_txop_en:1;
-	u32 pifs:1;
-	u32 rate_id:4;
-	u32 navusehdr:1;
-	u32 en_desc_id:1;
-	u32 sectype:2;
-	u32 rsvd0424:2;
-	u32 pkt_offset:5;	// unit: 8 bytes
-	u32 rsvd0431:1;
-
-	u32 rts_rc:6;
-	u32 data_rc:6;
-	u32 rsvd0812:2;
-	u32 bar_rty_th:2;
-	u32 rsvd0816:1;
-	u32 morefrag:1;
-	u32 raw:1;
-	u32 ccx:1;
-	u32 ampdu_density:3;
-	u32 bt_null:1;
-	u32 ant_sel_a:1;
-	u32 ant_sel_b:1;
-	u32 tx_ant_cck:2;
-	u32 tx_antl:2;
-	u32 tx_ant_ht:2;
-
-	u32 nextheadpage:8;
-	u32 tailpage:8;
-	u32 seq:12;
-	u32 cpu_handle:1;
-	u32 tag1:1;
-	u32 trigger_int:1;
-	u32 hwseq_en:1;
-
-	u32 rtsrate:5;
-	u32 ap_dcfe:1;
-	u32 hwseq_sel:2;
-	u32 userate:1;
-	u32 disrtsfb:1;
-	u32 disdatafb:1;
-	u32 cts2self:1;
-	u32 rtsen:1;
-	u32 hw_rts_en:1;
-	u32 port_id:1;
-	u32 rsvd1615:3;
-	u32 wait_dcts:1;
-	u32 cts2ap_en:1;
-	u32 data_sc:2;
-	u32 data_stbc:2;
-	u32 data_short:1;
-	u32 data_bw:1;
-	u32 rts_short:1;
-	u32 rts_bw:1;
-	u32 rts_sc:2;
-	u32 vcs_stbc:2;
-
-	u32 datarate:6;
-	u32 sgi:1;
-	u32 try_rate:1;
-	u32 data_ratefb_lmt:5;
-	u32 rts_ratefb_lmt:4;
-	u32 rty_lmt_en:1;
-	u32 data_rt_lmt:6;
-	u32 usb_txagg_num:8;
-
-	u32 txagg_a:5;
-	u32 txagg_b:5;
-	u32 use_max_len:1;
-	u32 max_agg_num:5;
-	u32 mcsg1_max_len:4;
-	u32 mcsg2_max_len:4;
-	u32 mcsg3_max_len:4;
-	u32 mcs7_sgi_max_len:4;
-
-	u32 checksum:16;	// TxBuffSize(PCIe)/CheckSum(USB)
-	u32 mcsg4_max_len:4;
-	u32 mcsg5_max_len:4;
-	u32 mcsg6_max_len:4;
-	u32 mcs15_sgi_max_len:4;
-}TXDESC, *PTXDESC;
 
 typedef struct rxreport_8723a
 {

@@ -551,6 +551,14 @@ typedef struct
 }__disp_dsi_dphy_timing_t;
 
 
+typedef struct
+{
+	__u32   lcd_gamma_tbl[256];
+	__u32	lcd_cmap_tbl[2][3][4];
+    __u32   lcd_bright_curve_tbl[256];
+}__panel_extend_para_t;
+
+
 
 typedef struct
 {
@@ -586,8 +594,10 @@ typedef struct
 
 
 	__u32   lcd_dclk_freq;
-	__u32   lcd_x;
-	__u32   lcd_y;
+	__u32   lcd_x; //horizontal resolution
+	__u32   lcd_y; //vertical resolution
+    __u32   lcd_width; //width of lcd in mm
+    __u32   lcd_height;//height of lcd in mm
 
 	__u32  	lcd_pwm_freq;
 	__u32  	lcd_pwm_pol;
@@ -606,19 +616,14 @@ typedef struct
 
 	__u32   lcd_frm;
 	__u32   lcd_gamma_en;
-	__u32   lcd_gamma_tbl[256];
-	__u32 	lcd_cmap;
-	__u32	lcd_cmap_tbl[2][3][4];
+	__u32 	lcd_cmap_en;
+    __u32   lcd_bright_curve_en;
+    __panel_extend_para_t lcd_extend_para;
 
 	__u32   tcon_index; //not need to config for user
 	__u32	lcd_fresh_mode;//not need to config for user
 	__u32   lcd_dclk_freq_original; //not need to config for user
 }__panel_para_t;
-
-
-
-
-
 
 typedef struct
 {
@@ -660,7 +665,7 @@ typedef struct lcd_flow
 
 typedef struct
 {
-    void (*cfg_panel_info)(__panel_para_t * info);
+    void (*cfg_panel_info)(__panel_extend_para_t * info);
     __s32 (*cfg_open_flow)(__u32 sel);
     __s32 (*cfg_close_flow)(__u32 sel);
     __s32 (*lcd_user_defined_func)(__u32 sel, __u32 para1, __u32 para2, __u32 para3);
@@ -884,6 +889,8 @@ typedef enum tag_DISP_CMD
     DISP_CMD_LCD_CHECK_CLOSE_FINISH = 0x14b,
     DISP_CMD_LCD_SET_SRC = 0x14c,
     DISP_CMD_LCD_USER_DEFINED_FUNC = 0x14d,
+    DISP_CMD_LCD_BACKLIGHT_ON  = 0x14e,
+    DISP_CMD_LCD_BACKLIGHT_OFF  = 0x14f,
 
 //----tv----
     DISP_CMD_TV_ON = 0x180,

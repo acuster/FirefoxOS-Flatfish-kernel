@@ -164,6 +164,11 @@ struct devfreq {
 
 	unsigned long min_freq;
 	unsigned long max_freq;
+
+#ifdef CONFIG_ARCH_SUN6I
+	unsigned long scaling_min_freq;
+	unsigned long scaling_max_freq;
+#endif
 };
 
 #if defined(CONFIG_PM_DEVFREQ)

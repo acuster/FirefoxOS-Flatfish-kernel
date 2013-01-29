@@ -37,6 +37,7 @@ unsigned char MARVELL_OUI[] = {0x00, 0x50, 0x43};
 unsigned char RALINK_OUI[] = {0x00, 0x0c, 0x43};
 unsigned char REALTEK_OUI[] = {0x00, 0xe0, 0x4c};
 unsigned char AIRGOCAP_OUI[] = {0x00, 0x0a, 0xf5};
+unsigned char EPIGRAM_OUI[] = {0x00, 0x90, 0x4c};
 
 unsigned char REALTEK_96B_IE[] = {0x00, 0xe0, 0x4c, 0x02, 0x01, 0x20};
 
@@ -448,16 +449,22 @@ void Set_MSR(_adapter *padapter, u8 type)
 
 void SelectChannel(_adapter *padapter, unsigned char channel)
 {
+	unsigned int scanMode;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;	
+
 #ifdef CONFIG_DUALMAC_CONCURRENT
+	//saved channel info
+	pmlmeext->oper_channel = channel;
 	dc_SelectChannel(padapter, channel);
 #else //CONFIG_DUALMAC_CONCURRENT
 
-	unsigned int scanMode;
-	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	
 #ifdef CONFIG_CONCURRENT_MODE
 	_enter_critical_mutex(padapter->psetch_mutex, NULL);
 #endif
+	
+	//saved channel info
+	pmlmeext->oper_channel = channel;
 	
 	scanMode = (pmlmeext->sitesurvey_res.scan_mode == SCAN_ACTIVE)? 1: 0;//todo:
 
@@ -481,13 +488,22 @@ void SelectChannel(_adapter *padapter, unsigned char channel)
 
 void SetBWMode(_adapter *padapter, unsigned short bwmode, unsigned char channel_offset)
 {
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+
 #ifdef CONFIG_DUALMAC_CONCURRENT
+	//saved bw info
+	pmlmeext->oper_bwmode = bwmode;
+	pmlmeext->oper_ch_offset = channel_offset;
 	dc_SetBWMode(padapter, bwmode, channel_offset);
 #else //CONFIG_DUALMAC_CONCURRENT
 
 #ifdef CONFIG_CONCURRENT_MODE
 	_enter_critical_mutex(padapter->psetbw_mutex, NULL);
 #endif
+
+	//saved bw info
+	pmlmeext->oper_bwmode = bwmode;
+	pmlmeext->oper_ch_offset = channel_offset;
 
 	{	
 #ifdef CONFIG_CONCURRENT_MODE
@@ -535,6 +551,10 @@ void set_channel_bwmode(_adapter *padapter, unsigned char channel, unsigned char
 
 	//set Channel
 #ifdef CONFIG_DUALMAC_Ccenter_chONCURRENT
+	//saved channel/bw info
+	pmlmeext->oper_channel = channel;
+	pmlmeext->oper_bwmode = bwmode;
+	pmlmeext->oper_ch_offset = channel_offset;
 	dc_SelectChannel(padapter, center_ch);// set center channel
 #else //CONFIG_DUALMAC_CONCURRENT
 
@@ -542,6 +562,11 @@ void set_channel_bwmode(_adapter *padapter, unsigned char channel, unsigned char
 #ifdef CONFIG_CONCURRENT_MODE
 	_enter_critical_mutex(padapter->psetch_mutex, NULL);
 #endif
+	
+	//saved channel/bw info
+	pmlmeext->oper_channel = channel;
+	pmlmeext->oper_bwmode = bwmode;
+	pmlmeext->oper_ch_offset = channel_offset;
 	
 	scanMode = (pmlmeext->sitesurvey_res.scan_mode == SCAN_ACTIVE)? 1: 0;//todo:
 
@@ -1104,6 +1129,9 @@ static void bwmode_update_check(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs pI
 		
 		pmlmeext->cur_bwmode = new_bwmode;
 		pmlmeext->cur_ch_offset = new_ch_offset;
+
+		//update HT info also
+		HT_info_handler(padapter, pIE);
 	}
 	else
 	{
@@ -2058,6 +2086,10 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 {
 	unsigned int	i;
 	PNDIS_802_11_VARIABLE_IEs	pIE;
+	u8	epigram_vendor_flag;
+	u8	ralink_vendor_flag;
+	epigram_vendor_flag = 0;
+	ralink_vendor_flag = 0;
 
 	for (i = sizeof(NDIS_802_11_FIXED_IEs); i < len;)
 	{
@@ -2085,8 +2117,12 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 				}
 				else if (_rtw_memcmp(pIE->data, RALINK_OUI, 3))
 				{
-					DBG_871X("link to Ralink AP\n");
-					return HT_IOT_PEER_RALINK;
+					if (!ralink_vendor_flag) {
+						ralink_vendor_flag = 1;
+					} else {
+						DBG_871X("link to Ralink AP\n");
+						return HT_IOT_PEER_RALINK;
+					}
 				}
 				else if (_rtw_memcmp(pIE->data, CISCO_OUI, 3))
 				{
@@ -2103,6 +2139,16 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 					DBG_871X("link to Airgo Cap\n");
 					return HT_IOT_PEER_AIRGO;
 				}
+				else if (_rtw_memcmp(pIE->data, EPIGRAM_OUI, 3))
+				{
+					 epigram_vendor_flag = 1;
+					if(ralink_vendor_flag) {
+						DBG_871X("link to Tenda W311R AP\n");
+						 return HT_IOT_PEER_TENDA;
+					} else {
+						DBG_871X("Capture EPIGRAM_OUI\n");
+					}
+				}
 				else
 				{
 					break;
@@ -2115,8 +2161,16 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 		i += (pIE->Length + 2);
 	}
 	
-	DBG_871X("link to new AP\n");
-	return HT_IOT_PEER_UNKNOWN;
+	if (ralink_vendor_flag && !epigram_vendor_flag) {
+		DBG_871X("link to Ralink AP\n");
+		return HT_IOT_PEER_RALINK;
+	} else if (ralink_vendor_flag && epigram_vendor_flag){
+		DBG_871X("link to Tenda W311R AP\n");
+		return HT_IOT_PEER_TENDA;
+	} else {
+		DBG_871X("link to new AP\n");
+		return HT_IOT_PEER_UNKNOWN;
+	}
 }
 
 void update_IOT_info(_adapter *padapter)

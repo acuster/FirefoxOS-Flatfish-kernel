@@ -567,7 +567,6 @@ static int sw_ohci_hcd_suspend(struct device *dev)
 	struct usb_hcd *hcd         = NULL;
 	struct ohci_hcd	*ohci       = NULL;
 	unsigned long flags         = 0;
-	int rc                      = 0;
 
 	if(dev == NULL){
 		DMSG_PANIC("ERR: Argment is invalid\n");
@@ -597,28 +596,32 @@ static int sw_ohci_hcd_suspend(struct device *dev)
 		return 0;
 	}
 
- 	DMSG_INFO("[%s]: sw_ohci_hcd_suspend\n", sw_ohci->hci_name);
+    if(sw_ohci->not_suspend){
+ 	    DMSG_INFO("[%s]: not suspend\n", sw_ohci->hci_name);
+    }else{
+ 	    DMSG_INFO("[%s]: sw_ohci_hcd_suspend\n", sw_ohci->hci_name);
 
-	/* Root hub was already suspended. Disable irq emission and
-	 * mark HW unaccessible, bail out if RH has been resumed. Use
-	 * the spinlock to properly synchronize with possible pending
-	 * RH suspend or resume activity.
-	 *
-	 * This is still racy as hcd->state is manipulated outside of
-	 * any locks =P But that will be a different fix.
-	 */
-	spin_lock_irqsave(&ohci->lock, flags);
+    	/* Root hub was already suspended. Disable irq emission and
+    	 * mark HW unaccessible, bail out if RH has been resumed. Use
+    	 * the spinlock to properly synchronize with possible pending
+    	 * RH suspend or resume activity.
+    	 *
+    	 * This is still racy as hcd->state is manipulated outside of
+    	 * any locks =P But that will be a different fix.
+    	 */
+    	spin_lock_irqsave(&ohci->lock, flags);
 
-    ohci_writel(ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
-    (void)ohci_readl(ohci, &ohci->regs->intrdisable);
+        ohci_writel(ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
+        (void)ohci_readl(ohci, &ohci->regs->intrdisable);
 
-    clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+        clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
-    spin_unlock_irqrestore(&ohci->lock, flags);
+        spin_unlock_irqrestore(&ohci->lock, flags);
 
-    sw_stop_ohc(sw_ohci);
+        sw_stop_ohc(sw_ohci);
+    }
 
-    return rc;
+    return 0;
 }
 
 /*
@@ -639,7 +642,6 @@ static int sw_ohci_hcd_suspend(struct device *dev)
 *
 *******************************************************************************
 */
-
 static int sw_ohci_hcd_resume(struct device *dev)
 {
 	struct sw_hci_hcd *sw_ohci = NULL;
@@ -667,12 +669,16 @@ static int sw_ohci_hcd_resume(struct device *dev)
 		return 0;
 	}
 
- 	DMSG_INFO("[%s]: sw_ohci_hcd_resume\n", sw_ohci->hci_name);
+    if(sw_ohci->not_suspend){
+ 	    DMSG_INFO("[%s]: controller not suspend, need not resume\n", sw_ohci->hci_name);
+    }else{
+     	DMSG_INFO("[%s]: sw_ohci_hcd_resume\n", sw_ohci->hci_name);
 
-	sw_start_ohc(sw_ohci);
+    	sw_start_ohc(sw_ohci);
 
-	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-	ohci_finish_controller_resume(hcd);
+    	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+    	ohci_finish_controller_resume(hcd);
+    }
 
     return 0;
 }

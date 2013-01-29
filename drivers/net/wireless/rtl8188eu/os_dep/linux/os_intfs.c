@@ -248,9 +248,9 @@ MODULE_PARM_DESC(rtw_max_roaming_times,"The max roaming times to try");
 #endif //CONFIG_LAYER2_ROAMING
 
 #ifdef CONFIG_IOL
-bool rtw_force_iol=_FALSE;
-module_param(rtw_force_iol, bool, 0644);
-MODULE_PARM_DESC(rtw_force_iol,"Force to enable IOL");
+int rtw_fw_iol=1;// 0:Disable, 1:enable, 2:by usb speed
+module_param(rtw_fw_iol, int, 0644);
+MODULE_PARM_DESC(rtw_fw_iol,"FW IOL");
 #endif //CONFIG_IOL
 
 #ifdef CONFIG_FILE_FWIMG
@@ -810,7 +810,7 @@ _func_enter_;
 #endif
 
 #ifdef CONFIG_IOL
-	registry_par->force_iol = rtw_force_iol;
+	registry_par->fw_iol = rtw_fw_iol;
 #endif
 
 #ifdef CONFIG_DUALMAC_CONCURRENT
@@ -1310,11 +1310,18 @@ _func_enter_;
 		goto exit;
 	}
 
-#ifdef CONFIG_IOCTL_CFG80211
 #ifdef CONFIG_P2P
+	rtw_init_wifidirect_timers(padapter);
+	init_wifidirect_info(padapter, P2P_ROLE_DISABLE);
+	reset_global_wifidirect_info(padapter);
+	#ifdef CONFIG_IOCTL_CFG80211
 	rtw_init_cfg80211_wifidirect_info(padapter);
-#endif //CONFIG_P2P
-#endif //CONFIG_IOCTL_CFG80211
+	#endif
+#ifdef CONFIG_WFD
+	if(rtw_init_wifi_display_info(padapter) == _FAIL)
+		RT_TRACE(_module_os_intfs_c_,_drv_err_,("\n Can't init init_wifi_display_info\n"));
+#endif
+#endif /* CONFIG_P2P */
 
 	if(init_mlme_ext_priv(padapter) == _FAIL)
 	{
@@ -1479,6 +1486,9 @@ u8 rtw_free_drv_sw(_adapter *padapter)
 			_cancel_timer_ex( &pwdinfo->find_phase_timer );
 			_cancel_timer_ex( &pwdinfo->restore_p2p_state_timer );
 			_cancel_timer_ex( &pwdinfo->pre_tx_scan_timer);
+#ifdef CONFIG_CONCURRENT_MODE
+			_cancel_timer_ex( &pwdinfo->ap_p2p_switch_timer );
+#endif // CONFIG_CONCURRENT_MODE
 			rtw_p2p_set_state(pwdinfo, P2P_STATE_NONE);
 		}
 	}
@@ -1608,19 +1618,6 @@ int _netdev_if2_open(struct net_device *pnetdev)
 		rtw_netif_start_queue(pnetdev);
 	else
 		rtw_netif_wake_queue(pnetdev);
-
-#ifdef CONFIG_P2P
-	init_wifidirect_info( padapter, P2P_ROLE_DISABLE );
-	reset_global_wifidirect_info( padapter );
-#ifdef CONFIG_WFD
-	if(rtw_init_wifi_display_info(padapter) == _FAIL)
-	{
-		RT_TRACE(_module_os_intfs_c_,_drv_err_,("\n Can't init init_wifi_display_info\n"));
-
-		goto netdev_if2_open_error;
-	}
-#endif //CONFIG_WFD	
-#endif // CONFIG_P2P	
 
 	DBG_871X("-871x_drv - if2_open, bup=%d\n", padapter->bup);
 	return 0;
@@ -1810,6 +1807,7 @@ _adapter *rtw_drv_if2_init(_adapter *primary_padapter, char *name,
 	}
 
 	_rtw_memcpy(padapter->eeprompriv.mac_addr, mac, ETH_ALEN);
+	rtw_init_wifidirect_addrs(padapter, padapter->eeprompriv.mac_addr, padapter->eeprompriv.mac_addr);
 	
 	_rtw_memcpy(pnetdev->dev_addr, mac, ETH_ALEN);
 
@@ -1838,7 +1836,9 @@ _adapter *rtw_drv_if2_init(_adapter *primary_padapter, char *name,
 	{
 		goto error_rtw_drv_if2_init;
 	}
-	
+
+	padapter->dir_dev = NULL;
+
 	res = _SUCCESS;
 
 	return padapter;
@@ -1846,7 +1846,7 @@ _adapter *rtw_drv_if2_init(_adapter *primary_padapter, char *name,
 		
 error_rtw_drv_if2_init:
 
-	rtw_free_drv_sw(padapter);	
+	rtw_free_drv_sw(padapter);
 
 	if (pnetdev)
 		rtw_free_netdev(pnetdev);
@@ -1900,15 +1900,15 @@ void rtw_drv_if2_free(_adapter *primary_padapter)
 		padapter->bup = _FALSE;
 	}
 	
+#ifdef CONFIG_IOCTL_CFG80211
+	rtw_wdev_free(wdev);
+#endif //CONFIG_IOCTL_CFG80211
+
 	primary_padapter->pbuddy_adapter = NULL;
 	
 	padapter->pcodatapriv = NULL;
 	
 	rtw_free_drv_sw(padapter);
-
-#ifdef CONFIG_IOCTL_CFG80211
-	rtw_wdev_free(wdev);
-#endif //CONFIG_IOCTL_CFG80211
 
 	rtw_free_netdev(pnetdev);
 
@@ -2004,13 +2004,13 @@ int _netdev_open(struct net_device *pnetdev)
 		status=rtw_start_drv_threads(padapter);
 		if(status ==_FAIL)
 		{			
-			RT_TRACE(_module_os_intfs_c_,_drv_err_,("Initialize driver software resource Failed!\n"));
+			DBG_871X("Initialize driver software resource Failed!\n");
 			goto netdev_open_error;			
 		}
 
 		if (init_hw_mlme_ext(padapter) == _FAIL)
 		{
-			RT_TRACE(_module_os_intfs_c_,_drv_err_,("can't init mlme_ext_priv\n"));
+			DBG_871X("can't init mlme_ext_priv\n");
 			goto netdev_open_error;
 		}
 
@@ -2051,19 +2051,6 @@ int _netdev_open(struct net_device *pnetdev)
 #ifdef CONFIG_BR_EXT
 	netdev_br_init(pnetdev);
 #endif	// CONFIG_BR_EXT
-
-#ifdef CONFIG_P2P
-	init_wifidirect_info( padapter, P2P_ROLE_DISABLE );
-	reset_global_wifidirect_info( padapter );
-#ifdef CONFIG_WFD
-	if(rtw_init_wifi_display_info(padapter) == _FAIL)
-	{
-		RT_TRACE(_module_os_intfs_c_,_drv_err_,("\n Can't init init_wifi_display_info\n"));
-
-		goto netdev_open_error;
-	}
-#endif //CONFIG_WFD	
-#endif // CONFIG_P2P
 
 netdev_open_normal_process:
 

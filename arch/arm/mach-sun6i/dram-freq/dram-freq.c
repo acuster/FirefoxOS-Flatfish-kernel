@@ -22,11 +22,12 @@
 #include <linux/clk.h>
 #include <mach/clock.h>
 #include <mach/system.h>
-#include "dram-freq.h"
+#include <mach/sys_config.h>
+#include <mach/dram-freq.h>
 
 #undef DRAMFREQ_ERR
 #undef DRAMFREQ_DBG
-#if (0)
+#if (1)
     #define DRAMFREQ_DBG(format,args...)   printk("[dramfreq] "format,##args)
 #else
     #define DRAMFREQ_DBG(format,args...)   do{}while(0)
@@ -53,6 +54,9 @@ static unsigned int bw_cnt_hist[MASTER_MAX] = {0};
 struct aw_mdfs_info mdfs_info;
 static spinlock_t mdfs_spin_lock;
 struct devfreq *this_df = NULL;
+static unsigned int dram_clk_syscfg = 0;
+static unsigned int pll5_freq = 0;
+static unsigned int dram_freq_table[SUN6I_DRAMFREQ_TABLE_SIZE][2] = {{0}};
 
 struct master_info master_info_list[MASTER_INFO_SIZE] = {
     { MASTER_CPUX, "CPUX" },
@@ -114,17 +118,21 @@ int dramfreq_notify_transition(unsigned int state, struct dramfreq_udata *data)
 }
 EXPORT_SYMBOL_GPL(dramfreq_notify_transition);
 
-static int dramfreq_frequency_table_target(struct dramfreq_frequency_table *table,
-                            unsigned long *target_freq, unsigned int *index)
+
+static int dramfreq_table_target(unsigned long *target_freq, unsigned int *index)
 {
     int i = 0;
-    struct dramfreq_frequency_table *tmptr = table;
+    int j = 0;
 
-    while ((tmptr+1)->frequency >= *target_freq) {
-        tmptr++;
+    while (((dram_freq_table[i+1][0] >= *target_freq)
+            || (dram_freq_table[i+1][0] == 0)) && (i < (SUN6I_DRAMFREQ_TABLE_SIZE - 1)))
+    {
+        if (dram_freq_table[i+1][0] != 0) {
+            j = (i + 1);
+        }
         i++;
     }
-    *index = i;
+    *index = j;
 
     return 0;
 }
@@ -137,9 +145,6 @@ static unsigned long __dramfreq_get(struct clk *pll5)
     pll5_rate = clk_get_rate(pll5) / 1000;
     dram_div = 1 + ((readl(CCM_DRAMCLK_CFG_CTRL) >> 8) & 0xf);
     dram_freq = pll5_rate / dram_div;
-
-    DRAMFREQ_DBG("pll5_rate=%lu\n", pll5_rate);
-    DRAMFREQ_DBG("dram_div=%u\n", dram_div);
 
     return dram_freq;
 }
@@ -162,7 +167,7 @@ int __dramfreq_set(unsigned int freq_div)
     int (*mdfs_main)(struct aw_mdfs_info *mdfs);
     unsigned long flags;
 
-    if ((freq_div < 2) || (freq_div > 16)) {
+    if ((freq_div < 1) || (freq_div > 16)) {
         DRAMFREQ_ERR("mdfs div=%u is invalid\n", freq_div);
         return -1;
     }
@@ -187,8 +192,9 @@ static int dramfreq_target(struct device *dev, unsigned long *freq, u32 flags)
     struct platform_device *pdev = container_of(dev, struct platform_device, dev);
     struct devfreq *df = platform_get_drvdata(pdev);
     struct dramfreq_udata *user_data = (struct dramfreq_udata *)df->data;
-    unsigned int index = 0;
-    unsigned long freq_table = 0;
+    unsigned int dram_div = 0;
+    unsigned long freq_target = 0;
+    int index = 0;
     int ret = 0;
 
     if (*freq == df->previous_freq) {
@@ -196,19 +202,19 @@ static int dramfreq_target(struct device *dev, unsigned long *freq, u32 flags)
         return 0;
     }
 
-    dramfreq_frequency_table_target(sun6i_dramfreq_tbl, freq, &index);
-    freq_table = sun6i_dramfreq_tbl[index].frequency;
-    DRAMFREQ_DBG("dram target frequency is find: %lu, entry %u\n", freq_table, index);
+    dramfreq_table_target(freq, &index);
+    dram_div = dram_freq_table[index][1];
 
-    if (freq_table == df->previous_freq) {
-        DRAMFREQ_DBG("freq_table == df->previous_freq\n");
-        *freq = freq_table;
+    freq_target = pll5_freq / dram_div;
+    DRAMFREQ_DBG("dram target frequency is find: %luMHz, entry %u\n", freq_target / 1000, index);
+    if (freq_target == df->previous_freq) {
+        DRAMFREQ_DBG("freq_target == df->previous_freq\n");
+        *freq = freq_target;
         return 0;
     }
 
     dramfreq_notify_transition(DRAMFREQ_PRECHANGE, user_data);
-
-    ret = __dramfreq_set(sun6i_dramfreq_tbl[index].dram_div);
+    ret = __dramfreq_set(dram_div);
     if (ret) {
         DRAMFREQ_ERR("set dram frequency hw failed!\n");
         user_data->freq_to_user = df->previous_freq;
@@ -216,11 +222,11 @@ static int dramfreq_target(struct device *dev, unsigned long *freq, u32 flags)
         return ret;
     }
 
-    *freq = freq_table;
-    user_data->freq_to_user = freq_table;
+    *freq = freq_target;
+    user_data->freq_to_user = freq_target;
     dramfreq_notify_transition(DRAMFREQ_POSTCHANGE, user_data);
 
-    DRAMFREQ_DBG("dram: %luMHz->%luMHz ok!\n", df->previous_freq/1000, freq_table/1000);
+    DRAMFREQ_DBG("dram: %luMHz->%luMHz ok!\n", df->previous_freq / 1000, freq_target / 1000);
 
     return 0;
 }
@@ -232,7 +238,7 @@ static void __update_master_bw(void)
 
     for (i = 0; i < ARRAY_SIZE(master_info_list); i++) {
         mt = master_info_list[i].type;
-        writel(mt << 1, SDR_COM_MCGCR);
+        writel(mt << 1 | 1, SDR_COM_MCGCR);
         bw_cnt_cur = readl(SDR_COM_BWCR);
         bw_usage = bw_cnt_cur - bw_cnt_hist[mt];
         if (MASTER_GPU0 == mt) {
@@ -270,24 +276,84 @@ static struct devfreq_dev_profile dram_devfreq_profile = {
     .get_dev_status	= dramfreq_get_dev_status,
 };
 
+static void __dramfreq_init_table(struct clk *pll5)
+{
+    int i;
+    pll5_freq = clk_get_rate(pll5) / 1000;
+
+    for (i = 0; i < SUN6I_DRAMFREQ_TABLE_SIZE; i++) {
+        if (!(pll5_freq % (1000 * (i + 1)))) {
+            dram_freq_table[i][0] = pll5_freq / (i + 1);
+            dram_freq_table[i][1] = (i + 1);
+        } else {
+            dram_freq_table[i][0] = 0;
+            dram_freq_table[i][1] = 0;
+        }
+    }
+}
+
+static ssize_t dram_table_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+    int i;
+
+    for (i = 0; i < SUN6I_DRAMFREQ_TABLE_SIZE; i++) {
+        printk("freq=%-6u   div=%-5u\n", dram_freq_table[i][0], dram_freq_table[i][1]);
+    }
+
+    return 0;
+}
+
+static ssize_t mdfs_table_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+    int m, n;
+
+    for (m = 0; m < SUN6I_DRAMFREQ_TABLE_SIZE; m++) {
+        for (n = 0; n < 8; n++) {
+            DRAMFREQ_DBG("mdfs_table[%d][%d]=0x%x\n", m, n, mdfs_info.table[m][n]);
+        }
+    }
+
+    return 0;
+}
+
+static ssize_t dual_channel_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+    return sprintf(buf, "%d\n", mdfs_info.is_dual_channel);
+}
+
+static DEVICE_ATTR(dram_table, S_IRUGO, dram_table_show, NULL);
+static DEVICE_ATTR(mdfs_table, S_IRUGO, mdfs_table_show, NULL);
+static DEVICE_ATTR(dual_channel, S_IRUGO, dual_channel_show, NULL);
+
+static const struct attribute *dramfreq_arrrib[] = {
+    &dev_attr_dram_table.attr,
+    &dev_attr_mdfs_table.attr,
+    &dev_attr_dual_channel.attr,
+    NULL
+};
+
 static __devinit int sun6i_dramfreq_probe(struct platform_device *pdev)
 {
     void *tmp_tbl = NULL;
-    int err = 0, m, n;
+    int err = 0;
+    script_item_u used;
+    script_item_value_type_e type;
+
+    type = script_get_item("dram_para", "dram_clk", &used);
+    if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        DRAMFREQ_ERR("fetch para from sysconfig failed\n");
+        return -ENODEV;
+    }
+
+    dram_clk_syscfg = used.val * 1000;
+    DRAMFREQ_DBG("dram clk sysconfig=%uKHz\n", dram_clk_syscfg);
 
     tmp_tbl = __va(SYS_CONFIG_MEMBASE + SYS_CONFIG_MEMSIZE - 1024);
     memcpy(mdfs_info.table, tmp_tbl, sizeof(mdfs_info.table));
     mdfs_info.is_dual_channel = !!(readl(SDR_COM_CR) & (0x1<<19));
-
-    for (m = 0; m < 16; m++) {
-        for (n = 0; n < 8; n++) {
-            DRAMFREQ_DBG("mdfs_info.table[%d][%d]=0x%x\n", m, n, mdfs_info.table[m][n]);
-        }
-    }
-    DRAMFREQ_DBG("dual_channel_en=%u\n", mdfs_info.is_dual_channel);
-
-    /* enable bw counter */
-    writel(0x1, SDR_COM_MCGCR);
 
     clk_pll5 = clk_get(NULL, CLK_SYS_PLL5);
     if (!clk_pll5 || IS_ERR(clk_pll5)) {
@@ -296,22 +362,35 @@ static __devinit int sun6i_dramfreq_probe(struct platform_device *pdev)
         goto err_clk;
     }
 
+    /* init dram freq table */
+    __dramfreq_init_table(clk_pll5);
+
     dram_devfreq_profile.initial_freq = __dramfreq_get(clk_pll5);
     this_df = devfreq_add_device(&pdev->dev, &dram_devfreq_profile, &devfreq_userspace, NULL);
+    // this_df = devfreq_add_device(&pdev->dev, &dram_devfreq_profile, &devfreq_vans, NULL);
 	if (IS_ERR(this_df)) {
         DRAMFREQ_ERR("add devfreq device failed!\n");
         err = PTR_ERR(this_df);
 		goto err_devfreq;
 	}
 
-    this_df->min_freq = SUN6I_DRAMFREQ_MIN / 1000;
-    this_df->max_freq = SUN6I_DRAMFREQ_MAX / 1000;
+    this_df->min_freq = this_df->scaling_min_freq = SUN6I_DRAMFREQ_MIN / 1000;
+    this_df->max_freq = this_df->scaling_max_freq = SUN6I_DRAMFREQ_MAX / 1000;
     platform_set_drvdata(pdev, this_df);
+
+    err = sysfs_create_files(&pdev->dev.kobj, dramfreq_arrrib);
+    if (err) {
+        DRAMFREQ_ERR("create sysfs file failed\n");
+        err = -ENODEV;
+        goto err_create_files;
+    }
 
     DRAMFREQ_DBG("sun6i dramfreq probe ok!\n");
 
     return 0;
 
+err_create_files:
+    devfreq_remove_device(this_df);
 err_devfreq:
     clk_put(clk_pll5);
     clk_pll5 = NULL;

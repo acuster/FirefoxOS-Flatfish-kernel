@@ -778,6 +778,8 @@ __inline static void _set_workitem(_workitem *pwork)
 	#include <linux/proc_fs.h>	// Necessary because we use the proc fs
 	#include <linux/interrupt.h>	// for struct tasklet_struct
 	#include <linux/ip.h>
+	#include <linux/kthread.h>
+
 
 #ifdef CONFIG_IOCTL_CFG80211	
 //	#include <linux/ieee80211.h>        
@@ -837,7 +839,7 @@ __inline static void _set_workitem(_workitem *pwork)
 	typedef unsigned long _irqL;
 	typedef	struct	net_device * _nic_hdl;
 	
-	typedef pid_t		_thread_hdl_;
+	typedef void*		_thread_hdl_;
 	typedef int		thread_return;
 	typedef void*	thread_context;
 

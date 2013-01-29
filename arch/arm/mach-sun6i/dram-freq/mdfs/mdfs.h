@@ -14,17 +14,31 @@
 
 #include <mach/dram-freq-common.h>
 
+#define SUART_BASE_VA   AW_VIR_UART0_BASE
+#define SUART_THR       (SUART_BASE_VA + 0x00)
+#define SUART_USR       (SUART_BASE_VA + 0x7c)
+
+#define readb(addr)		(*((volatile unsigned char  *)(addr)))
 #define readl(addr)		(*((volatile unsigned long  *)(addr)))
+#define writeb(v, addr)	(*((volatile unsigned char  *)(addr)) = (unsigned char)(v))
 #define writel(v, addr)	(*((volatile unsigned long  *)(addr)) = (unsigned long)(v))
+
+#if 1
+#define MDFS_DBG(format,args...)    printk("[mdfs] "format,##args)
+#else
+#define MDFS_DBG(format,args...)
+#endif
 
 typedef signed int          __s32;
 typedef unsigned int        __u32;
+typedef int                 u32;
+typedef unsigned int        size_t;
 
-#if 0
-    #define DEBUG_LINE  writel(__LINE__, 0xf1f00100)
-#else
-    #define DEBUG_LINE  do{}while(0)
-#endif
+extern void __aeabi_idiv(void);
+extern void __aeabi_idivmod(void);
+extern void __aeabi_uidiv(void);
+extern void __aeabi_uidivmod(void);
+extern __s32 printk(const char *format, ...);
 
 #endif  //__MDFS_H__
 

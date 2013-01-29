@@ -1366,7 +1366,7 @@ u8 *rtw_get_p2p_ie(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen)
 	while(cnt<in_len)
 	{
 		eid = in_ie[cnt];
-		if ((in_len < 12) || (cnt > MAX_IE_SZ)) {
+		if ((in_len < 0) || (cnt > MAX_IE_SZ)) {
 #ifdef PLATFORM_LINUX
 			dump_stack();
 #endif

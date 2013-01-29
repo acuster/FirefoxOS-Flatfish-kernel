@@ -7,6 +7,8 @@ HDMI_AUDIO_INFO audio_info;
 __u8			EDID_Buf[1024];
 __u8 			Device_Support_VIC[512];
 __s32           HPD = 0;
+__u32           hdmi_print = 0;
+
 
 __u32 hdmi_pll = 0;//0:video pll 0; 1:video pll 1
 __u32 hdmi_clk = 297000000;

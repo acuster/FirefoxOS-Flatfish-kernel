@@ -35,6 +35,7 @@
 #define PLATFORM_LINUX
 
 #define CONFIG_EMBEDDED_FWIMG
+//#define CONFIG_FILE_FWIMG
 
 /*
  * Functions Config

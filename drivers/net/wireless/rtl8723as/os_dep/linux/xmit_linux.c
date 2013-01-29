@@ -289,8 +289,8 @@ static void rtw_check_xmit_resource(_adapter *padapter, _pkt *pkt)
 #if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
 	u16	queue;
 
+	queue = skb_get_queue_mapping(pkt);
 	if (padapter->registrypriv.wifi_spec) {
-		queue = skb_get_queue_mapping(pkt);
 		/* No free space for Tx, tx_worker is too slow */
 		if (pxmitpriv->hwxmits[queue].accnt > WMM_XMIT_THRESHOLD) {
 			//DBG_871X("%s(): stop netif_subqueue[%d]\n", __FUNCTION__, queue);

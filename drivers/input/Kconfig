@@ -197,6 +197,8 @@ source "drivers/input/gyr/Kconfig"
 
 source "drivers/input/e_compass/Kconfig"
 
+source "drivers/input/ls/Kconfig"
+
 endif
 
 menu "Hardware I/O ports"

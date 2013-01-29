@@ -140,7 +140,7 @@
 #define DESC_RATEMCS15_SG			0x1c
 #define DESC_RATEMCS32				0x20
 
-
+#include "HalVerDef.h"
 void dump_chip_info(HAL_VERSION	ChipVersion);
 
 
@@ -167,6 +167,9 @@ Hal_MappingOutPipe(
 	);
 
 void hal_init_macaddr(_adapter *adapter);
+
+void c2h_evt_clear(_adapter *adapter);
+s32 c2h_evt_read(_adapter *adapter, u8 *buf);
 
 #endif //__HAL_COMMON_H__
 
