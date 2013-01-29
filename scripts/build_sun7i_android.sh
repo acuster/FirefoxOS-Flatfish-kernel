@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# scripts/build_sun7i.h
+# scripts/build_sun7i_android.h
 #
 # (c) Copyright 2013
 # Allwinner Technology Co., Ltd. <www.allwinnertech.com>
@@ -120,7 +120,6 @@ build_modules()
     build_nand_lib
     make -C modules/nand LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
         install
-    copy_nand_mod
 
     (
     export LANG=en_US.UTF-8
@@ -154,33 +153,14 @@ build_modules()
     #    INSTALL_DIR=${LICHEE_MOD_DIR} OEM_ANDROID=1 dhd-cdc-sdmmc-gpl
 }
 
-build_bootimg()
-{
-    echo "Building boot image"
-    ${LICHEE_TOOLS_DIR}/pack/pctools/linux/android/mkbootimg \
-        --kernel output/bImage \
-        --ramdisk rootfs.cpio.gz \
-        --board 'sun7i' \
-        --base 0x40000000 \
-        -o output/boot.img
-    echo "Copy boot.img to output directory ..."
-    cp output/boot.img ${LICHEE_PLAT_OUT}
-}
-
 gen_output()
 {
-    if [ -d ${LICHEE_BR_OUT}/target ] ; then
-        echo "Copy modules to target ..."
-        local module_dir="${LICHEE_BR_OUT}/target/lib/modules"
-        rm -rf ${module_dir}
-        mkdir -p ${module_dir}
-        cp -rf ${LICHEE_MOD_DIR} ${module_dir}
-    fi
+    echo "Copy output to target ..."
+    cp -rf ${LICHEE_KDIR}/output/* ${LICHEE_PLAT_OUT}
 }
 
 clean_kernel()
 {
-    echo "Cleaning kernel"
     make distclean
     rm -rf output/*
 }
@@ -235,7 +215,6 @@ case "$1" in
     *)
         build_kernel
         build_modules
-        build_bootimg
         gen_output
         ;;
 esac

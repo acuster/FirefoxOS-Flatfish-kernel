@@ -45,6 +45,8 @@ modules.builtin
 /Module.markers
 /Module.symvers
 
+/bImage
+
 #
 # Debian directory (make deb-pkg)
 #
