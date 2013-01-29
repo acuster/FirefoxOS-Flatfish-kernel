@@ -65,7 +65,7 @@ int rtw_os_recvbuf_resource_alloc(_adapter *padapter, struct recv_buf *precvbuf)
 	int res=_SUCCESS;
 
 #ifdef CONFIG_USB_HCI
-	struct dvobj_priv	*pdvobjpriv = &padapter->dvobjpriv;
+	struct dvobj_priv	*pdvobjpriv = adapter_to_dvobj(padapter);
 	struct usb_device	*pusbd = pdvobjpriv->pusbdev;
 
 	precvbuf->irp_pending = _FALSE;
@@ -95,18 +95,7 @@ int rtw_os_recvbuf_resource_alloc(_adapter *padapter, struct recv_buf *precvbuf)
 
 #endif //CONFIG_USB_HCI
 
-
-#ifdef CONFIG_SDIO_HCI
-	precvbuf->pskb = NULL;
-
-	precvbuf->pallocated_buf  = precvbuf->pbuf = NULL;
-
-	precvbuf->pdata = precvbuf->phead = precvbuf->ptail = precvbuf->pend = NULL;
-
-	precvbuf->len = 0;
-#endif
 	return res;
-
 }
 
 //free os related resource in struct recv_buf
@@ -118,7 +107,7 @@ int rtw_os_recvbuf_resource_free(_adapter *padapter, struct recv_buf *precvbuf)
 
 #ifdef CONFIG_USE_USB_BUFFER_ALLOC_RX
 
-	struct dvobj_priv	*pdvobjpriv = &padapter->dvobjpriv;
+	struct dvobj_priv	*pdvobjpriv = adapter_to_dvobj(padapter);
 	struct usb_device	*pusbd = pdvobjpriv->pusbdev;
 
 	rtw_usb_buffer_free(pusbd, (size_t)precvbuf->alloc_sz, precvbuf->pallocated_buf, precvbuf->dma_transfer_addr);
@@ -151,7 +140,7 @@ void rtw_handle_tkip_mic_err(_adapter *padapter,u8 bgroup)
 #endif
 	union iwreq_data wrqu;
 	struct iw_michaelmicfailure    ev;
-	struct mlme_priv		*pmlmepriv  = &padapter->mlmepriv;
+	struct mlme_priv*              pmlmepriv  = &padapter->mlmepriv;
 	struct security_priv	*psecuritypriv = &padapter->securitypriv;
 	u32 cur_time = 0;
 
@@ -192,11 +181,11 @@ void rtw_handle_tkip_mic_err(_adapter *padapter,u8 bgroup)
 	_rtw_memset( &ev, 0x00, sizeof( ev ) );
 	if ( bgroup )
 	{
-		ev.flags |= IW_MICFAILURE_GROUP;
+	    ev.flags |= IW_MICFAILURE_GROUP;
 	}
 	else
 	{
-		ev.flags |= IW_MICFAILURE_PAIRWISE;
+	    ev.flags |= IW_MICFAILURE_PAIRWISE;
 	}
 
 	ev.src_addr.sa_family = ARPHRD_ETHER;
@@ -235,7 +224,7 @@ void rtw_hostapd_mlme_rx(_adapter *padapter, union recv_frame *precv_frame)
 	//skb->protocol = __constant_htons(0x0019); /*ETH_P_80211_RAW*/
 	skb->protocol = __constant_htons(0x0003); /*ETH_P_80211_RAW*/
 
-	//DBG_8192C("(1)data=0x%x, head=0x%x, tail=0x%x, mac_header=0x%x, len=%d\n", skb->data, skb->head, skb->tail, skb->mac_header, skb->len);
+	//DBG_871X("(1)data=0x%x, head=0x%x, tail=0x%x, mac_header=0x%x, len=%d\n", skb->data, skb->head, skb->tail, skb->mac_header, skb->len);
 
 	//skb->mac.raw = skb->data;
 	skb_reset_mac_header(skb);
@@ -288,11 +277,7 @@ _func_enter_;
 
 	skb->data = precv_frame->u.hdr.rx_data;
 
-#ifdef NET_SKBUFF_DATA_USES_OFFSET
 	skb_set_tail_pointer(skb, precv_frame->u.hdr.len);
-#else
-	skb->tail = precv_frame->u.hdr.rx_tail;
-#endif
 
 	skb->len = precv_frame->u.hdr.len;
 
@@ -322,13 +307,17 @@ _func_enter_;
 
 			if(psta)
 			{
+				struct net_device *pnetdev= (struct net_device*)padapter->pnetdev;
+
 				//DBG_871X("directly forwarding to the rtw_xmit_entry\n");
 
 				//skb->ip_summed = CHECKSUM_NONE;
-				//skb->protocol = eth_type_trans(skb, pnetdev);
+				skb->dev = pnetdev;
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
+				skb_set_queue_mapping(skb, rtw_recv_select_queue(skb));
+#endif //LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35)
 
-				skb->dev = padapter->pnetdev;
-				rtw_xmit_entry(skb, padapter->pnetdev);
+				rtw_xmit_entry(skb, pnetdev);
 
 				if(bmcast)
 					skb = pskb2;
@@ -355,7 +344,7 @@ _func_enter_;
 	rcu_read_unlock();
 #endif  // (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 35))
 
-	if( br_port && (check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_ADHOC_STATE) == _TRUE) )
+	if( br_port	&& (check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_ADHOC_STATE) == _TRUE) )
 	{
 		int nat25_handle_frame(_adapter *priv, struct sk_buff *skb);
 		if (nat25_handle_frame(padapter, skb) == -1) {
@@ -376,10 +365,10 @@ _func_enter_;
 #ifdef CONFIG_TCP_CSUM_OFFLOAD_RX
 	if ( (pattrib->tcpchk_valid == 1) && (pattrib->tcp_chkrpt == 1) ) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		//DBG_8192C("CHECKSUM_UNNECESSARY \n");
+		//DBG_871X("CHECKSUM_UNNECESSARY \n");
 	} else {
 		skb->ip_summed = CHECKSUM_NONE;
-		//DBG_8192C("CHECKSUM_NONE(%d, %d) \n", pattrib->tcpchk_valid, pattrib->tcp_chkrpt);
+		//DBG_871X("CHECKSUM_NONE(%d, %d) \n", pattrib->tcpchk_valid, pattrib->tcp_chkrpt);
 	}
 #else /* !CONFIG_TCP_CSUM_OFFLOAD_RX */
 
@@ -409,9 +398,6 @@ _recv_indicatepkt_drop:
 	 //enqueue back to free_recv_queue
 	 if(precv_frame)
 		 rtw_free_recvframe(precv_frame, pfree_recv_queue);
-
-
-	 precvpriv->rx_drop++;
 
 	 return _FAIL;
 

@@ -572,7 +572,12 @@ static __s32 sw_hcd_io_init(__u32 usbc_no, struct platform_device *pdev, sw_hcd_
 	open_usb_clock(sw_hcd_io);
 
     /* initialize usb bsp */
-	sw_hcd_bsp_init(usbc_no, sw_hcd_io);
+	ret = sw_hcd_bsp_init(usbc_no, sw_hcd_io);
+    if(ret != 0){
+		DMSG_PANIC("ERR: sw_hcd_bsp_init failed\n");
+		ret = -ENOMEM;
+		goto io_failed1;
+	}
 
 	/* config usb fifo */
 	spin_lock_init(&lock);
@@ -585,7 +590,7 @@ static __s32 sw_hcd_io_init(__u32 usbc_no, struct platform_device *pdev, sw_hcd_
 	if(ret != 0){
 		DMSG_PANIC("ERR: pin_init failed\n");
 		ret = -ENOMEM;
-		goto io_failed1;
+		goto io_failed2;
 	}
 
 	DMSG_INFO("[sw_hcd0]: host_init_state = %d\n", sw_hcd_io->host_init_state);

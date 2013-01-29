@@ -607,6 +607,33 @@ static s32 clock_exit(struct sw_hci_hcd *sw_hci, u32 ohci)
 static int open_clock(struct sw_hci_hcd *sw_hci, u32 ohci)
 {
 	DMSG_INFO("[%s]: open clock\n", sw_hci->hci_name);
+#ifdef  SW_USB_FPGA
+    {
+        u32 i, reg_value = 0;
+
+        reg_value = USBC_Readl(0xf1c20000+0xcc);
+        reg_value |= 0x01;
+        USBC_Writel(reg_value, (0xf1c20000+0xcc));
+        for(i=0;i<1000;i++);
+
+        /*Select_HCI_Bitfile*/
+        reg_value = USBC_Readl(SW_VA_SRAM_IO_BASE+ 0x04);
+        reg_value &= ~(0x01<<7);
+        USBC_Writel(reg_value, (SW_VA_SRAM_IO_BASE+ 0x04));
+        for(i=0;i<1000;i++);
+
+        /*Reset_Bitfile*/
+        reg_value = USBC_Readl(0xf1c20000+0xcc);
+        reg_value &= (~0x01);
+        USBC_Writel(reg_value, (0xf1c20000+0xcc));
+        for(i=0;i<10000;i++);
+
+        reg_value = USBC_Readl(0xf1c20000+0xcc);
+        reg_value |= 0x01;
+        USBC_Writel(reg_value, (0xf1c20000+0xcc));
+        for(i=0;i<1000;i++);
+    }
+#else
 
     if(sw_hci->sie_clk && sw_hci->phy_gate
        && sw_hci->phy_reset && !sw_hci->clk_is_open){
@@ -639,31 +666,8 @@ static int open_clock(struct sw_hci_hcd *sw_hci, u32 ohci)
               sw_hci->hci_name,
               (u32)USBC_Readl(SW_VA_CCM_IO_BASE + 0x60),
               (u32)USBC_Readl(SW_VA_CCM_IO_BASE + 0xcc));
+#endif
 
-/*
-    unsigned int reg_val = 0x0;
-    u32 i = 0;
-
-    reg_val = USBC_Readl(0xf1c20000+0xcc);
-    reg_val |= 0x01;
-    USBC_Writel(reg_val, 0xf1c20000+0xcc);
-    for(i=0;i<1000;i++);
-
-    reg_val = USBC_Readl(0xf1c20000+0xcc);
-    reg_val &= (~0x01);
-    USBC_Writel(reg_val, 0xf1c20000+0xcc);
-    for(i=0;i<10000;i++);
-
-    reg_val = USBC_Readl(0xf1c20000+0xcc);
-    reg_val |= 0x01;
-    USBC_Writel(reg_val, 0xf1c20000+0xcc);
-    for(i=0;i<100;i++);
-
-    reg_val = USBC_Readl(0xf1c20000+0x60);
-    reg_val |= 0x01 << 1;
-    USBC_Writel(reg_val, 0xf1c20000+0x60);
-    for(i=0;i<1000;i++);
-*/
 	return 0;
 }
 

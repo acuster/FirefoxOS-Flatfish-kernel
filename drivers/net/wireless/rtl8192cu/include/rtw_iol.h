@@ -84,4 +84,6 @@ int dbg_rtw_IOL_append_WD_cmd(struct xmit_frame *xmit_frame, u16 addr, u32 value
 #define rtw_IOL_append_WD_cmd(xmit_frame, addr, value) _rtw_IOL_append_WD_cmd((xmit_frame), (addr), (value))
 #endif
 
+bool rtw_IOL_applied(ADAPTER *adapter);
+
 #endif //__RTW_IOL_H_

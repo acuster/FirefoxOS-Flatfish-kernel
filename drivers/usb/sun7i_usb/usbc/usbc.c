@@ -297,7 +297,7 @@ void USBC_ConfigFIFO_Base(__hdle hUSB, __u32 sram_base, __u32 fifo_mode)
 	int i = 0;
 	__u32 reg_value = 0;
 
-	printk("Line:%d:%s\n", __LINE__, __func__);
+	printk("[%s %d]\n", __func__, __LINE__);
 
 	if(usbc_otg == NULL){
 		return ;

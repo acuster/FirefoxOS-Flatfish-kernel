@@ -13,6 +13,7 @@ sw_usbc-objs := usbc/usbc.o \
                 hcd/core/sw_hcd_core.o \
                 hcd/core/sw_hcd_host.o \
                 hcd/core/sw_hcd_virt_hub.o \
+                hcd/core/sw_hcd_dma.o \
                 hcd/core/sw_hcd_debug.o
 
 #ifeq ($(CONFIG_USB_SW_SUN7I_USB0_OTG),y)
