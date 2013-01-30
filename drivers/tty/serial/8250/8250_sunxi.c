@@ -39,6 +39,22 @@
 
 #include "8250.h"
 
+#define UART_DEBUG_LEVEL 2
+
+#if (UART_DEBUG_LEVEL == 1)
+    #define UART_DBG(format,args...)     do {} while (0)
+    #define UART_INF(format,args...)     do {} while (0)
+    #define UART_ERR(format,args...)     printk(KERN_ERR "[uart-err] "format,##args)
+#elif (UART_DEBUG_LEVEL == 2)
+    #define UART_DBG(format,args...)     do {} while (0)
+    #define UART_INF(format,args...)     printk(KERN_INFO"[uart-inf] "format,##args)
+    #define UART_ERR(format,args...)     printk(KERN_ERR "[uart-err] "format,##args)
+#elif (UART_DEBUG_LEVEL == 3)
+    #define UART_DBG(format,args...)     printk(KERN_INFO"[uart-dbg] "format,##args)
+    #define UART_INF(format,args...)     printk(KERN_INFO"[uart-inf] "format,##args)
+    #define UART_ERR(format,args...)     printk(KERN_ERR "[uart-err] "format,##args)
+#endif
+
 
 #define MAX_PORTS                       8
 
@@ -126,7 +142,8 @@ static int sw_serial_get_resource(struct sw_serial_port *sport)
     sport->mmres = platform_get_resource(sport->pdev, IORESOURCE_MEM, 0);
     if (!sport->mmres) {
         ret = -ENODEV;
-        printk(KERN_WARNING "%s: no IORESOURCE_MEM\n", __func__);
+        UART_ERR("%s: uart%d no IORESOURCE_MEM\n", __func__,
+                sport->port_no);
         goto err_out;
     }
 
@@ -135,6 +152,8 @@ static int sw_serial_get_resource(struct sw_serial_port *sport)
     sport->bus_clk = clk_get(NULL, sport->bus_clk_name);
     if (IS_ERR(sport->bus_clk)) {
         ret = PTR_ERR(sport->bus_clk);
+        UART_ERR("%s: uart%d get bus clock failed\n", __func__,
+                sport->port_no);
         goto iounmap;
     }
 
@@ -142,6 +161,8 @@ static int sw_serial_get_resource(struct sw_serial_port *sport)
     sport->mod_clk = clk_get(NULL, sport->mod_clk_name);
     if (IS_ERR(sport->mod_clk)) {
         ret = PTR_ERR(sport->mod_clk);
+        UART_ERR("%s: uart%d get mod clock failed\n", __func__,
+                sport->port_no);
         goto iounmap;
     }
 
@@ -150,7 +171,8 @@ static int sw_serial_get_resource(struct sw_serial_port *sport)
     sport->irq = platform_get_irq(sport->pdev, 0);
     if (sport->irq == 0) {
         ret = -EINVAL;
-        printk(KERN_WARNING "%s: no IORESOURCE_irq\n", __func__);
+        UART_ERR("%s: uart%d no IORESOURCE_irq\n", __func__,
+                sport->port_no);
         goto iounmap;
     }
 
@@ -162,17 +184,22 @@ static int sw_serial_get_resource(struct sw_serial_port *sport)
     cnt = script_get_pio_list(uart_para, &list);
     if (!cnt) {
         ret = -EINVAL;
+        UART_ERR("%s: uart%d get pio list from sys_config.fex failed\n",
+                __func__, sport->port_no);
         goto free_pclk;
     }
 
     for (i = 0; i < cnt; i++)
         if (gpio_request(list[i].gpio.gpio, NULL)) {
             ret = -EINVAL;
+            UART_ERR("%s: uart%d request gpio%d failed\n", __func__,
+                    sport->port_no, list[i].gpio.gpio);
             goto free_pclk;
         }
 
     if (sw_gpio_setall_range(&list[0].gpio, cnt)) {
-        printk(KERN_ERR "%s: gpio set all range error\n", __func__);
+        UART_ERR("%s: uart%d gpio set all range error\n", __func__,
+                sport->port_no);
         goto free_pclk;
     }
 
@@ -203,6 +230,8 @@ static int sw_serial_put_resource(struct sw_serial_port *sport)
     sprintf(uart_para, "uart_para%d", sport->port_no);
     cnt = script_get_pio_list(uart_para, &list);
     if (!cnt) {
+        UART_ERR("%s: uart%d get pio list from sys_config.fex failed\n",
+                __func__, sport->port_no);
         return 1;
     }
 
@@ -223,20 +252,22 @@ static int sw_serial_get_config(struct sw_serial_port *sport, u32 uart_id)
 
     type = script_get_item(uart_para, "uart_port", &val);
     if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        printk(KERN_WARNING "%s: get uart port error\n", __func__);
+        UART_ERR("%s: uart%d get uart port error\n", __func__,
+                uart_id);
         return -1;
     }
     sport->port_no  = val.val;
 
     if (sport->port_no != uart_id) {
-        printk(KERN_WARNING "%s: port%d and uart%d not match\n",
+        UART_ERR("%s: port%d and uart%d not match\n",
                __func__, sport->port_no, uart_id);
         return -1;
     }
 
     type = script_get_item(uart_para, "uart_type", &val);
     if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        printk(KERN_WARNING "%s: get uart type error\n", __func__);
+        UART_ERR("%s: uart%d get uart type error\n", __func__,
+                uart_id);
         return -1;
     }
     sport->pin_num  = val.val;
@@ -293,20 +324,28 @@ sw_serial_probe(struct platform_device *dev)
     struct sw_serial_data *sdata;
     int ret;
 
+    UART_INF("%s: uart%d probe\n", __func__, dev->id);
     sport = kzalloc(sizeof(struct sw_serial_port), GFP_KERNEL);
-    if (!sport)
+    if (!sport) {
+		UART_ERR("%s: uart%d alloc memory for sw_serial port failed\n",
+                __func__, dev->id);
         return -ENOMEM;
+    }
 
     sdata = devm_kzalloc(&dev->dev, sizeof(*sdata), GFP_KERNEL);
-    if (!sdata)
+    if (!sdata) {
+		UART_ERR("%s: uart%d alloc memory for sdata failed\n", __func__,
+                dev->id);
         return -ENOMEM;
+    }
     sw_serial_uart[dev->id] = sport;
     sport->port_no  = dev->id;
     sport->pdev     = dev;
 
     ret = sw_serial_get_config(sport, dev->id);
     if (ret) {
-        printk(KERN_ERR "%s: Failed to get config information\n", __func__);
+        UART_ERR("%s: uart%d failed to get config information\n",
+                __func__, sport->port_no);
         goto free_dev;
     }
 
@@ -314,7 +353,8 @@ sw_serial_probe(struct platform_device *dev)
 
     ret = sw_serial_get_resource(sport);
     if (ret) {
-        printk(KERN_ERR "%s: Failed to get resource\n", __func__);
+        UART_ERR("%s: uart%d failed to get resource\n", __func__,
+                sport->port_no);
         goto free_dev;
     }
 
@@ -335,8 +375,11 @@ sw_serial_probe(struct platform_device *dev)
     sport->port.mapbase     = sport->mmres->start;
     if (sport->irq != AW_IRQ_UART0)
         sdata->line = serial8250_register_port(&sport->port);
-    else
+    else {
+        UART_INF("%s: uart%d have been register as console\n", __func__,
+                sport->port_no);
         sdata->line = 0;
+    }
     if (sdata->line < 0) {
         ret = sdata->line;
         goto free_dev;
@@ -347,6 +390,8 @@ sw_serial_probe(struct platform_device *dev)
         clk_disable(sport->mod_clk);
         clk_disable(sport->bus_clk);
     }
+
+	UART_INF("%s: uart%d probe done\n", __func__, sport->port_no);
     return 0;
 free_dev:
     kfree(sport);
@@ -553,8 +598,8 @@ static int __init sw_serial_init(void)
         sw_serial_uart[i] = NULL;
         type = script_get_item(uart_para, "uart_used", &val);
         if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-            printk(KERN_WARNING "%s: failed to get uart%d's used information\n",
-                   __func__, i);
+            UART_ERR("%s: failed to get uart%d's used information\n",
+                    __func__, i);
             return -1;
         }
         used = val.val;
@@ -566,6 +611,7 @@ static int __init sw_serial_init(void)
         }
     }
 
+	UART_INF("%s: uart used: 0x%x\n", __func__, uart_used);
     if (uart_used) {
         ret = platform_driver_register(&sw_serial_driver);
         return ret;
@@ -577,6 +623,8 @@ static int __init sw_serial_init(void)
 static void __exit sw_serial_exit(void)
 {
     int i = 0;
+
+	UART_INF("%s\n", __func__);
     while (uart_used) {
         if (uart_used % 2)
             platform_device_unregister(&sw_uart_dev[i]);
