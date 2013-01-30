@@ -525,6 +525,7 @@ static int sun7i_spi_config_dma(struct sun7i_spi *aw_spi, enum spi_dma_dir dma_d
     dma_config_t spi_hw_conf;
     dma_hdl_t dma_hdle;
     u32 src_addr, dst_addr;
+    u32 security = SRC_SECU_DST_SECU;
 
 	spi_dbg("%s: enter\n", __func__);
     spi_hw_conf.xfer_type.src_data_width    = DATA_WIDTH_8BIT;
@@ -583,6 +584,26 @@ static int sun7i_spi_config_dma(struct sun7i_spi *aw_spi, enum spi_dma_dir dma_d
     if (sw_dma_config(dma_hdle, &spi_hw_conf)) {
         spi_err("%s: spi%d config failed\n", __func__, bus_num);
         return -1;
+    }
+
+    if (sw_dma_ctl(dma_hdle, DMA_OP_SET_SECURITY, &security)) {
+        spi_err("%s: spi%d set dma SRC_SECU_DST_SECU failed\n", __func__,
+                bus_num);
+        return -1;
+    }
+
+    if (CHAN_DEDICATE == aw_spi->dma_type) {
+        dma_para_t para = {
+            .src_wait_cyc = 0x07,
+            .src_blk_sz   = 0x1f,
+            .dst_wait_cyc = 0x07,
+            .dst_blk_sz   = 0x1f
+        };
+
+        if (sw_dma_ctl(dma_hdle, DMA_OP_SET_PARA_REG, &para)) {
+            spi_err("%s: spi%d set dma para failed\n", __func__, bus_num);
+            return -1;
+        }
     }
 
     /* 1. flush d-cache */
