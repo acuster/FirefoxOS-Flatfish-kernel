@@ -32,6 +32,17 @@ LICHEE_MOD_DIR=${LICHEE_KDIR}/output/lib/modules/${KERNEL_VERSION}
 build_standby()
 {
     echo "build standby"
+
+    # If .config is newer than include/config/auto.conf, someone tinkered
+    # with it and forgot to run make oldconfig.
+    # if auto.conf.cmd is missing then we are probably in a cleaned tree so
+    # we execute the config step to be sure to catch updated Kconfig files
+    if [ .config -nt include/config/auto.conf -o \
+        ! -f include/config/auto.conf.cmd ] ; then
+        echo "Generating autoconf.h for standby"
+        make -f Makefile ARCH=arm CROSS_COMPILE=${CROSS_COMPILE} \
+            silentoldconfig
+    fi
     make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} KDIR=${LICHEE_KDIR} \
         -C ${LICHEE_KDIR}/arch/arm/mach-sun7i/pm/standby all
 }
@@ -77,12 +88,12 @@ build_kernel()
     echo "Building kernel"
 
     if [ ! -f .config ] ; then
-        printf "\nUsing default config ...\n\n"
+        printf "\n\033[0;31;1mUsing default config ...\033[0m\n\n"
         cp arch/arm/configs/${LICHEE_KERN_DEFCONF} .config
     fi
 
-    make ARCH=arm CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage modules
     build_standby
+    make ARCH=arm CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage modules
 
     ${OBJCOPY} -R .note.gnu.build-id -S -O binary vmlinux bImage
 
@@ -161,6 +172,7 @@ gen_output()
 
 clean_kernel()
 {
+    echo "Cleaning kernel"
     make distclean
     rm -rf output/*
 }
