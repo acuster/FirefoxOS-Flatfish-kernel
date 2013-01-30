@@ -243,7 +243,6 @@ u32 sw_gpio_eint_set_trigtype(u32 gpio, enum gpio_eint_trigtype trig_type)
 {
     u32 uret = 0;
     u32 offset = 0;
-    bool req_success = 0;
     unsigned long flags = 0;
     struct aw_gpio_chip *pchip = NULL;
 
@@ -268,13 +267,9 @@ u32 sw_gpio_eint_set_trigtype(u32 gpio, enum gpio_eint_trigtype trig_type)
     else
         offset = gpio - pchip->chip.base;
 
-    req_success = (0 == gpio_request(gpio, NULL));
     PIO_CHIP_LOCK(&pchip->lock, flags);
     uret = pchip->cfg_eint->eint_set_trig(pchip, offset, trig_type);
     PIO_CHIP_UNLOCK(&pchip->lock, flags);
-    if (req_success) {
-        gpio_free(gpio);
-    }
 
     return uret;
 }
@@ -291,7 +286,6 @@ u32 sw_gpio_eint_get_trigtype(u32 gpio, enum gpio_eint_trigtype *pval)
 {
     u32 uret = 0;
     u32 offset = 0;
-    bool req_success = 0;
     unsigned long flags = 0;
     struct aw_gpio_chip *pchip = NULL;
 
@@ -311,13 +305,9 @@ u32 sw_gpio_eint_get_trigtype(u32 gpio, enum gpio_eint_trigtype *pval)
     else
         offset = gpio - pchip->chip.base;
 
-    req_success = (0 == gpio_request(gpio, NULL));
     PIO_CHIP_LOCK(&pchip->lock, flags);
     uret = pchip->cfg_eint->eint_get_trig(pchip, offset, pval);
     PIO_CHIP_UNLOCK(&pchip->lock, flags);
-    if (req_success) {
-        gpio_free(gpio);
-    }
 
     PIO_DBG("%s: gpio %d, trig_type ret %d\n", __func__, gpio, (u32)*pval);
 
@@ -336,7 +326,6 @@ u32 sw_gpio_eint_set_enable(u32 gpio, u32 enable)
 {
     u32 uret = 0;
     u32 offset = 0;
-    bool req_success = 0;
     unsigned long flags = 0;
     struct aw_gpio_chip *pchip = NULL;
 
@@ -357,13 +346,9 @@ u32 sw_gpio_eint_set_enable(u32 gpio, u32 enable)
     else
         offset = gpio - pchip->chip.base;
 
-    req_success = (0 == gpio_request(gpio, NULL));
     PIO_CHIP_LOCK(&pchip->lock, flags);
     uret = pchip->cfg_eint->eint_set_enable(pchip, offset, enable);
     PIO_CHIP_UNLOCK(&pchip->lock, flags);
-    if (req_success) {
-        gpio_free(gpio);
-    }
 
     return uret;
 }
@@ -380,7 +365,6 @@ u32 sw_gpio_eint_get_enable(u32 gpio, u32 *penable)
 {
     u32 uret = 0;
     u32 offset = 0;
-    bool req_success = 0;
     unsigned long flags = 0;
     struct aw_gpio_chip *pchip = NULL;
 
@@ -400,13 +384,9 @@ u32 sw_gpio_eint_get_enable(u32 gpio, u32 *penable)
     else
         offset = gpio - pchip->chip.base;
 
-    req_success = (0 == gpio_request(gpio, NULL));
     PIO_CHIP_LOCK(&pchip->lock, flags);
     uret = pchip->cfg_eint->eint_get_enable(pchip, offset, penable);
     PIO_CHIP_UNLOCK(&pchip->lock, flags);
-    if (req_success) {
-        gpio_free(gpio);
-    }
 
     PIO_DBG("%s: gpio %d, penable ret %d\n", __func__, gpio, *penable);
 
@@ -424,7 +404,6 @@ u32 sw_gpio_eint_get_irqpd_sta(u32 gpio)
 {
     u32 uret = 0;
     u32 offset = 0;
-    bool req_success = 0;
     unsigned long flags = 0;
     struct aw_gpio_chip *pchip = NULL;
 
@@ -443,13 +422,9 @@ u32 sw_gpio_eint_get_irqpd_sta(u32 gpio)
     else
         offset = gpio - pchip->chip.base;
 
-    req_success = (0 == gpio_request(gpio, NULL));
     PIO_CHIP_LOCK(&pchip->lock, flags);
     uret = pchip->cfg_eint->eint_get_irqpd_sta(pchip, offset);
     PIO_CHIP_UNLOCK(&pchip->lock, flags);
-    if (req_success) {
-        gpio_free(gpio);
-    }
 
     PIO_DBG("%s: gpio %d, ret %d\n", __func__, gpio, uret);
 
@@ -467,7 +442,6 @@ u32 sw_gpio_eint_clr_irqpd_sta(u32 gpio)
 {
     u32 uret = 0;
     u32 offset = 0;
-    bool req_success = 0;
     unsigned long flags = 0;
     struct aw_gpio_chip *pchip = NULL;
 
@@ -486,13 +460,9 @@ u32 sw_gpio_eint_clr_irqpd_sta(u32 gpio)
     else
         offset = gpio - pchip->chip.base;
 
-    req_success = (0 == gpio_request(gpio, NULL));
     PIO_CHIP_LOCK(&pchip->lock, flags);
     uret = pchip->cfg_eint->eint_clr_irqpd_sta(pchip, offset);
     PIO_CHIP_UNLOCK(&pchip->lock, flags);
-    if (req_success) {
-        gpio_free(gpio);
-    }
 
     return uret;
 }
@@ -508,7 +478,6 @@ EXPORT_SYMBOL(sw_gpio_eint_clr_irqpd_sta);
 u32 sw_gpio_eint_get_debounce(u32 gpio, struct gpio_eint_debounce *pdbc)
 {
     u32 uret = 0;
-    bool req_success = 0;
     unsigned long flags = 0;
     struct aw_gpio_chip *pchip = NULL;
 
@@ -523,13 +492,9 @@ u32 sw_gpio_eint_get_debounce(u32 gpio, struct gpio_eint_debounce *pdbc)
     PIO_POINTER_CHECK_NULL(pchip->cfg_eint, "cfg_eint", (u32)-1);
     PIO_POINTER_CHECK_NULL(pchip->cfg_eint->eint_get_debounce, "eint_get_debounce", (u32)-1);
 
-    req_success = (0 == gpio_request(gpio, NULL));
     PIO_CHIP_LOCK(&pchip->lock, flags);
     uret = pchip->cfg_eint->eint_get_debounce(pchip, pdbc);
     PIO_CHIP_UNLOCK(&pchip->lock, flags);
-    if (req_success) {
-        gpio_free(gpio);
-    }
 
     return uret;
 }
@@ -545,7 +510,6 @@ EXPORT_SYMBOL(sw_gpio_eint_get_debounce);
 u32 sw_gpio_eint_set_debounce(u32 gpio, struct gpio_eint_debounce dbc)
 {
     u32 uret = 0;
-    bool req_success = 0;
     unsigned long flags = 0;
     struct aw_gpio_chip *pchip = NULL;
 
@@ -559,13 +523,9 @@ u32 sw_gpio_eint_set_debounce(u32 gpio, struct gpio_eint_debounce dbc)
     PIO_POINTER_CHECK_NULL(pchip->cfg_eint, "cfg_eint", (u32)-1);
     PIO_POINTER_CHECK_NULL(pchip->cfg_eint->eint_set_debounce, "eint_set_debounce", (u32)-1);
 
-    req_success = (0 == gpio_request(gpio, NULL));
     PIO_CHIP_LOCK(&pchip->lock, flags);
     uret = pchip->cfg_eint->eint_set_debounce(pchip, dbc);
     PIO_CHIP_UNLOCK(&pchip->lock, flags);
-    if (req_success) {
-        gpio_free(gpio);
-    }
 
     return uret;
 }
@@ -585,7 +545,6 @@ u32 sw_gpio_eint_setall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
     u32 uret = 0;
     u32 offset = 0;
     u32 mulsel_eint = 0;
-    bool req_success = 0;
     unsigned long flags = 0;
     struct aw_gpio_chip *pchip = NULL;
 
@@ -615,8 +574,6 @@ u32 sw_gpio_eint_setall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
             continue;
         }
 
-        /* request gpio */
-        req_success = (0 == gpio_request(pcfg->gpio, NULL));
         offset = pcfg->gpio - pchip->chip.base;
         PIO_CHIP_LOCK(&pchip->lock, flags);
 
@@ -646,11 +603,6 @@ u32 sw_gpio_eint_setall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
             pchip->cfg_eint->eint_clr_irqpd_sta(pchip, offset);
 
         PIO_CHIP_UNLOCK(&pchip->lock, flags);
-
-        /* free gpio */
-        if (req_success) {
-            gpio_free(pcfg->gpio);
-        }
     }
 
     return uret;
@@ -669,7 +621,6 @@ u32 sw_gpio_eint_getall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
     u32 i = 0;
     u32 uret = 0;
     u32 offset = 0;
-    bool req_success = 0;
     unsigned long flags = 0;
     struct aw_gpio_chip *pchip = NULL;
 
@@ -693,8 +644,6 @@ u32 sw_gpio_eint_getall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
             continue;
         }
 
-        /* request gpio */
-        req_success = (0 == gpio_request(pcfg->gpio, NULL));
         offset = pcfg->gpio - pchip->chip.base;
         PIO_CHIP_LOCK(&pchip->lock, flags);
 
@@ -719,11 +668,6 @@ u32 sw_gpio_eint_getall_range(struct gpio_config_eint_all *pcfg, u32 cfg_num)
         pcfg->irq_pd = pchip->cfg_eint->eint_get_irqpd_sta(pchip, offset);
 
         PIO_CHIP_UNLOCK(&pchip->lock, flags);
-
-        /* free gpio */
-        if (req_success) {
-            gpio_free(pcfg->gpio);
-        }
     }
 
     return uret;
