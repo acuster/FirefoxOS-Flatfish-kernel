@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <mach/sys_config.h>
 #include <mach/gpio.h>
 #include <linux/regulator/consumer.h>
@@ -26,7 +27,7 @@ static int rtl8189es_module_power(int onoff)
 
 	rtl8189es_msg("rtl8189es module power set by axp.\n");
 	wifi_ldo = regulator_get(NULL, axp_name);
-	if (!wifi_ldo) {
+	if (IS_ERR(wifi_ldo)) {
 		rtl8189es_msg("get power regulator failed.\n");
 		return -ret;
 	}

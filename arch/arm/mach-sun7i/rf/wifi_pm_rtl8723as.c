@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <mach/sys_config.h>
 #include <mach/gpio.h>
 #include <linux/regulator/consumer.h>
@@ -28,8 +29,9 @@ static int rtl8723as_module_power(int onoff)
 	int ret = 0;
 
 	rtl8723as_msg("rtl8723as module power set by axp.\n");
+	rtl8723as_msg("axp_name = %s\n", axp_name);
 	wifi_ldo = regulator_get(NULL, axp_name);
-	if (!wifi_ldo) {
+	if (IS_ERR(wifi_ldo)) {
 		rtl8723as_msg("get power regulator failed.\n");
 		return -ret;
 	}
