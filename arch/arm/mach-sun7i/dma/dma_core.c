@@ -335,8 +335,10 @@ u32 dma_ctrl(dma_hdl_t dma_hdl, dma_op_type_e op, void *parg)
 
 	switch(op) {
 	case DMA_OP_START:
-		if(unlikely(CHAN_STA_IDLE != pchan->state))
-			DMA_INF("%s(%d): start when state is not idle, to check!\n", __func__, __LINE__);
+		if(unlikely(CHAN_STA_IDLE != pchan->state)) {
+			DMA_ERR("%s(%d): start when state is not idle, to check!\n", __func__, __LINE__);
+			goto end;
+		}
 		uret = __dma_start(dma_hdl);
 		break;
 	case DMA_OP_STOP:
