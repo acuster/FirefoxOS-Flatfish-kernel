@@ -2,7 +2,10 @@
 #ifndef __EBSP_DISPLAY_H__
 #define __EBSP_DISPLAY_H__
 
+//modified by heyihang.Jan 27, 2013
+#ifdef CONFIG_AW_FPGA_PLATFORM
 #define __FPGA_DEBUG__
+#endif
 
 #define __LINUX_OSAL__
 //#define __MELIS_OSAL__
@@ -110,8 +113,11 @@ typedef struct
 	__s32 (*hdmi_get_HPD_status)(void);
 	__s32 (*hdmi_set_pll)(__u32 pll, __u32 clk);
 	__s32 (*disp_int_process)(__u32 sel);
-    __s32 (*hdmi_suspend)(void);
-    __s32 (*hdmi_resume)(void);
+        __s32 (*hdmi_suspend)(void);
+        __s32 (*hdmi_resume)(void);
+
+        //add by heyihang.Jan 28, 2013
+        __s32 (*vsync_event)(__u32 sel);
 }__disp_bsp_init_para;
 
 
@@ -150,6 +156,9 @@ extern __s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t * p
 extern __s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t * size);
 extern __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type);
 extern __s32 BSP_disp_de_flicker_enable(__u32 sel, __bool b_en);
+
+//add by heyihang.Jan 28, 2013
+extern __s32 BSP_disp_vsync_event_enable(__u32 sel, __bool enable);
 
 extern __s32 BSP_disp_layer_request(__u32 sel, __disp_layer_work_mode_t mode);
 extern __s32 BSP_disp_layer_release(__u32 sel, __u32 hid);

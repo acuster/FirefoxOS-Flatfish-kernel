@@ -404,7 +404,7 @@ __s32 BSP_disp_tv_set_src(__u32 sel, __disp_lcdc_src_t src)
             tcon1_src_select(sel, LCDC_SRC_BE1);
             break;
 
-        case DISP_LCDC_SRC_BLUE:
+        case DISP_LCDC_SRC_BLUT:
             tcon1_src_select(sel, LCDC_SRC_BLUE);
             break;
 

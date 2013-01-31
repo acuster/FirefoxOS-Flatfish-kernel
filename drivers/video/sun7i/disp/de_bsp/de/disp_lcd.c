@@ -260,6 +260,13 @@ __s32 LCD_parse_panel_para(__u32 sel, __panel_para_t * info)
                 info->lcd_dclk_freq = value;
         }
 
+        //add by heyihang.Jan 27, 2013
+        ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_pwm_not_used", &value, 1);
+        if(ret == 0)
+        {
+                info->lcd_pwm_not_used = value;
+        }
+
         ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_pwm_ch", &value, 1);
         if(ret == 0)
         {
@@ -439,53 +446,53 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
 
         //lcd_bl_en
         lcd_cfg->lcd_bl_en_used = 0;
-        gpio_info = &(lcd_cfg->lcd_bl_en);
-        ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_bl_en", (int *)gpio_info, sizeof(disp_gpio_set_t)/sizeof(int));
-        if(ret == 0)
+        ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_bl_en_used", &value, 1);
+        if (ret < 0)
         {
-                lcd_cfg->lcd_bl_en_used = 1;
+                __wrn("fetch [%s] lcd_bl_en_used fail!! \n", primary_key);
+        }
+        else if (value == 1)
+        {
+                gpio_info = &(lcd_cfg->lcd_bl_en);
+                ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_bl_en", (int *)gpio_info, sizeof(disp_gpio_set_t)/sizeof(int));
+                if(ret == 0)
+                {
+                        lcd_cfg->lcd_bl_en_used = 1;
+                }
         }
 
         //lcd_power
         lcd_cfg->lcd_power_used= 0;
-        gpio_info = &(lcd_cfg->lcd_power);
-        ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_power", (int *)gpio_info, sizeof(disp_gpio_set_t)/sizeof(int));
-        if(ret == 0)
+        ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_power_used", &value, 1);
+        if (ret < 0)
         {
-                lcd_cfg->lcd_power_used= 1;
+                __wrn("fetch [%s] lcd_power_used fail!! \n", primary_key);
+        }
+        else if (value == 1)
+        {
+                gpio_info = &(lcd_cfg->lcd_power);
+                ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_power", (int *)gpio_info, sizeof(disp_gpio_set_t)/sizeof(int));
+                if(ret == 0)
+                {
+                        lcd_cfg->lcd_power_used= 1;
+                }
         }
 
         //lcd_pwm
         lcd_cfg->lcd_pwm_used= 0;
-        gpio_info = &(lcd_cfg->lcd_pwm);
-        ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_pwm", (int *)gpio_info, sizeof(disp_gpio_set_t)/sizeof(int));
-        if(ret == 0)
+        ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_pwm_used", &value, 1);
+        if (ret < 0)
         {
-#ifdef __LINUX_OSAL__
-                lcd_cfg->lcd_pwm_used= 1;
-                if(gpio_info->gpio == GPIOH(13))//ph13
+                __wrn("fetch [%s] lcd_pwm_used fail!! \n", primary_key);
+        }
+        else if (value == 1)
+        {
+                gpio_info = &(lcd_cfg->lcd_pwm);
+                ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_pwm", (int *)gpio_info, sizeof(disp_gpio_set_t)/sizeof(int));
+                if(ret == 0)
                 {
-                        lcd_cfg->lcd_pwm_ch = 0;
+                       lcd_cfg->lcd_pwm_used= 1;
                 }
-                else if((gpio_info->gpio == GPIOH(9)) && (gpio_info->gpio == GPIOH(10)))//ph9,ph10
-                {
-                        lcd_cfg->lcd_pwm_ch = 1;
-                }
-                else if((gpio_info->gpio == GPIOH(11)) && (gpio_info->gpio ==  GPIOH(12)))//ph11,ph12
-                {
-                        lcd_cfg->lcd_pwm_ch = 2;
-                }
-                else if((gpio_info->gpio == GPIOA(19)) && (gpio_info->gpio == GPIOA(20)))//ph19 pa20
-                {
-                        lcd_cfg->lcd_pwm_ch = 3;
-                }
-                else
-                {
-                        lcd_cfg->lcd_pwm_used = 0;
-                }
-
-                __inf("lcd_pwm_used=%d,lcd_pwm_ch=%d\n", lcd_cfg->lcd_pwm_used, lcd_cfg->lcd_pwm_ch);
-#endif
         }
 
         //lcd_gpio
@@ -551,6 +558,8 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
                 }
                 lcd_cfg->backlight_bright = value;
         }
+        //add by heyihang.Jan 28, 2013
+        gdisp.screen[sel].lcd_bright = lcd_cfg->backlight_bright;
 
         //bright,constraction,saturation,hue
         sprintf(primary_key, "disp_init");
@@ -767,7 +776,6 @@ __s32 pwm_enable(__u32 channel, __bool b_en)
 }
 
 
-
 //channel: pwm channel,0/1
 //pwm_info->freq:  pwm freq, in hz
 //pwm_info->active_state: 0:low level; 1:high level
@@ -778,7 +786,8 @@ __s32 pwm_set_para(__u32 channel, __pwm_info_t * pwm_info)
         __u32 i=0, j=0, tmp=0;
         __u32 freq;
 
-        freq = 1000000 / pwm_info->period_ns;
+        //modified by heyihang.Jan 27, 2013
+        freq = 1000000000 / pwm_info->period_ns;
 
         if(freq > 366)
         {
@@ -905,16 +914,16 @@ __s32 LCD_PWM_EN(__u32 sel, __bool b_en)
 
   //                    if((OSAL_sw_get_ic_ver() != 0xA) && (gpanel_info[sel].lcd_pwm_not_used == 0))
                 {
-                if(b_en)
-                {
-                        pwm_enable(gpanel_info[sel].lcd_pwm_ch, b_en);
-                }
-                else
-                {
-                        gpio_info->mul_sel = 0;
-                        hdl = OSAL_GPIO_Request(gpio_info, 1);
-                        OSAL_GPIO_Release(hdl, 2);
-                }
+                        if(b_en)
+                        {
+                                pwm_enable(gpanel_info[sel].lcd_pwm_ch, b_en);
+                        }
+                        else
+                        {
+                                gpio_info->mul_sel = 0;
+                                hdl = OSAL_GPIO_Request(gpio_info, 1);
+                                OSAL_GPIO_Release(hdl, 2);
+                        }
                 }
 /*        else
         {
@@ -1215,30 +1224,32 @@ __s32 Disp_lcdc_init(__u32 sel)
         }
         if(gdisp.screen[sel].lcd_cfg.lcd_used)
         {
-                if(gdisp.screen[sel].lcd_cfg.lcd_pwm_used == 1)
+                //modified by heyihang.Jan 26, 2013
+                if(gpanel_info[sel].lcd_pwm_not_used == 0)
                 {
                         __pwm_info_t pwm_info;
 
                         pwm_info.enable = 0;
                         pwm_info.active_state = 1;
-                if(gpanel_info[sel].lcd_pwm_freq != 0)
-                {
-                        pwm_info.period_ns = 1000000000 / gpanel_info[sel].lcd_pwm_freq;
-                }
-                else
-                {
-                        DE_WRN("lcd%d.lcd_pwm_freq is ZERO\n", sel);
-                        pwm_info.period_ns = 1000000000 / 1000;  //default 1khz
-                }
-                if(gpanel_info[sel].lcd_pwm_pol == 0)
-                {
-                        pwm_info.duty_ns = (gdisp.screen[sel].lcd_cfg.backlight_bright * pwm_info.period_ns) / 256;
-                }
-                else
-                {
-                        pwm_info.duty_ns = ((256 - gdisp.screen[sel].lcd_cfg.backlight_bright) * pwm_info.period_ns) / 256;
-                }
-                pwm_set_para(gdisp.screen[sel].lcd_cfg.lcd_pwm_ch, &pwm_info);
+                        if(gpanel_info[sel].lcd_pwm_freq != 0)
+                        {
+                                pwm_info.period_ns = 1000000000 / gpanel_info[sel].lcd_pwm_freq;
+                        }
+                        else
+                        {
+                                DE_WRN("lcd%d.lcd_pwm_freq is ZERO\n", sel);
+                                pwm_info.period_ns = 1000000000 / 1000;  //default 1khz
+                        }
+                        if(gpanel_info[sel].lcd_pwm_pol == 0)
+                        {
+                                pwm_info.duty_ns = (gdisp.screen[sel].lcd_cfg.backlight_bright * pwm_info.period_ns) / 256;
+                        }
+                        else
+                        {
+                                pwm_info.duty_ns = ((256 - gdisp.screen[sel].lcd_cfg.backlight_bright) * pwm_info.period_ns) / 256;
+                        }
+                        __inf("pwm_info.period_ns: %d, pwm_info.duty_ns: %d \n", pwm_info.period_ns, pwm_info.duty_ns);
+                        pwm_set_para(gdisp.screen[sel].lcd_cfg.lcd_pwm_ch, &pwm_info);
                 }
                 LCD_GPIO_init(sel);
         }
@@ -1796,7 +1807,7 @@ __s32 BSP_disp_lcd_set_src(__u32 sel, __disp_lcdc_src_t src)
                         tcon0_src_select(sel, LCDC_SRC_BE1);
                         break;
 
-                case DISP_LCDC_SRC_DMA888:
+                case DISP_LCDC_SRC_DMA:
                         tcon0_src_select(sel, LCDC_SRC_DMA);
                         break;
 

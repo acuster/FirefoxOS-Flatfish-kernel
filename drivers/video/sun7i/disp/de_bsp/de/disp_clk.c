@@ -6,8 +6,9 @@
 
 #define CLK_ON 1
 #define CLK_OFF 0
-#define RST_INVAILD 0
-#define RST_VAILD   1
+#define RST_INVAILD AW_CCU_CLK_NRESET
+#define RST_VAILD   AW_CCU_CLK_RESET
+
 
 #define CLK_DEBE0_AHB_ON	0x00000001
 #define CLK_DEBE0_MOD_ON 	0x00000002

@@ -319,14 +319,16 @@ __s32 Hdmi_exit(void)
 
 __s32 Hdmi_suspend(void)
 {
-    Hdmi_init();
+    //modify by Tyle,Jan 29, 2013
+    Hdmi_exit();
 
     return 0;
 }
 
 __s32 Hdmi_resume(void)
 {
-    Hdmi_exit();
+    //modify by Tyle,Jan 29, 2013
+    Hdmi_init();
 
     return  0;
 }

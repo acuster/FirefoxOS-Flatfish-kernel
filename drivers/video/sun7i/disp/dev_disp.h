@@ -41,6 +41,10 @@ typedef struct
         __disp_fb_create_para_t fb_para[FB_MAX];
 	wait_queue_head_t       wait[2];
 	unsigned long           wait_count[2];
+
+        //add by heyihang.Jan 28, 2013
+        struct work_struct      vsync_work[2];
+        ktime_t                 vsync_timestamp[2];
 }fb_info_t;
 
 typedef struct
@@ -81,6 +85,9 @@ extern __s32 Display_Fb_get_para(__u32 fb_id, __disp_fb_create_para_t *fb_para);
 extern __s32 Display_get_disp_init_para(__disp_init_t * init_para);
 
 extern __s32 DRV_disp_int_process(__u32 sel);
+
+//add by heyihang.Jan 28, 2013
+extern __s32 DRV_disp_vsync_event(__u32 sel);
 
 extern __s32 DRV_DISP_Init(void);
 extern __s32 DRV_DISP_Exit(void);

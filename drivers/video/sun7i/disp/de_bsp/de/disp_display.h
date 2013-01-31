@@ -116,6 +116,8 @@ typedef struct
 
         __disp_lcd_cfg_t        lcd_cfg;
         __hdle                  gpio_hdl[4];
+
+        __bool                  vsync_event_en;
 }__disp_screen_t;
 
 typedef struct

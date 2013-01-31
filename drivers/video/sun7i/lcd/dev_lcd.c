@@ -55,11 +55,11 @@ int lcd_init(void)
 	memset(&lcd0_cfg, 0, sizeof(__lcd_panel_fun_t));
 	memset(&lcd1_cfg, 0, sizeof(__lcd_panel_fun_t));
 
-        LCD_get_panel_funs_0(&lcd0_cfg);
+    LCD_get_panel_funs_0(&lcd0_cfg);
 	LCD_get_panel_funs_1(&lcd1_cfg);
 	LCD_set_panel_funs(&lcd0_cfg, &lcd1_cfg);
 
-        DRV_DISP_Init();
+    DRV_DISP_Init();
 
 	Fb_Init(0);
 
