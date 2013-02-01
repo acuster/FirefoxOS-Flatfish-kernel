@@ -900,11 +900,23 @@ static int __init cedardev_init(void)
 	val |= 0x7fffffff;
 	writel(val,0xf1c00000);
 
-	ve_pll4clk = clk_get(NULL,"ve_pll");
+	ve_pll4clk = clk_get(NULL, CLK_SYS_PLL4);
+	if(!ve_pll4clk || IS_ERR(ve_pll4clk)){
+		printk("%s(%d) err: clk_get %s failed!\n", __func__, __LINE__, CLK_SYS_PLL4);
+		return -EFAULT;
+	}
 	pll4clk_rate = clk_get_rate(ve_pll4clk);
 	/* getting ahb clk for ve!(macc) */
-	ahb_veclk = clk_get(NULL,"ahb_ve");
-	ve_moduleclk = clk_get(NULL,"ve");
+	ahb_veclk = clk_get(NULL, CLK_AHB_VE);
+	if(!ahb_veclk || IS_ERR(ahb_veclk)){
+		printk("%s(%d) err: clk_get %s failed!\n", __func__, __LINE__, CLK_AHB_VE);
+		return -EFAULT;
+	}
+	ve_moduleclk = clk_get(NULL, CLK_MOD_VE);
+	if(!ve_moduleclk || IS_ERR(ve_moduleclk)){
+		printk("%s(%d) err: clk_get %s failed!\n", __func__, __LINE__, CLK_MOD_VE);
+		return -EFAULT;
+	}
 	if(clk_set_parent(ve_moduleclk, ve_pll4clk)){
 		printk("set parent of ve_moduleclk to ve_pll4clk failed!\n");
 		return -EFAULT;
@@ -912,9 +924,21 @@ static int __init cedardev_init(void)
 	/* default the ve freq to 160M by lys 2011-12-23 15:25:34 */
 	clk_set_rate(ve_moduleclk, pll4clk_rate/6);
 	/* geting dram clk for ve! */
-	dram_veclk = clk_get(NULL, "sdram_ve");
-	hosc_clk = clk_get(NULL,"hosc");
-	avs_moduleclk = clk_get(NULL,"avs");
+	dram_veclk = clk_get(NULL, CLK_DRAM_VE);
+	if(!dram_veclk || IS_ERR(dram_veclk)){
+		printk("%s(%d) err: clk_get %s failed!\n", __func__, __LINE__, CLK_DRAM_VE);
+		return -EFAULT;
+	}
+	hosc_clk = clk_get(NULL, CLK_SYS_HOSC);
+	if(!hosc_clk || IS_ERR(hosc_clk)){
+		printk("%s(%d) err: clk_get %s failed!\n", __func__, __LINE__, CLK_SYS_HOSC);
+		return -EFAULT;
+	}
+	avs_moduleclk = clk_get(NULL, CLK_MOD_AVS);
+	if(!avs_moduleclk || IS_ERR(avs_moduleclk)){
+		printk("%s(%d) err: clk_get %s failed!\n", __func__, __LINE__, CLK_MOD_AVS);
+		return -EFAULT;
+	}
 	if(clk_set_parent(avs_moduleclk, hosc_clk)){
 		printk("set parent of avs_moduleclk to hosc_clk failed!\n");
 		return -EFAULT;

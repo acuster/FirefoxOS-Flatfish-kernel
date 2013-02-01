@@ -519,7 +519,7 @@ void emac_sys_setup(wemac_board_info_t * db)
 #ifdef SYSCONFIG_CCMU
 	/*  set up clock gating  */
 	db->emac_clk = clk_get(db->dev, CLK_AHB_EMAC);
-	if(db->emac_clk != NULL)
+	if(IS_ERR(db->emac_clk))
 		clk_enable(db->emac_clk);
 #else
 	reg_val = readl(db->ccmu_vbase + CCM_AHB_GATING_REG0);
