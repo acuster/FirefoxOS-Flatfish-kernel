@@ -30,6 +30,8 @@
 #include <sound/control.h>
 #include <sound/initval.h>
 #include <linux/clk.h>
+#include <mach/clock.h>
+
 #include <linux/timer.h>
 #include "sun7i-codec.h"
 #include <mach/sys_config.h>
@@ -1487,15 +1489,28 @@ static int __init sun7i_codec_probe(struct platform_device *pdev)
 	if (!db)
 		return -ENOMEM;
 	/* codec_apbclk */
-	codec_apbclk = clk_get(NULL,"apb_audio_codec");
+	codec_apbclk = clk_get(NULL,CLK_APB_ADDA);
+	if(!codec_apbclk || IS_ERR(codec_apbclk)){
+		/* 获取时钟句柄失败 */
+		printk("try to get CLK_APB_ADDA failed!\n");
+		}
+
 	if (-1 == clk_enable(codec_apbclk)) {
 		printk("codec_apbclk failed; \n");
 	}
 	/* codec_pll2clk */
-	codec_pll2clk = clk_get(NULL,"audio_pll");
+	codec_pll2clk = clk_get(NULL,CLK_SYS_PLL2 );
+	if(!codec_pll2clk || IS_ERR(codec_pll2clk)){
+		/* 获取时钟句柄失败 */
+		printk("try to get CLK_SYS_PLL2 failed!\n");
+		}
 
 	/* codec_moduleclk */
-	codec_moduleclk = clk_get(NULL,"audio_codec");
+	codec_moduleclk = clk_get(NULL,CLK_MOD_ADDA);
+	if(!codec_moduleclk || IS_ERR(codec_moduleclk)){
+		/* 获取时钟句柄失败 */
+		printk("try to get CLK_MOD_ADDA failed!\n");
+		}
 
 	if (clk_set_parent(codec_moduleclk, codec_pll2clk)) {
 		printk("try to set parent of codec_moduleclk to codec_pll2clk failed!\n");

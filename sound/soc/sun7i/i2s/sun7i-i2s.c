@@ -550,19 +550,48 @@ static int __devinit sun7i_i2s_dev_probe(struct platform_device *pdev)
 		return -ENXIO;
 
 	//i2s apbclk
-	i2s_apbclk = clk_get(NULL, "apb_i2s0");
+	i2s_apbclk = clk_get(NULL, CLK_APB_I2S0);
+
+	if(!i2s_apbclk || IS_ERR(i2s_apbclk)){
+
+	/* 获取时钟句柄失败 */
+
+	printk("try to get CLK_APB_I2S0 failed!\n");
+
+	}
+
 	if(-1 == clk_enable(i2s_apbclk)){
 		printk("i2s_apbclk failed! line = %d\n", __LINE__);
 		goto out;
 	}
 
-	i2s_pllx8 = clk_get(NULL, "audio_pllx8");
+	i2s_pllx8 = clk_get(NULL, CLK_SYS_PLL2X8);
+	if(!i2s_pllx8 || IS_ERR(i2s_pllx8)){
+
+	/* 获取时钟句柄失败 */
+
+	printk("try to get CLK_SYS_PLL2X8 failed!\n");
+
+	}
 
 	//i2s pll2clk
-	i2s_pll2clk = clk_get(NULL, "audio_pll");
+	i2s_pll2clk = clk_get(NULL, CLK_SYS_PLL2);
+	if(!i2s_pll2clk || IS_ERR(i2s_pll2clk)){
+
+	/* 获取时钟句柄失败 */
+
+	printk("try to get CLK_SYS_PLL2 failed!\n");
+
+	}
 
 	//i2s module clk
-	i2s_moduleclk = clk_get(NULL, "i2s0");
+	i2s_moduleclk = clk_get(NULL, CLK_MOD_I2S0);
+	if(!i2s_moduleclk || IS_ERR(i2s_moduleclk)){
+
+	/* 获取时钟句柄失败 */
+	printk("try to get CLK_MOD_I2S0 failed!\n");
+
+	}
 
 	if(clk_set_parent(i2s_moduleclk, i2s_pll2clk)){
 		printk("try to set parent of i2s_moduleclk to i2s_pll2ck failed! line = %d\n",__LINE__);

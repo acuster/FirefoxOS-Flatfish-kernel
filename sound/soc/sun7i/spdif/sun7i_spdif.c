@@ -518,17 +518,34 @@ static int __devinit sun7i_spdif_dev_probe(struct platform_device *pdev)
 
 		//spdif apbclk
 		spdif_apbclk = clk_get(NULL, CLK_APB_SPDIF);
+		if(!spdif_apbclk || IS_ERR(spdif_apbclk)){
+		/* 获取时钟句柄失败 */
+		printk("try to get CLK_APB_SPDIF failed!\n");
+		}
 		if(-1 == clk_enable(spdif_apbclk)){
 			printk("spdif_apbclk failed! line = %d\n", __LINE__);
 		}
 
 		spdif_pllx8 = clk_get(NULL, CLK_SYS_PLL2X8);
+		if(!spdif_pllx8 || IS_ERR(spdif_pllx8)){
+		/* 获取时钟句柄失败 */
+		printk("try to get CLK_SYS_PLL2X8 failed!\n");
+			}
+
 
 		//spdif pll2clk
 		spdif_pll2clk = clk_get(NULL, CLK_SYS_PLL2);
+		if(!spdif_pll2clk || IS_ERR(spdif_pll2clk)){
+		/* 获取时钟句柄失败 */
+		printk("try to get CLK_SYS_PLL2 failed!\n");
+			}
 
 		//spdif module clk
 		spdif_moduleclk = clk_get(NULL, CLK_MOD_SPDIF);
+		if(!spdif_moduleclk || IS_ERR(spdif_moduleclk)){
+		/* 获取时钟句柄失败 */
+		printk("try to get spdif_moduleclk failed!\n");
+			}
 
 		if(clk_set_parent(spdif_moduleclk, spdif_pll2clk)){
 			printk("try to set parent of spdif_moduleclk to spdif_pll2ck failed! line = %d\n",__LINE__);
