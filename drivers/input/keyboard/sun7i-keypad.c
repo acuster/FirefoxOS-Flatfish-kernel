@@ -23,12 +23,11 @@
 #include <linux/sched.h>
 #include <linux/input/matrix_keypad.h>
 
-#include <mach/clock.h>
-#include <mach/sys_config.h>
+#include <linux/gpio.h>
 #include <mach/gpio.h>
-
-//#define SUN7I_FPGA
-#define swkp_msg(...)       printk("[kpad]: "__VA_ARGS__);
+#include <mach/irqs-sun7i.h>
+#include <mach/sys_config.h>
+#include <mach/clock.h>
 
 /* register define */
 #define SW_KP_PBASE         	(0x01c23000)
@@ -81,14 +80,14 @@ struct sw_keypad_platdata {
 };
 
 static const uint32_t sw_keymap[] = {
-    KEY(0, 0, KEY_1),  KEY(0, 1, KEY_2),  KEY(0, 2, KEY_3),  KEY(0, 3, KEY_4),  KEY(0, 4, KEY_5),  KEY(0, 5, KEY_6),  KEY(0, 6, KEY_7),  KEY(0, 7, KEY_8),
-    KEY(1, 0, KEY_A),  KEY(1, 1, KEY_B),  KEY(1, 2, KEY_C),  KEY(1, 3, KEY_D),  KEY(1, 4, KEY_E),  KEY(1, 5, KEY_F),  KEY(1, 6, KEY_G),  KEY(1, 7, KEY_H),
-    KEY(2, 0, KEY_A),  KEY(2, 1, KEY_B),  KEY(2, 2, KEY_C),  KEY(2, 3, KEY_D),  KEY(2, 4, KEY_E),  KEY(2, 5, KEY_F),  KEY(2, 6, KEY_G),  KEY(2, 7, KEY_H),
-    KEY(3, 0, KEY_A),  KEY(3, 1, KEY_B),  KEY(3, 2, KEY_C),  KEY(3, 3, KEY_D),  KEY(3, 4, KEY_E),  KEY(3, 5, KEY_F),  KEY(3, 6, KEY_G),  KEY(3, 7, KEY_H),
-    KEY(4, 0, KEY_A),  KEY(4, 1, KEY_B),  KEY(4, 2, KEY_C),  KEY(4, 3, KEY_D),  KEY(4, 4, KEY_E),  KEY(4, 5, KEY_F),  KEY(4, 6, KEY_G),  KEY(4, 7, KEY_H),
-    KEY(5, 0, KEY_A),  KEY(5, 1, KEY_B),  KEY(5, 2, KEY_C),  KEY(5, 3, KEY_D),  KEY(5, 4, KEY_E),  KEY(5, 5, KEY_F),  KEY(5, 6, KEY_G),  KEY(5, 7, KEY_H),
-    KEY(6, 0, KEY_A),  KEY(6, 1, KEY_B),  KEY(6, 2, KEY_C),  KEY(6, 3, KEY_D),  KEY(6, 4, KEY_E),  KEY(6, 5, KEY_F),  KEY(6, 6, KEY_G),  KEY(6, 7, KEY_H),
-    KEY(7, 0, KEY_F1), KEY(7, 1, KEY_F2), KEY(7, 2, KEY_F3), KEY(7, 3, KEY_F4), KEY(7, 3, KEY_F4), KEY(7, 5, KEY_F),  KEY(7, 6, KEY_G),  KEY(7, 7, KEY_H),
+        KEY(0, 0, KEY_1),  KEY(0, 1, KEY_2),  KEY(0, 2, KEY_3),  KEY(0, 3, KEY_4),  KEY(0, 4, KEY_5),  KEY(0, 5, KEY_6),  KEY(0, 6, KEY_7),  KEY(0, 7, KEY_8),
+        KEY(1, 0, KEY_A),  KEY(1, 1, KEY_B),  KEY(1, 2, KEY_C),  KEY(1, 3, KEY_D),  KEY(1, 4, KEY_E),  KEY(1, 5, KEY_F),  KEY(1, 6, KEY_G),  KEY(1, 7, KEY_H),
+        KEY(2, 0, KEY_A),  KEY(2, 1, KEY_B),  KEY(2, 2, KEY_C),  KEY(2, 3, KEY_D),  KEY(2, 4, KEY_E),  KEY(2, 5, KEY_F),  KEY(2, 6, KEY_G),  KEY(2, 7, KEY_H),
+        KEY(3, 0, KEY_A),  KEY(3, 1, KEY_B),  KEY(3, 2, KEY_C),  KEY(3, 3, KEY_D),  KEY(3, 4, KEY_E),  KEY(3, 5, KEY_F),  KEY(3, 6, KEY_G),  KEY(3, 7, KEY_H),
+        KEY(4, 0, KEY_A),  KEY(4, 1, KEY_B),  KEY(4, 2, KEY_C),  KEY(4, 3, KEY_D),  KEY(4, 4, KEY_E),  KEY(4, 5, KEY_F),  KEY(4, 6, KEY_G),  KEY(4, 7, KEY_H),
+        KEY(5, 0, KEY_A),  KEY(5, 1, KEY_B),  KEY(5, 2, KEY_C),  KEY(5, 3, KEY_D),  KEY(5, 4, KEY_E),  KEY(5, 5, KEY_F),  KEY(5, 6, KEY_G),  KEY(5, 7, KEY_H),
+        KEY(6, 0, KEY_A),  KEY(6, 1, KEY_B),  KEY(6, 2, KEY_C),  KEY(6, 3, KEY_D),  KEY(6, 4, KEY_E),  KEY(6, 5, KEY_F),  KEY(6, 6, KEY_G),  KEY(6, 7, KEY_H),
+        KEY(7, 0, KEY_F1), KEY(7, 1, KEY_F2), KEY(7, 2, KEY_F3), KEY(7, 3, KEY_F4), KEY(7, 3, KEY_F4), KEY(7, 5, KEY_F),  KEY(7, 6, KEY_G),  KEY(7, 7, KEY_H),
 };
 
 static struct matrix_keymap_data sw_keymap_data = {
@@ -104,48 +103,70 @@ static struct sw_keypad_platdata sw_keypad_data = {
 
 static int kp_used = 0;
 
-static int sw_keypad_gpio_request(struct sw_keypad *keypad)
-{
-#ifndef SUN7I_FPGA
-	keypad->pio_hdle = sw_gpio_request_ex("keypad_para", NULL);
-    if (!keypad->pio_hdle)
-    {
-        swkp_msg("request pio parameter failed\n");
-        return -1;
-    }
-#else
-    {
-        #include <mach/platform.h>
-        void __iomem* pi_cfg0 = (void __iomem*)(SW_VA_PORTC_IO_BASE+0x120);
-        void __iomem* pi_cfg1 = (void __iomem*)(SW_VA_PORTC_IO_BASE+0x124);
+enum {
+	DEBUG_INIT = 1U << 0,
+	DEBUG_INT = 1U << 1,
+	DEBUG_DATA = 1U << 2,
+	DEBUG_OTHER = 1U << 3,
+};
 
-        writel(0x22222222, pi_cfg0);
-        writel(0x22222222, pi_cfg1);
-    }
-#endif
-    return 0;
+static u32 debug_mask = 0xff;
+#define dprintk(level_mask, fmt, arg...)	if (unlikely(debug_mask & level_mask)) \
+	printk("***keypad***" KERN_DEBUG fmt , ## arg)
+
+static int sw_keypad_gpio_request(void)
+{
+        int cnt = 0, i = 0;
+        script_item_u *list = NULL;
+
+         dprintk(DEBUG_INIT, "request gpio!\n");
+
+        cnt = script_get_pio_list("keypad_para", &list);
+        if (0 == cnt) {
+		printk("keypad get gpio list failed\n");
+		return 1;
+	}
+
+	for (i = 0; i < cnt; i++)
+	        if (0 != gpio_request(list[i].gpio.gpio, NULL))
+		        goto end;
+	if (0 != sw_gpio_setall_range(&list[0].gpio, cnt))
+	        printk("keypad sw_gpio_setall_range failed\n");
+
+        return 0;
+end:
+        while (i--)
+		gpio_free(list[i].gpio.gpio);
+        return 1;
 }
 
-static void sw_keypad_gpio_release(struct sw_keypad *keypad)
+static void sw_keypad_gpio_free(void)
 {
-    sw_gpio_release(keypad->pio_hdle, 1);
-    keypad->pio_hdle = 0;
+        int cnt = 0, i = 0;
+        script_item_u *list = NULL;
+
+        dprintk(DEBUG_INIT, "free gpio!\n");
+
+        cnt = script_get_pio_list("keypad_para", &list);
+        for(i = 0; i < cnt; i++)
+		gpio_free(list[i].gpio.gpio);
+
 }
 
 static void sw_keypad_scan(struct sw_keypad *keypad, unsigned int *row_state)
 {
 	unsigned int col;
 	unsigned int val;
-    u32 kp_iflag0 = readl(keypad->base + SW_KP_IN0);
-    u32 kp_iflag1 = readl(keypad->base + SW_KP_IN1);
+        u32 kp_iflag0 = readl(keypad->base + SW_KP_IN0);
+        u32 kp_iflag1 = readl(keypad->base + SW_KP_IN1);
 
-    //swkp_msg("scan key status, st0 %08x, st1 %08x\n", kp_iflag0, kp_iflag1);
-    //recode row information
-    for (col = 0; col < keypad->cols; col++) {
+        dprintk(DEBUG_DATA, "scan key status, st0 %08x, st1 %08x\n", kp_iflag0, kp_iflag1);
+        for (col = 0; col < keypad->cols; col++) {
 		if (col < 4)
-		    val = kp_iflag0 >> (col << 3);
+		        val = kp_iflag0 >> (col << 3);
 		else
-		    val = kp_iflag1 >> ((col - 4) << 3);;
+		        val = kp_iflag1 >> ((col - 4) << 3);
+
 		row_state[col] = (~val) & ((1 << keypad->rows) - 1);
 		//swkp_msg("rowstat[%d] %02x, keypad->row_state[%d] %02x, change %d\n", col, row_state[col], col, keypad->row_state[col], row_state[col] ^ keypad->row_state[col]);
 	}
@@ -159,48 +180,53 @@ static bool sw_keypad_report(struct sw_keypad *keypad, unsigned int *row_state, 
 	unsigned int val;
 	unsigned int col, row;
 
-    //swkp_msg("action %d\n", action);
-    for (col = 0; col < keypad->cols; col++) {
-        if (action & SW_KP_RELEASE) {
-            for (row = 0; row < keypad->rows; row++) {
-                if (row_state[col] & (1 << row)) {
-                    swkp_msg("key %dx%d, up(all up)\n", row, col);
-                    val = MATRIX_SCAN_CODE(row, col, keypad->row_shift);
-                    input_event(input_dev, EV_MSC, MSC_SCAN, val);
-				input_report_key(input_dev, keypad->keycodes[val], 0);
-                }
-            }
-            keypad->row_state[col] = 0;
+        //swkp_msg("action %d\n", action);
+        for (col = 0; col < keypad->cols; col++) {
+                if (action & SW_KP_RELEASE) {
+                        for (row = 0; row < keypad->rows; row++) {
+                                if (row_state[col] & (1 << row)) {
+                                        dprintk(DEBUG_DATA, "key %dx%d, up(all up)\n", row, col);
+                                        val = MATRIX_SCAN_CODE(row, col, keypad->row_shift);
+                                        input_event(input_dev, EV_MSC, MSC_SCAN, val);
+					input_report_key(input_dev, keypad->keycodes[val], 0);
+                                }
+                        }
+
+                        keypad->row_state[col] = 0;
             //swkp_msg("clr old sta keypad->row_state[%d] %02x\n", col, keypad->row_state[col]);
-        } else if (action == SW_KP_PRESS) {
-            changed = row_state[col] ^ keypad->row_state[col];
-            if (changed) {
-                //swkp_msg("col %d changed\n", col);
-                for (row = 0; row < keypad->rows; row++) {
-                    u32 cur = (row_state[col] >> row) & 1;
-                    u32 last = (keypad->row_state[col] >> row) & 1;
-                    u32 press = 0;
+                } else if (action == SW_KP_PRESS) {
+                        changed = row_state[col] ^ keypad->row_state[col];
+                        if (changed) {
+                                //swkp_msg("col %d changed\n", col);
+                                for (row = 0; row < keypad->rows; row++) {
+                                        u32 cur = (row_state[col] >> row) & 1;
+                                        u32 last = (keypad->row_state[col] >> row) & 1;
+                                        u32 press = 0;
 
                     //swkp_msg("%d x %d last %d cur %d\n", row, col, last, cur);
 
-                    if (last && !cur) {                 //1 --> 0
-                        press = 0;
-                    } else if (!last && cur) {          //0 --> 1
-                        press = 1;
-                    } else {
-                        continue;
-                    }
+                                        if (last && !cur) {                 //1 --> 0
+                                                press = 0;
+                                        } else if (!last && cur) {          //0 --> 1
+                                                 press = 1;
+                                        } else {
+                                                continue;
+                                        }
 
-                    swkp_msg("key %dx%d, %s\n", row, col, press ? "down" : "up");
-                    val = MATRIX_SCAN_CODE(row, col, keypad->row_shift);
-                    input_event(input_dev, EV_MSC, MSC_SCAN, val);
-				input_report_key(input_dev, keypad->keycodes[val], press);
+                                        dprintk(DEBUG_DATA, "key %dx%d, %s\n",
+                                                row, col, press ? "down" : "up");
+
+                                        val = MATRIX_SCAN_CODE(row, col, keypad->row_shift);
+                                        input_event(input_dev, EV_MSC, MSC_SCAN, val);
+				        input_report_key(input_dev, keypad->keycodes[val], press);
+                                }
+                        }
+
+                        keypad->row_state[col] = row_state[col];
                 }
-            }
-            keypad->row_state[col] = row_state[col];
+
+                input_sync(keypad->input_dev);
         }
-        input_sync(keypad->input_dev);
-    }
 
 	return key_down;
 }
@@ -212,13 +238,11 @@ static irqreturn_t sw_keypad_irq(int irq, void *dev_id)
 	unsigned int val;
 	bool key_down;
 
+	dprintk(DEBUG_INT, "enter irq work!\n");
 
 	val = readl(keypad->base + SW_KP_INT_STA);
-
 	sw_keypad_scan(keypad, row_state);
-
 	key_down = sw_keypad_report(keypad, row_state, val);
-
 	writel(val, keypad->base + SW_KP_INT_STA);
 
 	return IRQ_HANDLED;
@@ -226,49 +250,74 @@ static irqreturn_t sw_keypad_irq(int irq, void *dev_id)
 
 static int sw_keypad_set_mclk(struct sw_keypad *keypad, u32 mod_clk)
 {
-    struct clk* sclk = NULL;
-    int ret;
+        struct clk* sclk = NULL;
+        int ret;
 
-    sclk = clk_get(&keypad->pdev->dev, "hosc");
-    if (IS_ERR(sclk))
-    {
-        ret = PTR_ERR(sclk);
-        swkp_msg("Error to get source clock hosc\n");
-        return ret;
-    }
+        sclk = clk_get(&keypad->pdev->dev, CLK_SYS_HOSC);
+        if (!sclk || IS_ERR(sclk)) {
+                ret = PTR_ERR(sclk);
+                printk("Error to get source clock hosc\n");
+                return ret;
+        }
 
-    clk_set_parent(keypad->mclk, sclk);
-    clk_set_rate(keypad->mclk, mod_clk);
-    clk_enable(keypad->mclk);
+        ret = clk_set_parent(keypad->mclk, sclk);
+        if(ret != 0) {
+                printk("mclk clk_set_parent fail!\n");
+                return 1;
 
-#ifdef SUN7I_FPGA
-    keypad->mod_clk = 24000000;//fpga
-#else
-    keypad->mod_clk = clk_get_rate(keypad->mclk);
-#endif
+        }
 
-    clk_put(sclk);
+        ret = clk_set_rate(keypad->mclk, mod_clk);
+        if(ret != 0) {
+                printk("mclk clk_set_rate  fail!\n");
+                return 1;
 
-    return 0;
+        }
+
+        ret = clk_enable(keypad->mclk);
+        if(ret != 0) {
+                printk("mclk clk_enable  fail!\n");
+                return 1;
+
+        }
+
+        keypad->mod_clk = clk_get_rate(keypad->mclk);
+        if(keypad->mod_clk == 0) {
+                printk("mod_clk clk_get_rate fail!\n");
+        }
+        clk_put(sclk);
+
+        return 0;
 }
 
 static void sw_keypad_start(struct sw_keypad *keypad)
 {
-    swkp_msg("sw keypad start\n");
+        int ret;
+        dprintk(DEBUG_INIT, "sw keypad start\n");
 
-    sw_keypad_set_mclk(keypad, 1000000);
-	clk_enable(keypad->pclk);
+        ret = sw_keypad_set_mclk(keypad, 1000000);
+        if(ret) {
+                printk("set_mclk fail！\n");
+                return ;
+        }
+
+	ret = clk_enable(keypad->pclk);
+        if(ret != 0) {
+                printk("pclk clk_enable  fail!\n");
+                return ;
+
+        }
 
 	/* Enable interrupt bits. */
-    writel(SW_KPINT_F_EN|SW_KPINT_R_EN, keypad->base + SW_KP_INT_CFG);
-    writel(SW_KPCTL_IFENB, keypad->base + SW_KP_CTL);
+        writel(SW_KPINT_F_EN|SW_KPINT_R_EN, keypad->base + SW_KP_INT_CFG);
+        writel(SW_KPCTL_IFENB, keypad->base + SW_KP_CTL);
 
-    enable_irq(keypad->irq);
+        enable_irq(keypad->irq);
 }
 
 static void sw_keypad_stop(struct sw_keypad *keypad)
 {
-    swkp_msg("sw keypad stop\n");
+        dprintk(DEBUG_INIT, "sw keypad stop\n");
 
 	disable_irq(keypad->irq);
 	clk_disable(keypad->mclk);
@@ -280,7 +329,7 @@ static int sw_keypad_open(struct input_dev *input_dev)
 {
 	struct sw_keypad *keypad = input_get_drvdata(input_dev);
 
-    swkp_msg("sw keypad open\n");
+        dprintk(DEBUG_INIT, "sw keypad open\n");
 	sw_keypad_start(keypad);
 
 	return 0;
@@ -290,14 +339,14 @@ static void sw_keypad_close(struct input_dev *input_dev)
 {
 	struct sw_keypad *keypad = input_get_drvdata(input_dev);
 
-    swkp_msg("sw keypad close\n");
+        dprintk(DEBUG_INIT, "sw keypad close\n");
 	sw_keypad_stop(keypad);
 }
 
 static int __devinit sw_keypad_probe(struct platform_device *pdev)
 {
-	const struct sw_keypad_platdata *pdata;
-	const struct matrix_keymap_data *keymap_data;
+        const struct sw_keypad_platdata *pdata;
+        const struct matrix_keymap_data *keymap_data;
 	struct sw_keypad *keypad;
 	struct resource *res;
 	struct input_dev *input_dev;
@@ -305,21 +354,25 @@ static int __devinit sw_keypad_probe(struct platform_device *pdev)
 	unsigned int keymap_size;
 	int error;
 
-    swkp_msg("sw keypad probe\n");
+        dprintk(DEBUG_INIT, "sw keypad probe\n");
 
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
-		swkp_msg("no platform data defined\n");
+		printk("no platform data defined\n");
 		return -EINVAL;
 	}
 
 	keymap_data = pdata->keymap_data;
 
-	if (!pdata->rows || pdata->rows > SW_MAX_ROWS)
+	if (!pdata->rows || pdata->rows > SW_MAX_ROWS) {
+	        printk("keypad rows number error!\n");
 		return -EINVAL;
+	}
 
-	if (!pdata->cols || pdata->cols > SW_MAX_COLS)
+	if (!pdata->cols || pdata->cols > SW_MAX_COLS) {
+		printk("keypad cols number error!\n");
 		return -EINVAL;
+	}
 
 	row_shift = get_count_order(pdata->cols);
 	keymap_size = (pdata->rows << row_shift) * sizeof(keypad->keycodes[0]);
@@ -327,38 +380,42 @@ static int __devinit sw_keypad_probe(struct platform_device *pdev)
 	keypad = kzalloc(sizeof(*keypad) + keymap_size, GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!keypad || !input_dev) {
+	        printk("keypad allocate_device error!\n");
 		error = -ENOMEM;
 		goto err_free_mem;
 	}
 
 	/* initialize the gpio */
-	if (sw_keypad_gpio_request(keypad))
-	{
-	    error = -ENODEV;
+	if (sw_keypad_gpio_request()) {
+	        printk("keypad request gpio error!\n");
+	        error = -ENODEV;
 		goto err_free_mem;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
+	        printk("keypad get platform resource error!\n");
 		error = -ENODEV;
 		goto err_free_gpio;
 	}
 
 	keypad->base = ioremap(res->start, resource_size(res));
 	if (!keypad->base) {
+	        printk("keypad ioremap error!");
 		error = -EBUSY;
 		goto err_free_gpio;
 	}
-	keypad->pclk = clk_get(&pdev->dev, "apb_key_pad");
-	if (IS_ERR(keypad->pclk)) {
-		swkp_msg("failed to get keypad hclk\n");
+
+	keypad->pclk = clk_get(&pdev->dev, CLK_APB_KEYPAD);
+	if (!keypad-> pclk || IS_ERR(keypad->pclk)) {
+		printk("failed to get keypad hclk\n");
 		error = PTR_ERR(keypad->pclk);
 		goto err_unmap_base;
 	}
 
-	keypad->mclk = clk_get(&pdev->dev, "key_pad");
-	if (IS_ERR(keypad->mclk)) {
-		swkp_msg("failed to get keypad mclk\n");
+	keypad->mclk = clk_get(&pdev->dev, CLK_MOD_KEYPAD);
+	if (!keypad->mclk || IS_ERR(keypad->mclk)) {
+		printk("failed to get keypad mclk\n");
 		error = PTR_ERR(keypad->mclk);
 		goto err_put_pclk;
 	}
@@ -390,25 +447,28 @@ static int __devinit sw_keypad_probe(struct platform_device *pdev)
 
 	keypad->irq = platform_get_irq(pdev, 0);
 	if (keypad->irq < 0) {
+	        printk("keypad get platform irq error!\n");
 		error = keypad->irq;
 		goto err_put_mclk;
 	}
 
 	error = request_irq(keypad->irq, sw_keypad_irq, 0, dev_name(&pdev->dev), keypad);
 	if (error) {
-		swkp_msg("failed to register keypad interrupt\n");
+		printk("failed to register keypad interrupt\n");
 		goto err_put_mclk;
 	}
-    disable_irq(keypad->irq);
+        disable_irq(keypad->irq);
 
 	error = input_register_device(keypad->input_dev);
-	if (error)
+	if (error) {
+	        printk("input register device error!\n");
 		goto err_free_irq;
+	}
 
 	platform_set_drvdata(pdev, keypad);
 	keypad->pdev = pdev;
 
-	swkp_msg("sw keypad probe done, base %p, irq %d\n", keypad->base, keypad->irq);
+	dprintk(DEBUG_INIT, "probe done, base %p, irq %d\n", keypad->base, keypad->irq);
 	return 0;
 
 err_free_irq:
@@ -420,8 +480,7 @@ err_put_pclk:
 err_unmap_base:
 	iounmap(keypad->base);
 err_free_gpio:
-    sw_gpio_release(keypad->pio_hdle, 1);
-    keypad->pio_hdle = 0;
+    sw_keypad_gpio_free();
 err_free_mem:
 	input_free_device(input_dev);
 	kfree(keypad);
@@ -433,7 +492,7 @@ static int __devexit sw_keypad_remove(struct platform_device *pdev)
 {
 	struct sw_keypad *keypad = platform_get_drvdata(pdev);
 
-    swkp_msg("sw keypad remove\n");
+        dprintk(DEBUG_INIT, "sw keypad remove\n");
 
 	platform_set_drvdata(pdev, NULL);
 
@@ -444,7 +503,7 @@ static int __devexit sw_keypad_remove(struct platform_device *pdev)
 	clk_put(keypad->mclk);
 	iounmap(keypad->base);
 
-    sw_keypad_gpio_release(keypad);
+        sw_keypad_gpio_free();
 	kfree(keypad);
 	return 0;
 }
@@ -525,36 +584,34 @@ static struct platform_driver sw_keypad_driver = {
 
 static int __init sw_keypad_init(void)
 {
-    int ret;
+        script_item_u val;
 
-    swkp_msg("sw keypad init\n");
-    kp_used  = 0;
-    ret = script_parser_fetch("keypad_para", "ke_used", &kp_used, sizeof(int));
-    if (ret)
-    {
-        printk("sw keypad fetch keypad uning configuration failed\n");
-    }
-    if (kp_used)
-    {
-        platform_device_register(&sw_device_keypad);
-        return platform_driver_register(&sw_keypad_driver);
-    }
-    else
-    {
-        pr_warning("keypad: cannot find using configuration, return without doing anything!\n");
-        return 0;
-    }
+        dprintk(DEBUG_INIT, "sw keypad init\n");
+        kp_used  = 0;
+
+        if (SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("keypad_para", "ke_used", &val)) {
+                printk("sw keypad fetch keypad uning configuration failed\n");
+        }
+
+        kp_used = val.val;
+
+        if (kp_used) {
+                platform_device_register(&sw_device_keypad);
+                return platform_driver_register(&sw_keypad_driver);
+        }else {
+                dprintk(DEBUG_INIT, "cannot find using configuration, return without doing anything!\n");
+                return 0;
+        }
 }
 module_init(sw_keypad_init);
 
 static void __exit sw_keypad_exit(void)
 {
-    swkp_msg("sw keypad exit\n");
-    if (kp_used)
-    {
-        kp_used = 0;
-        platform_driver_unregister(&sw_keypad_driver);
-    }
+        dprintk(DEBUG_INIT, "sw keypad exit\n");
+        if (kp_used){
+                kp_used = 0;
+                platform_driver_unregister(&sw_keypad_driver);
+        }
 }
 module_exit(sw_keypad_exit);
 

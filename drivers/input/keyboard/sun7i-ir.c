@@ -21,15 +21,19 @@
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <mach/clock.h>
-
-#include <mach/irqs.h>
-#include <mach/system.h>
-#include <mach/hardware.h>
+#include <linux/gpio.h>
 #include <mach/sys_config.h>
-#include <mach/gpio.h>
 
+#include <mach/irqs-sun7i.h>
+#include <mach/hardware.h>
 #include <linux/clk.h>
+#include <mach/gpio.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
+#include <mach/platform.h>
+
+#if defined(CONFIG_HAS_EARLYSUSPEND) || defined(CONFIG_PM)
 #include <linux/pm.h>
 #include <linux/earlysuspend.h>
 #endif
@@ -38,28 +42,20 @@
 
 #define SUN7I_IR_FPGA
 #define CLK_CFG_NEW_20120806
-#define DEBUG_IR
-
 #define SUN7I_SYS_GPIO_CFG_EN
 #define SUN7I_SYS_CLK_CFG_EN
 #define SUN7I_PRINT_SUSPEND_INFO
 
-#ifdef DEBUG_IR
-#define DEBUG_LEVEL0
-#define DEBUG_LEVEL2
-#define DEBUG_LEVEL1
-#define dprintk(level, fmt, arg...)	if(debug >= level) \
-						printk(KERN_DEBUG fmt , ## arg)
-#else
-#undef DEBUG_LEVEL0
-#undef DEBUG_LEVEL2
-#undef DEBUG_LEVEL1
-#define dprintk(level, fmt, arg...)
-#endif
+
+
+static struct gpio_hdle {
+	script_item_u	val;
+	script_item_value_type_e  type;
+}ir_gpio_hdle;
 
 //Registers
 #define IR_BASE			SW_VA_IR0_IO_BASE
-#define IR_IRQNO		AW_IRQ_IR0
+#define IR_IRQNO			AW_IRQ_IR0
 #define CCM_BASE		SW_VA_CCM_IO_BASE
 #define PI_BASE			SW_VA_PORTC_IO_BASE
 
@@ -106,7 +102,7 @@
 
 static struct clk *apb_ir_clk;
 static struct clk *ir_clk;
-static u32 ir_gpio_hdle;
+
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 struct sun7i_ir_data {
@@ -114,16 +110,11 @@ struct sun7i_ir_data {
 };
 #endif
 
-struct ir_raw_buffer
-{
-	unsigned long dcnt;                  /*Packet Count*/
+struct ir_raw_buffer {
+	unsigned long dcnt;                  		/*Packet Count*/
 	#define	IR_RAW_BUF_SIZE		128
 	unsigned char buf[IR_RAW_BUF_SIZE];
 };
-
-#ifdef DEBUG_IR
-static int debug = 8;
-#endif
 
 static unsigned int ir_cnt = 0;
 static struct input_dev *ir_dev;
@@ -136,6 +127,17 @@ static struct ir_raw_buffer	ir_rawbuf;
 static struct sun7i_ir_data *ir_data;
 #endif
 
+enum {
+	DEBUG_INIT = 1U << 0,
+	DEBUG_INT = 1U << 1,
+	DEBUG_DATA_INFO = 1U << 2,
+	DEBUG_SUSPEND = 1U << 3,
+};
+static u32 debug_mask = 0x00;
+#define dprintk(level_mask, fmt, arg...)	if (unlikely(debug_mask & level_mask)) \
+	printk("***IR***" KERN_DEBUG fmt , ## arg)
+
+module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static inline void ir_reset_rawbuffer(void)
 {
@@ -144,14 +146,10 @@ static inline void ir_reset_rawbuffer(void)
 
 static inline void ir_write_rawbuffer(unsigned char data)
 {
-	if(ir_rawbuf.dcnt < IR_RAW_BUF_SIZE)
-	{
+	if (ir_rawbuf.dcnt < IR_RAW_BUF_SIZE)
 		ir_rawbuf.buf[ir_rawbuf.dcnt++] = data;
-	}
 	else
-	{
 		printk("ir_write_rawbuffer: IR Rx Buffer Full!!\n");
-	}
 }
 
 static inline unsigned char ir_read_rawbuffer(void)
@@ -159,9 +157,7 @@ static inline unsigned char ir_read_rawbuffer(void)
 	unsigned char data = 0x00;
 
 	if(ir_rawbuf.dcnt > 0)
-	{
 		data = ir_rawbuf.buf[--ir_rawbuf.dcnt];
-	}
 
 	return data;
 }
@@ -181,14 +177,14 @@ static void ir_clk_cfg(void)
 #ifdef SUN7I_SYS_CLK_CFG_EN
 	unsigned long rate = 3000000; //3Mhz
 
-	apb_ir_clk = clk_get(NULL, "apb_ir0");
-	if(!apb_ir_clk) {
+	apb_ir_clk = clk_get(NULL, CLK_APB_IR0);
+	if(!apb_ir_clk || IS_ERR(apb_ir_clk)) {
 		printk("%s err: try to get apb_ir0 clock failed! line %d\n", __func__, __LINE__);
 		return;
 	}
 
-	ir_clk = clk_get(NULL, "ir0");
-	if(!ir_clk) {
+	ir_clk = clk_get(NULL, CLK_MOD_IR0);
+	if(!ir_clk || IS_ERR(ir_clk)) {
 		printk("%s err: try to get ir0 clock failed! line %d\n", __func__, __LINE__);
 		return;
 	}
@@ -246,15 +242,30 @@ static void ir_clk_uncfg(void)
 	clk_put(apb_ir_clk);
 	clk_put(ir_clk);
 #else
-	printk("%s: line %d, todo#####\n", __FUNCTION__, __LINE__);
 #endif
 	return;
 }
 static void ir_sys_cfg(void)
 {
 #ifdef SUN7I_SYS_GPIO_CFG_EN
-	if(0 == (ir_gpio_hdle = sw_gpio_request_ex("ir_para", "ir0_rx")))
-		printk("try to request ir_para gpio failed. \n");
+	ir_gpio_hdle.type = script_get_item("ir_para", "ir_rx", &(ir_gpio_hdle.val));
+
+	if(SCIRPT_ITEM_VALUE_TYPE_PIO != ir_gpio_hdle.type)
+		printk(KERN_ERR "IR gpio type err! \n");
+
+	dprintk(DEBUG_INIT, "value is: gpio %d, mul_sel %d, pull %d, drv_level %d, data %d\n",
+		ir_gpio_hdle.val.gpio.gpio, ir_gpio_hdle.val.gpio.mul_sel, ir_gpio_hdle.val.gpio.pull,
+		ir_gpio_hdle.val.gpio.drv_level, ir_gpio_hdle.val.gpio.data);
+
+	if(0 != gpio_request(ir_gpio_hdle.val.gpio.gpio, NULL)) {
+		printk(KERN_ERR "ERROR: IR Gpio_request is failed\n");
+	}
+
+
+	if (0 != sw_gpio_setall_range(&ir_gpio_hdle.val.gpio, 1)) {
+		printk(KERN_ERR "IR gpio set err!");
+		goto end;
+	}
 #else
 	unsigned long tmp;
 
@@ -266,17 +277,22 @@ static void ir_sys_cfg(void)
 #endif
 
 	ir_clk_cfg();
+#ifdef SUN7I_SYS_GPIO_CFG_EN
+end:
+	gpio_free(ir_gpio_hdle.val.gpio.gpio);
+	return;
+#endif
 }
 
 static void ir_sys_uncfg(void)
 {
 	//unsigned long tmp;
 #ifdef SUN7I_SYS_GPIO_CFG_EN
-	sw_gpio_release(ir_gpio_hdle, 2);
-#else
-	printk("%s: line %d, todo#####\n", __FUNCTION__, __LINE__);
+	gpio_free(ir_gpio_hdle.val.gpio.gpio);
 #endif
 	ir_clk_uncfg();
+
+	return;
 }
 
 static void ir_reg_cfg(void)
@@ -318,7 +334,7 @@ static void ir_reg_cfg(void)
 
 static void ir_setup(void)
 {
-	dprintk(2, "ir_setup: ir setup start!!\n");
+	dprintk(DEBUG_INIT, "ir_setup: ir setup start!!\n");
 
 	ir_code = 0;
 	timer_used = 0;
@@ -326,7 +342,7 @@ static void ir_setup(void)
 	ir_sys_cfg();
 	ir_reg_cfg();
 
-	dprintk(2, "ir_setup: ir setup end!!\n");
+	dprintk(DEBUG_INIT, "ir_setup: ir setup end!!\n");
 
 	return;
 }
@@ -361,98 +377,75 @@ static unsigned long ir_packet_handler(unsigned char *buf, unsigned long dcnt)
 
 	//print_hex_dump_bytes("--- ", DUMP_PREFIX_NONE, buf, dcnt);
 
-	dprintk(2, "%s: dcnt = %d\n", __FUNCTION__, (int)dcnt);
+	dprintk(DEBUG_DATA_INFO, "dcnt = %d \n", (int)dcnt);
 
-	/*Find Lead '1'*/
+	/* Find Lead '1' */
 	len = 0;
-	for(i=0; i<dcnt; i++)
-	{
+	for (i=0; i<dcnt; i++) {
 		val = buf[i];
-		if(val & 0x80)
-		{
+		if (val & 0x80) {
 			len += val & 0x7f;
-		}
-		else
-		{
-			if(len > IR_L1_MIN)
+		} else {
+			if (len > IR_L1_MIN)
 				break;
 
 			len = 0;
 		}
 	}
 
-	if((val&0x80) || (len<=IR_L1_MIN))
-		return IR_ERROR_CODE; /*Invalid Code*/
+	if ((val&0x80) || (len<=IR_L1_MIN))
+		return IR_ERROR_CODE; /* Invalid Code */
 
-	/*Find Lead '0'*/
+	/* Find Lead '0' */
 	len = 0;
-	for(; i<dcnt; i++)
-	{
+	for (; i<dcnt; i++) {
 		val = buf[i];
-		if(val & 0x80)
-		{
+		if (val & 0x80) {
 			if(len > IR_L0_MIN)
 				break;
 
 			len = 0;
-		}
-		else
-		{
+		} else {
 			len += val & 0x7f;
 		}
 	}
 
-	if((!(val&0x80)) || (len<=IR_L0_MIN))
-		return IR_ERROR_CODE; /*Invalid Code*/
+	if ((!(val&0x80)) || (len<=IR_L0_MIN))
+		return IR_ERROR_CODE; /* Invalid Code */
 
-	/*go decoding*/
-	code = 0;  /*0 for Repeat Code*/
+	/* go decoding */
+	code = 0;  /* 0 for Repeat Code */
 	bitCnt = 0;
 	last = 1;
 	len = 0;
-	for(; i<dcnt; i++)
-	{
+	for (; i<dcnt; i++) {
 		val = buf[i];
-		if(last)
-		{
-			if(val & 0x80)
-			{
+		if (last) {
+			if (val & 0x80) {
 				len += val & 0x7f;
-			}
-			else
-			{
-				if(len > IR_PMAX) /*Error Pulse*/
-				{
+			} else {
+				if (len > IR_PMAX) {		/* Error Pulse */
 					return IR_ERROR_CODE;
 				}
 				last = 0;
 				len = val & 0x7f;
 			}
-		}
-		else
-		{
-			if(val & 0x80)
-			{
-				if(len > IR_DMAX) /*Error Distant*/
-				{
+		} else {
+			if (val & 0x80) {
+				if (len > IR_DMAX){		/* Error Distant */
 					return IR_ERROR_CODE;
-				}
-				else
-				{
-					if(len > IR_DMID)
-					{
-						/*data '1'*/
+				} else {
+					if (len > IR_DMID)  {
+						/* data '1'*/
 						code |= 1<<bitCnt;
 					}
 					bitCnt ++;
-					if(bitCnt == 32)
-						break;  /*decode over*/
+					if (bitCnt == 32)
+						break;  /* decode over */
 				}
 				last = 1;
 				len = val & 0x7f;
-			}
-			else
-			{
+			} else {
 				len += val & 0x7f;
 			}
 		}
@@ -466,31 +459,30 @@ static int ir_code_valid(unsigned long code)
 	unsigned long tmp1, tmp2;
 
 #ifdef IR_CHECK_ADDR_CODE
-	/*Check Address Value*/
-	if((code&0xffff) != (IR_ADDR_CODE&0xffff))
-		return 0; /*Address Error*/
+	/* Check Address Value */
+	if ((code&0xffff) != (IR_ADDR_CODE&0xffff))
+		return 0; /* Address Error */
 
 	tmp1 = code & 0x00ff0000;
 	tmp2 = (code & 0xff000000)>>8;
 
-	return ((tmp1^tmp2)==0x00ff0000);  /*Check User Code*/
+	return ((tmp1^tmp2)==0x00ff0000);  /* Check User Code */
 #else
-	/*Do Not Check Address Value*/
+	/* Do Not Check Address Value */
 	tmp1 = code & 0x00ff00ff;
 	tmp2 = (code & 0xff00ff00)>>8;
 
 	//return ((tmp1^tmp2)==0x00ff00ff);
 	return (((tmp1^tmp2) & 0x00ff0000)==0x00ff0000 );
-#endif /*#ifdef IR_CHECK_ADDR_CODE*/
+#endif /* #ifdef IR_CHECK_ADDR_CODE */
 }
 
 static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 {
 	unsigned long intsta = ir_get_intsta();
 
-#ifdef DEBUG_LEVEL2
-	//printk("%s: intsta 0x%08x\n", __FUNCTION__, (u32)intsta);
-#endif
+	dprintk(DEBUG_INT, "IR IRQ Serve\n");
+
 	ir_clr_intsta(intsta);
 
 	//if(intsta & (IR_RXINTS_RXDA|IR_RXINTS_RXPE))  /*FIFO Data Valid*/
@@ -499,25 +491,20 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 		unsigned long dcnt =  (ir_get_intsta()>>8) & 0x1f;
 		unsigned long i = 0;
 
-		/*Read FIFO*/
-		for(i=0; i<dcnt; i++)
-		{
-			if(ir_rawbuffer_full())
-			{
-			#ifdef DEBUG_LEVEL0
-				printk("%s: Raw Buffer Full!!\n", __FUNCTION__);
-			#endif
+		/* Read FIFO */
+		for (i=0; i<dcnt; i++) {
+			if (ir_rawbuffer_full()) {
+
+				dprintk(DEBUG_INT, "ir_irq_service: Raw Buffer Full!!\n");
+
 				break;
-			}
-			else
-			{
+			} else {
 				ir_write_rawbuffer(ir_get_data());
 			}
 		}
 	}
 
-	if(intsta & IR_RXINTS_RXPE)	 /*Packet End*/
-	{
+	if (intsta & IR_RXINTS_RXPE) {	 /* Packet End */
 		unsigned long code;
 		int code_valid;
 
@@ -525,68 +512,56 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 		ir_rawbuf.dcnt = 0;
 		code_valid = ir_code_valid(code);
 
-#ifdef DEBUG_LEVEL2
-		printk("%s: code 0x%08x, code_valid %d\n", __FUNCTION__, (u32)code, code_valid);
-#endif
+		dprintk(DEBUG_INT, "%s: code 0x%08x, code_valid %d\n", __FUNCTION__, (u32)code, code_valid);
 
-		if(timer_used)
-		{
-			if(code_valid)  //the pre-key is released
-			{
+
+		if(timer_used) {
+			if(code_valid) {  //the pre-key is released
+
 				input_report_key(ir_dev, ir_keycodes[(ir_code>>16)&0xff], 0);
 				input_sync(ir_dev);
-			#ifdef DEBUG_LEVEL1
-				printk("%s: IR KEY UP\n", __FUNCTION__);
-			#endif
+				dprintk(DEBUG_INT,"%s: IR KEY UP\n", __FUNCTION__);
 				ir_cnt = 0;
 			}
-			if((code==IR_REPEAT_CODE)||(code_valid))  //Error, may interfere from other sources
-			{
+
+			if((code==IR_REPEAT_CODE)||(code_valid)) {  //Error, may interfere from other source
 				mod_timer(s_timer, jiffies + (HZ/5));
 			}
-		}
-		else
-		{
-			if(code_valid)
-			{
+		}else {
+			if(code_valid) {
 				s_timer->expires = jiffies + (HZ/5);  //200ms timeout
 				add_timer(s_timer);
 				timer_used = 1;
 			}
 		}
 
-		if(timer_used)
-		{
+		if(timer_used) {
 			ir_cnt++;
-			if(ir_cnt == 1)
-			{
+			if(ir_cnt == 1) {
 				if(code_valid)
 					ir_code = code;  /*update saved code with a new valid code*/
-			#ifdef DEBUG_LEVEL0
-				printk("%s: IR RAW CODE : %lu\n", __FUNCTION__, (ir_code>>16)&0xff);
-			#endif
+
+				dprintk(DEBUG_INT, "%s: IR RAW CODE : %lu\n", __FUNCTION__, (ir_code>>16)&0xff);
 				input_report_key(ir_dev, ir_keycodes[(ir_code>>16)&0xff], 1);
-			#ifdef DEBUG_LEVEL0
-				printk("%s: IR CODE : %d\n", __FUNCTION__, ir_keycodes[(ir_code>>16)&0xff]);
-			#endif
+				dprintk(DEBUG_INT, "%s: IR CODE : %d\n", __FUNCTION__, ir_keycodes[(ir_code>>16)&0xff]);
 				input_sync(ir_dev);
-			#ifdef DEBUG_LEVEL1
-				//printk("%s: IR KEY VALE %d\n", __FUNCTION__, ir_keycodes[(ir_code>>16)&0xff]);
-			#endif
+
+				dprintk(DEBUG_INT, "IR KEY VALE %d\n",ir_keycodes[(ir_code>>16)&0xff]);
+
 			}
+
+
 		}
 
-		dprintk(1, "%s: Rx Packet End, code=0x%x, ir_code=0x%x, timer_used=%d \n",
-			__FUNCTION__, (int)code, (int)ir_code, timer_used);
+		dprintk(DEBUG_INT, "ir_irq_service: Rx Packet End, code=0x%x, ir_code=0x%x, timer_used=%d \n", (int)code, (int)ir_code, timer_used);
 	}
 
-	if(intsta & IR_RXINTS_RXOF)  /*FIFO Overflow*/
-	{
-		/*flush raw buffer*/
+	if (intsta & IR_RXINTS_RXOF) {  /* FIFO Overflow */
+		/* flush raw buffer */
 		ir_reset_rawbuffer();
-#ifdef DEBUG_LEVEL0
-		printk("%s: Rx FIFO Overflow!!\n", __FUNCTION__);
-#endif
+
+		dprintk(DEBUG_INT, "ir_irq_service: Rx FIFO Overflow!!\n");
+
 	}
 
 	return IRQ_HANDLED;
@@ -600,12 +575,12 @@ static void ir_timer_handle(unsigned long arg)
 	/*Time Out, means that the key is up*/
 	input_report_key(ir_dev, ir_keycodes[(ir_code>>16)&0xff], 0);
 	input_sync(ir_dev);
-#ifdef DEBUG_LEVEL1
-	printk("IR KEY TIMER OUT UP\n");
-#endif
+
+	dprintk(DEBUG_INT, "IR KEY TIMER OUT UP\n");
+
 	ir_cnt = 0;
 
-	dprintk(2, "ir_timer_handle: timeout \n");
+	dprintk(DEBUG_INT, "ir_timer_handle: timeout \n");
 }
 
 //停用设备
@@ -620,10 +595,8 @@ static void sun7i_ir_suspend(struct early_suspend *h)
 	tmp &= 0xfffffffc;
 	writel(tmp, IR_BASE+IR_CTRL_REG);
 */
+	dprintk(DEBUG_SUSPEND, "EARLYSUSPEND:enter earlysuspend: sun7i_ir_suspend. \n");
 
-#ifdef SUN7I_PRINT_SUSPEND_INFO
-	printk("enter earlysuspend: sun7i_ir_suspend. \n");
-#endif
 	clk_disable(ir_clk);
 	clk_disable(apb_ir_clk);
 }
@@ -631,9 +604,8 @@ static void sun7i_ir_suspend(struct early_suspend *h)
 //重新唤醒
 static void sun7i_ir_resume(struct early_suspend *h)
 {
-#ifdef SUN7I_PRINT_SUSPEND_INFO
-	printk("enter laterresume: sun7i_ir_resume. \n");
-#endif
+
+	dprintk(DEBUG_INIT, "EARLYSUSPEND:enter laterresume: sun7i_ir_resume. \n");
 
 	ir_code = 0;
 	timer_used = 0;
@@ -648,7 +620,7 @@ static int __init ir_init(void)
 {
 	int i,ret;
 	int err =0;
-
+        dprintk(DEBUG_INIT, "++++++++++++++++++++++\n");
 	ir_dev = input_allocate_device();
 	if (!ir_dev) {
 		printk(KERN_ERR "ir_dev: not enough memory for input device\n");
@@ -691,10 +663,10 @@ static int __init ir_init(void)
 	err = input_register_device(ir_dev);
 	if (err)
 		goto fail4;
-	printk("IR Initial OK\n");
+	dprintk(DEBUG_INIT, "IR Initial OK\n");
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	printk("==register_early_suspend =\n");
+	dprintk(DEBUG_INIT, "==register_early_suspend =\n");
 	ir_data = kzalloc(sizeof(*ir_data), GFP_KERNEL);
 	if (ir_data == NULL) {
 		err = -ENOMEM;
@@ -707,6 +679,8 @@ static int __init ir_init(void)
 	register_early_suspend(&ir_data->early_suspend);
 #endif
 
+	dprintk(DEBUG_INIT, "ir_init end\n");
+        dprintk(DEBUG_INIT,"+++++++++++++++++++\n");
 	return 0;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -714,13 +688,18 @@ err_alloc_data_failed:
 #endif
 
 fail4:
+        printk("fail4\n");
 	kfree(s_timer);
 fail3:
+        printk("fail3\n");
 	free_irq(IR_IRQNO, ir_dev);
 fail2:
+        printk("fail2\n");
 	input_free_device(ir_dev);
 fail1:
+        printk("fail1\n");
 	return err;
+
 }
 
 static void __exit ir_exit(void)

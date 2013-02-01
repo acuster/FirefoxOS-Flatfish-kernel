@@ -282,7 +282,7 @@ static int sensor_fetch_sysconfig_para(void)
 		        printk("%s: gsensor_twi_id script_get_item err.val.val:%d \n", __func__, val.val);
 			goto script_get_item_err;
 		}
-		gsensor_twi_id = 2;
+		gsensor_twi_id = val.val;
 		dprintk(DEBUG_INIT, "%s: gsensor_twi_id is %d. \n", __func__, gsensor_twi_id);
 
 		if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("gsensor_list_para", "gsensor_det_used", &val)){
@@ -336,7 +336,7 @@ static int ctp_fetch_sysconfig_para(void)
 			printk("%s: script_parser_fetch err. \n", __func__);
 			goto script_get_item_err;
                 }
-                ctp_twi_id = 2;
+                ctp_twi_id = val.val;
                 dprintk(DEBUG_INIT,"%s: ctp_twi_id is %d. \n", __func__, ctp_twi_id);
 
                 if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("ctp_list_para", "ctp_det_used", &val)){
@@ -1082,9 +1082,9 @@ static int __init i2c_hardware_init(void)
 		printk("%s: sensor_fetch_sysconfig_para err.\n", __func__);
 	}
 
-//	if(ctp_fetch_sysconfig_para()){
-//		printk("%s: ctp_fetch_sysconfig_para err.\n", __func__);
-//	}
+	if(ctp_fetch_sysconfig_para()){
+		printk("%s: ctp_fetch_sysconfig_para err.\n", __func__);
+	}
 
 	if(c_device_used | g_device_used) {
 		ret = get_device_info(tmp);

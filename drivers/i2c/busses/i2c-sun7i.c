@@ -353,8 +353,10 @@ static void twi_set_gpio_sysconfig(struct sun7i_i2c *i2c)
 
 		/* 申请gpio */
 		for (i = 0; i < cnt; i++)
-			if (0 != gpio_request(list[i].gpio.gpio, NULL))
+			if (0 != gpio_request(list[i].gpio.gpio, NULL)){
+			        I2C_ERR("[i2c%d] gpio_request i:%d, gpio:%d failed\n", i, list[i].gpio.gpio);
 				goto end;
+			}
 
 		/* 配置gpio list */
 		if (0 != sw_gpio_setall_range(&list[0].gpio, cnt))
@@ -1166,8 +1168,8 @@ static int sun7i_i2c_probe(struct platform_device *pdev)
 	struct resource *res = NULL;
 	struct sun7i_i2c_platform_data *pdata = NULL;
 #ifndef CONFIG_AW_FPAG_PLATFORM
-	char *i2c_mclk[] ={CLK_MOD_TWI0, CLK_MOD_TWI1, CLK_MOD_TWI2, CLK_MOD_TWI3};
-	char *i2c_pclk[] ={CLK_APB_TWI0, CLK_APB_TWI1, CLK_APB_TWI2, CLK_APB_TWI3};
+	char *i2c_mclk[] ={CLK_MOD_TWI0, CLK_MOD_TWI1, CLK_MOD_TWI2, CLK_MOD_TWI3,CLK_MOD_TWI4};
+	char *i2c_pclk[] ={CLK_APB_TWI0, CLK_APB_TWI1, CLK_APB_TWI2, CLK_APB_TWI3,CLK_APB_TWI4};
 #endif
 	int ret, irq;
 #ifndef CONFIG_SUN7I_I2C_PRINT_TRANSFER_INFO
@@ -1205,7 +1207,8 @@ static int sun7i_i2c_probe(struct platform_device *pdev)
 	i2c->irq 		  = irq;
 	i2c->bus_num      = pdata->bus_num;
 	i2c->status       = I2C_XFER_IDLE;
-	i2c->suspended = 0;
+	i2c->suspended    = 0;
+
 	spin_lock_init(&i2c->lock);
 	init_waitqueue_head(&i2c->wait);
 
@@ -1447,7 +1450,7 @@ static struct sun7i_i2c_platform_data sun7i_twi0_pdata[] = {
 
 struct platform_device sun7i_twi0_device = {
 	.name		= "sun7i-i2c",
-	.id		    = 0,
+	.id		= 0,
 	.resource	= sun7i_twi0_resources,
 	.num_resources	= ARRAY_SIZE(sun7i_twi0_resources),
 	.dev = {
