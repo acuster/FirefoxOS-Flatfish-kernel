@@ -408,6 +408,9 @@ odm_RateDecision_8188E(
 		else if (pRaInfo->NscUp > N_THRESHOLD_HIGH[RateID])
 			odm_RateUp_8188E(pDM_Odm,pRaInfo);
 
+		if(pRaInfo->DecisionRate > pRaInfo->HighestRate)
+			pRaInfo->DecisionRate = pRaInfo->HighestRate;
+
 		if ((pRaInfo->DecisionRate)==(pRaInfo->PreRate))
 			DynamicTxRPTTimingCounter+=1;
 		else
@@ -479,7 +482,7 @@ odm_ARFBRefresh_8188E(
 			break;
 	}
 	// Highest rate
-	if (pRaInfo->RAUseRate)
+	if (pRaInfo->RAUseRate){
 		for (i=RATESIZE;i>=0;i--)
 		{
 			if((pRaInfo->RAUseRate)&BIT(i)){
@@ -487,19 +490,24 @@ odm_ARFBRefresh_8188E(
 				break;
 			}
 		}
-	else
+	}
+	else{
 		pRaInfo->HighestRate=0;
+	}
 	// Lowest rate
-	if (pRaInfo->RAUseRate)
+	if (pRaInfo->RAUseRate){
 		for (i=0;i<RATESIZE;i++)
 		{
-			if((pRaInfo->RAUseRate)&BIT(i)){
+			if((pRaInfo->RAUseRate)&BIT(i))
+			{
 				pRaInfo->LowestRate=i;
 				break;
 			}
 		}
-	else
+	}
+	else{
 		pRaInfo->LowestRate=0;
+	}
 
 #if POWER_TRAINING_ACTIVE == 1
 		if (pRaInfo->HighestRate >0x13)
@@ -514,9 +522,13 @@ odm_ARFBRefresh_8188E(
 				("ODM_ARFBRefresh_8188E(): PTModeSS=%d\n", pRaInfo->PTModeSS));
 
 #endif
+
+	if(pRaInfo->DecisionRate > pRaInfo->HighestRate)
+		pRaInfo->DecisionRate = pRaInfo->HighestRate;
+
 	ODM_RT_TRACE(pDM_Odm,ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD,
-				("ODM_ARFBRefresh_8188E(): RateID=%d RateMask=%8.8x RAUseRate=%8.8x HighestRate=%d\n",
-				pRaInfo->RateID, pRaInfo->RateMask, pRaInfo->RAUseRate, pRaInfo->HighestRate));
+				("ODM_ARFBRefresh_8188E(): RateID=%d RateMask=%8.8x RAUseRate=%8.8x HighestRate=%d,DecisionRate=%d \n",
+				pRaInfo->RateID, pRaInfo->RateMask, pRaInfo->RAUseRate, pRaInfo->HighestRate,pRaInfo->DecisionRate));
 	return 0;
 }
 
@@ -669,10 +681,35 @@ ODM_RAInfo_Init(
 	)
 {
 	PODM_RA_INFO_T pRaInfo = &pDM_Odm->RAInfo[MacID];
+	#if 1
+	u1Byte WirelessMode=0xFF; //invalid value
+	u1Byte max_rate_idx = 0x13; //MCS7
+	if(pDM_Odm->pWirelessMode!=NULL){
+		WirelessMode=*(pDM_Odm->pWirelessMode);
+	}
 
+	if(WirelessMode != 0xFF ){
+		if(WirelessMode & ODM_WM_N24G)
+			max_rate_idx = 0x13;
+		else if(WirelessMode & ODM_WM_G)
+			max_rate_idx = 0x0b;
+		else if(WirelessMode & ODM_WM_B)
+			max_rate_idx = 0x03;
+	}
+
+	//printk("%s ==>WirelessMode:0x%08x ,max_raid_idx:0x%02x\n ",__FUNCTION__,WirelessMode,max_rate_idx);
+	ODM_RT_TRACE(pDM_Odm,ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD,
+				("ODM_RAInfo_Init(): WirelessMode:0x%08x ,max_raid_idx:0x%02x \n",
+				WirelessMode,max_rate_idx));
+
+	pRaInfo->DecisionRate = max_rate_idx;
+	pRaInfo->PreRate = max_rate_idx;
+	pRaInfo->HighestRate=max_rate_idx;
+	#else
 	pRaInfo->DecisionRate = 0x13;
 	pRaInfo->PreRate = 0x13;
-	pRaInfo->HighestRate=0x13;
+	pRaInfo->HighestRate= 0x13;
+	#endif
 	pRaInfo->LowestRate=0;
 	pRaInfo->RateID=0;
 	pRaInfo->RateMask=0xffffffff;

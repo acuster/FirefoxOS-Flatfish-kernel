@@ -448,7 +448,7 @@
 #define		RF_TXRF_A2					0x41
 #define		RF_TXPA_G4					0x46
 #define		RF_TXPA_A4					0x4B
-
+#define 	RF_0x52 					0x52
 #define		RF_WE_LUT					0xEF
 
 
@@ -1067,8 +1067,8 @@
 //#define		bMask20Bits               0xfffff	// RF Reg mask bits T65 RF
 #define 		bRFRegOffsetMask			0xfffff
 
-//#define		bEnable                   0x1	// Useless
-//#define		bDisable                  0x0
+#define		bEnable                   0x1	// Useless
+#define		bDisable                  0x0
 
 #define		LeftAntenna               			0x0	// Useless
 #define		RightAntenna              		0x1

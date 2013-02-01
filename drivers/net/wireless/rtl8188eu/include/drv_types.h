@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -64,7 +64,8 @@ typedef struct _ADAPTER _adapter, ADAPTER,*PADAPTER;
 #include <wlan_bssdef.h>
 #include <rtw_xmit.h>
 #include <rtw_recv.h>
-#include <hal_init.h>
+#include <hal_intf.h>
+#include <hal_com.h>
 #include <rtw_qos.h>
 #include <rtw_security.h>
 #include <rtw_pwrctrl.h>
@@ -78,6 +79,12 @@ typedef struct _ADAPTER _adapter, ADAPTER,*PADAPTER;
 #include <rtw_led.h>
 #include <rtw_mlme_ext.h>
 #include <rtw_p2p.h>
+#include <rtw_tdls.h>
+#include <rtw_ap.h>
+
+#ifdef CONFIG_WAPI_SUPPORT
+#include <rtw_wapi.h>
+#endif
 
 #ifdef CONFIG_DRVEXT_MODULE
 #include <drvext_api.h>
@@ -196,7 +203,7 @@ struct registry_priv
 #endif
 
 #ifdef CONFIG_IOL
-	bool force_iol; //enable iol without other concern
+	u8 fw_iol; //enable iol without other concern
 #endif
 
 #ifdef CONFIG_DUALMAC_CONCURRENT
@@ -206,6 +213,17 @@ struct registry_priv
 #ifdef CONFIG_80211D
 	u8 enable80211d;
 #endif
+
+	u8 ifname[16];
+	u8 if2name[16];
+
+	u8 notch_filter;
+
+#ifdef CONFIG_SPECIAL_SETTING_FOR_FUNAI_TV
+	u8 force_ant;//0 normal,1 main,2 aux
+	u8 force_igi;//0 normal
+#endif
+
 };
 
 
@@ -220,15 +238,26 @@ struct registry_priv
 #ifdef CONFIG_SDIO_HCI
 #include <drv_types_sdio.h>
 #define INTF_DATA SDIO_DATA
+#elif defined(CONFIG_GSPI_HCI)
+#include <drv_types_gspi.h>
+#define INTF_DATA GSPI_DATA
 #endif
 
 struct dvobj_priv
 {
-	PADAPTER padapter;
+	_adapter *if1;
+	_adapter *if2;
 
 	//For 92D, DMDP have 2 interface.
 	u8	InterfaceNumber;
 	u8	NumInterfaces;
+
+	//In /Out Pipe information
+	int	RtInPipe[2];
+	int	RtOutPipe[3];
+	u8	Queue2Pipe[HW_QUEUE_ENTRY];//for out pipe mapping
+
+	u8	irq_alloc;
 
 /*-------- below is for SDIO INTERFACE --------*/
 
@@ -315,7 +344,6 @@ struct dvobj_priv
 
 	u16	irqline;
 	u8	irq_enabled;
-	u8	irq_alloc;
 	RT_ISR_CONTENT	isr_content;
 	_lock	irq_th_lock;
 
@@ -330,11 +358,33 @@ struct dvobj_priv
 	u8 	const_devicepci_aspm_setting;
 	u8 	b_support_aspm; // If it supports ASPM, Offset[560h] = 0x40, otherwise Offset[560h] = 0x00.
 	u8	b_support_backdoor;
+	u8 bdma64;
 #endif//PLATFORM_LINUX
 
 #endif//CONFIG_PCI_HCI
 };
 
+#ifdef PLATFORM_LINUX
+static struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
+{
+	/* todo: get interface type from dvobj and the return the dev accordingly */
+#ifdef RTW_DVOBJ_CHIP_HW_TYPE
+#endif
+
+#ifdef CONFIG_USB_HCI
+	return &dvobj->pusbintf->dev;
+#endif
+#ifdef CONFIG_SDIO_HCI
+	return &dvobj->intf_data.func->dev;
+#endif
+#ifdef CONFIG_GSPI_HCI
+	return &dvobj->intf_data.func->dev;
+#endif
+#ifdef CONFIG_PCI_HCI
+	return &dvobj->ppcidev->dev;
+#endif
+}
+#endif
 
 enum _IFACE_TYPE {
 	IFACE_PORT0, //mapping to port0 for C/D series chips
@@ -347,6 +397,22 @@ enum _ADAPTER_TYPE {
 	SECONDARY_ADAPTER,
 	MAX_ADAPTER,
 };
+
+#ifdef CONFIG_CONCURRENT_MODE
+struct co_data_priv{
+
+	//george@20120518
+	//current operating channel/bw/ch_offset
+	//save the correct ch/bw/ch_offset whatever the inputted values are
+	//when calling set_channel_bwmode() at concurrent mode
+	//for debug check or reporting to layer app (such as wpa_supplicant for nl80211)
+	u8 co_ch;
+	u8 co_bw;
+	u8 co_ch_offset;
+	u8 rsvd;
+
+};
+#endif //CONFIG_CONCURRENT_MODE
 
 typedef enum _DRIVER_STATE{
 	DRIVER_NORMAL = 0,
@@ -389,9 +455,9 @@ struct _ADAPTER{
 	int	bDongle;//build-in module or external dongle
 	u16 	chip_type;
 	u16	HardwareType;
-	u16	interface_type;//USB,SDIO,PCI
+	u16	interface_type;//USB,SDIO,SPI,PCI
 
-	struct 	dvobj_priv dvobjpriv;
+	struct dvobj_priv *dvobj;
 	struct	mlme_priv mlmepriv;
 	struct	mlme_ext_priv mlmeextpriv;
 	struct	cmd_priv	cmdpriv;
@@ -403,7 +469,6 @@ struct _ADAPTER{
 	struct	sta_priv	stapriv;
 	struct	security_priv	securitypriv;
 	struct	registry_priv	registrypriv;
-	struct	wlan_acl_pool	acl_list;
 	struct	pwrctrl_priv	pwrctrlpriv;
 	struct 	eeprom_priv eeprompriv;
 	struct	led_priv	ledpriv;
@@ -434,6 +499,16 @@ struct _ADAPTER{
 	struct tdls_info	tdlsinfo;
 #endif //CONFIG_TDLS
 
+#ifdef CONFIG_WAPI_SUPPORT
+	u8	WapiSupport;
+	RT_WAPI_T	wapiInfo;
+#endif
+
+
+#ifdef CONFIG_WFD
+	struct wifi_display_info wfd_info;
+#endif //CONFIG_WFD
+
 	PVOID			HalData;
 	u32 hal_data_sz;
 	struct hal_ops	HalFunc;
@@ -451,14 +526,15 @@ struct _ADAPTER{
 	u8	init_adpt_in_progress;
 	u8	bHaltInProgress;
 
-	_thread_hdl_	cmdThread;
-	_thread_hdl_	evtThread;
-	_thread_hdl_	xmitThread;
-	_thread_hdl_	recvThread;
+	_thread_hdl_ cmdThread;
+	_thread_hdl_ evtThread;
+	_thread_hdl_ xmitThread;
+	_thread_hdl_ recvThread;
 
-
-	NDIS_STATUS (*dvobj_init)(_adapter * adapter);
-	void (*dvobj_deinit)(_adapter * adapter);
+#ifndef PLATFORM_LINUX
+	NDIS_STATUS (*dvobj_init)(struct dvobj_priv *dvobj);
+	void (*dvobj_deinit)(struct dvobj_priv *dvobj);
+#endif
 
 	void (*intf_start)(_adapter * adapter);
 	void (*intf_stop)(_adapter * adapter);
@@ -504,6 +580,7 @@ struct _ADAPTER{
 	int net_closed;
 
 	u8 bFWReady;
+	u8 bBTFWReady;
 	u8 bReadPortCancel;
 	u8 bWritePortCancel;
 	u8 bRxRSSIDisplay;
@@ -511,9 +588,11 @@ struct _ADAPTER{
 	u8	bDisableAutosuspend;
 #endif
 
+	_adapter *pbuddy_adapter;
+
+	_mutex *hw_init_mutex;
 #if defined(CONFIG_CONCURRENT_MODE) || defined(CONFIG_DUALMAC_CONCURRENT)
 	u8 isprimary; //is primary adapter or not
-	_adapter *pbuddy_adapter;
 	u8 adapter_type;
 	u8 iface_type; //interface port type
 
@@ -521,7 +600,8 @@ struct _ADAPTER{
 	_mutex *ph2c_fwcmd_mutex;
 	_mutex *psetch_mutex;
 	_mutex *psetbw_mutex;
-	_mutex *hw_init_mutex;
+
+	struct co_data_priv *pcodatapriv;//data buffer shared among interfaces
 #endif
 
 #ifdef CONFIG_DUALMAC_CONCURRENT
@@ -556,7 +636,13 @@ struct _ADAPTER{
 
         u8    fix_rate;
 
+	unsigned char     in_cta_test;
+
 };
+
+#define adapter_to_dvobj(adapter) (adapter->dvobj)
+
+int rtw_handle_dualmac(_adapter *adapter, bool init);
 
 __inline static u8 *myid(struct eeprom_priv *peepriv)
 {

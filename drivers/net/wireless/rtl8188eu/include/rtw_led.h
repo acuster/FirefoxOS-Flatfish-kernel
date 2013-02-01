@@ -95,10 +95,11 @@ typedef enum _LED_STATE_871x{
 }LED_STATE_871x;
 
 typedef enum _LED_PIN_871x{
-	LED_PIN_GPIO0 = 0,
+	LED_PIN_NULL = 0,
 	LED_PIN_LED0 = 1,
 	LED_PIN_LED1 = 2,
 	LED_PIN_LED2 = 3,
+	LED_PIN_GPIO0 = 4,
 }LED_PIN_871x;
 
 typedef struct _LED_871x{
@@ -106,6 +107,7 @@ typedef struct _LED_871x{
 
 	LED_PIN_871x		LedPin;	// Identify how to implement this SW led.
 	LED_STATE_871x		CurrLedState; // Current LED state.
+	LED_STATE_871x		BlinkingLedState; // Next state for blinking, either RTW_LED_ON or RTW_LED_OFF are.
 
 	u8					bLedOn; // true if LED is ON, false if LED is OFF.
 
@@ -114,11 +116,10 @@ typedef struct _LED_871x{
 	u8					bLedWPSBlinkInProgress;
 
 	u32					BlinkTimes; // Number of times to toggle led state for blinking.
-	LED_STATE_871x		BlinkingLedState; // Next state for blinking, either RTW_LED_ON or RTW_LED_OFF are.
 
 	_timer				BlinkTimer; // Timer object for led blinking.
 
-#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 	u8					bSWLedCtrl;
 
 	// ALPHA, added by chiyoko, 20090106
@@ -130,7 +131,7 @@ typedef struct _LED_871x{
 	#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)|| defined PLATFORM_FREEBSD
 	_workitem			BlinkWorkItem; // Workitem used by BlinkTimer to manipulate H/W to blink LED.
 	#endif
-#endif //defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+#endif //defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 
 #if defined(CONFIG_PCI_HCI)
 	u8					bLedSlowBlinkInProgress;//added by vivi, for led new mode
@@ -138,7 +139,7 @@ typedef struct _LED_871x{
 
 } LED_871x, *PLED_871x;
 
-#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 
 #define IS_LED_WPS_BLINKING(_LED_871x)	(((PLED_871x)_LED_871x)->CurrLedState==LED_BLINK_WPS \
 					|| ((PLED_871x)_LED_871x)->CurrLedState==LED_BLINK_WPS_STOP \
@@ -162,7 +163,13 @@ typedef	enum _LED_STRATEGY_871x{
 	HW_LED = 50, // HW control 2 LEDs, LED0 and LED1 (there are 4 different control modes, see MAC.CONFIG1 for details.)
 	LED_ST_NONE = 99,
 }LED_STRATEGY_871x, *PLED_STRATEGY_871x;
-#endif //defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+
+void
+LedControl871x(
+	_adapter				*padapter,
+	LED_CTL_MODE		LedAction
+	);
+#endif //defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 
 #if defined(CONFIG_PCI_HCI)
 //================================================================================
@@ -206,6 +213,24 @@ struct led_priv{
 #define rtw_led_control(adapter, LedAction)
 #endif //CONFIG_SW_LED
 
+void BlinkTimerCallback(void *data);
+void BlinkWorkItemCallback(struct work_struct *work);
+
+void ResetLedStatus(PLED_871x pLed);
+
+void
+InitLed871x(
+	_adapter			*padapter,
+	PLED_871x		pLed,
+	LED_PIN_871x	LedPin
+	);
+
+void
+DeInitLed871x(
+	PLED_871x			pLed
+	);
+
+//hal...
 extern void BlinkHandler(PLED_871x	 pLed);
 
 #endif //__RTW_LED_H_

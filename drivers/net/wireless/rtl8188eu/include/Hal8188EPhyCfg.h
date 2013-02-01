@@ -34,10 +34,10 @@
 #define HP_THERMAL_NUM		8
 
 #ifdef CONFIG_PCI_HCI
-#define MAX_AGGR_NUM	0x0A0A
+#define MAX_AGGR_NUM	0x0B
 #else
-#define MAX_AGGR_NUM	0x0909
-#endif
+#define MAX_AGGR_NUM	0x07
+#endif // CONFIG_PCI_HCI
 
 
 /*--------------------------Define Parameters-------------------------------*/

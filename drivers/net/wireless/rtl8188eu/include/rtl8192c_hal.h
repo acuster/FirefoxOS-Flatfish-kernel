@@ -345,101 +345,8 @@ typedef enum _USB_RX_AGG_MODE{
 #define CHIP_BONDING_88C_USB_MCARD	0x2
 #define CHIP_BONDING_88C_USB_HP	0x1
 
-#ifdef CONFIG_CHIP_VER_INTEGRATION
 #include "HalVerDef.h"
 #include "hal_com.h"
-#else
-//
-// 2011.01.06. Define new structure of chip version for RTL8723 and so on. Added by tynli.
-//
-/*
-     | BIT15:12           |  BIT11:8        | BIT 7              |  BIT6:4  |      BIT3          | BIT2:0  |
-     |-------------+-----------+-----------+-------+-----------+-------|
-     | IC version(CUT)  | ROM version  | Manufacturer  | RF type  |  Chip type       | IC Type |
-     |                           |                      | TSMC/UMC    |              | TEST/NORMAL|             |
-*/
-// [15:12] IC version(CUT): A-cut=0, B-cut=1, C-cut=2, D-cut=3
-// [7] Manufacturer: TSMC=0, UMC=1
-// [6:4] RF type: 1T1R=0, 1T2R=1, 2T2R=2
-// [3] Chip type: TEST=0, NORMAL=1
-// [2:0] IC type: 81xxC=0, 8723=1, 92D=2
-
-#define CHIP_8723						BIT(0)
-#define CHIP_92D						BIT(1)
-#define NORMAL_CHIP  					BIT(3)
-#define RF_TYPE_1T1R					(~(BIT(4)|BIT(5)|BIT(6)))
-#define RF_TYPE_1T2R					BIT(4)
-#define RF_TYPE_2T2R					BIT(5)
-#define CHIP_VENDOR_UMC				BIT(7)
-#define B_CUT_VERSION					BIT(12)
-#define C_CUT_VERSION					BIT(13)
-#define D_CUT_VERSION					((BIT(13)|BIT(14)))
-
-
-// MASK
-#define IC_TYPE_MASK					(BIT(0)|BIT(1)|BIT(2))
-#define CHIP_TYPE_MASK 				BIT(3)
-#define RF_TYPE_MASK					(BIT(4)|BIT(5)|BIT(6))
-#define MANUFACTUER_MASK			BIT(7)
-#define ROM_VERSION_MASK				(BIT(11)|BIT(10)|BIT(9)|BIT(8))
-#define CUT_VERSION_MASK				(BIT(15)|BIT(14)|BIT(13)|BIT(12))
-
-// Get element
-#define GET_CVID_IC_TYPE(version)			((version) & IC_TYPE_MASK)
-#define GET_CVID_CHIP_TYPE(version)			((version) & CHIP_TYPE_MASK)
-#define GET_CVID_RF_TYPE(version)			((version) & RF_TYPE_MASK)
-#define GET_CVID_MANUFACTUER(version)		((version) & MANUFACTUER_MASK)
-#define GET_CVID_ROM_VERSION(version)		((version) & ROM_VERSION_MASK)
-#define GET_CVID_CUT_VERSION(version)		((version) & CUT_VERSION_MASK)
-
-#define IS_81XXC(version)					((GET_CVID_IC_TYPE(version) == 0)? _TRUE : _FALSE)
-#define IS_8723_SERIES(version)				((GET_CVID_IC_TYPE(version) == CHIP_8723)? _TRUE : _FALSE)
-#define IS_92D(version)						((GET_CVID_IC_TYPE(version) == CHIP_92D)? _TRUE : _FALSE)
-#define IS_1T1R(version)						((GET_CVID_RF_TYPE(version))? _FALSE : _TRUE)
-#define IS_1T2R(version)						((GET_CVID_RF_TYPE(version) == RF_TYPE_1T2R)? _TRUE : _FALSE)
-#define IS_2T2R(version)						((GET_CVID_RF_TYPE(version) == RF_TYPE_2T2R)? _TRUE : _FALSE)
-#define IS_NORMAL_CHIP(version)				((GET_CVID_CHIP_TYPE(version))? _TRUE: _FALSE)
-#define IS_CHIP_VENDOR_UMC(version)			((GET_CVID_MANUFACTUER(version))? _TRUE: _FALSE)
-
-#define IS_81XXC_TEST_CHIP(version)			((IS_81XXC(version) && (!IS_NORMAL_CHIP(version)))? _TRUE: _FALSE)
-#define IS_92D_TEST_CHIP(version)				((IS_92D(version) && (!IS_NORMAL_CHIP(version)))? _TRUE: _FALSE)
-#define IS_92C_SERIAL(version)   				((IS_81XXC(version) && IS_2T2R(version)) ? _TRUE : _FALSE)
-
-#define IS_VENDOR_8723_A_CUT(version)		((IS_8723_SERIES(version)) ? ((GET_CVID_CUT_VERSION(version)) ? _FALSE : _TRUE) : _FALSE)
-// <tynli_Note> 88/92C UMC B-cut vendor is set to TSMC so we need to check CHIP_VENDOR_UMC bit is not 1.
-
-#define IS_81xxC_VENDOR_UMC_A_CUT(version)	(IS_81XXC(version)?((IS_CHIP_VENDOR_UMC(version)) ? ((GET_CVID_CUT_VERSION(version)) ? _FALSE : _TRUE) : _FALSE):_FALSE)
-#define IS_81xxC_VENDOR_UMC_B_CUT(version)	((IS_CHIP_VENDOR_UMC(version)) ? ((GET_CVID_CUT_VERSION(version) == B_CUT_VERSION) ? _TRUE : _FALSE):_FALSE)
-#define IS_92D_SINGLEPHY(version)     			((IS_92D(version)) ? (IS_2T2R(version) ? _TRUE: _FALSE) : _FALSE)
-#define IS_92D_C_CUT(version)    				((IS_92D(version)) ? ((GET_CVID_CUT_VERSION(version) == 0x2) ? _TRUE : _FALSE) : _FALSE)
-#define IS_92D_D_CUT(version)    				((IS_92D(version)) ? ((GET_CVID_CUT_VERSION(version) == 0x3) ? _TRUE : _FALSE) : _FALSE)
-
-typedef enum _VERSION_8192C{
-	VERSION_TEST_CHIP_88C = 0x0000,
-	VERSION_TEST_CHIP_92C = 0x0020,
-	VERSION_TEST_UMC_CHIP_8723 = 0x0081,
-	VERSION_NORMAL_TSMC_CHIP_88C = 0x0008,
-	VERSION_NORMAL_TSMC_CHIP_92C = 0x0028,
-	VERSION_NORMAL_TSMC_CHIP_92C_1T2R = 0x0018,
-	VERSION_NORMAL_UMC_CHIP_88C_A_CUT = 0x0088,
-	VERSION_NORMAL_UMC_CHIP_92C_A_CUT = 0x00a8,
-	VERSION_NORMAL_UMC_CHIP_92C_1T2R_A_CUT = 0x0098,
-	VERSION_NORMAL_UMC_CHIP_8723_1T1R_A_CUT = 0x0089,
-	VERSION_NORMAL_UMC_CHIP_8723_1T1R_B_CUT = 0x1089,
-	VERSION_NORMAL_UMC_CHIP_88C_B_CUT = 0x1088,
-	VERSION_NORMAL_UMC_CHIP_92C_B_CUT = 0x10a8,
-	VERSION_NORMAL_UMC_CHIP_92C_1T2R_B_CUT = 0x1090,
-	VERSION_TEST_CHIP_92D_SINGLEPHY= 0x0022,
-	VERSION_TEST_CHIP_92D_DUALPHY = 0x0002,
-	VERSION_NORMAL_CHIP_92D_SINGLEPHY= 0x002a,
-	VERSION_NORMAL_CHIP_92D_DUALPHY = 0x000a,
-	VERSION_NORMAL_CHIP_92D_C_CUT_SINGLEPHY = 0x202a,
-	VERSION_NORMAL_CHIP_92D_C_CUT_DUALPHY = 0x200a,
-	VERSION_NORMAL_CHIP_92D_D_CUT_SINGLEPHY = 0x302a,
-	VERSION_NORMAL_CHIP_92D_D_CUT_DUALPHY = 0x300a,
-}VERSION_8192C,*PVERSION_8192C;
-
-#endif //ifdef CONFIG_CHIP_VER_INTEGRATION
 
 //-------------------------------------------------------------------------
 //	Channel Plan
@@ -521,14 +428,25 @@ typedef enum _RT_REGULATOR_MODE{
 	RT_LDO_REGULATOR = 1,
 }RT_REGULATOR_MODE,*PRT_REGULATOR_MODE;
 
+enum c2h_id_8192c {
+	C2H_DBG = 0,
+	C2H_TSF = 1,
+	C2H_AP_RPT_RSP = 2,
+	C2H_CCX_TX_RPT = 3,
+	C2H_BT_RSSI = 4,
+	C2H_BT_OP_MODE = 5,
+	C2H_EXT_RA_RPT = 6,
+	C2H_HW_INFO_EXCH = 10,
+	C2H_C2H_H2C_TEST = 11,
+	C2H_BT_INFO = 12,
+	C2H_BT_MP_INFO = 15,
+	MAX_C2HEVENT
+};
+
 #ifdef CONFIG_PCI_HCI
 struct hal_data_8192ce
 {
-#ifdef CONFIG_CHIP_VER_INTEGRATION
 	HAL_VERSION			VersionID;
-#else
-	VERSION_8192C		VersionID;
-#endif
 	RT_MULTI_FUNC		MultiFunc; // For multi-function consideration.
 	RT_POLARITY_CTL		PolarityCtl; // For Wifi PDn Polarity control.
 	RT_REGULATOR_MODE	RegulatorMode; // switching regulator or LDO
@@ -718,11 +636,7 @@ VOID UpdateInterruptMask8192CE(PADAPTER Adapter, u32 AddMSR, u32 AddMSR1, u32 Re
 #ifdef CONFIG_USB_HCI
 struct hal_data_8192cu
 {
-#ifdef CONFIG_CHIP_VER_INTEGRATION
 	HAL_VERSION VersionID;
-#else
-	VERSION_8192C		VersionID;
-#endif
 	RT_MULTI_FUNC		MultiFunc; // For multi-function consideration.
 	RT_POLARITY_CTL		PolarityCtl; // For Wifi PDn Polarity control.
 	RT_REGULATOR_MODE	RegulatorMode; // switching regulator or LDO
@@ -769,7 +683,7 @@ struct hal_data_8192cu
 	u8	TxPwrLevelCck[RF_PATH_MAX][CHANNEL_MAX_NUMBER];
 	u8	TxPwrLevelHT40_1S[RF_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
 	u8	TxPwrLevelHT40_2S[RF_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
-	u8	TxPwrHt20Diff[RF_PATH_MAX][CHANNEL_MAX_NUMBER];// HT 20<->40 Pwr diff
+	s8	TxPwrHt20Diff[RF_PATH_MAX][CHANNEL_MAX_NUMBER];// HT 20<->40 Pwr diff
 	u8	TxPwrLegacyHtDiff[RF_PATH_MAX][CHANNEL_MAX_NUMBER];// For HT<->legacy pwr diff
 	// For power group
 	u8	PwrGroupHT20[RF_PATH_MAX][CHANNEL_MAX_NUMBER];
@@ -868,16 +782,11 @@ struct hal_data_8192cu
 
 	u32	UsbBulkOutSize;
 
-	int	RtBulkOutPipe[3];
-	int	RtBulkInPipe;
-	int	RtIntInPipe;
 	// Add for dual MAC  0--Mac0 1--Mac1
 	u32	interfaceIndex;
 
 	u8	OutEpQueueSel;
 	u8	OutEpNumber;
-
-	u8	Queue2EPNum[8];//for out endpoint number mapping
 
 #ifdef CONFIG_USB_TX_AGGREGATION
 	u8	UsbTxAggMode;
@@ -929,16 +838,12 @@ VOID InitializeFirmwareVars92C(PADAPTER Adapter);
 u8 GetEEPROMSize8192C(PADAPTER Adapter);
 void rtl8192c_EfuseParseChnlPlan(PADAPTER padapter, u8 *hwinfo, BOOLEAN AutoLoadFail);
 
-#ifdef CONFIG_CHIP_VER_INTEGRATION
-HAL_VERSION
-#else
-VERSION_8192C
-#endif
-rtl8192c_ReadChipVersion(IN PADAPTER Adapter);
+HAL_VERSION rtl8192c_ReadChipVersion(IN PADAPTER Adapter);
 void rtl8192c_ReadBluetoothCoexistInfo(PADAPTER Adapter, u8 *PROMContent, BOOLEAN AutoloadFail);
-void rtl8192c_HalSetBrateCfg(PADAPTER Adapter, u8 *mBratesOS, u16 *pBrateCfg);
 //void rtl8192c_free_hal_data(_adapter * padapter);
 VOID rtl8192c_EfuseParseIDCode(PADAPTER pAdapter, u8 *hwinfo);
 void rtl8192c_set_hal_ops(struct hal_ops *pHalFunc);
+void	rtl8192c_clone_haldata(_adapter* dst_adapter, _adapter* src_adapter);
 
+s32 c2h_id_filter_ccx_8192c(u8 id);
 #endif

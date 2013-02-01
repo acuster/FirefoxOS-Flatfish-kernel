@@ -196,6 +196,8 @@ static s32 get_usb_cfg(struct sw_hci_hcd *sw_hci)
 	    u32 usb_wifi_usbc_num  = 0;
 	    u32 usb_wifi_usbc_type = 0;
 
+        sw_hci->used = 0;
+
 		type = script_get_item("wifi_para", "wifi_used", &item_temp);
 		if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
 			usb_wifi_used = item_temp.val;
@@ -224,11 +226,9 @@ static s32 get_usb_cfg(struct sw_hci_hcd *sw_hci)
 			}
 
 	        /* 只开wifi使用的那个模组 */
-	        if(sw_hci->usbc_no == usb_wifi_usbc_num){
-	            sw_hci->used = 0;
-	            if(sw_hci->usbc_type == usb_wifi_usbc_type){
-	                sw_hci->used = 1;
-	            }
+	        if(sw_hci->usbc_no == usb_wifi_usbc_num &&
+	            sw_hci->usbc_type == usb_wifi_usbc_type){
+	            sw_hci->used = 1;
 	        }
 	    }
 	}
@@ -1024,28 +1024,26 @@ static void sw_set_vbus(struct sw_hci_hcd *sw_hci, int is_on)
               (sw_hci->usbc_no == 1) ? usb1_set_vbus_cnt : usb2_set_vbus_cnt);
 
     if(sw_hci->usbc_no == 1){
-        if(is_on && usb1_set_vbus_cnt == 0){
-            __set_vbus(sw_hci, is_on);  /* power on */
-        }else if(!is_on && usb1_set_vbus_cnt == 1){
-            __set_vbus(sw_hci, is_on);  /* power off */
-        }
-
         if(is_on){
             usb1_set_vbus_cnt++;
         }else{
             usb1_set_vbus_cnt--;
         }
-    }else if(sw_hci->usbc_no == 2){
-        if(is_on && usb2_set_vbus_cnt == 0){
+        if(is_on && usb1_set_vbus_cnt == 1){
             __set_vbus(sw_hci, is_on);  /* power on */
-        }else if(!is_on && usb2_set_vbus_cnt == 1){
+        }else if(!is_on && usb1_set_vbus_cnt == 0){
             __set_vbus(sw_hci, is_on);  /* power off */
         }
-
+    }else if(sw_hci->usbc_no == 2){
         if(is_on){
             usb2_set_vbus_cnt++;
         }else{
             usb2_set_vbus_cnt--;
+        }
+        if(is_on && usb2_set_vbus_cnt == 1){
+            __set_vbus(sw_hci, is_on);  /* power on */
+        }else if(!is_on && usb2_set_vbus_cnt == 0){
+            __set_vbus(sw_hci, is_on);  /* power off */
         }
     }
 
@@ -1152,13 +1150,12 @@ static void print_sw_hci(struct sw_hci_hcd *sw_hci)
 	DMSG_DEBUG("used                 = %d\n", sw_hci->used);
 	DMSG_DEBUG("host_init_state      = %d\n", sw_hci->host_init_state);
 
-	DMSG_DEBUG("gpio_name            = %s\n", sw_hci->drv_vbus_gpio_set.gpio_name);
-	DMSG_DEBUG("port                 = %d\n", sw_hci->drv_vbus_gpio_set.port);
-	DMSG_DEBUG("port_num             = %d\n", sw_hci->drv_vbus_gpio_set.port_num);
-	DMSG_DEBUG("mul_sel              = %d\n", sw_hci->drv_vbus_gpio_set.mul_sel);
-	DMSG_DEBUG("pull                 = %d\n", sw_hci->drv_vbus_gpio_set.pull);
-	DMSG_DEBUG("drv_level            = %d\n", sw_hci->drv_vbus_gpio_set.drv_level);
-	DMSG_DEBUG("data                 = %d\n", sw_hci->drv_vbus_gpio_set.data);
+
+	DMSG_DEBUG("port_num             = %d\n", sw_hci->drv_vbus_gpio_set.gpio.gpio);
+	DMSG_DEBUG("mul_sel              = %d\n", sw_hci->drv_vbus_gpio_set.gpio.mul_sel);
+	DMSG_DEBUG("pull                 = %d\n", sw_hci->drv_vbus_gpio_set.gpio.pull);
+	DMSG_DEBUG("drv_level            = %d\n", sw_hci->drv_vbus_gpio_set.gpio.drv_level);
+	DMSG_DEBUG("data                 = %d\n", sw_hci->drv_vbus_gpio_set.gpio.data);
 
 	DMSG_DEBUG("\n--------------------------\n");
 
@@ -1273,6 +1270,7 @@ static int exit_sw_hci(struct sw_hci_hcd *sw_hci, u32 ohci)
 */
 static int __init sw_hci_sun4i_init(void)
 {
+    printk("[%s %d]\n", __func__, __LINE__);
     /* USB1 */
     init_sw_hci(&sw_ehci0, 1, 0, ehci_name);
     init_sw_hci(&sw_ohci0, 1, 1, ohci_name);

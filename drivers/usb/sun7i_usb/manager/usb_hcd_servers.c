@@ -46,7 +46,6 @@ int sw_usb_enable_ohci(__u32 usbc_no);
 */
 int sw_usb_disable_hcd(__u32 usbc_no)
 {
-#ifndef  SW_USB_FPGA
 	if(usbc_no == 0){
 #if defined(CONFIG_USB_SW_SUN7I_USB0_OTG) || defined(USB_SW_SUN7I_USB0_HOST_ONLY)
 		sw_usb_disable_hcd0();
@@ -71,7 +70,7 @@ int sw_usb_disable_hcd(__u32 usbc_no)
 		DMSG_PANIC("ERR: unkown usbc_no(%d)\n", usbc_no);
 		return -1;
 	}
-#endif
+
     return 0;
 }
 EXPORT_SYMBOL(sw_usb_disable_hcd);
@@ -96,7 +95,6 @@ EXPORT_SYMBOL(sw_usb_disable_hcd);
 */
 int sw_usb_enable_hcd(__u32 usbc_no)
 {
-#ifndef  SW_USB_FPGA
 	if(usbc_no == 0){
 #if defined(CONFIG_USB_SW_SUN7I_USB0_OTG) || defined(USB_SW_SUN7I_USB0_HOST_ONLY)
 		sw_usb_enable_hcd0();
@@ -121,7 +119,7 @@ int sw_usb_enable_hcd(__u32 usbc_no)
 		DMSG_PANIC("ERR: unkown usbc_no(%d)\n", usbc_no);
 		return -1;
 	}
-#endif
+
     return 0;
 }
 EXPORT_SYMBOL(sw_usb_enable_hcd);

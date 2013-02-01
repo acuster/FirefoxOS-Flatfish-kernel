@@ -24,8 +24,9 @@
 #include <basic_types.h>
 //#include <rtl871x_byteorder.h>
 
-#define _SUCCESS	1
 #define _FAIL		0
+#define _SUCCESS	1
+#define RTW_RX_HANDLED 2
 //#define RTW_STATUS_TIMEDOUT -110
 
 #undef _TRUE
@@ -560,7 +561,7 @@ struct urb *rtw_usb_alloc_urb(uint16_t iso_packets, uint16_t mem_flags);
 struct usb_host_endpoint *rtw_usb_find_host_endpoint(struct usb_device *dev, uint8_t type, uint8_t ep);
 struct usb_host_interface *rtw_usb_altnum_to_altsetting(const struct usb_interface *intf, uint8_t alt_index);
 struct usb_interface *rtw_usb_ifnum_to_if(struct usb_device *dev, uint8_t iface_no);
-void *rtw_usb_buffer_alloc(struct usb_device *dev, usb_size_t size, uint16_t mem_flags, uint8_t *dma_addr);
+void *rtw_usb_buffer_alloc(struct usb_device *dev, usb_size_t size, uint8_t *dma_addr);
 void *rtw_usbd_get_intfdata(struct usb_interface *intf);
 void rtw_usb_linux_register(void *arg);
 void rtw_usb_linux_deregister(void *arg);
@@ -612,16 +613,6 @@ typedef unsigned gfp_t;
 
 
 #endif // kenny add Linux compatibility code for Linux USB
-
-
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
-	#define DMA_BIT_MASK(n) (((n) == 64) ? ~0ULL : ((1ULL<<(n))-1))
-#endif
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22))
-	#define skb_tail_pointer(skb)	skb->tail
-#endif
 
 __inline static _list *get_next(_list	*list)
 {
@@ -787,6 +778,9 @@ __inline static void _set_workitem(_workitem *pwork)
 	#include <linux/delay.h>
 	#include <linux/proc_fs.h>	// Necessary because we use the proc fs
 	#include <linux/interrupt.h>	// for struct tasklet_struct
+	#include <linux/ip.h>
+	#include <linux/kthread.h>
+
 
 #ifdef CONFIG_IOCTL_CFG80211
 //	#include <linux/ieee80211.h>
@@ -796,7 +790,6 @@ __inline static void _set_workitem(_workitem *pwork)
 
 #ifdef CONFIG_TCP_CSUM_OFFLOAD_TX
 	#include <linux/in.h>
-	#include <linux/ip.h>
 	#include <linux/udp.h>
 #endif
 
@@ -847,7 +840,7 @@ __inline static void _set_workitem(_workitem *pwork)
 	typedef unsigned long _irqL;
 	typedef	struct	net_device * _nic_hdl;
 
-	typedef pid_t		_thread_hdl_;
+	typedef void*		_thread_hdl_;
 	typedef int		thread_return;
 	typedef void*	thread_context;
 
@@ -862,7 +855,26 @@ __inline static void _set_workitem(_workitem *pwork)
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22))
-	#define skb_tail_pointer(skb)	skb->tail
+// Porting from linux kernel, for compatible with old kernel.
+static inline unsigned char *skb_tail_pointer(const struct sk_buff *skb)
+{
+	return skb->tail;
+}
+
+static inline void skb_reset_tail_pointer(struct sk_buff *skb)
+{
+	skb->tail = skb->data;
+}
+
+static inline void skb_set_tail_pointer(struct sk_buff *skb, const int offset)
+{
+	skb->tail = skb->data + offset;
+}
+
+static inline unsigned char *skb_end_pointer(const struct sk_buff *skb)
+{
+	return skb->end;
+}
 #endif
 
 __inline static _list *get_next(_list	*list)
@@ -910,13 +922,16 @@ __inline static void _exit_critical_bh(_lock *plock, _irqL *pirqL)
 	spin_unlock_bh(plock);
 }
 
-__inline static void _enter_critical_mutex(_mutex *pmutex, _irqL *pirqL)
+__inline static int _enter_critical_mutex(_mutex *pmutex, _irqL *pirqL)
 {
+	int ret = 0;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
-		mutex_lock(pmutex);
+	//mutex_lock(pmutex);
+	ret = mutex_lock_interruptible(pmutex);
 #else
-		down(pmutex);
+	ret = down_interruptible(pmutex);
 #endif
+	return ret;
 }
 
 
@@ -977,6 +992,14 @@ __inline static void _set_workitem(_workitem *pwork)
 	schedule_work(pwork);
 }
 
+__inline static void _cancel_workitem_sync(_workitem *pwork)
+{
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,22))
+	cancel_work_sync(pwork);
+#else
+	flush_scheduled_work();
+#endif
+}
 //
 // Global Mutex: can only be used at PASSIVE level.
 //
@@ -993,6 +1016,45 @@ __inline static void _set_workitem(_workitem *pwork)
 #define RELEASE_GLOBAL_MUTEX(_MutexCounter)                              \
 {                                                               \
 	atomic_dec((atomic_t *)&(_MutexCounter));        \
+}
+
+static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
+{
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
+	return (netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 0)) &&
+		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 1)) &&
+		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 2)) &&
+		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 3)) );
+#else
+	return netif_queue_stopped(pnetdev);
+#endif
+}
+
+static inline void rtw_netif_wake_queue(struct net_device *pnetdev)
+{
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
+	netif_tx_wake_all_queues(pnetdev);
+#else
+	netif_wake_queue(pnetdev);
+#endif
+}
+
+static inline void rtw_netif_start_queue(struct net_device *pnetdev)
+{
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
+	netif_tx_start_all_queues(pnetdev);
+#else
+	netif_start_queue(pnetdev);
+#endif
+}
+
+static inline void rtw_netif_stop_queue(struct net_device *pnetdev)
+{
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
+	netif_tx_stop_all_queues(pnetdev);
+#else
+	netif_stop_queue(pnetdev);
+#endif
 }
 
 #endif	// PLATFORM_LINUX
@@ -1310,6 +1372,7 @@ extern u32	rtw_end_of_queue_search(_list *queue, _list *pelement);
 
 extern u32	rtw_get_current_time(void);
 extern u32	rtw_systime_to_ms(u32 systime);
+extern u32	rtw_ms_to_systime(u32 ms);
 extern s32	rtw_get_passing_time_ms(u32 start);
 extern s32	rtw_get_time_interval_ms(u32 start, u32 end);
 
@@ -1317,6 +1380,8 @@ extern void	rtw_sleep_schedulable(int ms);
 
 extern void	rtw_msleep_os(int ms);
 extern void	rtw_usleep_os(int us);
+
+extern u32 	rtw_atoi(u8* s);
 
 #ifdef DBG_DELAY_OS
 #define rtw_mdelay_os(ms) _rtw_mdelay_os((ms), __FUNCTION__, __LINE__)
@@ -1348,21 +1413,21 @@ __inline static unsigned char _cancel_timer_ex(_timer *ptimer)
 	return bcancelled;
 #endif
 }
+
 #ifdef PLATFORM_FREEBSD
-static __inline void thread_enter(void *context);
+static __inline void thread_enter(char *name);
 #endif //PLATFORM_FREEBSD
-static __inline void thread_enter(void *context)
+static __inline void thread_enter(char *name)
 {
 #ifdef PLATFORM_LINUX
-	//struct net_device *pnetdev = (struct net_device *)context;
-	//daemonize("%s", pnetdev->name);
-	daemonize("%s", "RTKTHREAD");
+	daemonize("%s", name);
 	allow_signal(SIGTERM);
 #endif
 #ifdef PLATFORM_FREEBSD
 	printf("%s", "RTKTHREAD_enter");
 #endif
 }
+
 #ifdef PLATFORM_FREEBSD
 #define thread_exit() do{printf("%s", "RTKTHREAD_exit");}while(0)
 #endif //PLATFORM_FREEBSD
@@ -1497,7 +1562,9 @@ extern void rtw_suspend_lock_init(void);
 extern void rtw_suspend_lock_uninit(void);
 extern void rtw_lock_suspend(void);
 extern void rtw_unlock_suspend(void);
-
+#ifdef CONFIG_WOWLAN
+extern void rtw_lock_suspend_timeout(long timeout);
+#endif //CONFIG_WOWLAN
 
 //Atomic integer operations
 #ifdef PLATFORM_LINUX
@@ -1556,6 +1623,26 @@ extern void rtw_free_netdev(struct net_device * netdev);
 #define rtw_netdev_priv(netdev) (((struct ifnet *)netdev)->if_softc)
 #define rtw_free_netdev(netdev) if_free((netdev))
 #endif //PLATFORM_FREEBSD
+#endif
+
+#ifdef PLATFORM_LINUX
+#define NDEV_FMT "%s"
+#define NDEV_ARG(ndev) ndev->name
+#define ADPT_FMT "%s"
+#define ADPT_ARG(adapter) adapter->pnetdev->name
+#define FUNC_NDEV_FMT "%s(%s)"
+#define FUNC_NDEV_ARG(ndev) __func__, ndev->name
+#define FUNC_ADPT_FMT "%s(%s)"
+#define FUNC_ADPT_ARG(adapter) __func__, adapter->pnetdev->name
+#else
+#define NDEV_FMT "%s"
+#define NDEV_ARG(ndev) ""
+#define ADPT_FMT "%s"
+#define ADPT_ARG(adapter) ""
+#define FUNC_NDEV_FMT "%s"
+#define FUNC_NDEV_ARG(ndev) __func__
+#define FUNC_ADPT_FMT "%s"
+#define FUNC_ADPT_ARG(adapter) __func__
 #endif
 
 #ifdef PLATFORM_LINUX
@@ -1635,5 +1722,22 @@ extern u64 rtw_division64(u64 x, u64 y);
 			 (((u64) (a)[5]) << 40) | (((u64) (a)[4]) << 32) | \
 			 (((u64) (a)[3]) << 24) | (((u64) (a)[2]) << 16) | \
 			 (((u64) (a)[1]) << 8) | ((u64) (a)[0]))
+
+void rtw_buf_free(u8 **buf, u32 *buf_len);
+void rtw_buf_update(u8 **buf, u32 *buf_len, u8 *src, u32 src_len);
+
+struct rtw_cbuf {
+	u32 write;
+	u32 read;
+	u32 size;
+	void *bufs[0];
+};
+
+bool rtw_cbuf_full(struct rtw_cbuf *cbuf);
+bool rtw_cbuf_empty(struct rtw_cbuf *cbuf);
+bool rtw_cbuf_push(struct rtw_cbuf *cbuf, void *buf);
+void *rtw_cbuf_pop(struct rtw_cbuf *cbuf);
+struct rtw_cbuf *rtw_cbuf_alloc(u32 size);
+void rtw_cbuf_free(struct rtw_cbuf *cbuf);
 
 #endif

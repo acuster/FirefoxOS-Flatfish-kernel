@@ -31,7 +31,17 @@
 	#define NR_RECVBUFF (4)
 #else
 
-	#define NR_RECVBUFF (4)
+	#if defined(CONFIG_GSPI_HCI)
+		#define NR_RECVBUFF (32)
+	#elif defined(CONFIG_SDIO_HCI)
+		#define NR_RECVBUFF (8)
+	#else
+	#ifdef CONFIG_SINGLE_RECV_BUF
+		#define NR_RECVBUFF (1)
+	#else
+		#define NR_RECVBUFF (4)
+	#endif //CONFIG_SINGLE_RECV_BUF
+	#endif
 
 	#define NR_PREALLOC_RECV_SKB (8)
 #endif
@@ -67,6 +77,11 @@
 #define RX_MPDU_QUEUE				0
 #define RX_CMD_QUEUE				1
 #define RX_MAX_QUEUE				2
+
+#elif defined(CONFIG_SDIO_HCI)
+
+#define MAX_RECVBUF_SZ (10240)
+
 #endif
 
 

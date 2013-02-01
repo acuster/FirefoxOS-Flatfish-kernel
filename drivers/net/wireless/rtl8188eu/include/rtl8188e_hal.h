@@ -41,6 +41,11 @@
 	// Fw Array
 	#define Rtl8188E_FwImageArray				Rtl8188EFwImgArray
 	#define Rtl8188E_FWImgArrayLength			Rtl8188EFWImgArrayLength
+#ifdef CONFIG_WOWLAN
+	#define Rtl8188E_FwWoWImageArray			Array_8188E_FW_WoWLAN
+	#define Rtl8188E_FwWoWImgArrayLength		ArrayLength_8188E_FW_WoWLAN
+#endif //CONFIG_WOWLAN
+
 
 #ifdef CONFIG_SDIO_HCI
 
@@ -170,6 +175,11 @@ typedef struct _RT_FIRMWARE {
 	u8			szFwBuffer[FW_8188E_SIZE];
 #endif
 	u32			ulFwLength;
+
+#ifdef CONFIG_WOWLAN
+	u8*			szWoWLANFwBuffer;
+	u32			ulWoWLANFwLength;
+#endif //CONFIG_WOWLAN
 } RT_FIRMWARE, *PRT_FIRMWARE, RT_FIRMWARE_8188E, *PRT_FIRMWARE_8188E;
 
 //
@@ -265,12 +275,9 @@ typedef enum _USB_RX_AGG_MODE{
 #define CHIP_BONDING_92C_1T2R	0x1
 #define CHIP_BONDING_88C_USB_MCARD	0x2
 #define CHIP_BONDING_88C_USB_HP	0x1
-#ifdef CONFIG_CHIP_VER_INTEGRATION
 #include "HalVerDef.h"
 #include "hal_com.h"
-#else
-//do nothing
-#endif //CONFIG_CHIP_VER_INTEGRATION
+
 //-------------------------------------------------------------------------
 //	Channel Plan
 //-------------------------------------------------------------------------
@@ -382,11 +389,7 @@ typedef enum _RT_REGULATOR_MODE {
 
 typedef struct hal_data_8188e
 {
-#ifdef CONFIG_CHIP_VER_INTEGRATION
 	HAL_VERSION			VersionID;
-#else
-	VERSION_8192C		VersionID;
-#endif
 	RT_MULTI_FUNC		MultiFunc; // For multi-function consideration.
 	RT_POLARITY_CTL		PolarityCtl; // For Wifi PDn Polarity control.
 	RT_REGULATOR_MODE	RegulatorMode; // switching regulator or LDO
@@ -534,8 +537,6 @@ typedef struct hal_data_8188e
 	u8	OutEpQueueSel;
 	u8	OutEpNumber;
 
-	u8	Queue2EPNum[MAX_TX_QUEUE];//for out endpoint number mapping
-
 	// 2010/12/10 MH Add for USB aggreation mode dynamic shceme.
 	BOOLEAN		UsbRxHighSpeedMode;
 
@@ -572,9 +573,11 @@ typedef struct hal_data_8188e
 	// HIQ, MID, LOW, PUB free pages; padapter->xmitpriv.free_txpg
 	u8			SdioTxFIFOFreePage[SDIO_TX_FREE_PG_QUEUE];
 	_lock		SdioTxFIFOFreePageLock;
-	_thread_hdl_	SdioXmitThread;
+#ifndef CONFIG_SDIO_TX_TASKLET
+	_thread_hdl_ 	SdioXmitThread;
 	_sema		SdioXmitSema;
 	_sema		SdioXmitTerminateSema;
+#endif
 
 	//
 	// SDIO Rx FIFO related.
@@ -586,12 +589,9 @@ typedef struct hal_data_8188e
 #ifdef CONFIG_USB_HCI
 	u32	UsbBulkOutSize;
 
-	int	RtBulkOutPipe[3];
-	int	RtBulkInPipe;
-	int	RtIntInPipe;
 	// Interrupt relatd register information.
-	u32	IntArray[2];
-	u32	IntrMask[2];
+	u32	IntArray[3];//HISR0,HISR1,HSISR
+	u32	IntrMask[3];
 	u8	C2hArray[16];
 #ifdef CONFIG_USB_TX_AGGREGATION
 	u8	UsbTxAggMode;
@@ -647,7 +647,7 @@ typedef struct hal_data_8188e HAL_DATA_TYPE, *PHAL_DATA_TYPE;
 #define GET_HAL_DATA(__pAdapter)	((HAL_DATA_TYPE *)((__pAdapter)->HalData))
 #define GET_RF_TYPE(priv)			(GET_HAL_DATA(priv)->rf_type)
 
-#define INCLUDE_MULTI_FUNC_BT(_Adapter)		(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_BT)
+#define INCLUDE_MULTI_FUNC_BT(_Adapter)	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_BT)
 #define INCLUDE_MULTI_FUNC_GPS(_Adapter)	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_GPS)
 
 //#define IS_MULTI_FUNC_CHIP(_Adapter)	(((((PHAL_DATA_TYPE)(_Adapter->HalData))->MultiFunc) & (RT_MULTI_FUNC_BT|RT_MULTI_FUNC_GPS)) ? _TRUE : _FALSE)
@@ -660,16 +660,20 @@ void UpdateInterruptMask8188EE(PADAPTER Adapter, u32 AddMSR, u32 AddMSR1, u32 Re
 #endif	//CONFIG_PCI_HCI
 
 // rtl8188e_hal_init.c
+#ifdef CONFIG_WOWLAN
+s32 rtl8188e_FirmwareDownload(PADAPTER padapter, BOOLEAN  bUsedWoWLANFw);
+#else
 s32 rtl8188e_FirmwareDownload(PADAPTER padapter);
+#endif
 void _8051Reset88E(PADAPTER padapter);
 void rtl8188e_InitializeFirmwareVars(PADAPTER padapter);
 
 
-s32 InitLLTTable(PADAPTER padapter, u32 boundary);
+s32 InitLLTTable(PADAPTER padapter, u8 txpktbuf_bndy);
 
 // EFuse
 u8 GetEEPROMSize8188E(PADAPTER padapter);
-void Hal_InitPGData88E(PADAPTER padapter, u8 *PROMContent);
+void Hal_InitPGData88E(PADAPTER padapter);
 void Hal_EfuseParseIDCode88E(PADAPTER padapter, u8 *hwinfo);
 void Hal_ReadTxPowerInfo88E(PADAPTER padapter,u8* hwinfo,BOOLEAN	AutoLoadFail);
 
@@ -684,15 +688,26 @@ void Hal_ReadPowerSavingMode88E(PADAPTER pAdapter,u8* hwinfo,BOOLEAN AutoLoadFai
 
 BOOLEAN HalDetectPwrDownMode88E(PADAPTER Adapter);
 
+#ifdef CONFIG_WOWLAN
+void Hal_DetectWoWMode(PADAPTER pAdapter);
+#endif //CONFIG_WOWLAN
 //RT_CHANNEL_DOMAIN rtl8723a_HalMapChannelPlan(PADAPTER padapter, u8 HalChannelPlan);
 //VERSION_8192C rtl8723a_ReadChipVersion(PADAPTER padapter);
 //void rtl8723a_ReadBluetoothCoexistInfo(PADAPTER padapter, u8 *PROMContent, BOOLEAN AutoloadFail);
-void rtl8188e_HalSetBrateCfg(PADAPTER padapter, u8 *mBratesOS, u16 *pBrateCfg);
 void Hal_InitChannelPlan(PADAPTER padapter);
 
 void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc);
 
 // register
 void SetBcnCtrlReg(PADAPTER padapter, u8 SetBits, u8 ClearBits);
+
+void rtl8188e_clone_haldata(_adapter *dst_adapter, _adapter *src_adapter);
+void rtl8188e_start_thread(_adapter *padapter);
+void rtl8188e_stop_thread(_adapter *padapter);
+
+void rtw_IOL_cmd_tx_pkt_buf_dump(ADAPTER *Adapter,int data_len);
+#ifdef CONFIG_IOL_EFUSE_PATCH
+s32 rtl8188e_iol_efuse_patch(PADAPTER padapter);
+#endif//CONFIG_IOL_EFUSE_PATCH
 
 #endif //__RTL8188E_HAL_H__

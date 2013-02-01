@@ -20,6 +20,10 @@
 
 #include "../odm_precomp.h"
 
+#ifdef CONFIG_IOL_IOREG_CFG
+#include <rtw_iol.h>
+#endif
+
 #if (RTL8188E_SUPPORT == 1)
 static BOOLEAN
 CheckCondition(
@@ -27,26 +31,26 @@ CheckCondition(
     const u4Byte  Hex
     )
 {
-    u4Byte board = Hex & 0xFF;
-    u4Byte interfaceValue = Hex & 0xFF00;
-    u4Byte platform = Hex & 0xFF0000;
+    u4Byte _board     = (Hex & 0x000000FF);
+    u4Byte _interface = (Hex & 0x0000FF00) >> 8;
+    u4Byte _platform  = (Hex & 0x00FF0000) >> 16;
     u4Byte cond = Condition;
 
     if ( Condition == 0xCDCDCDCD )
         return TRUE;
 
-    cond = Condition & 0xFF;
-    if ( (board & cond) == 0 && cond != 0x1F)
+    cond = Condition & 0x000000FF;
+    if ( (_board == cond) && cond != 0x00)
         return FALSE;
 
-    cond = Condition & 0xFF00;
+    cond = Condition & 0x0000FF00;
     cond = cond >> 8;
-    if ( (interfaceValue & cond) == 0 && cond != 0x07)
+    if ( (_interface & cond) == 0 && cond != 0x07)
         return FALSE;
 
-    cond = Condition & 0xFF0000;
+    cond = Condition & 0x00FF0000;
     cond = cond >> 16;
-    if ( (platform & cond) == 0 && cond != 0x0F)
+    if ( (_platform & cond) == 0 && cond != 0x0F)
         return FALSE;
     return TRUE;
 }
@@ -185,10 +189,9 @@ u4Byte Array_AGC_TAB_1T_8188E[] = {
 		0xC78, 0x407D0001,
 		0xC78, 0x407E0001,
 		0xC78, 0x407F0001,
-
 };
 
-void
+HAL_STATUS
 ODM_ReadAndConfig_AGC_TAB_1T_8188E(
 	IN   PDM_ODM_T  pDM_Odm
 	)
@@ -204,56 +207,120 @@ ODM_ReadAndConfig_AGC_TAB_1T_8188E(
 	u1Byte     board       = pDM_Odm->BoardType;
 	u4Byte     ArrayLen    = sizeof(Array_AGC_TAB_1T_8188E)/sizeof(u4Byte);
 	pu4Byte    Array       = Array_AGC_TAB_1T_8188E;
-
+	BOOLEAN		biol = FALSE;
+#ifdef CONFIG_IOL_IOREG_CFG
+	PADAPTER	Adapter =  pDM_Odm->Adapter;
+	struct xmit_frame	*pxmit_frame;
+	u8 bndy_cnt=1;
+#endif//#ifdef CONFIG_IOL_IOREG_CFG
+	HAL_STATUS rst =HAL_STATUS_SUCCESS;
 
 	hex += board;
 	hex += interfaceValue << 8;
 	hex += platform << 16;
 	hex += 0xFF000000;
+#ifdef CONFIG_IOL_IOREG_CFG
+	biol = rtw_IOL_applied(Adapter);
+
+	if(biol){
+		if((pxmit_frame= rtw_IOL_accquire_xmit_frame(Adapter)) == NULL){
+			printk("rtw_IOL_accquire_xmit_frame failed\n");
+			return HAL_STATUS_FAILURE;
+		}
+	}
+#endif//#ifdef CONFIG_IOL_IOREG_CFG
+
 	for (i = 0; i < ArrayLen; i += 2 )
 	{
-	    u4Byte v1 = Array[i];
-	    u4Byte v2 = Array[i+1];
+		u4Byte v1 = Array[i];
+		u4Byte v2 = Array[i+1];
 
-	    // This (offset, data) pair meets the condition.
-	    if ( v1 < 0xCDCDCDCD )
-	    {
-		    odm_ConfigBB_AGC_8188E(pDM_Odm, v1, bMaskDWord, v2);
-		    continue;
+		// This (offset, data) pair meets the condition.
+		if ( v1 < 0xCDCDCDCD )
+		{
+			#ifdef CONFIG_IOL_IOREG_CFG
+			if(biol){
+				if(rtw_IOL_cmd_boundary_handle(pxmit_frame))
+					bndy_cnt++;
+				rtw_IOL_append_WD_cmd(pxmit_frame,(u2Byte)v1, v2,bMaskDWord);
+			}
+			else
+			#endif	//#ifdef CONFIG_IOL_IOREG_CFG
+			{
+				odm_ConfigBB_AGC_8188E(pDM_Odm, v1, bMaskDWord, v2);
+			}
+			continue;
 		}
 		else
 		{ // This line is the start line of branch.
-		    if ( !CheckCondition(Array[i], hex) )
-		    { // Discard the following (offset, data) pairs.
-		        READ_NEXT_PAIR(v1, v2, i);
-		        while (v2 != 0xDEAD &&
-		               v2 != 0xCDEF &&
-		               v2 != 0xCDCD && i < ArrayLen -2)
-		        {
-		            READ_NEXT_PAIR(v1, v2, i);
-		        }
-		        i -= 2; // prevent from for-loop += 2
-		    }
-		    else // Configure matched pairs and skip to end of if-else.
-		    {
-		        READ_NEXT_PAIR(v1, v2, i);
-		        while (v2 != 0xDEAD &&
-		               v2 != 0xCDEF &&
-		               v2 != 0xCDCD && i < ArrayLen -2)
-		        {
-				odm_ConfigBB_AGC_8188E(pDM_Odm, v1, bMaskDWord, v2);
-		            READ_NEXT_PAIR(v1, v2, i);
-		        }
+			if ( !CheckCondition(Array[i], hex) )
+			{ // Discard the following (offset, data) pairs.
+				READ_NEXT_PAIR(v1, v2, i);
+				while (	v2 != 0xDEAD &&
+					v2 != 0xCDEF &&
+					v2 != 0xCDCD && i < ArrayLen -2)
+				{
+					READ_NEXT_PAIR(v1, v2, i);
+				}
+				i -= 2; // prevent from for-loop += 2
+			}
+			else // Configure matched pairs and skip to end of if-else.
+			{
+				READ_NEXT_PAIR(v1, v2, i);
+				while (	v2 != 0xDEAD &&
+					v2 != 0xCDEF &&
+					v2 != 0xCDCD && i < ArrayLen -2)
+				{
+					#ifdef CONFIG_IOL_IOREG_CFG
+					if(biol){
+						if(rtw_IOL_cmd_boundary_handle(pxmit_frame))
+							bndy_cnt++;
+						rtw_IOL_append_WD_cmd(pxmit_frame,(u2Byte)v1, v2,bMaskDWord);
+					}
+					else
+					#endif	//#ifdef CONFIG_IOL_IOREG_CFG
+					{
+						odm_ConfigBB_AGC_8188E(pDM_Odm, v1, bMaskDWord, v2);
+					}
+					READ_NEXT_PAIR(v1, v2, i);
+				}
 
-		        while (v2 != 0xDEAD && i < ArrayLen -2)
-		        {
-		            READ_NEXT_PAIR(v1, v2, i);
-		        }
+				while (v2 != 0xDEAD && i < ArrayLen -2)
+				{
+					READ_NEXT_PAIR(v1, v2, i);
+				}
 
-		    }
+			}
 		}
 	}
+#ifdef CONFIG_IOL_IOREG_CFG
+	if(biol){
+		//printk("==> %s, pktlen = %d,bndy_cnt = %d\n",__FUNCTION__,pxmit_frame->attrib.pktlen+4+32,bndy_cnt);
+		if(rtw_IOL_exec_cmds_sync(pDM_Odm->Adapter, pxmit_frame, 1000, bndy_cnt))
+		{
+			#ifdef CONFIG_IOL_IOREG_CFG_DBG
+			printk("~~~ %s Success !!! \n",__FUNCTION__);
+			{
+				//dump data from TX packet buffer
+				rtw_IOL_cmd_tx_pkt_buf_dump(pDM_Odm->Adapter,pxmit_frame->attrib.pktlen+32);
+			}
+			#endif //CONFIG_IOL_IOREG_CFG_DBG
 
+		}
+		else{
+			printk("~~~ %s IOL_exec_cmds Failed !!! \n",__FUNCTION__);
+			#ifdef CONFIG_IOL_IOREG_CFG_DBG
+			{
+				//dump data from TX packet buffer
+				rtw_IOL_cmd_tx_pkt_buf_dump(pDM_Odm->Adapter,pxmit_frame->attrib.pktlen+32);
+			}
+			#endif //CONFIG_IOL_IOREG_CFG_DBG
+
+			rst = HAL_STATUS_FAILURE;
+		}
+	}
+#endif	//#ifdef CONFIG_IOL_IOREG_CFG
+	return rst;
 }
 
 /******************************************************************************
@@ -286,7 +353,7 @@ u4Byte Array_PHY_REG_1T_8188E[] = {
 		0x858, 0x569A11A9,
 		0x85C, 0x01000014,
 		0x860, 0x66F60110,
-		0x864, 0x061F0641,
+		0x864, 0x061F0649,
 		0x868, 0x00000000,
 		0x86C, 0x27272700,
 		0x870, 0x07000760,
@@ -306,7 +373,7 @@ u4Byte Array_PHY_REG_1T_8188E[] = {
 		0x908, 0x00000000,
 		0x90C, 0x81121111,
 		0x910, 0x00000002,
-		0x914, 0x00000001,
+		0x914, 0x00000201,
 		0xA00, 0x00D047C8,
 		0xA04, 0x80FF000C,
 		0xA08, 0x8C838300,
@@ -357,7 +424,7 @@ u4Byte Array_PHY_REG_1T_8188E[] = {
 		0xC74, 0x020610DB,
 		0xC78, 0x0000001F,
 		0xC7C, 0x00B91612,
-		0xC80, 0x40000100,
+		0xC80, 0x390000E4,
 		0xC84, 0x20F60000,
 		0xC88, 0x40000100,
 		0xC8C, 0x20200000,
@@ -449,12 +516,13 @@ u4Byte Array_PHY_REG_1T_8188E[] = {
 		0xEDC, 0x00000014,
 		0xEE0, 0x00000014,
 		0xEEC, 0x01C00014,
+		0xF14, 0x00000003,
 		0xF4C, 0x00000000,
 		0xF00, 0x00000300,
-
 };
 
-void
+
+HAL_STATUS
 ODM_ReadAndConfig_PHY_REG_1T_8188E(
 	IN   PDM_ODM_T  pDM_Odm
 	)
@@ -470,22 +538,84 @@ ODM_ReadAndConfig_PHY_REG_1T_8188E(
 	u1Byte     board       = pDM_Odm->BoardType;
 	u4Byte     ArrayLen    = sizeof(Array_PHY_REG_1T_8188E)/sizeof(u4Byte);
 	pu4Byte    Array       = Array_PHY_REG_1T_8188E;
-
-
+	BOOLEAN		biol = FALSE;
+#ifdef CONFIG_IOL_IOREG_CFG
+	PADAPTER	Adapter =  pDM_Odm->Adapter;
+	struct xmit_frame	*pxmit_frame;
+	u8 bndy_cnt=1;
+	#ifdef CONFIG_IOL_IOREG_CFG_DBG
+	struct cmd_cmp cmpdata[ArrayLen];
+	u4Byte	cmpdata_idx=0;
+	#endif
+#endif//#ifdef CONFIG_IOL_IOREG_CFG
+	HAL_STATUS rst =HAL_STATUS_SUCCESS;
 	hex += board;
 	hex += interfaceValue << 8;
 	hex += platform << 16;
 	hex += 0xFF000000;
+#ifdef CONFIG_IOL_IOREG_CFG
+	biol = rtw_IOL_applied(Adapter);
+
+	if(biol){
+		if((pxmit_frame=rtw_IOL_accquire_xmit_frame(Adapter)) == NULL)
+		{
+			printk("rtw_IOL_accquire_xmit_frame failed\n");
+			return HAL_STATUS_FAILURE;
+		}
+	}
+#endif//#ifdef CONFIG_IOL_IOREG_CFG
+
 	for (i = 0; i < ArrayLen; i += 2 )
 	{
 	    u4Byte v1 = Array[i];
 	    u4Byte v2 = Array[i+1];
 
+
 	    // This (offset, data) pair meets the condition.
 	    if ( v1 < 0xCDCDCDCD )
 	    {
-			odm_ConfigBB_PHY_8188E(pDM_Odm, v1, bMaskDWord, v2);
-		    continue;
+			#ifdef CONFIG_IOL_IOREG_CFG
+			if(biol){
+				if(rtw_IOL_cmd_boundary_handle(pxmit_frame))
+					bndy_cnt++;
+
+
+				if (v1 == 0xfe){
+					rtw_IOL_append_DELAY_MS_cmd(pxmit_frame,50);
+				}
+				else if (v1 == 0xfd){
+					rtw_IOL_append_DELAY_MS_cmd(pxmit_frame,5);
+				}
+				else if (v1 == 0xfc){
+					rtw_IOL_append_DELAY_MS_cmd(pxmit_frame,1);
+				}
+				else if (v1 == 0xfb){
+					rtw_IOL_append_DELAY_US_cmd(pxmit_frame,50);
+				}
+				else if (v1 == 0xfa){
+					rtw_IOL_append_DELAY_US_cmd(pxmit_frame, 5);
+				}
+				else if (v1 == 0xf9){
+					rtw_IOL_append_DELAY_US_cmd(pxmit_frame,1);
+				}
+				else{
+					if (v1 == 0xa24)
+						pDM_Odm->RFCalibrateInfo.RegA24 = v2;
+
+					rtw_IOL_append_WD_cmd(pxmit_frame,(u2Byte)v1, v2,bMaskDWord);
+					#ifdef CONFIG_IOL_IOREG_CFG_DBG
+							cmpdata[cmpdata_idx].addr = v1;
+							cmpdata[cmpdata_idx].value= v2;
+							cmpdata_idx++;
+					#endif
+				}
+			}
+			else
+			#endif	//#ifdef CONFIG_IOL_IOREG_CFG
+			{
+				odm_ConfigBB_PHY_8188E(pDM_Odm, v1, bMaskDWord, v2);
+			}
+			continue;
 		}
 		else
 		{ // This line is the start line of branch.
@@ -507,7 +637,45 @@ ODM_ReadAndConfig_PHY_REG_1T_8188E(
 		               v2 != 0xCDEF &&
 		               v2 != 0xCDCD && i < ArrayLen -2)
 		        {
+				#ifdef CONFIG_IOL_IOREG_CFG
+				if(biol){
+					if(rtw_IOL_cmd_boundary_handle(pxmit_frame))
+						bndy_cnt++;
+					if (v1 == 0xfe){
+						rtw_IOL_append_DELAY_MS_cmd(pxmit_frame,50);
+					}
+					else if (v1 == 0xfd){
+						rtw_IOL_append_DELAY_MS_cmd(pxmit_frame,5);
+					}
+					else if (v1 == 0xfc){
+						rtw_IOL_append_DELAY_MS_cmd(pxmit_frame,1);
+					}
+					else if (v1 == 0xfb){
+						rtw_IOL_append_DELAY_US_cmd(pxmit_frame,50);
+					}
+					else if (v1 == 0xfa){
+						rtw_IOL_append_DELAY_US_cmd(pxmit_frame,5);
+					}
+					else if (v1 == 0xf9){
+						rtw_IOL_append_DELAY_US_cmd(pxmit_frame,1);
+					}
+					else{
+						if (v1 == 0xa24)
+							pDM_Odm->RFCalibrateInfo.RegA24 = v2;
+
+						rtw_IOL_append_WD_cmd(pxmit_frame,(u2Byte)v1, v2,bMaskDWord);
+						#ifdef CONFIG_IOL_IOREG_CFG_DBG
+								cmpdata[cmpdata_idx].addr = v1;
+								cmpdata[cmpdata_idx].value= v2;
+								cmpdata_idx++;
+						#endif
+					}
+				}
+				else
+				#endif	//#ifdef CONFIG_IOL_IOREG_CFG
+				{
 					odm_ConfigBB_PHY_8188E(pDM_Odm, v1, bMaskDWord, v2);
+				}
 		            READ_NEXT_PAIR(v1, v2, i);
 		        }
 
@@ -519,7 +687,50 @@ ODM_ReadAndConfig_PHY_REG_1T_8188E(
 		    }
 		}
 	}
+#ifdef CONFIG_IOL_IOREG_CFG
+	if(biol){
+		//printk("==> %s, pktlen = %d,bndy_cnt = %d\n",__FUNCTION__,pxmit_frame->attrib.pktlen+4+32,bndy_cnt);
+		if(rtw_IOL_exec_cmds_sync(pDM_Odm->Adapter, pxmit_frame, 1000, bndy_cnt))
+		{
+			#ifdef CONFIG_IOL_IOREG_CFG_DBG
+			printk("~~~ %s IOL_exec_cmds Success !!! \n",__FUNCTION__);
+			{
+				u4Byte idx;
+				u4Byte cdata;
+				printk("  %s data compare => array_len:%d \n",__FUNCTION__,cmpdata_idx);
+				printk("### %s data compared !!###\n",__FUNCTION__);
+				for(idx=0;idx< cmpdata_idx;idx++)
+				{
+					cdata = ODM_Read4Byte(pDM_Odm, cmpdata[idx].addr);
+					if(cdata != cmpdata[idx].value){
+						printk(" addr:0x%04x, data:(0x%02x : 0x%02x) \n",
+							cmpdata[idx].addr,cmpdata[idx].value,cdata);
+						rst = HAL_STATUS_FAILURE;
+					}
+				}
+				printk("### %s data compared !!###\n",__FUNCTION__);
+				//if(rst == HAL_STATUS_FAILURE)
+				{//dump data from TX packet buffer
+					rtw_IOL_cmd_tx_pkt_buf_dump(pDM_Odm->Adapter,pxmit_frame->attrib.pktlen+32);
+				}
 
+			}
+			#endif //CONFIG_IOL_IOREG_CFG_DBG
+
+		}
+		else{
+			rst = HAL_STATUS_FAILURE;
+			printk("~~~ IOL Config %s Failed !!! \n",__FUNCTION__);
+			#ifdef CONFIG_IOL_IOREG_CFG_DBG
+			{
+				//dump data from TX packet buffer
+				rtw_IOL_cmd_tx_pkt_buf_dump(pDM_Odm->Adapter,pxmit_frame->attrib.pktlen+32);
+			}
+			#endif //CONFIG_IOL_IOREG_CFG_DBG
+		}
+	}
+#endif	//#ifdef CONFIG_IOL_IOREG_CFG
+	return rst;
 }
 
 /******************************************************************************
@@ -632,11 +843,13 @@ ODM_ReadAndConfig_PHY_REG_PG_8188E(
 	u1Byte     board       = pDM_Odm->BoardType;
 	u4Byte     ArrayLen    = sizeof(Array_PHY_REG_PG_8188E)/sizeof(u4Byte);
 	pu4Byte    Array       = Array_PHY_REG_PG_8188E;
+	BOOLEAN		biol = FALSE;
 
 	hex += board;
 	hex += interfaceValue << 8;
 	hex += platform << 16;
 	hex += 0xFF000000;
+
 	for (i = 0; i < ArrayLen; i += 3 )
 	{
 	    u4Byte v1 = Array[i];
@@ -646,7 +859,9 @@ ODM_ReadAndConfig_PHY_REG_PG_8188E(
 	    // this line is a line of pure_body
 	    if ( v1 < 0xCDCDCDCD )
 	    {
-			 odm_ConfigBB_PHY_REG_PG_8188E(pDM_Odm, v1, v2, v3);
+
+			odm_ConfigBB_PHY_REG_PG_8188E(pDM_Odm, v1, v2, v3);
+
 			 continue;
 	    }
 	    else
@@ -667,6 +882,7 @@ ODM_ReadAndConfig_PHY_REG_PG_8188E(
 	        }
 	    }
 	}
+
 }
 
 

@@ -1179,6 +1179,9 @@ EFUSE_ShadowWrite(
 #if (MP_DRIVER == 0)
 	return;
 #endif
+	if ( pAdapter->registrypriv.mp_mode == 0)
+		return;
+
 
 	if (Type == 1)
 		efuse_ShadowWrite1Byte(pAdapter, Offset, (u8)Value);

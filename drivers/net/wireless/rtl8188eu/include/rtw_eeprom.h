@@ -120,6 +120,8 @@ typedef enum _RT_CUSTOMER_ID
 struct eeprom_priv
 {
 	u8		bautoload_fail_flag;
+	u8		bloadfile_fail_flag;
+	u8		bloadmac_fail_flag;
 	//u8		bempty;
 	//u8		sys_config;
 	u8		mac_addr[6];	//PermanentAddress

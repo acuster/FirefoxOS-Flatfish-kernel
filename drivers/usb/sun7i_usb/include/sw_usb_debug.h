@@ -68,7 +68,7 @@
 #endif
 
 /* 普通信息打印 */
-#if  0
+#if  1
     #define DMSG_INFO         			DMSG_PRINT
 #else
     #define DMSG_INFO(...)

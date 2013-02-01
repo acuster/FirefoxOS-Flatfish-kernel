@@ -182,7 +182,7 @@ struct rx_pkt_attrib	{
 #define SN_EQUAL(a, b)	(a == b)
 //#define REORDER_WIN_SIZE	128
 //#define REORDER_ENTRY_NUM	128
-#define REORDER_WAIT_TIME	(30) // (ms)
+#define REORDER_WAIT_TIME	(50) // (ms)
 
 #define RECVBUFF_ALIGN_SZ 8
 
@@ -242,6 +242,7 @@ struct recv_priv
 	//_queue	blk_strms[MAX_RX_NUMBLKS];    // keeping the block ack frame until return ack
 	_queue	free_recv_queue;
 	_queue	recv_pending_queue;
+	_queue	uc_swdec_pending_queue;
 
 
 	u8 *pallocated_frame_buf;
@@ -285,7 +286,7 @@ struct recv_priv
 #endif
 
 	u8	*int_in_buf;
-#endif
+#endif //CONFIG_USB_INTERRUPT_IN_PIPE
 
 #endif
 #if defined(PLATFORM_LINUX) || defined(PLATFORM_FREEBSD)
@@ -313,7 +314,7 @@ struct recv_priv
 	_queue	free_recv_buf_queue;
 	u32	free_recv_buf_queue_cnt;
 
-#ifdef CONFIG_SDIO_HCI
+#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 	_queue	recv_buf_pending_queue;
 #endif
 
@@ -333,6 +334,8 @@ struct recv_priv
 	u8 signal_qual;
 	u8 noise;
 	int RxSNRdB[2];
+	s8 RxRssi[2];
+	int FalseAlmCnt_all;
 
 #ifdef CONFIG_NEW_SIGNAL_STAT_PROCESS
 	_timer signal_stat_timer;
@@ -468,6 +471,14 @@ struct recv_frame_hdr
 	//for A-MPDU Rx reordering buffer control
 	struct recv_reorder_ctrl *preorder_ctrl;
 
+#ifdef CONFIG_WAPI_SUPPORT
+	u8 UserPriority;
+	u8 WapiTempPN[16];
+	u8 WapiSrcAddr[6];
+	u8 bWapiCheckPNInDecrypt;
+	u8 bIsWaiPacket;
+#endif
+
 };
 
 
@@ -484,12 +495,17 @@ union recv_frame{
 };
 
 
+extern union recv_frame *_rtw_alloc_recvframe (_queue *pfree_recv_queue);  //get a free recv_frame from pfree_recv_queue
 extern union recv_frame *rtw_alloc_recvframe (_queue *pfree_recv_queue);  //get a free recv_frame from pfree_recv_queue
 extern void rtw_init_recvframe(union recv_frame *precvframe ,struct recv_priv *precvpriv);
 extern int	 rtw_free_recvframe(union recv_frame *precvframe, _queue *pfree_recv_queue);
-extern union recv_frame *rtw_dequeue_recvframe (_queue *queue);
-extern int	rtw_enqueue_recvframe(union recv_frame *precvframe, _queue *queue);
+
+#define rtw_dequeue_recvframe(queue) rtw_alloc_recvframe(queue)
+extern int _rtw_enqueue_recvframe(union recv_frame *precvframe, _queue *queue);
+extern int rtw_enqueue_recvframe(union recv_frame *precvframe, _queue *queue);
+
 extern void rtw_free_recvframe_queue(_queue *pframequeue,  _queue *pfree_recv_queue);
+u32 rtw_free_uc_swdec_pending_queue(_adapter *adapter);
 
 sint rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, _queue *queue);
 sint rtw_enqueue_recvbuf(struct recv_buf *precvbuf, _queue *queue);
