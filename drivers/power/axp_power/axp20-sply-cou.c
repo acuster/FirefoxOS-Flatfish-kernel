@@ -742,7 +742,7 @@ static int axp_battery_event(struct notifier_block *nb, unsigned long event,
 	}
 
 	axp_writes(charger->master,POWER20_INTSTS1,9,w);
-	DBG_PSY_MSG("%s, %d, event = 0x%x \n", __func__, __LINE__, event);
+	DBG_PSY_MSG("%s, %d, event = 0x%x \n", __func__, __LINE__, (unsigned int)event);
 
 	return 0;
 }
@@ -1243,7 +1243,7 @@ static struct device_attribute axp_charger_attrs[] = {
 static void axp_earlysuspend(struct early_suspend *h)
 {
 	uint8_t tmp;
-	int val;
+	volatile int val;
 	DBG_PSY_MSG("======early suspend=======\n");
 
 #if defined (CONFIG_AXP_CHGCHANGE)
@@ -1940,7 +1940,10 @@ static int axp_battery_probe(struct platform_device *pdev)
 		printk("[AXP]axp driver uning configuration failed(%d)\n", __LINE__);
 		pmu_suspendpwroff_vol = 3500;
 		printk("[AXP]pmu_suspendpwroff_vol = %d\n",pmu_suspendpwroff_vol);
-	}
+	}else
+	{
+        pmu_suspendpwroff_vol = item_val.val;
+    }
 	pmu_suspendpwroff_vol = pmu_suspendpwroff_vol * 1000;
 
 	if(pmu_suspendpwroff_vol >= 2867200 && pmu_suspendpwroff_vol <= 4200000) {
@@ -2159,7 +2162,10 @@ static int axp_battery_probe(struct platform_device *pdev)
 		printk("axp driver uning configuration failed(%d)\n", __LINE__);
 		pmu_earlysuspend_chgcur = pmu_suspend_chgcur / 1000;
 		printk("pmu_earlysuspend_chgcur = %d\n",pmu_earlysuspend_chgcur);
-	}
+	}else
+	{
+        pmu_earlysuspend_chgcur=item_val.val;
+    }
 	pmu_earlysuspend_chgcur = pmu_earlysuspend_chgcur * 1000;
 
 	item_type = script_get_item("pmu_para", "pmu_batdeten", &item_val);
@@ -2167,7 +2173,10 @@ static int axp_battery_probe(struct platform_device *pdev)
 		printk("axp driver uning configuration failed(%d)\n", __LINE__);
 		pmu_batdeten = 1;
 		printk("pmu_batdeten = %d\n",pmu_batdeten);
-	}
+	}else
+	{
+        pmu_batdeten = item_val.val;
+    }
 	if(!pmu_batdeten)
 		axp_clr_bits(charger->master,0x32,0x40);
 	else
@@ -2180,7 +2189,7 @@ static int axp_battery_probe(struct platform_device *pdev)
 		pmu_usbvolnew = 4000;
 		printk("pmu_usbvolnew = %d\n",pmu_usbvolnew);
 	} else {
-
+		pmu_usbvolnew = item_val.val;
 		if(pmu_usbvolnew){
 			axp_set_bits(charger->master, AXP20_CHARGE_VBUS, 0x40);
 			var = pmu_usbvolnew * 1000;
@@ -2203,7 +2212,7 @@ static int axp_battery_probe(struct platform_device *pdev)
 		pmu_usbcurnew = 500;
 		printk("pmu_usbcurnew = %d\n",pmu_usbcurnew);
 	} else {
-
+		pmu_usbcurnew = item_val.val;
 		if(pmu_usbcurnew){
 			axp_clr_bits(charger->master, AXP20_CHARGE_VBUS, 0x01);
 			var = pmu_usbcurnew * 1000;
@@ -2279,7 +2288,7 @@ static int axp20_suspend(struct platform_device *dev, pm_message_t state)
 {
 	uint8_t irq_w[9];
 	uint8_t tmp;
-	int val;
+	volatile int val;
 
 	struct axp_charger *charger = platform_get_drvdata(dev);
 

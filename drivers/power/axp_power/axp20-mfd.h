@@ -2,7 +2,7 @@
 
 int ADC_Freq_Get_mfd(struct axp_mfd_chip *chip)
 {
-	uint8_t  temp;
+	uint8_t  temp=0;
 	int rValue = 25;
 
 	__axp_read(chip->client, POWER20_ADC_SPEED,&temp);
@@ -81,7 +81,7 @@ void Cou_Count_Clear_mfd(struct	axp_mfd_chip *chip)
 void axp20_correct_restcap(struct axp_mfd_chip *chip)
 {
 	int	Cou_Correction_Flag;
-	uint8_t val[2];
+	uint8_t val[2]={0,0};
 	uint8_t v[2];
 	int bat_val;
 	int Cur_CoulombCounter;

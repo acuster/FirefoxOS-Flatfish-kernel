@@ -40,7 +40,7 @@ static inline int check_range(struct axp_regulator_info *info,
 
 /* AXP common operations */
 static int axp_set_voltage(struct regulator_dev *rdev,
-				  int min_uV, int max_uV)
+				  int min_uV, int max_uV,unsigned *selector)
 {
 	struct axp_regulator_info *info = rdev_get_drvdata(rdev);
 	struct device *axp_dev = to_axp_dev(rdev);
@@ -124,7 +124,7 @@ static int axp_list_voltage(struct regulator_dev *rdev, unsigned selector)
 }
 
 static int axp_set_ldo4_voltage(struct regulator_dev *rdev,
-				  int min_uV, int max_uV)
+				  int min_uV, int max_uV,unsigned *selector)
 {
 	struct axp_regulator_info *info = rdev_get_drvdata(rdev);
 	struct device *axp_dev = to_axp_dev(rdev);
@@ -172,11 +172,11 @@ static int axp_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 	switch (ldo) {
 
 	case AXP20_ID_LDO1 ... AXP20_ID_LDO3:
-		return axp_set_voltage(rdev, uV, uV);
+		return axp_set_voltage(rdev, uV, uV,NULL);
 	case AXP20_ID_LDO4:
-		return axp_set_ldo4_voltage(rdev, uV, uV);
+		return axp_set_ldo4_voltage(rdev, uV, uV,NULL);
 	case AXP20_ID_BUCK2 ... AXP20_ID_LDOIO0:
-		return axp_set_voltage(rdev, uV, uV);
+		return axp_set_voltage(rdev, uV, uV,NULL);
 	default:
 		return -EINVAL;
 	}

@@ -324,7 +324,7 @@ static struct i2c_board_info __initdata axp_mfd_i2c_board_info[] = {
 	},
 };
 
-int axp_script_parser_fetch(char *main, char *sub, u32 *val, u32 size)
+static int axp_script_parser_fetch(char *main, char *sub, u32 *val, u32 size)
 {
 		script_item_u script_val;
 		script_item_value_type_e type;

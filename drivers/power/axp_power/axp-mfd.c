@@ -46,7 +46,7 @@ static void axp_mfd_irq_work(struct work_struct *work)
 
 		if(irqs > 0xffffffff){
 			blocking_notifier_call_chain(
-					&chip->notifier_list, (irqs >>32), 1);
+					&chip->notifier_list, (irqs >>32), (void *)1);
 		}
 		else{
 			blocking_notifier_call_chain(
@@ -346,7 +346,11 @@ static int __devinit axp_mfd_probe(struct i2c_client *client,
 	printk("[AXP]axp driver uning configuration failed(%d)\n", __LINE__);
 	power_start = 0;
 	printk("[AXP]power_start = %d\n",power_start);
-	}
+	}else
+	{
+        power_start=item_val.val;
+    }
+
 
 	return 0;
 
