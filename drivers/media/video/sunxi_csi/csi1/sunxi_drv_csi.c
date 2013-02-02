@@ -68,6 +68,9 @@
 //add by heyihang.Jan 15, 2013
 #define CSI_ISP_SCLK_RATE	(297*1000*1000)
 
+//add by heyihang.Jan 24, 2013
+extern void camera_export_info(char *module_name, int *i2c_addr, int index);
+
 static unsigned video_nr = 1;
 static unsigned first_flag = 0;
 
@@ -582,24 +585,24 @@ static inline void csi_set_addr(struct csi_dev *dev,struct csi_buffer *buffer)
 
 static int csi_clk_get(struct csi_dev *dev)
 {
-	int ret;
+	//int ret;
 
 	dev->csi_ahb_clk=clk_get(NULL, CLK_AHB_CSI1);//"ahb_csi1"
 	if (dev->csi_ahb_clk == NULL || IS_ERR(dev->csi_ahb_clk)) {
-    csi_err("get csi1 ahb clk error!\n");
+                csi_err("get csi1 ahb clk error!\n");
 		return -1;
-    }
+        }
 
     // for csi mclk output
 	dev->csi_module_clk=clk_get(NULL,CLK_MOD_CSI1); //"csi1"
 	if(dev->csi_module_clk == NULL || IS_ERR(dev->csi_module_clk)) {
-    csi_err("get csi1 module clk error!\n");
+                csi_err("get csi1 module clk error!\n");
 		return -1;
     }
 
     dev->csi_dram_clk = clk_get(NULL, CLK_DRAM_CSI1);//"sdram_csi1"
 	if (dev->csi_dram_clk == NULL || IS_ERR(dev->csi_dram_clk)) {
-    csi_err("get csi1 dram clk error!\n");
+                csi_err("get csi1 dram clk error!\n");
 		return -1;
     }
 
@@ -636,16 +639,16 @@ static int csi_clk_out_set(struct csi_dev *dev)
 	if(dev->ccm_info->mclk==24000000 || dev->ccm_info->mclk==12000000 || dev->ccm_info->mclk==6000000)
 	{
 		dev->csi_clk_src=clk_get(NULL,CLK_SYS_HOSC);//"hosc"
-		if (dev->csi_clk_src == NULL) {
-	    csi_err("get csi0 hosc source clk error!\n");
+		if ((dev->csi_clk_src == NULL) || IS_ERR(dev->csi_clk_src)) {
+                        csi_err("get csi0 hosc source clk error!\n");
 			return -1;
 	    }
 	}
 	else
 	{
 		dev->csi_clk_src=clk_get(NULL,CLK_SYS_PLL7);//"video_pll1"
-		if (dev->csi_clk_src == NULL) {
-	    csi_err("get csi0 video pll1 source clk error!\n");
+		if ((dev->csi_clk_src == NULL) || IS_ERR(dev->csi_clk_src)) {
+                        csi_err("get csi0 video pll1 source clk error!\n");
 			return -1;
 	    }
 	}
@@ -2302,6 +2305,12 @@ static int csi_probe(struct platform_device *pdev)
 	int ret = 0;
 	int input_num;
 
+        //add by heyihang.Jan 24, 2013
+        char *camera_list_para      = "camera_list_para";
+        char *camera_list_para_used = "camera_list_para_used";
+        script_item_value_type_e script_item_type;
+        script_item_u value;
+
 	csi_dbg(0,"csi_probe\n");
 	/*request mem for dev*/
 	dev = kzalloc(sizeof(struct csi_dev), GFP_KERNEL);
@@ -2417,6 +2426,12 @@ static int csi_probe(struct platform_device *pdev)
 			goto free_dev;//linux-3.0
 		}
 
+                //add by heyihang.Jan 24, 2013
+                script_item_type = script_get_item(camera_list_para, camera_list_para_used, &value);
+                if ((SCIRPT_ITEM_VALUE_TYPE_INT == script_item_type) && (value.val == 1)) {
+                        camera_export_info(dev->ccm_cfg[input_num]->ccm, &dev->ccm_cfg[input_num]->i2c_addr,input_num);
+                }
+
 		dev_sensor[input_num].addr = (unsigned short)(dev->ccm_cfg[input_num]->i2c_addr>>1);
 		strcpy(dev_sensor[input_num].type,dev->ccm_cfg[input_num]->ccm);
 
@@ -2460,7 +2475,7 @@ reg_sd:
 
 		if(strcmp(dev->ccm_cfg[input_num]->iovdd_str,"")) {
 			dev->ccm_cfg[input_num]->iovdd = regulator_get(NULL, dev->ccm_cfg[input_num]->iovdd_str);
-			if (dev->ccm_cfg[input_num]->iovdd == NULL) {
+			if (IS_ERR(dev->ccm_cfg[input_num]->iovdd)) {
 				csi_err("get regulator csi_iovdd error!input_num = %d\n",input_num);
 				goto free_dev;
 			}
@@ -2468,7 +2483,7 @@ reg_sd:
 
 		if(strcmp(dev->ccm_cfg[input_num]->avdd_str,"")) {
 			dev->ccm_cfg[input_num]->avdd = regulator_get(NULL, dev->ccm_cfg[input_num]->avdd_str);
-			if (dev->ccm_cfg[input_num]->avdd == NULL) {
+			if (IS_ERR(dev->ccm_cfg[input_num]->avdd)) {
 				csi_err("get regulator csi_avdd error!input_num = %d\n",input_num);
 				goto free_dev;
 			}
@@ -2476,7 +2491,7 @@ reg_sd:
 
 		if(strcmp(dev->ccm_cfg[input_num]->dvdd_str,"")) {
 			dev->ccm_cfg[input_num]->dvdd = regulator_get(NULL, dev->ccm_cfg[input_num]->dvdd_str);
-			if (dev->ccm_cfg[input_num]->dvdd == NULL) {
+			if (IS_ERR(dev->ccm_cfg[input_num]->dvdd)) {
 				csi_err("get regulator csi_dvdd error!input_num = %d\n",input_num);
 				goto free_dev;
 			}
@@ -2842,9 +2857,9 @@ static int __init csi_init(void)
 
 static void __exit csi_exit(void)
 {
-	int csi_used,ret;
+	int csi_used;
 	script_item_u   val;
-  script_item_value_type_e  type;
+        script_item_value_type_e  type;
 	csi_print("csi_exit\n");
 
 	type = script_get_item("csi1_para","csi_used", &val);

@@ -92,6 +92,7 @@ obj-$(CONFIG_SOC_CAMERA_RJ54N1)		+= rj54n1cb0c.o
 obj-$(CONFIG_SOC_CAMERA_TW9910)		+= tw9910.o
 
 obj-$(CONFIG_VIDEO_CSI_SUNXI)					+= sunxi_csi/device/
+obj-$(CONFIG_CSI_CAMERA_DETECTOR)   += sunxi_csi/camera_detector/
 
 # And now the v4l2 drivers:
 

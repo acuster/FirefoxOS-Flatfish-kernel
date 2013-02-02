@@ -79,35 +79,36 @@ MODULE_LICENSE("GPL");
 #define DENOISE_LV 0x8
 #endif
 
-
+#ifdef CONFIG_AW_FPGA_PLATFORM
 #define CSI_VER_FOR_FPGA
+#endif
 
 
 /*
  * Basic window sizes.  These probably belong somewhere more globally
  * useful.
  */
-#define QSXGA_WIDTH		2592
-#define QSXGA_HEIGHT	1936
+#define QSXGA_WIDTH             2592
+#define QSXGA_HEIGHT	        1936
 #define QXGA_WIDTH 		2048
 #define QXGA_HEIGHT		1536
-#define HD1080_WIDTH	1920
-#define HD1080_HEIGHT	1080
+#define HD1080_WIDTH	        1920
+#define HD1080_HEIGHT	        1080
 #define UXGA_WIDTH		1600
 #define UXGA_HEIGHT		1200
 #define SXGA_WIDTH		1280
 #define SXGA_HEIGHT		960
-#define HD720_WIDTH 	1280
-#define HD720_HEIGHT	720
-#define XGA_WIDTH			1024
+#define HD720_WIDTH 	        1280
+#define HD720_HEIGHT	        720
+#define XGA_WIDTH               1024
 #define XGA_HEIGHT 		768
 #define SVGA_WIDTH		800
-#define SVGA_HEIGHT 	600
-#define VGA_WIDTH			640
+#define SVGA_HEIGHT 	        600
+#define VGA_WIDTH		640
 #define VGA_HEIGHT		480
 #define QVGA_WIDTH		320
 #define QVGA_HEIGHT		240
-#define CIF_WIDTH			352
+#define CIF_WIDTH		352
 #define CIF_HEIGHT		288
 #define QCIF_WIDTH		176
 #define	QCIF_HEIGHT		144

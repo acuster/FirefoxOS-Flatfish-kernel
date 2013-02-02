@@ -67,6 +67,9 @@
 #define MAX_HEIGHT (4096)
 #define CAPTURE_FRAME 1
 
+//add by heyihang.Jan 24, 2013
+extern void camera_export_info(char *module_name, int *i2c_addr, int index);
+
 static unsigned video_nr = 0;
 static unsigned first_flag = 0;
 
@@ -591,20 +594,20 @@ static int csi_clk_get(struct csi_dev *dev)
 
 	dev->csi_ahb_clk=clk_get(NULL, CLK_AHB_CSI0);//"ahb_csi0"
 	if (dev->csi_ahb_clk == NULL || IS_ERR(dev->csi_ahb_clk)) {
-    csi_err("get csi1 ahb clk error!\n");
+                csi_err("get csi1 ahb clk error!\n");
 		return -1;
     }
 
     // for csi mclk output
 	dev->csi_module_clk=clk_get(NULL, CLK_MOD_CSI0); //"csi0"
 	if(dev->csi_module_clk == NULL || IS_ERR(dev->csi_module_clk)) {
-    csi_err("get csi1 module clk error!\n");
+                csi_err("get csi1 module clk error!\n");
 		return -1;
     }
 
     dev->csi_dram_clk = clk_get(NULL, CLK_DRAM_CSI0);//"dram_csi0"
 	if (dev->csi_dram_clk == NULL || IS_ERR(dev->csi_dram_clk)) {
-    csi_err("get csi0 dram clk error!\n");
+                csi_err("get csi0 dram clk error!\n");
 		return -1;
     }
 
@@ -612,27 +615,27 @@ static int csi_clk_get(struct csi_dev *dev)
     #if 1
 	dev->csi_isp_src_clk=clk_get(NULL,CLK_SYS_PLL3);//"video_pll0"
 	if (dev->csi_isp_src_clk == NULL || IS_ERR(dev->csi_isp_src_clk)) {
-    csi_err("get csi_isp source clk error!\n");
+                csi_err("get csi_isp source clk error!\n");
 		return -1;
     }
 
 	dev->csi_isp_clk=clk_get(NULL,CLK_MOD_CSIISP);//"csi_isp"
 	if(dev->csi_isp_clk == NULL || IS_ERR(dev->csi_isp_clk)) {
-    csi_err("get csi/isp sclk error!\n");
+                csi_err("get csi/isp sclk error!\n");
 		return -1;
     }
 
 	ret = clk_set_parent(dev->csi_isp_clk, dev->csi_isp_src_clk);
 	if (ret != 0) {
-    csi_err(" csi_isp set parent failed \n");
-	  return -1;
+                csi_err(" csi_isp set parent failed \n");
+                return -1;
     }
 
     clk_put(dev->csi_isp_src_clk);
 
     ret = clk_set_rate(dev->csi_isp_clk, CSI_ISP_RATE);
 	if (ret == -1) {
-        csi_err("set csi_isp clock error\n");
+                csi_err("set csi_isp clock error\n");
 		return -1;
 	}
     #endif
@@ -647,16 +650,16 @@ static int csi_clk_out_set(struct csi_dev *dev)
 	if(dev->ccm_info->mclk==24000000 || dev->ccm_info->mclk==12000000 || dev->ccm_info->mclk==6000000)
 	{
 		dev->csi_clk_src=clk_get(NULL,CLK_SYS_HOSC);//"hosc"
-		if (dev->csi_clk_src == NULL) {
-	    csi_err("get csi0 hosc source clk error!\n");
+		if ((dev->csi_clk_src == NULL) || IS_ERR(dev->csi_clk_src)) {
+	                csi_err("get csi0 hosc source clk error!\n");
 			return -1;
 	  }
 	}
 	else
 	{
 		dev->csi_clk_src=clk_get(NULL,CLK_SYS_PLL7);//"video_pll1"
-		if (dev->csi_clk_src == NULL) {
-	    csi_err("get csi0 video pll1 source clk error!\n");
+		if ((dev->csi_clk_src == NULL) || IS_ERR(dev->csi_clk_src)) {
+	                csi_err("get csi0 video pll1 source clk error!\n");
 			return -1;
 	  }
 	}
@@ -2568,8 +2571,14 @@ static int csi_probe(struct platform_device *pdev)
 	struct i2c_adapter *i2c_adap;
 	int ret = 0;
 	int input_num;
-    script_item_u   *gpio_list=NULL;
+        script_item_u   *gpio_list=NULL;
 	int cnt, i;
+
+        //add by heyihang.Jan 24, 2013
+        char *camera_list_para      = "camera_list_para";
+        char *camera_list_para_used = "camera_list_para_used";
+        script_item_value_type_e script_item_type;
+        script_item_u value;
 
     //del by heyihang.Jan 15, 2013
     #if 0
@@ -2727,6 +2736,12 @@ static int csi_probe(struct platform_device *pdev)
 			goto free_dev;//linux-3.0
 		}
 
+                //add by heyihang.Jan 24, 2013
+                script_item_type = script_get_item(camera_list_para, camera_list_para_used, &value);
+                if ((SCIRPT_ITEM_VALUE_TYPE_INT == script_item_type) && (value.val == 1)) {
+                        //camera_export_info(dev->ccm_cfg[input_num]->ccm, &dev->ccm_cfg[input_num]->i2c_addr,input_num);
+                }
+
 		dev_sensor[input_num].addr = (unsigned short)(dev->ccm_cfg[input_num]->i2c_addr>>1);
 		strcpy(dev_sensor[input_num].type,dev->ccm_cfg[input_num]->ccm);
 
@@ -2770,7 +2785,7 @@ reg_sd:
 
 		if(strcmp(dev->ccm_cfg[input_num]->iovdd_str,"")) {
 			dev->ccm_cfg[input_num]->iovdd = regulator_get(NULL, dev->ccm_cfg[input_num]->iovdd_str);
-			if (dev->ccm_cfg[input_num]->iovdd == NULL) {
+			if (IS_ERR(dev->ccm_cfg[input_num]->iovdd)) {
 				csi_err("get regulator csi_iovdd error!input_num = %d\n",input_num);
 				goto free_dev;
 			}
@@ -2778,7 +2793,7 @@ reg_sd:
 
 		if(strcmp(dev->ccm_cfg[input_num]->avdd_str,"")) {
 			dev->ccm_cfg[input_num]->avdd = regulator_get(NULL, dev->ccm_cfg[input_num]->avdd_str);
-			if (dev->ccm_cfg[input_num]->avdd == NULL) {
+			if (IS_ERR(dev->ccm_cfg[input_num]->avdd)) {
 				csi_err("get regulator csi_avdd error!input_num = %d\n",input_num);
 				goto free_dev;
 			}
@@ -2786,7 +2801,7 @@ reg_sd:
 
 		if(strcmp(dev->ccm_cfg[input_num]->dvdd_str,"")) {
 			dev->ccm_cfg[input_num]->dvdd = regulator_get(NULL, dev->ccm_cfg[input_num]->dvdd_str);
-			if (dev->ccm_cfg[input_num]->dvdd == NULL) {
+			if (IS_ERR(dev->ccm_cfg[input_num]->dvdd)) {
 				csi_err("get regulator csi_dvdd error!input_num = %d\n",input_num);
 				goto free_dev;
 			}
@@ -2845,8 +2860,6 @@ reg_sd:
 		}
 	}
 
-    //add by heyihang for test.Jan 17, 2013
-    csi_dbg(0, "L%d \n", __LINE__);
 	//csi_dbg("%s(): csi-%d registered successfully\n",__FUNCTION__, dev->id);
 
 	/*video device register	*/
@@ -2867,17 +2880,11 @@ reg_sd:
 		goto rel_vdev;
 	}
 
-    csi_dbg(0, "L%d \n", __LINE__);
-
 	video_set_drvdata(vfd, dev);
-
-    csi_dbg(0, "L%d \n", __LINE__);
 
 	/*add device list*/
 	/* Now that everything is fine, let's add it to device list */
 	list_add_tail(&dev->csi_devlist, &csi_devlist);
-
-    csi_dbg(0, "L%d \n", __LINE__);
 
 	if (video_nr != -1) {
 		video_nr++;
@@ -3129,19 +3136,19 @@ static struct resource csi0_resource[] = {
 static struct platform_device csi_device[] = {
 	[0] = {
 	.name           	= "sunxi_csi",
-  .id             	= 0,
+        .id             	= 0,
 	.num_resources		= ARRAY_SIZE(csi0_resource),
-  .resource       	= csi0_resource,
-	.dev.release      = csi_dev_release,
+        .resource       	= csi0_resource,
+	.dev.release            = csi_dev_release,
 	}
 };
 
 static int __init csi_init(void)
 {
-    u32 ret;
+        u32 ret;
 	int csi_used;
 	script_item_u   val;
-    script_item_value_type_e  type;
+        script_item_value_type_e  type;
 	csi_print("Welcome to CSI driver\n");
 	csi_print("csi_init\n");
 
@@ -3150,7 +3157,7 @@ static int __init csi_init(void)
 		csi_err("fetch csi_used from sys_config failed\n");
 		return -1;
 	} else {
-	  csi_used=val.val;
+                csi_used=val.val;
 	}
 
 	if(!csi_used)
@@ -3176,9 +3183,9 @@ static int __init csi_init(void)
 
 static void __exit csi_exit(void)
 {
-	int csi_used,ret;
+	int csi_used;
 	script_item_u   val;
-  script_item_value_type_e  type;
+        script_item_value_type_e  type;
 	csi_print("csi_exit\n");
 
 	type = script_get_item("csi0_para","csi_used", &val);
@@ -3186,7 +3193,7 @@ static void __exit csi_exit(void)
 		csi_err("fetch csi_used from sys_config failed\n");
 		return;
 	} else {
-	  csi_used=val.val;
+                csi_used=val.val;
 	}
 
 	if(csi_used)
