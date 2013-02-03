@@ -154,7 +154,7 @@ typedef struct __CCMU_OSC24M_REG0050 {
     __u32   PLLInPower: 1;      //bit17, PLL intput power select, 0-2.5v, 1-3.3v
     __u32   LDOOutput: 3;       //bit18, LDO output control, 100-1.25v for ex.
     __u32   reserved1: 3;       //bit21, reserved
-    __u32   KeyField: 8;        //bit24, key field for LDO enable, 0x538, bit24~bit31 is valid, but "strb" will do nothing
+    __u32   KeyField: 8;        //bit24, key field for LDO enable, 0xa7, bit24~bit31 is valid
 } __ccmu_osc24m_reg0050_t;
 
 typedef struct __CCMU_SYSCLK_RATIO_REG0054 {
