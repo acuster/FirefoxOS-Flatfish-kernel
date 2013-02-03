@@ -174,6 +174,88 @@ struct aw_gpio_chip gpio_chips[] = {
     }
 };
 
+static struct clk *g_apb_pio_clk = NULL;
+int gpio_clk_init(void)
+{
+    if (!g_apb_pio_clk) {
+        PIO_ERR("%s: apb pio clk handle not NULL\n", __func__);
+    }
+
+    g_apb_pio_clk = clk_get(NULL, CLK_APB_PIO);
+    PIO_DBG("%s: g_apb_pio_clk: 0x%x\n", __func__, (u32)g_apb_pio_clk);
+    if (!g_apb_pio_clk || IS_ERR(g_apb_pio_clk)) {
+        PIO_ERR("%s: get apb pio clk failed\n", __func__);
+        return -EPERM;
+    } else {
+        if (clk_enable(g_apb_pio_clk)) {
+            PIO_ERR("%s: enable apb pio clk failed\n", __func__);
+            return -EPERM;
+        }
+        PIO_INF("%s: apb pio clk enable success\n", __func__);
+    }
+
+    return 0;
+}
+
+int gpio_clk_deinit(void)
+{
+    if (!g_apb_pio_clk || IS_ERR(g_apb_pio_clk)) {
+        PIO_ERR("%s: invalid apb pio clk handle\n", __func__);
+        return -EPERM;
+    }
+
+    clk_disable(g_apb_pio_clk);
+    clk_put(g_apb_pio_clk);
+    g_apb_pio_clk = NULL;
+
+    PIO_INF("%s: apb pio clk disable success\n", __func__);
+    return 0;
+}
+
+#ifdef GPIO_SUPPORT_STANDBY
+int gpio_drv_suspend(struct device *dev)
+{
+    if (NORMAL_STANDBY == standby_type) {
+        PIO_INF("%s: normal standby, do nothing\n", __func__);
+    } else if (SUPER_STANDBY == standby_type) {
+        PIO_INF("%s: super standby\n", __func__);
+        gpio_clk_deinit();
+    }
+
+    return 0;
+}
+
+int gpio_drv_resume(struct device *dev)
+{
+    if (NORMAL_STANDBY == standby_type) {
+        PIO_INF("%s: normal standby, do nothing\n", __func__);
+    } else if (SUPER_STANDBY == standby_type) {
+        PIO_INF("%s: super standby\n", __func__);
+        gpio_clk_init();
+    }
+
+}
+
+static const struct dev_pm_ops sw_gpio_pm = {
+    .suspend = gpio_drv_suspend,
+    .resume  = gpio_drv_resume,
+};
+#endif
+
+static struct platform_device sw_gpio_device = {
+    .name = "sw_gpio",
+};
+
+static struct platform_driver sw_gpio_driver = {
+    .driver = {
+        .name  = "sw_gpio",
+        .owner = THIS_MODULE,
+#ifdef GPIO_SUPPORT_STANDBY
+        .pm    = &sw_gpio_pm,
+#endif
+    }
+};
+
 /**
  * aw_gpio_init - gpio driver init function
  *
@@ -185,7 +267,9 @@ static __init int aw_gpio_init(void)
 
     PIO_INF("aw gpio init start\n");
 
-    /* TODO: add gpio clock init code here if needed */
+    if (gpio_clk_init()) {
+        PIO_ERR("%s: gpio clk init failed\n", __func__);
+    }
 
     for (i = 0; i < ARRAY_SIZE(gpio_chips); i++) {
         /* lock init */
@@ -195,6 +279,13 @@ static __init int aw_gpio_init(void)
         if (0 != aw_gpiochip_add(&gpio_chips[i].chip)) {
             return -1;
         }
+    }
+
+    if (platform_device_register(&sw_gpio_device)) {
+        PIO_ERR("%s: register gpio device failed\n", __func__);
+    }
+    if (platform_driver_register(&sw_gpio_driver)) {
+        PIO_ERR("%s: register gpio driver failed\n", __func__);
     }
 
     PIO_INF("aw gpio init done\n");
