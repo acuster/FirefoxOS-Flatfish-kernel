@@ -320,6 +320,11 @@ static int tscdev_open(struct inode *inode, struct file *filp)
     //open ahb clock
     strcpy(tmp_clk.clk_name, "ahb_ts");
     tsc_devp->ahb_clk = clk_get(tsc_devp->dev, tmp_clk.clk_name);
+    if (!tsc_devp->ahb_clk || IS_ERR(tsc_devp->ahb_clk)) {
+        TSC_ERR("%s: get ahb_ts clk failed\n", __func__);
+        ret = -EINVAL;
+        goto err;
+    }
     if (clk_enable(tsc_devp->ahb_clk) < 0) {
         TSC_ERR("%s: enable ahb_ts clk error\n", __func__);
         ret = -EINVAL;
@@ -331,6 +336,11 @@ static int tscdev_open(struct inode *inode, struct file *filp)
     //open sdram clock
     strcpy(tmp_clk.clk_name, "sdram_ts");
     tsc_devp->sdram_clk = clk_get(tsc_devp->dev, tmp_clk.clk_name);
+    if (!tsc_devp->sdram_clk || IS_ERR(tsc_devp->sdram_clk)) {
+        TSC_ERR("%s: get sdram ts clk failed\n", __func__);
+        ret = -EINVAL;
+        goto err;
+    }
     if (clk_enable(tsc_devp->sdram_clk) < 0) {
         TSC_ERR("%s: enable sdram ts clk error\n", __func__);
         ret = -EINVAL;
@@ -340,6 +350,11 @@ static int tscdev_open(struct inode *inode, struct file *filp)
     //open ts clock
     strcpy(tmp_clk.clk_name, "ts");
     tsc_devp->tsc_clk = clk_get(tsc_devp->dev, tmp_clk.clk_name);
+    if (!tsc_devp->tsc_clk || IS_ERR(tsc_devp->tsc_clk)) {
+        TSC_ERR("%s: get tsc clk failed\n", __func__);
+        ret = -EINVAL;
+        goto err;
+    }
     if (clk_enable(tsc_devp->tsc_clk) < 0) {
         TSC_ERR("%s: enable tsc clk error\n", __func__);
         ret = -EINVAL;
@@ -347,6 +362,11 @@ static int tscdev_open(struct inode *inode, struct file *filp)
     }
     strcpy(tmp_clk.clk_name, "sdram_pll_p");
     tsc_devp->pll5_clk = clk_get(tsc_devp->dev, tmp_clk.clk_name);
+    if (!tsc_devp->pll5_clk || IS_ERR(tsc_devp->pll5_clk)) {
+        TSC_ERR("%s: get pll5 clk failed\n", __func__);
+        ret = -EINVAL;
+        goto err;
+    }
     clk_set_parent(tsc_devp->tsc_clk, tsc_devp->pll5_clk);
 
     //set ts clock rate
