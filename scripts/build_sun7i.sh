@@ -65,7 +65,7 @@ copy_nand_mod()
 {
     cd ${LICHEE_KDIR}
     if [ -x "./scripts/build_rootfs.sh" ]; then
-        ./scripts/build_rootfs.sh e rootfs.cpio.gz > /dev/null
+        ./scripts/build_rootfs.sh e rootfs/rootfs.cpio.gz > /dev/null
     else
         echo "No such file: scripts/build_rootfs.sh"
         exit 1

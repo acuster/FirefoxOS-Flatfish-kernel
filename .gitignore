@@ -46,6 +46,9 @@ modules.builtin
 /Module.symvers
 
 /bImage
+/rootfs.cpio.gz
+/rootfs/
+/output/
 
 #
 # Debian directory (make deb-pkg)

@@ -61,28 +61,6 @@ build_nand_lib()
     fi
 }
 
-copy_nand_mod()
-{
-    cd ${LICHEE_KDIR}
-    if [ -x "./scripts/build_rootfs.sh" ]; then
-        ./scripts/build_rootfs.sh e rootfs.cpio.gz > /dev/null
-    else
-        echo "No such file: scripts/build_rootfs.sh"
-        exit 1
-    fi
-
-    mkdir -p ./skel/lib/modules/${KERNEL_VERSION}
-    cp ${LICHEE_MOD_DIR}/nand.ko ./skel/lib/modules/${KERNEL_VERSION}
-    if [ $? -ne 0 ]; then
-        echo "copy nand module error: $?"
-        exit 1
-    fi
-
-    rm -f rootfs.cpio.gz
-    ./scripts/build_rootfs.sh c rootfs.cpio.gz > /dev/null
-    rm -rf skel
-}
-
 build_kernel()
 {
     echo "Building kernel"
