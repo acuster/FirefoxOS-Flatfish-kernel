@@ -37,7 +37,7 @@ if [ "${LICHEE_CHIP}" = "${LICHEE_PLATFORM}" ] ; then
     LICHEE_PLATFORM="linux"
 fi
 
-tooldir="$(dirname `pwd`)/out/${LICHEE_CHIP}/${LICHEE_PLATFORM}/common/buildroot/external-toolchain"
+tooldir="$(dirname `pwd`)/out/${LICHEE_PLATFORM}/common/buildroot/external-toolchain"
 if [ -d ${tooldir} ] ; then
     if ! echo $PATH | grep -q "$tooldir" ; then
         export PATH=${tooldir}/bin:$PATH
@@ -61,7 +61,7 @@ export LICHEE_BOARD
 export LICHEE_KERN_DEFCONF
 
 LICHEE_TOOLS_DIR="$(dirname `pwd`)/tools"
-LICHEE_PLAT_OUT="$(dirname `pwd`)/out/${LICHEE_CHIP}/${LICHEE_PLATFORM}/common"
+LICHEE_PLAT_OUT="$(dirname `pwd`)/out/${LICHEE_PLATFORM}/common"
 LICHEE_BR_OUT="${LICHEE_PLAT_OUT}/buildroot"
 mkdir -p ${LICHEE_BR_OUT}
 
