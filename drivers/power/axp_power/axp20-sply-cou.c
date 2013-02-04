@@ -1951,8 +1951,8 @@ static int axp_battery_probe(struct platform_device *pdev)
 	}
 
 	/* 3.5552V--%5 close*/
-	axp_write(charger->master, AXP20_APS_WARNING1,val);
-	axp_write(charger->master, AXP20_APS_WARNING2,(val - 0x23));
+	axp_write(charger->master, AXP20_APS_WARNING1,val); //低电提示
+	axp_write(charger->master, AXP20_APS_WARNING2,(val - 0x23));//关机提示,比低点提示低196mv
 	ocv_cap[0]  = pmu_bat_para1;
 	ocv_cap[1]  = 0xC1;
 	ocv_cap[2]  = pmu_bat_para2;
@@ -2076,8 +2076,8 @@ static int axp_battery_probe(struct platform_device *pdev)
 	printk("POWER20_HOTOVER_CTL:%d-->0x%x\n",__LINE__,val);
 
 	/* disable */
-	axp_set_bits(charger->master,AXP20_CAP,0x80);
-	axp_clr_bits(charger->master,0xBA,0x80);
+	axp_set_bits(charger->master,AXP20_CAP,0x80); //disbale ocv calculation
+	axp_clr_bits(charger->master,0xBA,0x80); //disable rdc calculation
 	axp_reads(charger->master,0xbA,2,v);
 	rdc = (((v[0] & 0x1F) << 8) | v[1]) * 10742 / 10000;
 	axp_read(charger->master,AXP20_DATA_BUFFER0,&val1);
@@ -2086,7 +2086,7 @@ static int axp_battery_probe(struct platform_device *pdev)
 		axp_write(charger->master,0xBB,rdc & 0x00FF);
 		axp_update(charger->master, 0xBA, (rdc >> 8), 0x1F);
 	}
-	axp_clr_bits(charger->master,AXP20_CAP,0x80);
+	axp_clr_bits(charger->master,AXP20_CAP,0x80);//enable ocv calculation
 
 	axp_set_bits(charger->master,0x8F,0x88);
 	axp_clr_bits(charger->master,0x81,0x04);

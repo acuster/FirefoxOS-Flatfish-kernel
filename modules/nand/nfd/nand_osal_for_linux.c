@@ -37,6 +37,7 @@
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <asm/cacheflush.h>
+#include <linux/gpio.h>
 #include "nand_lib.h"
 #include "nand_blk.h"
 
@@ -92,12 +93,12 @@ static DECLARE_WAIT_QUEUE_HEAD(NAND_RB_WAIT);
 int NAND_ClkRequest(void)
 {
     printk("[NAND] nand clk request start\n");
-	ahb_nand_clk = clk_get(NULL,"ahb_nfc");
-	if(!ahb_nand_clk) {
+	ahb_nand_clk = clk_get(NULL, CLK_AHB_NAND);
+	if(!ahb_nand_clk||IS_ERR(ahb_nand_clk)) {
 		return -1;
 	}
-	mod_nand_clk = clk_get(NULL,"nfc");
-		if(!mod_nand_clk) {
+	mod_nand_clk = clk_get(NULL, CLK_MOD_NFC);
+		if(!mod_nand_clk||IS_ERR(mod_nand_clk)) {
 		return -1;
 	}
 	printk("[NAND] nand clk request ok!\n");
@@ -226,31 +227,12 @@ __s32  NAND_ReleaseDMA(void)
 }
 
 
-//__s32 NAND_SettingDMA(void * pArg)
-//{
-//	sw_dma_setflags(dma_hdle, SW_DMAF_AUTOSTART);
-//	return sw_dma_config(dma_hdle, (struct dma_hw_conf*)pArg);
-//	return 0;
-//}
-
-//int NAND_StartDMA(int rw, __u32 saddr, __u32 daddr, __u32 bytes)
-//{
-//	return 0;
-//}
 
 void eLIBs_CleanFlushDCacheRegion_nand(void *adr, size_t bytes)
 {
 	__cpuc_flush_dcache_area(adr, bytes + (1 << 5) * 2 - 2);
 }
 
-
-//__s32 NAND_DMAEqueueBuf(__u32 buff_addr, __u32 len)
-//{
-//	eLIBs_CleanFlushDCacheRegion_nand((void *)buff_addr, (size_t)len);
-
-//	nanddma_completed_flag = 0;
-//	return sw_dma_enqueue((int)dma_hdle, (void*)(seq++), buff_addr, len);
-//}
 
 int NAND_QueryDmaStat(void)
 {
@@ -261,29 +243,7 @@ void NAND_DMAConfigStart(int rw, unsigned int buff_addr, int len)
 {
 	__u32 buff_phy_addr = 0;
 
-#if 0
-	struct dma_hw_conf nand_hwconf = {
-		.xfer_type = DMAXFER_D_BWORD_S_BWORD,
-		.hf_irq = SW_DMA_IRQ_FULL,
-		.cmbk = 0x7f077f07,
-	};
 
-	nand_hwconf.dir = rw+1;
-
-	if(rw == 0){
-		nand_hwconf.from = 0x01C03030,
-		nand_hwconf.address_type = DMAADDRT_D_LN_S_IO,
-		nand_hwconf.drqsrc_type = DRQ_TYPE_NAND;
-	} else {
-		nand_hwconf.to = 0x01C03030,
-		nand_hwconf.address_type = DMAADDRT_D_IO_S_LN,
-		nand_hwconf.drqdst_type = DRQ_TYPE_NAND;
-	}
-
-	NAND_SettingDMA((void*)&nand_hwconf);
-	NAND_DMAEqueueBuf(buff_addr, len);
-#endif
-//////////////////////////////////////////////////////////////////////////////
 //config dma
 	if(rw == 0)//read from nand
 	{
@@ -488,20 +448,29 @@ __s32 NAND_WaitRbReady(void)
 }
 
 
-#if 0
+#if 1
 void NAND_PIORequest(void)
 {
-	printk("[NAND] nand gpio_request\n");
-	nand_handle = gpio_request_ex("nand_para",NULL);
-	if(!nand_handle)
-	{
-		printk("[NAND] nand gpio_request ok\n");
-	}
-	else
-	{
-	    printk("[NAND] nand gpio_request fail\n");
-	}
+	int	cnt, i;
+	script_item_u *list = NULL;
 
+	/* 获取gpio list */
+	cnt = script_get_pio_list("nand_para", &list);
+	if(0 == cnt) {
+		printk("get nand_para gpio list failed\n");
+		return;
+	}
+	/* 申请gpio */
+	for(i = 0; i < cnt; i++)
+		if(0 != gpio_request(list[i].gpio.gpio, NULL))
+			goto end;
+	/* 配置gpio list */
+	if(0 != sw_gpio_setall_range(&list[0].gpio, cnt))
+		printk("sw_gpio_setall_range failed\n");
+end:
+	/* 释放gpio */
+	while(i--)
+		gpio_free(list[i].gpio.gpio);
 
 }
 #else
@@ -511,8 +480,18 @@ void NAND_PIORequest(void){};
 void NAND_PIORelease(void)
 {
 
-	//printk("[NAND] nand gpio_release\n");
-	//gpio_release("nand_para",NULL);
+	int	cnt, i;
+	script_item_u *list = NULL;
+
+	/* 获取gpio list */
+	cnt = script_get_pio_list("nand_para", &list);
+	if(0 == cnt) {
+		printk("get nand_para gpio list failed\n");
+		return;
+	}
+
+	for(i = 0; i < cnt; i++)
+		gpio_free(list[i].gpio.gpio);
 
 }
 void NAND_Memset(void* pAddr, unsigned char value, unsigned int len)
