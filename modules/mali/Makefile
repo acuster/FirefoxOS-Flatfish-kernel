@@ -22,4 +22,4 @@ build:
 clean:
 	$(MAKE) -C $(MALI_UMP_ROOT) CONFIG=ca8-virtex820-m400-1 BUILD=debug KDIR=${LICHEE_KDIR} clean
 	$(MAKE) -C $(MALI_DRV_ROOT) USING_MMU=1 USING_UMP=1 USING_PMM=1 BUILD=debug \
-		CONFIG=ca8-virtex820-m400-1 KDIR=${LICHEE_KDIR} clean
+		 KDIR=${LICHEE_KDIR} clean
