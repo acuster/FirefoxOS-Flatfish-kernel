@@ -1675,6 +1675,9 @@ static irqreturn_t sw_udc_irq(int dummy, void *_dev)
 
 		if(dev->gadget.speed != USB_SPEED_UNKNOWN){
 			usb_connect = 0;
+			if (dev->driver && dev->driver->disconnect) {
+                dev->driver->disconnect(&dev->gadget);
+            }
 		}else{
 			DMSG_INFO_UDC("ERR: usb speed is unkown\n");
 		}
@@ -2668,12 +2671,16 @@ static int sw_udc_vbus_session(struct usb_gadget *gadget, int is_active)
 
 	udc->vbus = (is_active != 0);
 
-    reg_value = USBC_Readl(USBC_REG_PCTL(g_sw_udc_io.usb_vbase));
-    if(is_active)
-        reg_value |= 0x101;
-    else
-        reg_value &= (~0x101);
-    USBC_Writel(reg_value, USBC_REG_PCTL(g_sw_udc_io.usb_vbase));
+
+    if(is_active){
+        reg_value = USBC_Readl(USBC_REG_PCTL(g_sw_udc_io.usb_vbase));
+        reg_value |= 0x100;
+        USBC_Writel(reg_value, USBC_REG_PCTL(g_sw_udc_io.usb_vbase));
+    }else{
+        reg_value = USBC_Readl(USBC_REG_PCTL(g_sw_udc_io.usb_vbase));
+        reg_value &= (~0x100);
+        USBC_Writel(reg_value, USBC_REG_PCTL(g_sw_udc_io.usb_vbase));
+    }
 
 	return 0;
 }
@@ -2813,8 +2820,11 @@ static void sw_udc_enable(struct sw_udc *dev)
 
 #ifdef	CONFIG_USB_GADGET_DUALSPEED
 	DMSG_INFO_UDC("CONFIG_USB_GADGET_DUALSPEED\n");
-
+    #ifdef SW_USB_FPGA
 	USBC_Dev_ConfigTransferMode(g_sw_udc_io.usb_bsp_hdle, USBC_TS_TYPE_BULK, USBC_TS_MODE_FS);
+	#else
+	USBC_Dev_ConfigTransferMode(g_sw_udc_io.usb_bsp_hdle, USBC_TS_TYPE_BULK, USBC_TS_MODE_HS);
+	#endif
 #else
 	USBC_Dev_ConfigTransferMode(g_sw_udc_io.usb_bsp_hdle, USBC_TS_TYPE_BULK, USBC_TS_MODE_FS);
 #endif
