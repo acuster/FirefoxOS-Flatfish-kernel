@@ -38,7 +38,7 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(char mode, const char *cmd)
 {
-	pr_err("%s(%d) maybe err: to fix\n", __func__, __LINE__);
+	pr_err("%s: to check\n", __func__);
 
 	/* use watch-dog to reset system */
 	*(volatile unsigned int *)WDOG_MODE_REG = 0;

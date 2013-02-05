@@ -122,7 +122,16 @@ static void __init sun7i_reserve(void)
 
 static void sun7i_restart(char mode, const char *cmd)
 {
-	pr_info("%s: enter\n", __func__);
+	pr_err("%s: to check\n", __func__);
+
+	/* use watch-dog to reset system */
+	*(volatile unsigned int *)WDOG_MODE_REG = 0;
+	__delay(100000);
+	*(volatile unsigned int *)WDOG_MODE_REG |= 2;
+	while(1) {
+		__delay(100);
+		*(volatile unsigned int *)WDOG_MODE_REG |= 1;
+	}
 }
 
 static void __init sun7i_init(void)
