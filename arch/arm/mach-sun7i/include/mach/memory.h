@@ -35,33 +35,20 @@
 #define SW_G2D_MEM_SIZE                0x01000000 /* SZ_16M */
 #define SW_CSI_MEM_SIZE                0x02000000 /* SZ_32M */
 
+#define SUPER_STANDBY_SIZE             0x00010000 /* SZ_64K */
+#define SUPER_STANDBY_BASE             (0x52000000) /* NOTICE: this addr can not be change */
+
 /*
  * memory reserved areas.
  */
-#if defined(CONFIG_AW_FPGA_PLATFORM)
-
-#define SUPER_STANDBY_SIZE             0x00010000 /* SZ_64K */
-
-#define SUPER_STANDBY_BASE             (0x52000000) /* NOTICE: this addr can not be change */
 #define SW_FB_MEM_BASE                 (PLAT_PHYS_OFFSET + PLAT_MEM_SIZE - SW_FB_MEM_SIZE)
 #define SW_GPU_MEM_BASE                (SW_FB_MEM_BASE - SW_GPU_MEM_SIZE)
 #define SW_G2D_MEM_BASE                (SW_GPU_MEM_BASE - SW_G2D_MEM_SIZE)
 #define SW_CSI_MEM_BASE                (SW_G2D_MEM_BASE - SW_CSI_MEM_SIZE)
+
 #if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
 #define ION_CARVEOUT_MEM_BASE          (SUPER_STANDBY_BASE + SUPER_STANDBY_SIZE) /* +332M */
 #define ION_CARVEOUT_MEM_SIZE          (CONFIG_ION_SUNXI_CARVEOUT_SIZE * SZ_1M)  /* in Mbytes */
-#endif
-#elif defined(CONFIG_AW_ASIC_PLATFORM)
-#define SUPER_STANDBY_SIZE             0x00010000 /* SZ_64K */
-
-#define SUPER_STANDBY_BASE             (0x40100000) /* NOTICE: this addr can not be change */
-
-#define SW_FB_MEM_BASE     		(PLAT_PHYS_OFFSET + PLAT_MEM_SIZE - SW_FB_MEM_SIZE)
-#define SW_GPU_MEM_BASE    		(SW_FB_MEM_BASE - SW_GPU_MEM_SIZE)
-#define SW_G2D_MEM_BASE     	(SW_GPU_MEM_BASE - SW_G2D_MEM_SIZE)
-#define SW_CSI_MEM_BASE     	(SW_G2D_MEM_BASE - SW_CSI_MEM_SIZE)
-#else
-#error "fatal err: please select a platform!"
 #endif
 
 #endif
