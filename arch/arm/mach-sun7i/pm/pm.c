@@ -435,7 +435,10 @@ static int aw_early_suspend(void)
     //move standby code to sram
     memcpy((void *)SRAM_FUNC_START, (void *)&suspend_bin_start, (int)&suspend_bin_end - (int)&suspend_bin_start);
 
-
+#ifdef CONFIG_AW_FPGA_PLATFORM
+*(unsigned int *)(0xf0007000 - 0x4) = 0x12345678;
+printk("%s,%d:%d\n",__FILE__,__LINE__, *(unsigned int *)(0xf0007000 - 0x4));
+#endif
 #ifdef PRE_DISABLE_MMU
 	//enable the mapping and jump
 	//invalidate tlb? maybe, but now, at this situation,  0x0000 <--> 0x0000 mapping never stay in tlb before this.

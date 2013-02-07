@@ -291,7 +291,7 @@ mem_flush_tlb:
 	/* invalid entire data tlb */
 	mcr p15, 0, r0, c8, c6, 0
 	/*invalidate entire unified TLB inner shareable*/
-	mcr p15, 0, r0, c8, c3, 0
+	mcr p15, 0, r0, c8, c7, 0
 	dsb
     ISB
 	pop     {r0-r3}
@@ -402,6 +402,7 @@ jump_to_suspend:
 	/*enable 0x0000 <-->  0x0000 mapping */
 	/*write ttbr0*/
 	mcr p15, 0, r0, c2, c0, 0
+        bl mem_flush_tlb
 	dsb
 	isb
 
