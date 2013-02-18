@@ -195,7 +195,6 @@ static int __devexit dma_drv_remove(struct platform_device *dev)
  */
 int dma_drv_suspend(struct device *dev)
 {
-#if 0 /* to fix, 2013-1-12 */
 	if(NORMAL_STANDBY == standby_type) { /* process for normal standby */
 		DMA_INF("%s: normal standby, line %d\n", __func__, __LINE__);
 		/* close dma mode clock */
@@ -213,18 +212,6 @@ int dma_drv_suspend(struct device *dev)
 		if(0 != dma_clk_deinit())
 			DMA_ERR("%s err, dma_clk_deinit failed\n", __func__);
 	}
-#else
-	printk("%s(%d): not deal super standby, to fix\n", __func__, __LINE__);
-	/* close dma mode clock */
-	if(NULL != g_dma_mod_clk && !IS_ERR(g_dma_mod_clk)) {
-		if(0 != clk_reset(g_dma_mod_clk, AW_CCU_CLK_RESET))
-			printk("%s err: clk_reset failed\n", __func__);
-		clk_disable(g_dma_mod_clk);
-		clk_put(g_dma_mod_clk);
-		g_dma_mod_clk = NULL;
-		DMA_INF("%s: close dma mod clock success\n", __func__);
-	}
-#endif
 	return 0;
 }
 
@@ -236,7 +223,6 @@ int dma_drv_suspend(struct device *dev)
  */
 int dma_drv_resume(struct device *dev)
 {
-#if 0 /* to fix, 2013-1-12 */
 	if(NORMAL_STANDBY == standby_type) { /* process for normal standby */
 		DMA_INF("%s: normal standby, line %d\n", __func__, __LINE__);
 		/* enable dma mode clock */
@@ -254,18 +240,6 @@ int dma_drv_resume(struct device *dev)
 		if(0 != dma_clk_init())
 			DMA_ERR("%s err, dma_clk_init failed\n", __func__);
 	}
-#else
-	printk("%s(%d): not deal super standby, to fix\n", __func__, __LINE__);
-	/* enable dma mode clock */
-	g_dma_mod_clk = clk_get(NULL, CLK_MOD_DMA);
-	if(NULL == g_dma_mod_clk || IS_ERR(g_dma_mod_clk)) {
-		printk("%s err: clk_get %s failed\n", __func__, CLK_MOD_DMA);
-		return -EPERM;
-	}
-	WARN_ON(0 != clk_enable(g_dma_mod_clk));
-	WARN_ON(0 != clk_reset(g_dma_mod_clk, AW_CCU_CLK_NRESET));
-	DMA_INF("%s: open dma mod clock success\n", __func__);
-#endif
 	return 0;
 }
 
