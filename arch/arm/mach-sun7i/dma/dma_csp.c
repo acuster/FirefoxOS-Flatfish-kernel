@@ -16,7 +16,6 @@
 #include "dma_include.h"
 
 struct clk 	*g_dma_ahb_clk = NULL;
-struct clk 	*g_dma_mod_clk = NULL;
 
 /**
  * dma_clk_init - init dma clock
@@ -25,29 +24,8 @@ struct clk 	*g_dma_mod_clk = NULL;
  */
 u32 dma_clk_init(void)
 {
-	WARN_ON(NULL != g_dma_mod_clk || NULL != g_dma_ahb_clk);
-
-	/* config dma module clock */
-	g_dma_mod_clk = clk_get(NULL, CLK_MOD_DMA);
-	DMA_DBG("%s: get g_dma_mod_clk 0x%08x\n", __func__, (u32)g_dma_mod_clk);
-	if(NULL == g_dma_mod_clk || IS_ERR(g_dma_mod_clk)) {
-		DMA_ERR("%s err: clk_get %s failed\n", __func__, CLK_MOD_DMA);
-		return -EPERM;
-	} else {
-		if(0 != clk_enable(g_dma_mod_clk)) {
-			DMA_ERR("%s err: clk_enable failed, line %d\n", __func__, __LINE__);
-			return -EPERM;
-		}
-		DMA_DBG("%s: clk_enable g_dma_mod_clk success\n", __func__);
-
-		if(0 != clk_reset(g_dma_mod_clk, AW_CCU_CLK_NRESET)) {
-			DMA_ERR("%s err: clk_reset failed, line %d\n", __func__, __LINE__);
-			return -EPERM;
-		}
-		DMA_DBG("%s: clk_reset g_dma_mod_clk-AW_CCU_CLK_NRESET success\n", __func__);
-	}
-
 	/* config dma ahb clock */
+	WARN_ON(g_dma_ahb_clk);
 	g_dma_ahb_clk = clk_get(NULL, CLK_AHB_DMA);
 	DMA_DBG("%s: get g_dma_ahb_clk 0x%08x\n", __func__, (u32)g_dma_ahb_clk);
 	if(NULL == g_dma_ahb_clk || IS_ERR(g_dma_ahb_clk)) {
@@ -72,26 +50,10 @@ u32 dma_clk_init(void)
  */
 u32 dma_clk_deinit(void)
 {
-	DMA_DBG("%s: g_dma_mod_clk 0x%08x, g_dma_ahb_clk 0x%08x\n",
-		__func__, (u32)g_dma_mod_clk, (u32)g_dma_ahb_clk);
-
-	/* release dma mode clock */
-	if(NULL == g_dma_mod_clk || IS_ERR(g_dma_mod_clk)) {
-		DMA_INF("%s: g_dma_mod_clk 0x%08x invalid, just return\n", __func__, (u32)g_dma_mod_clk);
-		return 0;
-	} else {
-		if(0 != clk_reset(g_dma_mod_clk, AW_CCU_CLK_RESET)) {
-			DMA_ERR("%s err: clk_reset failed\n", __func__);
-		}
-		DMA_DBG("%s: clk_reset g_dma_mod_clk-AW_CCU_CLK_RESET success\n", __func__);
-		clk_disable(g_dma_mod_clk);
-		clk_put(g_dma_mod_clk);
-		g_dma_mod_clk = NULL;
-	}
-
 	/* release dma ahb clock */
+	DMA_DBG("%s: g_dma_ahb_clk 0x%08x\n", __func__, (u32)g_dma_ahb_clk);
 	if(NULL == g_dma_ahb_clk || IS_ERR(g_dma_ahb_clk)) {
-		DMA_INF("%s: g_dma_ahb_clk 0x%08x invalid, just return\n", __func__, (u32)g_dma_ahb_clk);
+		DMA_INF("%s err: g_dma_ahb_clk 0x%08x invalid\n", __func__, (u32)g_dma_ahb_clk);
 		return 0;
 	} else {
 		clk_disable(g_dma_ahb_clk);

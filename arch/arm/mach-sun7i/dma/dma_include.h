@@ -44,8 +44,4 @@
 #include <linux/delay.h>
 #endif /* DBG_DMA */
 
-/* temp, move to ccu.h, 2013-1-11*/
-#define CLK_MOD_DMA 	"mod_dma"
-#define CLK_AHB_DMA 	"ahb_dma"
-
 #endif  /* __DMA_INCLUDE_H */
