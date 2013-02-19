@@ -46,6 +46,7 @@
 #include <mach/clock.h>
 #include <mach/memory.h>
 #include "sun7i_cedar.h"
+#include <linux/pm.h>
 
 #define DRV_VERSION "0.01alpha"
 
@@ -70,7 +71,7 @@ int g_dev_minor = CEDARDEV_MINOR;
 module_param(g_dev_major, int, S_IRUGO);//S_IRUGO represent that g_dev_major can be read,but canot be write
 module_param(g_dev_minor, int, S_IRUGO);
 
-#define VE_IRQ_NO (56)
+#define VE_IRQ_NO AW_IRQ_VE
 
 struct clk *ve_moduleclk = NULL;
 struct clk *ve_pll4clk = NULL;
@@ -216,19 +217,19 @@ int enable_cedar_hw_clk(void)
 	clk_status = 1;
 
 	if(0 != clk_enable(ahb_veclk)){
-		printk("ahb_veclk failed; \n");
+		pr_err("%s(%d) err: enable ahb_veclk failed\n", __func__, __LINE__);
 		goto out;
 	}
 	if(0 != clk_enable(ve_moduleclk)){
-		printk("ve_moduleclk failed; \n");
+		pr_err("%s(%d) err: enable ve_moduleclk failed\n", __func__, __LINE__);
 		goto out3;
 	}
 	if(0 != clk_enable(dram_veclk)){
-		printk("dram_veclk failed; \n");
+		pr_err("%s(%d) err: enable dram_veclk failed\n", __func__, __LINE__);
 		goto out2;
 	}
 	if(0 != clk_enable(avs_moduleclk)){
-		printk("ve_moduleclk failed; \n");
+		pr_err("%s(%d) err: enable avs_moduleclk failed\n", __func__, __LINE__);
 		goto out1;
 	}
 	#ifdef CEDAR_DEBUG
@@ -559,6 +560,7 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case IOCTL_RESET_VE:
 		clk_disable(dram_veclk);
+		pr_info("%s(%d): IOCTL_RESET_VE to check, liugang added 2013-2-19\n", __func__, __LINE__);
 		clk_reset(ve_moduleclk, AW_CCU_CLK_RESET);
 		clk_reset(ve_moduleclk, AW_CCU_CLK_NRESET);
 		clk_enable(dram_veclk);
@@ -800,12 +802,16 @@ static int cedardev_mmap(struct file *filp, struct vm_area_struct *vma)
 #ifdef CONFIG_PM
 static int snd_sw_cedar_suspend(struct platform_device *pdev,pm_message_t state)
 {
+	pr_info("%s(%d): enter %s\n", __func__, __LINE__, (NORMAL_STANDBY == standby_type) ?
+		"normal standby" : "super standby");
 	disable_cedar_hw_clk();
 	return 0;
 }
 
 static int snd_sw_cedar_resume(struct platform_device *pdev)
 {
+	pr_info("%s(%d): resume from %s\n", __func__, __LINE__, (NORMAL_STANDBY == standby_type) ?
+		"normal standby" : "super standby");
 	if(cedar_devp->ref_count == 0)
 		return 0;
 	enable_cedar_hw_clk();

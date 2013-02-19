@@ -19,6 +19,7 @@
 #include <linux/workqueue.h>
 
 #include "rtc-core.h"
+#include <linux/pm.h>
 
 
 static DEFINE_IDA(rtc_ida);
@@ -48,6 +49,9 @@ static int rtc_suspend(struct device *dev, pm_message_t mesg)
 	struct timespec		delta, delta_delta;
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
 		return 0;
+
+	pr_info("%s(%d): enter %s\n", __func__, __LINE__, (NORMAL_STANDBY == standby_type) ?
+		"normal standby" : "super standby");
 
 	/* snapshot the current RTC and system time at suspend*/
 	rtc_read_time(rtc, &tm);
@@ -83,6 +87,9 @@ static int rtc_resume(struct device *dev)
 	struct rtc_time		tm;
 	struct timespec		new_system, new_rtc;
 	struct timespec		sleep_time;
+
+	pr_info("%s(%d): resume from %s\n", __func__, __LINE__, (NORMAL_STANDBY == standby_type) ?
+		"normal standby" : "super standby");
 
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
 		return 0;

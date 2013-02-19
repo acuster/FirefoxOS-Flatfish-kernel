@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <mach/includes.h>
+#include <linux/pm.h>
 
 #define DRV_NAME	"sunxi_wdt"
 #define DRV_VERSION	"1.0"
@@ -448,6 +449,8 @@ static void sunxi_wdt_shutdown(struct platform_device *pdev)
 
 static int sunxi_wdt_suspend(struct platform_device *dev, pm_message_t state)
 {
+	pr_info("%s(%d): enter %s\n", __func__, __LINE__, (NORMAL_STANDBY == standby_type) ?
+		"normal standby" : "super standby");
 	if(is_active)
 		watchdog_stop();
 	return 0;
@@ -455,6 +458,8 @@ static int sunxi_wdt_suspend(struct platform_device *dev, pm_message_t state)
 
 static int sunxi_wdt_resume(struct platform_device *dev)
 {
+	pr_info("%s(%d): resume from %s\n", __func__, __LINE__, (NORMAL_STANDBY == standby_type) ?
+		"normal standby" : "super standby");
 	if(is_active)
 		watchdog_start();
 	return 0;
