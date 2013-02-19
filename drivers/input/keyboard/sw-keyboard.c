@@ -29,21 +29,18 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <linux/timer.h>
+#include <mach/irqs-sun7i.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
     #include <linux/pm.h>
     #include <linux/earlysuspend.h>
 #endif
 
-#define FPGA_SIM
-//just for test
-#ifdef FPGA_SIM
-#define SW_INT_IRQNO_LRADC (11 + 32)
-#else
-#define SW_INT_IRQNO_LRADC (12 + 32)
-#endif
 
-#define INPUT_DEV_NAME	("sw-keyboard")
+#define SW_INT_IRQNO_LRADC       AW_IRQ_LRADC
+
+
+#define INPUT_DEV_NAME	        ("sw-keyboard")
 
 #define  KEY_MAX_CNT  		(13)
 
