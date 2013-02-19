@@ -19,82 +19,89 @@
 #include <mach/hardware.h>
 
 
-extern volatile int pen_release;
+
 static cpumask_t dead_cpus;
 
-static inline void cpu_enter_lowpower(void)
-{
-	printk("[%s] need implement\n", __func__);
-}
-
-static inline void cpu_leave_lowpower(void)
-{
-	printk("[%s] need implement\n", __func__);
-}
-
-static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
-{
-	printk("[%s] cpu%d, need implement\n", __func__, cpu);
-}
+#define IS_WFI_MODE(cpu)    (readl(IO_ADDRESS(SW_PA_CPUCFG_IO_BASE) + CPUX_STATUS(cpu)) & (1<<2))
 
 int platform_cpu_kill(unsigned int cpu)
 {
-	int k;
-	u32 pwr_reg;
+    int k;
+    u32 pwr_reg;
 
-	int tmp_cpu = get_cpu();
-	put_cpu();
-	pr_info("[hotplug]: cpu(%d) try to kill cpu(%d)\n", tmp_cpu, cpu);
+    int tmp_cpu = get_cpu();
+    put_cpu();
+    pr_info("[hotplug]: cpu(%d) try to kill cpu(%d)\n", tmp_cpu, cpu);
 
-	for (k = 0; k < 1000; k++) {
-		if (cpumask_test_cpu(cpu, &dead_cpus)) {
-			/*
-			 * Clear the reset Control
-			 */
-			writel(0, IO_ADDRESS(SW_PA_CPUCFG_IO_BASE) + CPUX_RESET_CTL(cpu));
+    for (k = 0; k < 1000; k++) {
+        if (cpumask_test_cpu(cpu, &dead_cpus) && IS_WFI_MODE(cpu)) {
 
-			/*
-			 * Set the poweroff gateing.
-			 */
-			pwr_reg = readl(IO_ADDRESS(SW_PA_CPUCFG_IO_BASE) + AW_CPUCFG_PWROFF_REG);
-			pwr_reg |= (1<<cpu);
-			writel(pwr_reg, IO_ADDRESS(SW_PA_CPUCFG_IO_BASE) + AW_CPUCFG_PWROFF_REG);
+            /* step8: deassert DBGPWRDUP signal */
+            pwr_reg = readl(IO_ADDRESS(SW_PA_CPUCFG_IO_BASE) + AW_CPUCFG_DBGCTL1);
+            pwr_reg &= ~(1<<cpu);
+            writel(pwr_reg, IO_ADDRESS(SW_PA_CPUCFG_IO_BASE) + AW_CPUCFG_DBGCTL1);
 
-			/*
-			 * Set the clamp control.
-			 */
-			writel(0xff, IO_ADDRESS(SW_PA_CPUCFG_IO_BASE) + AW_CPUCFG_PWR_CLAMP);
-			pr_info("[hotplug]: cpu%d is killed!\n", cpu);
+            /* step9: set up power-off signal */
+            pwr_reg = readl(IO_ADDRESS(SW_PA_CPUCFG_IO_BASE) + AW_CPU1_PWROFF_REG);
+            pwr_reg |= 1;
+            writel(pwr_reg, IO_ADDRESS(SW_PA_CPUCFG_IO_BASE) + AW_CPU1_PWROFF_REG);
+            mdelay(1);
 
-		    return 1;
-		}
+            /* step10: active the power output clamp */
+            writel(0xff, IO_ADDRESS(SW_PA_CPUCFG_IO_BASE) + AW_CPU1_PWR_CLAMP);
+            pr_info("[hotplug]: cpu%d is killed!\n", cpu);
 
-		mdelay(1);
-	}
+            return 1;
+        }
 
-	return 0;
+        mdelay(1);
+    }
+
+    pr_err("[hotplug]: try to kill cpu:%d failed!\n", cpu);
+
+    return 0;
 }
 
 void platform_cpu_die(unsigned int cpu)
 {
-	/* hardware shutdown code running on the CPU that is being offlined */
-	flush_cache_all();
-	dsb();
+    unsigned long actlr;
 
-	/* notify platform_cpu_kill() that hardware shutdown is finished */
-	cpumask_set_cpu(cpu, &dead_cpus);
+    /* notify platform_cpu_kill() that hardware shutdown is finished */
+    cpumask_set_cpu(cpu, &dead_cpus);
 
-	while(1) {
-		asm("wfi" : : : "memory", "cc");
-	}
+    /* step1: disable cache */
+    asm("mrc    p15, 0, %0, c1, c0, 0" : "=r" (actlr) );
+    actlr &= ~(1<<2);
+    asm("mcr    p15, 0, %0, c1, c0, 0\n" : : "r" (actlr));
+
+    /* step2: clean and ivalidate L1 cache */
+    flush_cache_all();
+
+    /* step3: execute a CLREX instruction */
+    asm("clrex" : : : "memory", "cc");
+
+    /* step4: switch cpu from SMP mode to AMP mode, aim is to disable cache coherency */
+    asm("mrc    p15, 0, %0, c1, c0, 1" : "=r" (actlr) );
+    actlr &= ~(1<<6);
+    asm("mcr    p15, 0, %0, c1, c0, 1\n" : : "r" (actlr));
+
+    /* step5: execute an ISB instruction */
+    isb();
+    /* step6: execute a DSB instruction  */
+    dsb();
+
+    /* step7: execute a WFI instruction */
+    while(1) {
+        asm("wfi" : : : "memory", "cc");
+    }
 }
 
 int platform_cpu_disable(unsigned int cpu)
 {
-	cpumask_clear_cpu(cpu, &dead_cpus);
-	/*
-	 * we don't allow CPU 0 to be shutdown (it is still too special
-	 * e.g. clock tick interrupts)
-	 */
-	return cpu == 0 ? -EPERM : 0;
+    cpumask_clear_cpu(cpu, &dead_cpus);
+    /*
+     * we don't allow CPU 0 to be shutdown (it is still too special
+     * e.g. clock tick interrupts)
+     */
+    return cpu == 0 ? -EPERM : 0;
 }

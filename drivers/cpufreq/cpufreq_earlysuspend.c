@@ -17,6 +17,8 @@ static int online_backup = 0;
 #ifdef CONFIG_CPU_FREQ_GOV_FANTASYS
 extern int cpufreq_fantasys_cpu_lock(int num_core);
 extern int cpufreq_fantasys_cpu_unlock(int num_core);
+extern atomic_t g_hotplug_lock;
+static int online_backup_fantasys = 0;
 #endif
 
 /*
@@ -33,9 +35,20 @@ static void cpu_down_work(struct work_struct *work)
 
     #ifdef CONFIG_CPU_FREQ_GOV_FANTASYS
     if (!strcmp(policy.governor->name, "fantasys")) {
-        cpufreq_fantasys_cpu_lock(1);
-        while (num_online_cpus() != 1) {
-            msleep(50);
+        online_backup_fantasys = atomic_read(&g_hotplug_lock);
+        if ((online_backup_fantasys > 0) && (online_backup_fantasys <= nr_cpu_ids)) {
+            printk("online_backup_fantasys is %d\n", online_backup_fantasys);
+            cpufreq_fantasys_cpu_lock(1);
+            while (num_online_cpus() != 1) {
+                msleep(50);
+            }
+        } else if (online_backup_fantasys == 0){
+            cpufreq_fantasys_cpu_lock(1);
+            while (num_online_cpus() != 1) {
+                msleep(50);
+            }
+        } else {
+            printk("ERROR online_backup_fantasys is %d\n", online_backup_fantasys);
         }
         goto out;
     }
@@ -81,7 +94,28 @@ static void cpu_up_work(struct work_struct *work)
 
     #ifdef CONFIG_CPU_FREQ_GOV_FANTASYS
     if (!strcmp(policy.governor->name, "fantasys")) {
-        cpufreq_fantasys_cpu_unlock(1);
+        if (online_backup_fantasys > 0 && online_backup_fantasys <= nr_cpu_ids) {
+            printk("online_backup_fantasys is %d\n", online_backup_fantasys);
+            cpufreq_fantasys_cpu_unlock(1);
+            cpufreq_fantasys_cpu_lock(online_backup_fantasys);
+            while (num_online_cpus() != online_backup_fantasys) {
+                msleep(50);
+            }
+        } else if (online_backup_fantasys == 0){
+            cpufreq_fantasys_cpu_unlock(1);
+
+            #if 1
+            /* on all possible cpus firstly */
+            cpufreq_fantasys_cpu_lock(num_possible_cpus());
+            while (num_online_cpus() != num_possible_cpus()) {
+                msleep(50);
+            }
+            cpufreq_fantasys_cpu_unlock(num_possible_cpus());
+            #endif
+
+        } else {
+            printk("ERROR online_backup_fantasys is %d\n", online_backup_fantasys);
+        }
         goto out;
     }
     #endif
@@ -156,6 +190,7 @@ int hotplug_early_suspend_exit(void)
         earlysuspend_workqueue = NULL;
     }
 
+    unregister_early_suspend(&hotplug_earlysuspend);
     wake_unlock(&ealysuspend_hotplug_work);
     wake_lock_destroy(&ealysuspend_hotplug_work);
     return 0;

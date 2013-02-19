@@ -24,7 +24,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/threads.h>
-#include <linux/reboot.h>
 #include <linux/suspend.h>
 #include <linux/delay.h>
 
@@ -132,14 +131,12 @@ static int hotplug_rq_def[4][2] = {
 
 /*
  * define frequncy loading policy table for cpu hotplug
- * if(freq > hotplug_freq[x][1]) cpu hotplug in;
- * if(freq < hotplug_freq[x][0]) cpu hotplug out;
  */
 static int hotplug_freq_def[4][2] = {
-    {0         , 800000*100},
-    {400000*100, 800000*100},
-    {500000*100, 800000*100},
-    {600000*100, 0         },
+    {0 , 80},    /* if(freq > policy->max * 80%) cpu hotplug in */
+    {40, 80},    /* if(freq > policy->max * 80%) cpu hotplug in, if(freq < policy->max * 40%) cpu hotplug out */
+    {50, 80},    /* if(freq > policy->max * 80%) cpu hotplug in, if(freq < policy->max * 50%) cpu hotplug out */
+    {60, 0 },    /* if(freq < policy->max * 60%) cpu hotplug out */
 };
 
 #ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
@@ -148,9 +145,9 @@ static int hotplug_freq_def[4][2] = {
  */
 static int usrevent_freq_def[4] = {
     100,        /* switch cpu frequency to policy->max * 100% if single core currently */
-    90 ,        /* switch cpu frequency to policy->max * 80% if dule core currently    */
-    80 ,        /* switch cpu frequency to policy->max * 70% if dule core currently    */
-    80 ,        /* switch cpu frequency to policy->max * 60% if dule core currently    */
+    90 ,        /* switch cpu frequency to policy->max * 90% if dule core currently    */
+    80 ,        /* switch cpu frequency to policy->max * 80% if triple core currently  */
+    80 ,        /* switch cpu frequency to policy->max * 80% if quad core currently    */
 };
 #endif
 
@@ -246,7 +243,7 @@ struct cpufreq_governor cpufreq_gov_fantasys = {
 /*
  * CPU hotplug lock interface
  */
-static atomic_t g_hotplug_lock = ATOMIC_INIT(0);
+atomic_t g_hotplug_lock = ATOMIC_INIT(0);
 
 /*
  * apply cpu hotplug lock, up or down cpu
@@ -555,9 +552,13 @@ static struct attribute_group dbs_attr_group = {
  */
 static void cpu_up_work(struct work_struct *work)
 {
-    int cpu, nr_up;
-    int online = num_online_cpus();
-    int hotplug_lock = atomic_read(&g_hotplug_lock);
+    int cpu, nr_up, online, hotplug_lock;
+    struct cpu_dbs_info_s *dbs_info;
+
+    dbs_info = &per_cpu(od_cpu_dbs_info, 0);
+    mutex_lock(&dbs_info->timer_mutex);
+    online = num_online_cpus();
+    hotplug_lock = atomic_read(&g_hotplug_lock);
 
     if (hotplug_lock) {
         nr_up = (hotplug_lock - online) > 0? (hotplug_lock-online) : 0;
@@ -575,6 +576,7 @@ static void cpu_up_work(struct work_struct *work)
         FANTASY_WRN("cpu up:%d\n", cpu);
         cpu_up(cpu);
     }
+    mutex_unlock(&dbs_info->timer_mutex);
 }
 
 /*
@@ -582,10 +584,13 @@ static void cpu_up_work(struct work_struct *work)
  */
 static void cpu_down_work(struct work_struct *work)
 {
-    int cpu;
-    int online = num_online_cpus();
-    int nr_down;
-    int hotplug_lock = atomic_read(&g_hotplug_lock);
+    int cpu, nr_down, online, hotplug_lock;
+    struct cpu_dbs_info_s *dbs_info;
+
+    dbs_info = &per_cpu(od_cpu_dbs_info, 0);
+    mutex_lock(&dbs_info->timer_mutex);
+    online = num_online_cpus();
+    hotplug_lock = atomic_read(&g_hotplug_lock);
 
     if (hotplug_lock) {
         nr_down = (online - hotplug_lock) > 0? (online-hotplug_lock) : 0;
@@ -603,13 +608,14 @@ static void cpu_down_work(struct work_struct *work)
         FANTASY_DBG("cpu down:%d\n", cpu);
         cpu_down(cpu);
     }
+    mutex_unlock(&dbs_info->timer_mutex);
 }
 
 
 /*
  * check if need plug in one cpu core
  */
-static int check_up(void)
+static int check_up(struct cpufreq_policy *policy)
 {
     struct cpu_usage *usage;
     int i, online, freq, rq_avg, up_freq, up_rq, up_rate;
@@ -627,7 +633,7 @@ static int check_up(void)
         return 0;
 
     online = num_online_cpus();
-    up_freq = hotplug_freq[online-1][1];
+    up_freq = policy->max * hotplug_freq[online-1][1];
     up_rq = hotplug_rq[online-1][1];
 
     /* check if count of the cpu reached the max value */
@@ -687,7 +693,7 @@ static int check_up(void)
 /*
  * check if need plug out one cpu core
  */
-static int check_down(void)
+static int check_down(struct cpufreq_policy *policy)
 {
     struct cpu_usage *usage;
     int i, cpu, online, freq, rq_avg, down_freq, down_rq;
@@ -702,7 +708,7 @@ static int check_down(void)
         return 0;
 
     online = num_online_cpus();
-    down_freq = hotplug_freq[online-1][0];
+    down_freq = policy->max * hotplug_freq[online-1][0];
     down_rq = hotplug_rq[online-1][0];
 
     /* just one cpu, can't be plug out */
@@ -1099,9 +1105,9 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
     hotplug_history->usage[num_hist].iowait_avg  /= num_online_cpus();
 
     /* Check for CPU hotplug */
-    if (check_up()) {
+    if (check_up(policy)) {
         queue_work_on(this_dbs_info->cpu, dvfs_workqueue, &this_dbs_info->up_work);
-    } else if (check_down()) {
+    } else if (check_down(policy)) {
         queue_work_on(this_dbs_info->cpu, dvfs_workqueue, &this_dbs_info->down_work);
     }
 
@@ -1182,16 +1188,6 @@ static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
     cancel_work_sync(&dbs_info->down_work);
 }
 
-static int reboot_notifier_call(struct notifier_block *this,
-                unsigned long code, void *_cmd)
-{
-    atomic_set(&g_hotplug_lock, 1);
-    return NOTIFY_DONE;
-}
-static struct notifier_block reboot_notifier = {
-    .notifier_call = reboot_notifier_call,
-};
-
 
 /*
  * cpufreq dbs governor
@@ -1235,9 +1231,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int even
             }
             mutex_unlock(&dbs_mutex);
 
-            /* register reboot notifier for process cpus when reboot */
-            register_reboot_notifier(&reboot_notifier);
-
             mutex_init(&this_dbs_info->timer_mutex);
             dbs_timer_init(this_dbs_info);
 
@@ -1250,8 +1243,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int even
 
             mutex_lock(&dbs_mutex);
             mutex_destroy(&this_dbs_info->timer_mutex);
-
-            unregister_reboot_notifier(&reboot_notifier);
 
             dbs_enable--;
             mutex_unlock(&dbs_mutex);
@@ -1375,5 +1366,9 @@ MODULE_AUTHOR("kevin.z.m <kevin@allwinnertech.com>");
 MODULE_DESCRIPTION("'cpufreq_fantasys' - A dynamic cpufreq/cpuhotplug governor");
 MODULE_LICENSE("GPL");
 
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_FANTASYS
+fs_initcall(cpufreq_gov_dbs_init);
+#else
 module_init(cpufreq_gov_dbs_init);
+#endif
 module_exit(cpufreq_gov_dbs_exit);
