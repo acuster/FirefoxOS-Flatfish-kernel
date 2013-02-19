@@ -76,7 +76,13 @@
 
 static int debug_mask = PM_STANDBY_PRINT_STANDBY | PM_STANDBY_PRINT_RESUME;
 
+#ifdef CONFIG_AW_FPGA_PLATFORM
+static int standby_axp_enable = 0;
+static int standby_timeout = 5;
+#else
 static int standby_axp_enable = 1;
+static int standby_timeout = 0;
+#endif
 
 static int suspend_freq = SUSPEND_FREQ;
 static int suspend_delay_ms = SUSPEND_DELAY_MS;
@@ -638,6 +644,11 @@ static int aw_pm_enter(suspend_state_t state)
 		}
 		standby_info.standby_para.event_enable = (SUSPEND_WAKEUP_SRC_EXINT | SUSPEND_WAKEUP_SRC_ALARM);
 
+        if (standby_timeout != 0)
+        {
+            standby_info.standby_para.event_enable = (SUSPEND_WAKEUP_SRC_EXINT | SUSPEND_WAKEUP_SRC_ALARM | SUSPEND_WAKEUP_SRC_TIMEOFF);
+            standby_info.standby_para.time_off = standby_timeout;
+        }
 		/* goto sram and run */
         printk("standby_mode:%d, standby_type:%d, line:%d\n",standby_mode, standby_type, __LINE__);
 		standby(&standby_info);
@@ -893,6 +904,7 @@ static void __exit aw_pm_exit(void)
 
 module_param_named(standby_mode, standby_mode, int, S_IRUGO | S_IWUSR | S_IWGRP);
 module_param_named(standby_axp_enable, standby_axp_enable, int, S_IRUGO | S_IWUSR | S_IWGRP);
+module_param_named(standby_timeout, standby_timeout, int, S_IRUGO | S_IWUSR | S_IWGRP);
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 module_param_named(suspend_freq, suspend_freq, int, S_IRUGO | S_IWUSR | S_IWGRP);
 module_param_named(suspend_delay_ms, suspend_delay_ms, int, S_IRUGO | S_IWUSR | S_IWGRP);

@@ -321,7 +321,7 @@ static void suspend(struct work_struct *work)
 	*/
 
 	/* delay 5 seconds to enter standby again, by kevin, 2012-3-7 15:07 */
-	wake_lock_timeout(&unknown_wakeup, HZ * 5);
+	wake_lock_timeout(&unknown_wakeup, HZ * 10);
 }
 static DECLARE_WORK(suspend_work, suspend);
 
