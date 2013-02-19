@@ -514,11 +514,16 @@ void NAND_Free(void *pAddr, unsigned int Size)
     kfree(pAddr);
 }
 
-int NAND_Print(const char * str, ...)
+int NAND_Print(const char * fmt, ...)
 {
-    printk(str);
+	va_list args;
+	int r;
 
-    return 0;
+	va_start(args, fmt);
+	r = vprintk(fmt, args);
+	va_end(args);
+
+	return r;
 }
 
 void *NAND_IORemap(unsigned int base_addr, unsigned int size)

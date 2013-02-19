@@ -103,8 +103,8 @@ extern void NAND_DMAConfigStart(int rw, unsigned int buff_addr, int len);
 extern int NAND_QueryDmaStat(void);
 extern int NAND_WaitDmaFinish(void);
 //for PIO
-extern void NAND_PIORequest();
-extern void NAND_PIORelease();
+extern void NAND_PIORequest(void);
+extern void NAND_PIORelease(void);
 
 //for Int
 extern void NAND_EnRbInt(void);
@@ -1092,12 +1092,7 @@ int cal_partoff_within_disk(char *name,struct inode *i)
 	return ( gd->part_tbl->part[ index - 1]->start_sect);
 }
 
-
-
-#ifdef __FPGA_TEST__
-    #define SW_INT_IRQNO_NAND (46)
-#endif
-
+#define SW_INT_IRQNO_NAND AW_IRQ_NAND
 
 #ifndef CONFIG_SUN7I_NANDFLASH_TEST
 static int  init_blklayer(void)
@@ -1125,14 +1120,15 @@ static int  init_blklayer(void)
     spin_lock_init(&nand_rb_lock);
 	irqflags = IRQF_DISABLED;
 
-	if (request_irq(SW_INT_IRQNO_NAND, nand_rb_interrupt, irqflags, mytr.name, &mytr))
+	ret=request_irq(SW_INT_IRQNO_NAND, nand_rb_interrupt, irqflags, mytr.name, &mytr);
+    if(ret)
 	{
-	    printk("nand interrupte register error\n");
+	    printk("nand interrupt register error\n");
 	    return -EAGAIN;
 	}
 	else
 	{
-	    printk("nand interrupte register ok\n");
+	    printk("nand interrupt register ok\n");
 	}
 #endif
 	//modify ValidBlkRatio
