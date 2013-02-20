@@ -555,9 +555,4 @@ config BLK_DEV_RBD
 
 	  If unsure, say N.
 
-config SUN7I_NANDFLASH
-        depends on BLOCK
-        tristate "SUN7I Nandflash Driver"
-        ---help---
-          Nand flash driver for SUN7I
 endif # BLK_DEV
