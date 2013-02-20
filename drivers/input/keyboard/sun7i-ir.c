@@ -40,10 +40,10 @@
 
 #include "ir-keymap.h"
 
-#define SUN7I_IR_FPGA
+//#define SUN7I_IR_FPGA
 #define CLK_CFG_NEW_20120806
-#define SUN7I_SYS_GPIO_CFG_EN
-#define SUN7I_SYS_CLK_CFG_EN
+//#define SUN7I_SYS_GPIO_CFG_EN
+//#define SUN7I_SYS_CLK_CFG_EN
 #define SUN7I_PRINT_SUSPEND_INFO
 
 
@@ -72,7 +72,7 @@ static struct gpio_hdle {
 #define IR_RXINTS_RXPE		(0x1<<1)	//Rx Packet End
 #define IR_RXINTS_RXDA		(0x1<<4)	//Rx FIFO Data Available
 
-#ifdef SUN7I_IR_FPGA
+#ifdef CONFIG_AW_FPGA_PLATFORM
 #define IR_RXFILT_VAL		(16)   		//Filter Threshold = 8*42.7 = ~341us < 500us
 #define IR_RXIDLE_VAL  		(5)    		//Idle Threshold = (2+1)*128*42.7 = ~16.4ms > 9ms
 
@@ -92,7 +92,7 @@ static struct gpio_hdle {
 #define IR_PMAX			(26)		//26*42.7 = ~1109us ~= 561*2, Pluse < IR_PMAX
 #define IR_DMID			(26)		//26*42.7 = ~1109us ~= 561*2, D1 > IR_DMID, D0 =< IR_DMID
 #define IR_DMAX			(53)		//53*42.7 = ~2263us ~= 561*4, D < IR_DMAX
-#endif /* SUN7I_IR_FPGA */
+#endif /* CONFIG_AW_FPGA_PLATFORM */
 
 #define IR_FIFO_SIZE		(16)    	//16Bytes
 
@@ -174,7 +174,7 @@ static inline int ir_rawbuffer_full(void)
 
 static void ir_clk_cfg(void)
 {
-#ifdef SUN7I_SYS_CLK_CFG_EN
+#ifndef CONFIG_AW_FPGA_PLATFORM
 	unsigned long rate = 3000000; //3Mhz
 
 	apb_ir_clk = clk_get(NULL, CLK_APB_IR0);
@@ -233,12 +233,12 @@ static void ir_clk_cfg(void)
 	writel(tmp, CCM_BASE + 0x34);
 #endif /* CLK_CFG_NEW_20120806 */
 
-#endif /* SUN7I_SYS_CLK_CFG_EN */
+#endif /* CONFIG_AW_FPGA_PLATFORM */
 }
 
 static void ir_clk_uncfg(void)
 {
-#ifdef SUN7I_SYS_CLK_CFG_EN
+#ifndef CONFIG_AW_FPGA_PLATFORM
 	clk_put(apb_ir_clk);
 	clk_put(ir_clk);
 #else
@@ -247,7 +247,7 @@ static void ir_clk_uncfg(void)
 }
 static void ir_sys_cfg(void)
 {
-#ifdef SUN7I_SYS_GPIO_CFG_EN
+#ifndef CONFIG_AW_FPGA_PLATFORM
 	ir_gpio_hdle.type = script_get_item("ir_para", "ir_rx", &(ir_gpio_hdle.val));
 
 	if(SCIRPT_ITEM_VALUE_TYPE_PIO != ir_gpio_hdle.type)
@@ -277,7 +277,7 @@ static void ir_sys_cfg(void)
 #endif
 
 	ir_clk_cfg();
-#ifdef SUN7I_SYS_GPIO_CFG_EN
+#ifndef CONFIG_AW_FPGA_PLATFORM
 end:
 	gpio_free(ir_gpio_hdle.val.gpio.gpio);
 	return;
@@ -287,7 +287,7 @@ end:
 static void ir_sys_uncfg(void)
 {
 	//unsigned long tmp;
-#ifdef SUN7I_SYS_GPIO_CFG_EN
+#ifndef CONFIG_AW_FPGA_PLATFORM
 	gpio_free(ir_gpio_hdle.val.gpio.gpio);
 #endif
 	ir_clk_uncfg();
@@ -304,11 +304,11 @@ static void ir_reg_cfg(void)
 	writel(tmp, IR_BASE+IR_CTRL_REG);
 
 	/*Config IR Smaple Register*/
-#ifdef SUN7I_IR_FPGA
+#ifdef CONFIG_AW_FPGA_PLATFORM
 	tmp = 0x3<<0; 	//Fsample = 24MHz/512, and IR_RXFILT_VAL ~ IR_DMAX doubled
 #else
 	tmp = 0x1<<0; 	//Fsample = 3MHz/128 = 23437.5Hz (42.7us)
-#endif /* SUN7I_IR_FPGA */
+#endif /* CONFIG_AW_FPGA_PLATFORM */
 	tmp |= (IR_RXFILT_VAL&0x3f)<<2;	//Set Filter Threshold
 	tmp |= (IR_RXIDLE_VAL&0xff)<<8; //Set Idle Threshold
 	writel(tmp, IR_BASE+IR_SPLCFG_REG);

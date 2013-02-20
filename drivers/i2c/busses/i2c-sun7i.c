@@ -51,8 +51,6 @@
 #define SUN7I_I2C_SFAIL  -3  /* start fail */
 #define SUN7I_I2C_TFAIL  -4  /* stop  fail */
 
-#define CONFIG_AW_FPAG_PLATFORM
-
 #define SYS_I2C_PIN
 
 #ifndef SYS_I2C_PIN
@@ -95,7 +93,7 @@ struct sun7i_i2c {
 	unsigned int	    msg_idx;
 	unsigned int	    msg_ptr;
 
-#ifndef CONFIG_AW_FPAG_PLATFORM
+#ifndef CONFIG_AW_FPGA_PLATFORM
 	struct clk	   *mclk;
 	struct clk         *pclk;
 	unsigned int       gpio_hdle;
@@ -328,7 +326,7 @@ static inline void twi_set_efr(void *base_addr, unsigned int efr)
 static int sun7i_i2c_xfer_complete(struct sun7i_i2c *i2c, int code);
 static int sun7i_i2c_do_xfer(struct sun7i_i2c *i2c, struct i2c_msg *msgs, int num);
 
-#ifndef CONFIG_AW_FPAG_PLATFORM
+#ifndef CONFIG_AW_FPGA_PLATFORM
 static void twi_set_gpio_sysconfig(struct sun7i_i2c *i2c)
 {
 	int cnt, i;
@@ -1024,7 +1022,7 @@ static const struct i2c_algorithm sun7i_i2c_algorithm = {
 	.functionality	  = sun7i_i2c_functionality,
 };
 
-#ifndef CONFIG_AW_FPAG_PLATFORM
+#ifndef CONFIG_AW_FPGA_PLATFORM
 static int sun7i_i2c_clk_init(struct sun7i_i2c *i2c)
 {
 	unsigned int apb_clk = 0;
@@ -1167,7 +1165,7 @@ static int sun7i_i2c_probe(struct platform_device *pdev)
 	struct sun7i_i2c *i2c = NULL;
 	struct resource *res = NULL;
 	struct sun7i_i2c_platform_data *pdata = NULL;
-#ifndef CONFIG_AW_FPAG_PLATFORM
+#ifndef CONFIG_AW_FPGA_PLATFORM
 	char *i2c_mclk[] ={CLK_MOD_TWI0, CLK_MOD_TWI1, CLK_MOD_TWI2, CLK_MOD_TWI3,CLK_MOD_TWI4};
 	char *i2c_pclk[] ={CLK_APB_TWI0, CLK_APB_TWI1, CLK_APB_TWI2, CLK_APB_TWI3,CLK_APB_TWI4};
 #endif
@@ -1212,7 +1210,7 @@ static int sun7i_i2c_probe(struct platform_device *pdev)
 	spin_lock_init(&i2c->lock);
 	init_waitqueue_head(&i2c->wait);
 
-#ifndef CONFIG_AW_FPAG_PLATFORM
+#ifndef CONFIG_AW_FPGA_PLATFORM
 	i2c->pclk = clk_get(NULL, i2c_pclk[i2c->adap.nr]);
 	if (!i2c->pclk || IS_ERR(i2c->pclk)) {
 		I2C_DBG("[i2c%d] request apb_i2c clock failed\n", i2c->bus_num);
@@ -1290,7 +1288,7 @@ static int sun7i_i2c_probe(struct platform_device *pdev)
 	return 0;
 
 eadapt:
-#ifndef CONFIG_AW_FPAG_PLATFORM
+#ifndef CONFIG_AW_FPGA_PLATFORM
 	if (i2c->mclk)
 		clk_disable(i2c->mclk);
 	if (i2c->pclk)
@@ -1308,7 +1306,7 @@ ereqirq:
 #endif
 	iounmap(i2c->base_addr);
 eremap:
-#ifndef CONFIG_AW_FPAG_PLATFORM
+#ifndef CONFIG_AW_FPGA_PLATFORM
 	if (i2c->mclk) {
 		clk_put(i2c->mclk);
 		i2c->mclk = NULL;
@@ -1336,7 +1334,7 @@ static int __exit sun7i_i2c_remove(struct platform_device *pdev)
 
 	/* disable clock and release gpio */
 	sun7i_i2c_hw_exit(i2c);
-#ifndef CONFIG_AW_FPAG_PLATFORM
+#ifndef CONFIG_AW_FPGA_PLATFORM
 	if (!i2c->mclk || IS_ERR(i2c->mclk)) {
 		I2C_ERR("i2c mclk handle is invalid, just return!\n");
 		return -1;
@@ -1363,7 +1361,7 @@ static int __exit sun7i_i2c_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int sun7i_i2c_suspend(struct device *dev)
 {
-#ifndef CONFIG_AW_FPAG_PLATFORM
+#ifndef CONFIG_AW_FPGA_PLATFORM
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sun7i_i2c *i2c = platform_get_drvdata(pdev);
 	int count = 10;
@@ -1388,7 +1386,7 @@ static int sun7i_i2c_suspend(struct device *dev)
 
 static int sun7i_i2c_resume(struct device *dev)
 {
-#ifndef CONFIG_AW_FPAG_PLATFORM
+#ifndef CONFIG_AW_FPGA_PLATFORM
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sun7i_i2c *i2c = platform_get_drvdata(pdev);
 
@@ -1435,8 +1433,8 @@ static struct resource sun7i_twi0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= SUN7I_IRQ_TWI0,
-		.end	= SUN7I_IRQ_TWI0,
+		.start	= AW_IRQ_TWI0,
+		.end	= AW_IRQ_TWI0,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -1475,13 +1473,13 @@ static struct resource sun7i_twi1_resources[] = {
 static struct sun7i_i2c_platform_data sun7i_twi1_pdata[] = {
 	{
 		.bus_num   = 1,
-	.frequency = TWI1_TRANSFER_SPEED,
+	        .frequency = TWI1_TRANSFER_SPEED,
 	},
 };
 
 struct platform_device sun7i_twi1_device = {
 	.name		= "sun7i-i2c",
-	.id		    = 1,
+	.id             = 1,
 	.resource	= sun7i_twi1_resources,
 	.num_resources	= ARRAY_SIZE(sun7i_twi1_resources),
 	.dev = {
@@ -1496,23 +1494,23 @@ static struct resource sun7i_twi2_resources[] = {
 		.end	= TWI2_BASE_ADDR_END,
 		.flags	= IORESOURCE_MEM,
 	},
-	// {
-		// .start	= SW_INT_IRQNO_TWI2,
-		// .end	= SW_INT_IRQNO_TWI2,
-		// .flags	= IORESOURCE_IRQ,
-	// },
+        {
+		 .start	= AW_IRQ_TWI2,
+		 .end	= AW_IRQ_TWI2,
+		 .flags	= IORESOURCE_IRQ,
+	 },
 };
 
 static struct sun7i_i2c_platform_data sun7i_twi2_pdata[] = {
 	{
 		.bus_num   = 2,
-	.frequency = TWI2_TRANSFER_SPEED,
+	        .frequency = TWI2_TRANSFER_SPEED,
 	},
 };
 
 struct platform_device sun7i_twi2_device = {
 	.name		= "sun7i-i2c",
-	.id		    = 2,
+	.id             = 2,
 	.resource	= sun7i_twi2_resources,
 	.num_resources	= ARRAY_SIZE(sun7i_twi2_resources),
 	.dev = {
@@ -1520,7 +1518,7 @@ struct platform_device sun7i_twi2_device = {
 	},
 };
 
-#ifdef CONFIG_AW_ASIC_EVB_PLATFORM
+#ifndef CONFIG_AW_FPGA_PLATFORM
 #define TWI0_USED_MASK 0x1
 #define TWI1_USED_MASK 0x2
 #define TWI2_USED_MASK 0x4
@@ -1556,8 +1554,6 @@ static int __init sun7i_i2c_adap_init(void)
         if (twi_used_mask & TWI2_USED_MASK)
                 platform_device_register(&sun7i_twi2_device);
 
-//        if (twi_used_mask & TWI3_USED_MASK)
-//                platform_device_register(&sun6i_twi3_device);
 
         if (twi_used_mask)
                 return platform_driver_register(&sun7i_i2c_driver);
