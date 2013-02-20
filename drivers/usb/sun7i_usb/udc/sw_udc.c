@@ -441,9 +441,9 @@ static int pio_write_fifo(struct sw_udc_ep *ep, struct sw_udc_request *req)
 	if(is_last){
 		if(!idx){  /* ep0 */
 			ep->dev->ep0state=EP0_IDLE;
-            sw_udc_done(ep,req, 0);
 		}
 
+		sw_udc_done(ep,req, 0);
 		is_last = 1;
 	}
 
@@ -556,7 +556,6 @@ static inline int sw_udc_read_packet(int fifo, u8 *buf,
 
 	len = min(req->req.length - req->req.actual, avail);
 	req->req.actual += len;
-
 	DMSG_DBG_UDC("R: req.actual(%d), req.length(%d), len(%d), total(%d)\n",
 		         req->req.actual, req->req.length, len, req->req.actual + len);
 
@@ -768,7 +767,6 @@ static int sw_udc_read_fifo(struct sw_udc_ep *ep, struct sw_udc_request *req)
 
 	fifo_count = sw_udc_fifo_count_out(g_sw_udc_io.usb_bsp_hdle, idx);
 	USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, old_ep_index);
-
 	if(is_sw_udc_dma_capable(req, ep) && (fifo_count >= ep->ep.maxpacket)){
 		return dma_read_fifo(ep, req);
 	}else{
@@ -1833,49 +1831,41 @@ void sw_udc_dma_completion(struct sw_udc *dev, struct sw_udc_ep *ep, struct sw_u
 	}
 
 	dma_transmit_len = sw_udc_dma_transmit_length(ep, ((ep->bEndpointAddress) & USB_DIR_IN), (__u32)req->req.buf);
+	DMSG_INFO_UDC("dma xfer %d bytes\n", dma_transmit_len);
 	if(dma_transmit_len < req->req.length){
 		DMSG_PANIC("WRN: DMA recieve data not complete, (%d, %d, %d)\n",
 					req->req.length, req->req.actual, dma_transmit_len);
 
 		if((ep->bEndpointAddress) & USB_DIR_IN){
 			USBC_Dev_ClearEpDma(dev->sw_udc_io->usb_bsp_hdle, USBC_EP_TYPE_TX);
-			USBC_Dev_WriteDataStatus(dev->sw_udc_io->usb_bsp_hdle, USBC_EP_TYPE_TX, 1);
 		}else{
 			USBC_Dev_ClearEpDma(dev->sw_udc_io->usb_bsp_hdle, USBC_EP_TYPE_RX);
-			USBC_Dev_ReadDataStatus(dev->sw_udc_io->usb_bsp_hdle, USBC_EP_TYPE_RX, 1);
 		}
 	}
 
-	//ep->dma_working = 0;
-	//ep->dma_transfer_len = 0;
+	ep->dma_working = 0;
+	ep->dma_transfer_len = 0;
     /* 如果本次传输有数据没有传输完毕，得接着传输 */
 	req->req.actual += dma_transmit_len;
 	if(req->req.actual < req->req.length){
-		//DMSG_INFO_UDC("dma callback, transfer left data\n");
+		DMSG_INFO_UDC("dma complete, data not complete\n");
 		if(((ep->bEndpointAddress & USB_DIR_IN) != 0)
 			&& !USBC_Dev_IsWriteDataReady(dev->sw_udc_io->usb_bsp_hdle, USBC_EP_TYPE_TX)){
-			if(sw_udc_write_fifo(ep, req)){
+			if(pio_write_fifo(ep, req)){
 				req = NULL;
 				is_complete = 1;
 			}
-		}else if(((ep->bEndpointAddress & USB_DIR_IN) != 0)
+		}else if(((ep->bEndpointAddress & USB_DIR_IN) == 0)
 			&& USBC_Dev_IsReadDataReady(dev->sw_udc_io->usb_bsp_hdle, USBC_EP_TYPE_RX)){
-			if(sw_udc_read_fifo(ep, req)){
+			if(pio_read_fifo(ep, req)){
 				req = NULL;
 				is_complete = 1;
 			}
 		}
 	}else{	/* 如果DMA完成的传输了数据，就done */
-	    //DMSG_INFO_UDC("dma callback, transfer done\n");
+	    DMSG_INFO_UDC("dma & data complete\n");
 		sw_udc_done(ep, req, 0);
 		is_complete = 1;
-	}
-
-    /* 如果DMA完成的传输了数据，就done */
-
-	if(is_complete){
-		ep->dma_working	= 0;
-		ep->dma_transfer_len = 0;
 	}
 
 	//-------------------------------------------------
