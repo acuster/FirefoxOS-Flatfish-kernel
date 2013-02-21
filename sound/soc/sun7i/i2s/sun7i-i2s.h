@@ -16,6 +16,8 @@
 #ifndef SUN7I_I2S_H_
 #define SUN7I_I2S_H_
 
+#include <mach/platform.h>
+
 /*------------------------------------------------------------*/
 /* REGISTER definition */
 

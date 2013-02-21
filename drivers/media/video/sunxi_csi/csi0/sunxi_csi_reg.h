@@ -5,6 +5,8 @@
 #ifndef _SUNXI_CSI0_REG_H_
 #define _SUNXI_CSI0_REG_H_
 
+#include <mach/platform.h>
+
 #define  W(addr, val)   writel(val, addr)
 #define  R(addr)        readl(addr)
 #define  S(addr,bit)	writel(readl(addr)|bit,addr)

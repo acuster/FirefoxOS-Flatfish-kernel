@@ -16,6 +16,8 @@
 #ifndef SUN7I_SPDIF_H_
 #define SUN7I_SPDIF_H_
 
+#include <mach/platform.h>
+
 /*------------------SPDIF register definition--------------------*/
 #define SUN7I_SPDIFBASE SW_PA_SPDIF_IO_BASE /* 0x01C21000 */
 
