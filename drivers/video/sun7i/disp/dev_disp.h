@@ -41,7 +41,7 @@ typedef struct
         __disp_fb_create_para_t fb_para[FB_MAX];
 	wait_queue_head_t       wait[2];
 	unsigned long           wait_count[2];
-
+        struct work_struct      resume_work[2];
         //add by heyihang.Jan 28, 2013
         struct work_struct      vsync_work[2];
         ktime_t                 vsync_timestamp[2];

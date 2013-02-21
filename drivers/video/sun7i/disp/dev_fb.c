@@ -1489,7 +1489,7 @@ __s32 Fb_Init(__u32 from)
                                 fb_para.fb_mode = FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS;
                         }
                         Display_Fb_Request(i, &fb_para);
-#ifdef __FPGA_DEBUG__
+#ifdef CONFIG_AW_FPGA_PLATFORM
                         fb_draw_colorbar((__u32)g_fbi.fbinfo[i]->screen_base, fb_para.width, fb_para.height*fb_para.buffer_num, &(g_fbi.fbinfo[i]->var));
 #endif
                 }

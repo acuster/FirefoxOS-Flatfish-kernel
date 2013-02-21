@@ -156,6 +156,8 @@ extern __s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t * p
 extern __s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t * size);
 extern __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type);
 extern __s32 BSP_disp_de_flicker_enable(__u32 sel, __bool b_en);
+extern __s32 BSP_disp_store_image_reg(__u32 sel, __u32 addr);
+extern __s32 BSP_disp_restore_image_reg(__u32 sel, __u32 addr);
 
 //add by heyihang.Jan 28, 2013
 extern __s32 BSP_disp_vsync_event_enable(__u32 sel, __bool enable);
@@ -213,6 +215,8 @@ extern __s32 BSP_disp_scaler_request(void);
 extern __s32 BSP_disp_scaler_release(__u32 handle);
 extern __s32 BSP_disp_scaler_start(__u32 handle,__disp_scaler_para_t *scl);
 extern __s32 BSP_disp_scaler_start_ex(__u32 handle,__disp_scaler_para_t *scl);
+extern __s32 BSP_disp_store_scaler_reg(__u32 sel, __u32 addr);
+extern __s32 BSP_disp_restore_scaler_reg(__u32 sel, __u32 addr);
 
 extern __s32 BSP_disp_hwc_enable(__u32 sel, __bool enable);
 extern __s32 BSP_disp_hwc_set_pos(__u32 sel, __disp_pos_t *pos);
@@ -246,6 +250,7 @@ extern __s32 BSP_disp_get_timming(__u32 sel, __disp_tcon_timing_t * tt);
 extern __u32 BSP_disp_get_cur_line(__u32 sel);
 extern __s32 BSP_disp_close_lcd_backlight(__u32 sel);
 extern __s32 BSP_disp_lcd_used(__u32 sel);
+extern __s32 BSP_disp_restore_lcdc_reg(__u32 sel);
 
 extern __s32 BSP_disp_tv_open(__u32 sel);
 extern __s32 BSP_disp_tv_close(__u32 sel);

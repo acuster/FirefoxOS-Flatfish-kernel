@@ -889,7 +889,7 @@ __s32 pwm_set_duty_ns(__u32 channel, __u32 duty_ns)
 
 __s32 LCD_PWM_EN(__u32 sel, __bool b_en)
 {
-#ifdef __FPGA_DEBUG__
+#ifdef CONFIG_AW_FPGA_PLATFORM
         if(b_en)
         {
                 __u32 tmp = sys_get_wvalue(0xf1c20e00) | 0x10;
@@ -984,7 +984,7 @@ __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
                 hdl = OSAL_GPIO_Request(gpio_info, 1);
                 OSAL_GPIO_Release(hdl, 2);
         }
-#ifdef __FPGA_DEBUG__
+#ifdef CONFIG_AW_FPGA_PLATFORM
 /*    //pwr pd29
     if(b_en==0)
 		*(volatile __u32*)(0xf1c20800 + 0x7c) = (*(volatile __u32*)(0xf1c20800 + 0x7c)) & (~(1<<29));
@@ -1079,7 +1079,7 @@ __s32 Disp_lcdc_pin_cfg(__u32 sel, __disp_output_type_t out_type, __u32 bon)
         {
                 __hdle lcd_pin_hdl;
                 int  i;
-#ifdef __FPGA_DEBUG__
+#ifdef CONFIG_AW_FPGA_PLATFORM
                 if(!bon)
                 {                //pd28, pwm0 pin_cfg
                         //*(volatile __u32*)(0xf1c20800 + 0x78) = (*(volatile __u32*)( 0xf1c20800 +  0x78)) & (~0x00020000);
@@ -1953,6 +1953,22 @@ __s32 BSP_disp_lcd_used(__u32 sel)
         return gdisp.screen[sel].lcd_cfg.lcd_used;
 }
 
+__s32 BSP_disp_restore_lcdc_reg(__u32 sel)
+{
+        LCDC_init(sel);
+
+        if(BSP_disp_lcd_used(sel))
+        {
+                __pwm_info_t pwm_info;
+
+                pwm_get_para(gdisp.screen[sel].lcd_cfg.lcd_pwm_ch, &pwm_info);
+
+                pwm_info.enable = 0;
+                pwm_set_para(gdisp.screen[sel].lcd_cfg.lcd_pwm_ch, &pwm_info);
+        }
+
+        return 0;
+}
 
 #ifdef __LINUX_OSAL__
 EXPORT_SYMBOL(LCD_OPEN_FUNC);

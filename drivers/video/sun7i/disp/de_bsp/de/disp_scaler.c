@@ -1417,3 +1417,57 @@ __s32 Scaler_Set_Enhance(__u32 sel, __u32 bright, __u32 contrast, __u32 saturati
 
     return DIS_SUCCESS;
 }
+
+__s32 BSP_disp_store_scaler_reg(__u32 sel, __u32 addr)
+{
+    __u32 i = 0;
+    __u32 value = 0;
+    __u32 reg_base = 0;
+
+    if(sel == 0)
+    {
+        reg_base = gdisp.init_para.base_scaler0;
+    }
+    else
+    {
+        reg_base = gdisp.init_para.base_scaler1;
+    }
+
+    for(i=0; i<0xa18; i+=4)
+    {
+        value = sys_get_wvalue(reg_base + i);
+        sys_put_wvalue(addr + i, value);
+    }
+
+    return 0;
+}
+
+__s32 BSP_disp_restore_scaler_reg(__u32 sel, __u32 addr)
+{
+    __u32 i = 0;
+    __u32 value = 0;
+    __u32 reg_base = 0;
+
+    if(sel == 0)
+    {
+        reg_base = gdisp.init_para.base_scaler0;
+    }
+    else
+    {
+        reg_base = gdisp.init_para.base_scaler1;
+    }
+
+    for(i=8; i<0xa18; i+=4)
+    {
+        value = sys_get_wvalue(addr + i);
+        sys_put_wvalue(reg_base + i,value);
+    }
+
+    value = sys_get_wvalue(addr);
+    sys_put_wvalue(reg_base,value);
+
+    value = sys_get_wvalue(addr + 4);
+    sys_put_wvalue(reg_base + 4,value);
+
+    return 0;
+}

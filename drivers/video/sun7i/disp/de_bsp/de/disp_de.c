@@ -249,3 +249,55 @@ __s32 Disp_set_out_interlace(__u32 sel)
 
 	return DIS_SUCCESS;
 }
+
+__s32 BSP_disp_store_image_reg(__u32 sel, __u32 addr)
+{
+        __u32 i = 0;
+        __u32 value = 0;
+        __u32 reg_base = 0;
+
+        if(sel == 0)
+        {
+                reg_base = gdisp.init_para.base_image0;
+        }
+        else
+        {
+                reg_base = gdisp.init_para.base_image1;
+        }
+
+        for(i=0; i<0xe00 - 0x800; i+=4)
+        {
+                value = sys_get_wvalue(reg_base + 0x800 + i);
+                sys_put_wvalue(addr + i, value);
+        }
+
+        return 0;
+}
+
+__s32 BSP_disp_restore_image_reg(__u32 sel, __u32 addr)
+{
+        __u32 i = 0;
+        __u32 value = 0;
+        __u32 reg_base = 0;
+
+        if(sel == 0)
+        {
+                reg_base = gdisp.init_para.base_image0;
+        }
+        else
+        {
+                reg_base = gdisp.init_para.base_image1;
+        }
+
+        DE_BE_Reg_Init(sel);
+        for(i=4; i<0xe00 - 0x800; i+=4)
+        {
+                value = sys_get_wvalue(addr + i);
+                sys_put_wvalue(reg_base + 0x800 + i,value);
+        }
+
+        value = sys_get_wvalue(addr);
+        sys_put_wvalue(reg_base + 0x800,value);
+
+        return 0;
+}
