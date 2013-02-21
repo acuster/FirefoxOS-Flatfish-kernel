@@ -12,19 +12,23 @@ int g2d_openclk(void)
 	__u32 ret;
 
 	/* ahb g2d gating */
-	g2d_ahbclk = clk_get(NULL,"ahb_de_mix");
+	g2d_ahbclk = clk_get(NULL, CLK_AHB_MP);
+	WARN_ON(!g2d_ahbclk || IS_ERR(g2d_ahbclk));
 
 	/* sdram g2d gating */
-	g2d_dramclk = clk_get(NULL,"sdram_de_mix");
+	g2d_dramclk = clk_get(NULL, CLK_DRAM_DEMP);
+	WARN_ON(!g2d_dramclk || IS_ERR(g2d_dramclk));
 
 	/* g2d gating */
-	g2d_mclk = clk_get(NULL,"de_mix");
+	g2d_mclk = clk_get(NULL, CLK_MOD_DEMIX);
+	WARN_ON(!g2d_mclk || IS_ERR(g2d_mclk));
 
 	/*disable mp clk reset*/
-	clk_reset(g2d_mclk,AW_CCU_CLK_NRESET);
+	clk_reset(g2d_mclk, AW_CCU_CLK_NRESET);
 
 	/* set g2d clk value */
-	g2d_src = clk_get(NULL,"sdram_pll_p");//video_pll0
+	g2d_src = clk_get(NULL, CLK_SYS_PLL5P); /* "sdram_pll_p" */
+	WARN_ON(!g2d_src || IS_ERR(g2d_src));
 	ret = clk_set_parent(g2d_mclk, g2d_src);
 	clk_put(g2d_src);
 
@@ -44,6 +48,9 @@ int g2d_closeclk(void)/* used once when g2d driver exit */
 	clk_put(g2d_dramclk);
 	clk_put(g2d_mclk);
 
+	g2d_ahbclk = NULL;
+	g2d_dramclk = NULL;
+	g2d_mclk = NULL;
 	return 0;
 }
 

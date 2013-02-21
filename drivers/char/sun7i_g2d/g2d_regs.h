@@ -26,7 +26,7 @@
 /*
 	Graphics 2D General Registers
 */
-#define G2D_BASE_ADDR			(0x01e80000)/* Base Address			*/
+#define G2D_BASE_ADDR			(SW_PA_MP_IO_BASE)/* Base Address			*/
 #define G2D_CONTROL_REG			(0x00)		/* Control register			*/
 #define G2D_STATUS_REG			(0x04)		/* Status register		*/
 #define G2D_SCAN_ORDER_REG		(0x08)		/* DMA scan order control register		*/

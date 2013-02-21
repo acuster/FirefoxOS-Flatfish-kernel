@@ -19,8 +19,8 @@ __g2d_info_t		 para;
 static struct resource g2d_resource[2] =
 {
 	[0] = {
-		.start	= 0x01e80000,
-		.end	= 0x01e8ffff,
+		.start	= SW_PA_MP_IO_BASE,
+		.end	= SW_PA_MP_IO_BASE + 0x10000,
 		.flags	= IORESOURCE_MEM,
 	},
 
@@ -29,7 +29,6 @@ static struct resource g2d_resource[2] =
 		.end	= INTC_IRQNO_DE_MIX,
 		.flags	= IORESOURCE_IRQ,
 	},
-
 };
 
 struct platform_device g2d_device =
@@ -70,7 +69,7 @@ unsigned long g2d_size = SW_G2D_MEM_SIZE;
 
 __s32 g2d_create_heap(__u32 pHeapHead, __u32 nHeapSize)
 {
-	if(pHeapHead <(__u32)__va(0x40000000))
+	if(pHeapHead <(__u32)__va(PLAT_PHYS_OFFSET))
 	{
 	    ERR("Invalid pHeapHead:%x\n", pHeapHead);
 	    return -1;/* check valid */

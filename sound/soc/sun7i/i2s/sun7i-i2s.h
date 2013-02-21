@@ -20,7 +20,7 @@
 /* REGISTER definition */
 
 /* IIS REGISTER */
-#define SUN7I_IISBASE 		(0x01C22400)
+#define SUN7I_IISBASE 		(SW_PA_IIS0_IO_BASE) /* 0x01C22400 */
 
 #define SUN7I_IISCTL 	  (0x00)
 	#define SUN7I_IISCTL_SDO0EN		(1<<8)
@@ -155,7 +155,7 @@
 
 
 /* DMA REGISTER */
-#define SUN7I_DMABASE	(0x01C02000)
+#define SUN7I_DMABASE	(SW_PA_DMAC_IO_BASE) /* 0x01C02000 */
 
 #define SUN7I_DMAIRQEN						(0x0)
 	#define SUN7I_DMAIRQEN_NDMA_FULLEN(v)				(1<<((v)*2+1))

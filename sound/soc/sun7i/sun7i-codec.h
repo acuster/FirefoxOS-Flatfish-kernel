@@ -3,7 +3,7 @@
 #define _SUN7I_CODEC_H
 
 //Codec Register
-#define CODEC_BASSADDRESS         (0x01c22c00)
+#define CODEC_BASSADDRESS         (SW_PA_ADDA_IO_BASE) /* 0x01c22c00 */
 #define SUN7I_DAC_DPC                (0x00)
 #define SUN7I_DAC_FIFOC              (0x04)
 #define SUN7I_DAC_FIFOS              (0x08)

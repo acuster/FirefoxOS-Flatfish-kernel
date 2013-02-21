@@ -17,7 +17,7 @@
 #define SUN7I_SPDIF_H_
 
 /*------------------SPDIF register definition--------------------*/
-#define SUN7I_SPDIFBASE 0x01C21000
+#define SUN7I_SPDIFBASE SW_PA_SPDIF_IO_BASE /* 0x01C21000 */
 
 #define	SUN7I_SPDIF_CTL	(0x00)
 	#define SUN7I_SPDIF_CTL_MCLKDIV(v)		((v)<<4)		//v even
@@ -125,7 +125,7 @@
 	#define SUN7I_SPDIF_RXCHSTA1_MAXWORDLEN			(1<<0)
 
 /*--------------------------------CCM register definition---------------------*/
-#define SUN7I_CCMBASE (0x01C20000)
+#define SUN7I_CCMBASE (SW_PA_CCM_IO_BASE) /* 0x01C20000 */
 
 #define SUN7I_CCMBASE_AUDIOHOSCPLL (0x08)
 	#define SUN7I_CCMBASE_AUDIOHOSCPLL_EN			(1<<31)

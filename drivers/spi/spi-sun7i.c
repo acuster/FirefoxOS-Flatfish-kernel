@@ -739,7 +739,7 @@ static int sun7i_spi_xfer_setup(struct spi_device *spi, struct spi_transfer *t)
         return -EINVAL;
     }
 
-#ifndef SUN7I_SPI_FPGA
+#ifndef CONFIG_AW_FPGA_PLATFORM
     spi_set_clk(config->max_speed_hz, clk_get_rate(aw_spi->mclk), base_addr);
 #else
     spi_set_clk(config->max_speed_hz, 24000000, base_addr);
