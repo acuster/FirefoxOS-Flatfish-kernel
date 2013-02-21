@@ -82,7 +82,7 @@
 #endif
 
 /* 普通警告 */
-#if	1
+#if	0
     #define DMSG_WRN        			DMSG_ERR
 #else
     #define DMSG_WRN(...)
