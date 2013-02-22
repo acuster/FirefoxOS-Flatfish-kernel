@@ -2810,7 +2810,7 @@ static void sw_udc_enable(struct sw_udc *dev)
 
 #ifdef	CONFIG_USB_GADGET_DUALSPEED
 	DMSG_INFO_UDC("CONFIG_USB_GADGET_DUALSPEED\n");
-    #ifdef SW_USB_FPGA
+    #ifdef CONFIG_AW_FPGA_PLATFORM
 	USBC_Dev_ConfigTransferMode(g_sw_udc_io.usb_bsp_hdle, USBC_TS_TYPE_BULK, USBC_TS_MODE_FS);
 	#else
 	USBC_Dev_ConfigTransferMode(g_sw_udc_io.usb_bsp_hdle, USBC_TS_TYPE_BULK, USBC_TS_MODE_HS);

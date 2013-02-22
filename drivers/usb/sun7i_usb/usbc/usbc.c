@@ -264,7 +264,7 @@ __u32 USBC_ReadPacket(__hdle hUSB, __u32 fifo, __u32 cnt, void *buff)
 
 	return len;
 }
-#ifndef  SW_USB_FPGA
+#ifndef CONFIG_AW_FPGA_PLATFORM
 /* 映射SRAM D给usb fifo使用 */
 void USBC_ConfigFIFO_Base(__hdle hUSB, __u32 sram_base, __u32 fifo_mode)
 {

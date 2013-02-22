@@ -497,7 +497,7 @@ static __s32 sw_hcd_bsp_init(__u32 usbc_no, sw_hcd_io_t *sw_hcd_io)
 		return -1;
 	}
 
-#ifdef SW_USB_FPGA
+#ifdef CONFIG_AW_FPGA_PLATFORM
 	clear_usb_reg((u32)sw_hcd_io->usb_vbase);
 #endif
     return 0;

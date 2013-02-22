@@ -60,7 +60,11 @@ static char* usbc_ahb_ehci_name[3]  = {"", CLK_AHB_EHCI0, CLK_AHB_EHCI1};
 static char* usbc_ahb_ohci_name[3]  = {"", CLK_AHB_OHCI0, CLK_AHB_OHCI1};
 static char* usbc_phy_gate_name[3] 	= {CLK_MOD_USBPHY, CLK_MOD_USBPHY, CLK_MOD_USBPHY};
 static char* ohci_phy_gate_name[3]  = {"", CLK_MOD_USBOHCI0, CLK_MOD_USBOHCI1};
+#ifdef CONFIG_AW_FPGA_PLATFORM
 static char* usbc_phy_reset_name[3] = {CLK_MOD_USBPHY0, CLK_MOD_USBPHY0, CLK_MOD_USBPHY0};
+#else
+static char* usbc_phy_reset_name[3] = {CLK_MOD_USBPHY0, CLK_MOD_USBPHY1, CLK_MOD_USBPHY2};
+#endif
 
 static u32 usbc_base[3] 			= {SW_VA_USB0_IO_BASE, SW_VA_USB1_IO_BASE, SW_VA_USB2_IO_BASE};
 static u32 ehci_irq_no[3] 			= {0, AW_IRQ_USB1, AW_IRQ_USB2};
@@ -607,33 +611,6 @@ static s32 clock_exit(struct sw_hci_hcd *sw_hci, u32 ohci)
 static int open_clock(struct sw_hci_hcd *sw_hci, u32 ohci)
 {
 	DMSG_INFO("[%s]: open clock\n", sw_hci->hci_name);
-#ifdef  SW_USB_FPGA
-    {
-        u32 i, reg_value = 0;
-
-        reg_value = USBC_Readl(0xf1c20000+0xcc);
-        reg_value |= 0x01;
-        USBC_Writel(reg_value, (0xf1c20000+0xcc));
-        for(i=0;i<1000;i++);
-
-        /*Select_HCI_Bitfile*/
-        reg_value = USBC_Readl(SW_VA_SRAM_IO_BASE+ 0x04);
-        reg_value &= ~(0x01<<7);
-        USBC_Writel(reg_value, (SW_VA_SRAM_IO_BASE+ 0x04));
-        for(i=0;i<1000;i++);
-
-        /*Reset_Bitfile*/
-        reg_value = USBC_Readl(0xf1c20000+0xcc);
-        reg_value &= (~0x01);
-        USBC_Writel(reg_value, (0xf1c20000+0xcc));
-        for(i=0;i<10000;i++);
-
-        reg_value = USBC_Readl(0xf1c20000+0xcc);
-        reg_value |= 0x01;
-        USBC_Writel(reg_value, (0xf1c20000+0xcc));
-        for(i=0;i<1000;i++);
-    }
-#else
 
     if(sw_hci->sie_clk && sw_hci->phy_gate
        && sw_hci->phy_reset && !sw_hci->clk_is_open){
@@ -666,7 +643,7 @@ static int open_clock(struct sw_hci_hcd *sw_hci, u32 ohci)
               sw_hci->hci_name,
               (u32)USBC_Readl(SW_VA_CCM_IO_BASE + 0x60),
               (u32)USBC_Readl(SW_VA_CCM_IO_BASE + 0xcc));
-#endif
+
 
 	return 0;
 }

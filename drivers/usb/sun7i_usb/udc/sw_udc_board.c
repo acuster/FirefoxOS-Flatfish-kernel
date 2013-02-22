@@ -241,7 +241,7 @@ __s32 sw_udc_bsp_init(__u32 usbc_no, sw_udc_io_t *sw_udc_io)
 		DMSG_PANIC("ERR: sw_udc_init: USBC_open_otg failed\n");
 		return -1;
 	}
-#ifdef  SW_USB_FPGA
+#ifdef CONFIG_AW_FPGA_PLATFORM
 	clear_usb_reg((u32)sw_udc_io->usb_vbase);
 #endif
 
