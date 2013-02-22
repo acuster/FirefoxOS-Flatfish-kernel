@@ -19,6 +19,7 @@
 #define SUN7I_DAC_TXCNT              (0x30)
 #define SUN7I_ADC_RXCNT              (0x34)
 #define SUN7I_BIAS_CRT		         (0x38)
+#define SUN7I_MIC_CRT		         (0x3c)
 #define SUN7I_CODEC_REGS_NUM         (13)
 
 #define DAIFMT_16BITS             (16)

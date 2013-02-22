@@ -31,20 +31,25 @@
 #include <sound/initval.h>
 #include <linux/clk.h>
 #include <mach/clock.h>
-
+#include <linux/gpio.h>
 #include <linux/timer.h>
 #include "sun7i-codec.h"
 #include <mach/sys_config.h>
 #include <mach/system.h>
-
+#include <sound/soc.h>
 #define SCRIPT_AUDIO_OK (0)
 static int capture_used = 1;
+static script_item_u item;
+static int bias_reg_val;
 struct clk *codec_apbclk,*codec_pll2clk,*codec_moduleclk;
 
 static volatile unsigned int capture_dmasrc = 0;
 static volatile unsigned int capture_dmadst = 0;
 static volatile unsigned int play_dmasrc = 0;
 static volatile unsigned int play_dmadst = 0;
+static bool codec_speakerout_enabled = false;
+static int req_status;
+static script_item_value_type_e  type;
 
 /* Structure/enum declaration ------------------------------- */
 typedef struct codec_board_info {
@@ -322,6 +327,10 @@ int codec_rd_control(u32 reg, u32 bit, u32 *val)
 * Reset the codec, set the register of codec default value
 * Return 0 for success
 */
+
+static int da16_val;
+static int bias_data;
+
 static  int codec_init(void)
 {
 	//enable dac digital
@@ -337,6 +346,10 @@ static  int codec_init(void)
 	codec_wr_control(SUN7I_ADC_ACTL, 0x1, 8, 0x0);
 
 	codec_wr_control(SUN7I_DAC_ACTL, 0x6, VOLUME, 0x3b);
+	bias_reg_val = readl(baseaddr + (SUN7I_BIAS_CRT));
+
+	da16_val 	= bias_reg_val & (0x1F<<0);
+	bias_data 	= (bias_reg_val & (0x3F<<11))>>11;
 
 	return 0;
 }
@@ -449,19 +462,42 @@ static int codec_dev_free(struct snd_device *device)
 	return 0;
 };
 
+static int codec_get_speakerout(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = codec_speakerout_enabled;
+	return 0;
+}
+
+static int codec_set_speakerout(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+
+	codec_speakerout_enabled = ucontrol->value.integer.value[0];
+
+	if (codec_speakerout_enabled) {
+		item.gpio.data = 1;
+		/*config gpio info of audio_pa_ctrl open*/
+		if (0 != sw_gpio_setall_range(&item.gpio, 1)) {
+			printk("sw_gpio_setall_range failed\n");
+		}
+		mdelay(62);
+}
+}
+
 /*	对sun7i-codec.c各寄存器的各种设定，或读取。主要实现函数有三个.
 * 	.info = snd_codec_info_volsw, .get = snd_codec_get_volsw,\.put = snd_codec_put_volsw,
 */
 static const struct snd_kcontrol_new codec_snd_controls[] = {
 	//FOR B C VERSION
 	/*SUN7I_DAC_ACTL = 0x10,PAVOL*/
-	CODEC_SINGLE("Master Playback Volume", SUN7I_DAC_ACTL,0,0x3f,0),
+	CODEC_SINGLE("Master Playback Volume", SUN7I_DAC_ACTL,0,0x3f,0),            /*0*/
 	/*total output switch PAMUTE,if set this bit to 0, the voice is mute*/
-	CODEC_SINGLE("Playback PAMUTE SWITCH", SUN7I_DAC_ACTL,6,1,0),
+	CODEC_SINGLE("Playback PAMUTE SWITCH", SUN7I_DAC_ACTL,6,1,0),               /*1*/
 	/*mixer output switch MIXPAS*/
-	CODEC_SINGLE("Playback MIXPAS", SUN7I_DAC_ACTL,7,1,0),
+	CODEC_SINGLE("Playback MIXPAS", SUN7I_DAC_ACTL,7,1,0),						/*2*/
 	/*system digital voice output switch DACPAS*/
-	CODEC_SINGLE("Playback DACPAS", SUN7I_DAC_ACTL,8,1,0),
+	CODEC_SINGLE("Playback DACPAS", SUN7I_DAC_ACTL,8,1,0),						/*3*/
 	/*from bit 9 to bit 12.Mic1/2 output switch.
 			MIC1LS 		MIC1RS 		MIC2LS 		MIC2RS
 	0x0   	mute  		mute    	mute   		mute
@@ -469,64 +505,68 @@ static const struct snd_kcontrol_new codec_snd_controls[] = {
 	0x12    not mute 	not mute    mute    	mute
 	0x15	not mute	not mute	not mute	not mute
 	0x0*/
-	CODEC_SINGLE("Mic Output Mix",SUN7I_DAC_ACTL,9,15,0),
+	CODEC_SINGLE("Mic Output Mix",SUN7I_DAC_ACTL,9,15,0),						/*4*/
 	/*Left DAC to right output mixer mute*/
-	CODEC_SINGLE("Ldac Right Mixer",SUN7I_DAC_ACTL,13,1,0),
+	CODEC_SINGLE("Ldac Right Mixer",SUN7I_DAC_ACTL,13,1,0),						/*5*/
 	/*Right DAC to right output mixer mute*/
-	CODEC_SINGLE("Rdac Right Mixer",SUN7I_DAC_ACTL,14,1,0),
+	CODEC_SINGLE("Rdac Right Mixer",SUN7I_DAC_ACTL,14,1,0),						/*6*/
 	/*Left DAC to left output mixer mute*/
-	CODEC_SINGLE("Ldac Left Mixer",SUN7I_DAC_ACTL,15,1,0),
+	CODEC_SINGLE("Ldac Left Mixer",SUN7I_DAC_ACTL,15,1,0),						/*7*/
 	/*right FM to right output mixer mute*/
-	CODEC_SINGLE("FmR Switch",SUN7I_DAC_ACTL,16,1,0),//Fm right switch
+	CODEC_SINGLE("FmR Switch",SUN7I_DAC_ACTL,16,1,0),//Fm right switch			/*8*/
 	/*Left FM to left output mixer mute*/
-	CODEC_SINGLE("FmL Switch",SUN7I_DAC_ACTL,17,1,0),//Fm left switch
+	CODEC_SINGLE("FmL Switch",SUN7I_DAC_ACTL,17,1,0),//Fm left switch			/*9*/
 	/* 	Right LINEIN gain stage to right output mixer mite,
 	*	When LNRDF is 0, right select LINEINR
 	*	When LNRDF is 1, right select LINEINL-LINEINR
 	*/
-	CODEC_SINGLE("LineR Switch",SUN7I_DAC_ACTL,18,1,0),//Line right switch
+	CODEC_SINGLE("LineR Switch",SUN7I_DAC_ACTL,18,1,0),//Line right switch		/*10*/
 	/* 	Left LINEIN gain stage to left output mixer mite,
 	*	When LNRDF is 0, left select LINEINL
 	*	When LNRDF is 1, left select LINEINL-LINEINR
 	*/
-	CODEC_SINGLE("LineL Switch",SUN7I_DAC_ACTL,19,1,0),//Line left switch
+	CODEC_SINGLE("LineL Switch",SUN7I_DAC_ACTL,19,1,0),//Line left switch		/*11*/
 	/*	MIC1/2 gain stage to output mixer Gain Control
 	* 	From -4.5db to 6db,1.5db/step,default is 0db
 	*	-4.5db:0x0,-3.0db:0x1,-1.5db:0x2,0db:0x3
 	*	1.5db:0x4,3.0db:0x5,4.5db:0x6,6db:0x7
 	*/
-	CODEC_SINGLE("MIC output volume",SUN7I_DAC_ACTL,20,7,0),
+	CODEC_SINGLE("MIC output volume",SUN7I_DAC_ACTL,20,7,0),					/*12*/
 	/*	FM Input to output mixer Gain Control
 	* 	From -4.5db to 6db,1.5db/step,default is 0db
 	*	-4.5db:0x0,-3.0db:0x1,-1.5db:0x2,0db:0x3
 	*	1.5db:0x4,3.0db:0x5,4.5db:0x6,6db:0x7
 	*/
-	CODEC_SINGLE("Fm output Volume",SUN7I_DAC_ACTL,23,7,0),//Fm output volume
+	CODEC_SINGLE("Fm output Volume",SUN7I_DAC_ACTL,23,7,0),//Fm output volume	/*13*/
 	/*	Line-in gain stage to output mixer Gain Control
 	*	0:-1.5db,1:0db
 	*/
-	CODEC_SINGLE("Line output Volume",SUN7I_DAC_ACTL,26,1,0),//Line output volume
+	CODEC_SINGLE("Line output Volume",SUN7I_DAC_ACTL,26,1,0),//Line output volume	/*14*/
 	/*Analog Output Mixer Enable*/
-	CODEC_SINGLE("MIX Enable",SUN7I_DAC_ACTL,29,1,0),
+	CODEC_SINGLE("MIX Enable",SUN7I_DAC_ACTL,29,1,0),							/*15*/
 	/*Internal DAC Analog Left channel Enable*/
-	CODEC_SINGLE("DACALEN Enable",SUN7I_DAC_ACTL,30,1,0),
+	CODEC_SINGLE("DACALEN Enable",SUN7I_DAC_ACTL,30,1,0),						/*16*/
 	/*Internal DAC Analog Right channel Enable*/
-	CODEC_SINGLE("DACAREN Enable",SUN7I_DAC_ACTL,31,1,0),
+	CODEC_SINGLE("DACAREN Enable",SUN7I_DAC_ACTL,31,1,0),						/*17*/
 
-	CODEC_SINGLE("PA Enable",SUN7I_ADC_ACTL,4,1,0),
+	CODEC_SINGLE("PA Enable",SUN7I_ADC_ACTL,4,1,0),								/*18*/
 
 	/*
 	*	dither enable
 	*/
-	CODEC_SINGLE("dither enable",SUN7I_ADC_ACTL,8,1,0),
+	CODEC_SINGLE("dither enable",SUN7I_ADC_ACTL,8,1,0),							/*19*/
+	/*
+	*	phoneout enable
+	*/
+	/*CODEC_SINGLE("Mic1outn Enable",SUN7I_ADC_ACTL,12,1,0),						/*20*/
+	CODEC_SINGLE("Mic1outn Enable",SUN7I_ADC_ACTL,4,1,0),						/*20*/
 
-	CODEC_SINGLE("Mic1outn Enable",SUN7I_ADC_ACTL,12,1,0),
-	CODEC_SINGLE("LINEIN APM Volume", SUN7I_ADC_ACTL,13,0x7,0),
+	CODEC_SINGLE("LINEIN APM Volume", SUN7I_MIC_CRT,13,0x7,0),					/*21*/
 	/*
 	*0:Line-in right channel which is independent of line-in left channel
 	*1:negative input of line-in left channel for fully differential application
 	*/
-	CODEC_SINGLE("Line-in-r function define",SUN7I_ADC_ACTL,16,1,0),
+	CODEC_SINGLE("Line-in-r function define",SUN7I_ADC_ACTL,16,1,0),			/*22*/
 	/*ADC Input source select
 	* 000:left select LINEINL, right select LINEINR; or, both select LINEINL-LINEINR,depending on LNRDF(bit 16)
 	* 001:left channel select FMINL & right channel select FMINR
@@ -536,42 +576,76 @@ static const struct snd_kcontrol_new codec_snd_controls[] = {
 	* 110:left select output mixer L & right select
 	* 111:left select LINEINL or LINEINL-LINEINR, depending on LNRDF(bit 16),right select MIC1 gain stage
 	*/
-	CODEC_SINGLE("ADC Input source",SUN7I_ADC_ACTL,17,7,0),
+	CODEC_SINGLE("ADC Input source",SUN7I_ADC_ACTL,17,7,0),						/*23*/
 
 	/*ADC Input Gain Control, capture volume
 	* 000:-4.5db,001:-3db,010:-1.5db,011:0db,100:1.5db,101:3db,110:4.5db,111:6db
 	*/
-	CODEC_SINGLE("Capture Volume",SUN7I_ADC_ACTL,20,7,0),
+	CODEC_SINGLE("Capture Volume",SUN7I_ADC_ACTL,20,7,0),						/*24*/
 	/*
 	*	MIC2 pre-amplifier Gain Control
 	*	00:0db,01:35db,10:38db,11:41db
 	*/
-	CODEC_SINGLE("Mic2 gain Volume",SUN7I_ADC_ACTL,23,3,0),
+	/*CODEC_SINGLE("Mic2 gain Volume",SUN7I_ADC_ACTL,23,3,0),						/*25*/
+	CODEC_SINGLE("Mic2 gain Volume",SUN7I_MIC_CRT,26,7,0),						/*25*/
 	/*
 	*	MIC1 pre-amplifier Gain Control
 	*	00:0db,01:35db,10:38db,11:41db
 	*/
-	CODEC_SINGLE("Mic1 gain Volume",SUN7I_ADC_ACTL,25,3,0),
+	/*CODEC_SINGLE("Mic1 gain Volume",SUN7I_ADC_ACTL,25,3,0),						/*26*/
+	CODEC_SINGLE("Mic1 gain Volume",SUN7I_MIC_CRT,29,3,0),						/*26*/
 	/*
 	*	VMic enable
 	*/
-	CODEC_SINGLE("VMic enable",SUN7I_ADC_ACTL,27,1,0),
+	CODEC_SINGLE("VMic enable",SUN7I_ADC_ACTL,27,1,0),							/*27*/
 	/*
 	*	MIC2 pre-amplifier enable
 	*/
-	CODEC_SINGLE("Mic2 amplifier enable",SUN7I_ADC_ACTL,28,1,0),
+	CODEC_SINGLE("Mic2 amplifier enable",SUN7I_ADC_ACTL,28,1,0),				/*28*/
 	/*
 	*	MIC1 pre-amplifier enable
 	*/
-	CODEC_SINGLE("Mic1 amplifier enable",SUN7I_ADC_ACTL,29,1,0),
+	CODEC_SINGLE("Mic1 amplifier enable",SUN7I_ADC_ACTL,29,1,0),				/*29*/
 	/*
 	*	ADC Left Channel enable
 	*/
-	CODEC_SINGLE("ADCL enable",SUN7I_ADC_ACTL,30,1,0),
+	CODEC_SINGLE("ADCL enable",SUN7I_ADC_ACTL,30,1,0),							/*30*/
 	/*
 	*	ADC Right enable
 	*/
-	CODEC_SINGLE("ADCR enable",SUN7I_ADC_ACTL,31,1,0),
+	CODEC_SINGLE("ADCR enable",SUN7I_ADC_ACTL,31,1,0),							/*31*/
+	/*
+	*	DDE enable
+		0:HPCOM 高阻
+		1:HPCOM 耳机直驱使能
+	*/
+	CODEC_SINGLE("DDE enable",SUN7I_ADC_ACTL,31,1,0),							/*32*/
+	/*
+	*	extern PA
+	*/
+	SOC_SINGLE_BOOL_EXT("Audio speaker out", 0, codec_get_speakerout, codec_set_speakerout), 		/*33*/
+	/*
+	*	PHONEOUTG
+	*	000:-4.5db,001:-3.0db,010:-1.5db,011:0db,
+	*	100:1.5db,101:3db,110:4.5db,111:6db
+	*/
+	CODEC_SINGLE("PHONEOUT GAIN CONTROL",SUN7I_MIC_CRT,5,3,0),							/*34*/
+	/*
+	*	left output mixer to phone out mute
+	*/
+	CODEC_SINGLE("ADCR enable",SUN7I_MIC_CRT,0,1,0),							/*35*/
+	/*
+	*	right output mixer to phone out mute
+	*/
+	CODEC_SINGLE("ADCR enable",SUN7I_MIC_CRT,1,1,0),							/*36*/
+	/*
+	*	mic2 boost stage to phone out mute
+	*/
+	CODEC_SINGLE("ADCR enable",SUN7I_MIC_CRT,2,1,0),							/*37*/
+	/*
+	*	mic1 boost stage to phone out mute
+	*/
+	CODEC_SINGLE("ADCR enable",SUN7I_MIC_CRT,3,1,0),							/*38*/
 };
 
 int __init snd_chip_codec_mixer_new(struct snd_card *card)
@@ -1547,6 +1621,23 @@ static int __init sun7i_codec_probe(struct platform_device *pdev)
 
 	kfree(db);
 	codec_init();
+
+	/*get the default pa val(close)*/
+	type = script_get_item("audio_para", "audio_pa_ctrl", &item);
+	if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
+		printk("script_get_item return type err\n");
+		return -EFAULT;
+	}
+	/*request gpio*/
+	req_status = gpio_request(item.gpio.gpio, NULL);
+	if (0 != req_status) {
+		printk("request gpio failed!\n");
+	}
+	/*config gpio info of audio_pa_ctrl, the default pa config is close(check pa sys_config1.fex).*/
+	if (0 != sw_gpio_setall_range(&item.gpio, 1)) {
+		printk("sw_gpio_setall_range failed\n");
+	}
+
 	resume_work_queue = create_singlethread_workqueue("codec_resume");
 	if (resume_work_queue == NULL) {
 		printk("[su4i-codec] try to create workqueue for codec failed!\n");
@@ -1584,6 +1675,12 @@ static int snd_sun7i_codec_suspend(struct platform_device *pdev,pm_message_t sta
 	//disable dac to pa
 	codec_wr_control(SUN7I_DAC_ACTL, 0x1, 	DACPAS, 0x0);
 	codec_wr_control(SUN7I_DAC_DPC ,  0x1, DAC_EN, 0x0);
+
+	if(SUPER_STANDBY == standby_type){
+		bias_reg_val = readl(baseaddr + (SUN7I_BIAS_CRT));
+		da16_val = bias_reg_val & (0x1F<<0);
+		bias_data = (bias_reg_val & (0x3F<<11))>>11;
+	}
 	//disable mic
 	codec_wr_control(SUN7I_ADC_ACTL, 0x1, MIC1_EN, 0x0);
 
@@ -1601,10 +1698,31 @@ static int snd_sun7i_codec_suspend(struct platform_device *pdev,pm_message_t sta
  */
 static int snd_sun7i_codec_resume(struct platform_device *pdev)
 {
+	int debug_bias_val = 0;
+	int debug_da16_val = 0;
+
 	printk("[audio codec]:resume start\n");
 	if (-1 == clk_enable(codec_moduleclk)){
 		printk("open codec_moduleclk failed; \n");
 	}
+
+	/*process for normal standby*/
+	if (NORMAL_STANDBY == standby_type) {
+	/*process for super standby*/
+	} else if(SUPER_STANDBY == standby_type) {
+		codec_wr_control(SUN7I_DAC_ACTL, 0x6, VOLUME, 0x3b);
+		codec_wr_control(SUN7I_DAC_FIFOC, 0x3, DRA_LEVEL,0x3);
+		codec_wr_control(SUN7I_DAC_FIFOC ,  0x1,28, 0x1);
+		writel((1<<23), (baseaddr + (SUN7I_BIAS_CRT)));
+		writel(((1<<23)|(bias_data<<17)), (baseaddr + (SUN7I_BIAS_CRT)));
+		writel(((1<<23)|(bias_data<<17)|(1<<10)), (baseaddr + (SUN7I_BIAS_CRT)));
+		writel(((1<<23)|(bias_data<<17)|(1<<10)|(da16_val<<5)), (baseaddr + (SUN7I_BIAS_CRT)));
+
+		bias_reg_val = readl(baseaddr + (SUN7I_BIAS_CRT));
+		debug_bias_val = (bias_reg_val & (0x3F<<11))>>11;
+		debug_da16_val = (bias_reg_val & (0x1F<<0))>>0;
+	}
+	printk("audiocodec init 0xf1c22c38 is:%x\n", *(volatile int *)0xf1c22c38);
 
 	queue_work(resume_work_queue, &codec_resume_work);
 	printk("[audio codec]:resume end\n");
@@ -1681,9 +1799,10 @@ static int __init sun7i_codec_init(void)
 
 	/* 获取audio_used值 */
 	type = script_get_item("audio_para", "audio_used", &val);
-	if(SCIRPT_ITEM_VALUE_TYPE_INT != type)
-	printk("type err!");
-	printk("value is %d\n", val.val);
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != type){
+		printk("type err!");
+	}
+	pr_info("value is %d\n", val.val);
     audio_used=val.val;
    if (audio_used) {
 		if((platform_device_register(&sun7i_device_codec))<0)
