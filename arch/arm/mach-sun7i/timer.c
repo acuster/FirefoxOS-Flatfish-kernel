@@ -1,8 +1,8 @@
 /*
- * arch\arm\mach-aw163x\timer.c
+ * arch\arm\mach-sun7i\timer.c
  * (C) Copyright 2010-2016
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- * huangxin<huangxin@allwinnertech.com>
+ * Allwinner Technology Co., Ltd. <www.reuuimllatech.com>
+ * liugang<liugang@reuuimllatech.com>
  *
  * some simple description for this code
  *
