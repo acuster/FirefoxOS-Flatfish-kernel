@@ -186,6 +186,7 @@ static int __devexit dma_drv_remove(struct platform_device *dev)
 	return __dma_deinit();
 }
 
+#ifdef CONFIG_PM
 /**
  * dma_drv_suspend - dma driver suspend function.
  * @dev:	platform device pointer
@@ -227,13 +228,16 @@ static const struct dev_pm_ops sw_dmac_pm = {
 	.suspend	= dma_drv_suspend,
 	.resume		= dma_drv_resume,
 };
+#endif
 static struct platform_driver sw_dmac_driver = {
 	.probe          = dma_drv_probe,
 	.remove         = __devexit_p(dma_drv_remove),
 	.driver         = {
 		.name   = "sw_dmac",
 		.owner  = THIS_MODULE,
+#ifdef CONFIG_PM
 		.pm 	= &sw_dmac_pm,
+#endif
 		},
 };
 
