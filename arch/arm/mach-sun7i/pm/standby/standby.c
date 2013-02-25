@@ -63,7 +63,7 @@ int main(struct aw_pm_info *arg)
 
     tmpPtr = (char *)&__bss_start;
     printk("normal standby start!\n");
-    printk("__bss_start:%x!\n"),&__bss_start;
+    printk("__bss_start:%x!\n",&__bss_start);
     if(!arg){
         /* standby parameter is invalid */
         return -1;

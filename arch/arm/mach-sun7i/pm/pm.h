@@ -26,13 +26,11 @@
 
 #define AXP_IICBUS      (0)
 #define TWI_CHECK_TIMEOUT       (0xf2ff)
-typedef enum{
-	PM_STANDBY_PRINT_STANDBY = (1U << 0),
-	PM_STANDBY_PRINT_RESUME = (1U << 1),
-	PM_STANDBY_PRINT_IO_STATUS = (1U << 2),
-	PM_STANDBY_PRINT_CACHE_TLB_MISS = (1U << 3),
-	PM_STANDBY_PRINT_CCU_STATUS = (1U << 4)
-}debug_mask_flag;
+
+#define PM_STANDBY_PRINT_STANDBY        (1U << 0)
+#define PM_STANDBY_PRINT_RESUME         (1U << 1)
+#define PM_STANDBY_PRINT_CACHE_TLB_MISS (1U << 2)
+#define PM_STANDBY_PRINT_REG            (1U << 3)
 
 #ifdef CONFIG_ARCH_SUN4I
 #define INT_REG_LENGTH	((0x90+0x4)>>2)
@@ -50,6 +48,8 @@ typedef enum{
 #define GPIO_REG_LENGTH	((0x218+0x4)>>2)
 #define SRAM_REG_LENGTH	((0x94+0x4)>>2)
 #define CCU_REG_LENGTH	((0x1f4+0x4)>>2)
+#define TMR_REG_LENGTH	((0x170+0x4)>>2)
+#define TWI0_REG_LENGTH ((0x20+0x4)>>2)
 #endif
 
 
