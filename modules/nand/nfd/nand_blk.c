@@ -1139,8 +1139,15 @@ static int  init_blklayer(void)
   }
   else
   {
-			printk("[NAND] get nand_good_block_ratio from script: %d \n",nand_good_block_ratio.val);
-		  NAND_SetValidBlkRatio(nand_good_block_ratio.val);
+        if(nand_good_block_ratio<=0)
+        {
+            printk("[NAND] use nand_good_block_ratio from default parameter\n");
+        }
+        else
+        {
+            printk("[NAND] get nand_good_block_ratio from script: %d \n",nand_good_block_ratio.val);
+            NAND_SetValidBlkRatio(nand_good_block_ratio.val);
+        }
 	}
 
 	ret = PHY_ChangeMode(1);
