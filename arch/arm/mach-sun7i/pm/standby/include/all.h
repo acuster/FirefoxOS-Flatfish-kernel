@@ -16,6 +16,7 @@
 #include "uart.h"
 #include "utils.h"
 #include "platform.h"
+#include <generated/autoconf.h>
 
 
 #endif /* ALL_H_ */

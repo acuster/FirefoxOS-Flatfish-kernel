@@ -13,7 +13,12 @@
 typedef unsigned int uint32;
 typedef unsigned int size_t;
 
+#ifdef CONFIG_AW_FPGA_PLATFORM
 #define FPGA_PLATFORM
+#else
+#undef FPGA_PLATFORM
+#endif
+
 #define CONFIG_USE_DDR
 
 #define PLL1_CPUX_CLK	(24000000)
