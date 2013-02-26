@@ -1668,6 +1668,7 @@ void sw_mci_rescan_card(unsigned id, unsigned insert)
 	smc_host = sw_host[id];
 
 	smc_host->present = insert ? 1 : 0;
+	printk("sw_mci_rescan_card\n");
 	mmc_detect_change(smc_host->mmc, 0);
 	return;
 }
@@ -2244,7 +2245,7 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.ocr_avail = MMC_VDD_28_29 | MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32
 				| MMC_VDD_32_33 | MMC_VDD_33_34,
 		.caps = MMC_CAP_4_BIT_DATA | MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED
-			| MMC_CAP_SDIO_IRQ
+			| MMC_CAP_SDIO_IRQ | MMC_CAP_NONREMOVABLE
 			| MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50
 			| MMC_CAP_UHS_DDR50
 			| MMC_CAP_SET_XPC_330 | MMC_CAP_DRIVER_TYPE_A,

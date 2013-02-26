@@ -53,6 +53,11 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
+#include <linux/gpio.h>
+#include <mach/sys_config.h>
+#include <mach/irqs.h>
+#include <mach/gpio.h>
+
 #define AUTO_OFF_TIMEOUT 2000
 
 bool enable_hs;
@@ -78,11 +83,13 @@ int hci_register_notifier(struct notifier_block *nb)
 {
 	return atomic_notifier_chain_register(&hci_notifier, nb);
 }
+EXPORT_SYMBOL(hci_register_notifier);
 
 int hci_unregister_notifier(struct notifier_block *nb)
 {
 	return atomic_notifier_chain_unregister(&hci_notifier, nb);
 }
+EXPORT_SYMBOL(hci_unregister_notifier);
 
 static void hci_notify(struct hci_dev *hdev, int event)
 {
@@ -1871,6 +1878,9 @@ static int hci_send_frame(struct sk_buff *skb)
 
 	/* Get rid of skb owner, prior to sending to the driver. */
 	skb_orphan(skb);
+
+    /* Notify the registered devices about a new send */
+    hci_notify(hdev, HCI_DEV_WRITE);
 
 	return hdev->send(skb);
 }

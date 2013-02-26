@@ -27,7 +27,7 @@
 #ifndef	_siutils_priv_h_
 #define	_siutils_priv_h_
 
-#define	SI_ERROR(args)
+#define	SI_ERROR(args) printf args
 
 #define	SI_MSG(args)
 

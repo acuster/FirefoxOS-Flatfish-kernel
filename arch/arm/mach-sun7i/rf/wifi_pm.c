@@ -19,6 +19,7 @@ static char* wifi_mod[] = {" ",
 	"rtl8189es",  /* 4 - RTL8189ES(SM89E00) */
 	"rtl8192cu",  /* 5 - RTL8192CU*/
 	"rtl8188eu",  /* 6 - RTL8188EU*/
+	"ap6210",     /* 7 - AP6210*/
 };
 
 int wifi_pm_get_mod_type(void)
@@ -180,6 +181,9 @@ static int __devinit wifi_pm_probe(struct platform_device *pdev)
 		case 6: /* RTL8188EU */
 			rtl8188eu_gpio_init();
 			break;
+		case 7: /* AP6210 */
+			ap6xxx_gpio_init();
+            break;
 		default:
 			wifi_pm_msg("wrong sdio module select %d !\n", ops->module_sel.val);
 	}

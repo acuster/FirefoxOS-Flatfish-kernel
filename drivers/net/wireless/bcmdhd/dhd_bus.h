@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_bus.h 309567 2012-01-20 01:40:54Z $
+ * $Id: dhd_bus.h 347614 2012-07-27 10:24:51Z $
  */
 
 #ifndef _dhd_bus_h_
@@ -97,8 +97,15 @@ extern void *dhd_bus_pub(struct dhd_bus *bus);
 extern void *dhd_bus_txq(struct dhd_bus *bus);
 extern uint dhd_bus_hdrlen(struct dhd_bus *bus);
 
+
+#define DHD_SET_BUS_STATE_DOWN(_bus)  do { \
+	(_bus)->dhd->busstate = DHD_BUS_DOWN; \
+} while (0)
+
 /* Register a dummy SDIO client driver in order to be notified of new SDIO device */
 extern int dhd_bus_reg_sdio_notify(void* semaphore);
 extern void dhd_bus_unreg_sdio_notify(void);
+
+extern void dhd_txglom_enable(dhd_pub_t *dhdp, bool enable);
 
 #endif /* _dhd_bus_h_ */

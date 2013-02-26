@@ -23,7 +23,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh.h 309548 2012-01-20 01:13:08Z $
+ * $Id: bcmsdh.h 347614 2012-07-27 10:24:51Z $
  */
 
 /**
@@ -55,7 +55,13 @@ typedef void (*bcmsdh_cb_fn_t)(void *);
  *    implementation may maintain a single "default" handle (e.g. the first or
  *    most recent one) to enable single-instance implementations to pass NULL.
  */
+
+#if 0 && (NDISVER >= 0x0630) && 1
+extern bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl,
+	void **regsva, uint irq, shared_info_t *sh);
+#else
 extern bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq);
+#endif
 
 /* Detach - freeup resources allocated in attach */
 extern int bcmsdh_detach(osl_t *osh, void *sdh);
@@ -70,6 +76,8 @@ extern int bcmsdh_intr_disable(void *sdh);
 /* Register/deregister device interrupt handler. */
 extern int bcmsdh_intr_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh);
 extern int bcmsdh_intr_dereg(void *sdh);
+/* Enable/disable SD card interrupt forward */
+extern void bcmsdh_intr_forward(void *sdh, bool pass);
 
 #if defined(DHD_DEBUG)
 /* Query pending interrupt status from the host controller */
@@ -137,6 +145,10 @@ extern int bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
                            uint8 *buf, uint nbytes, void *pkt,
                            bcmsdh_cmplt_fn_t complete_fn, void *handle);
 
+extern void bcmsdh_glom_post(void *sdh, uint8 *frame, uint len);
+extern void bcmsdh_glom_clear(void *sdh);
+extern uint bcmsdh_set_mode(void *sdh, uint mode);
+extern bool bcmsdh_glom_enabled(void);
 /* Flags bits */
 #define SDIO_REQ_4BYTE	0x1	/* Four-byte target (backplane) width (vs. two-byte) */
 #define SDIO_REQ_FIXED	0x2	/* Fixed address (FIFO) (vs. incrementing address) */
@@ -203,11 +215,13 @@ extern void bcmsdh_device_remove(void * sdh);
 extern int bcmsdh_reg_sdio_notify(void* semaphore);
 extern void bcmsdh_unreg_sdio_notify(void);
 
+extern int bcmsdh_set_drvdata(void * dhdp);
+
 #if defined(OOB_INTR_ONLY)
 extern int bcmsdh_register_oob_intr(void * dhdp);
 extern void bcmsdh_unregister_oob_intr(void);
 extern void bcmsdh_oob_intr_set(bool enable);
-#endif /* defined(OOB_INTR_ONLY) */
+#endif
 
 /* Function to pass device-status bits to DHD. */
 extern uint32 bcmsdh_get_dstatus(void *sdh);

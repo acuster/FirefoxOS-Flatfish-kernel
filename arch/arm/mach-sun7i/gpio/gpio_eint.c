@@ -784,11 +784,13 @@ u32 sw_gpio_irq_request(u32 gpio, enum gpio_eint_trigtype trig_type,
 
     irq_ret = request_irq(irq_no, gpio_irq_hdl, IRQF_DISABLED | IRQF_SHARED, "gpio_irq", (void *)pdev_id);
     if (irq_ret) {
+        PIO_ERR("%s: request_irq failed\n", __func__);
         kfree(pdev_id);
         return 0;
     }
 
     if (sw_gpio_eint_set_enable(gpio, 1)) {
+        PIO_ERR("%s: sw_gpio_eint_set_enable failed\n", __func__);
         free_irq(irq_no, (void *)pdev_id);
         kfree(pdev_id);
         return 0;

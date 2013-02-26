@@ -118,6 +118,7 @@ int mmc_io_rw_direct(struct mmc_card *card, int write, unsigned fn,
 	return mmc_io_rw_direct_host(card->host, write, fn, addr, in, out);
 }
 
+extern int sw_mci_check_r1_ready(struct mmc_host* mmc, unsigned ms);
 int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 	unsigned addr, int incr_addr, u8 *buf, unsigned blocks, unsigned blksz)
 {
@@ -175,6 +176,13 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 			return -EINVAL;
 		if (cmd.resp[0] & R5_OUT_OF_RANGE)
 			return -ERANGE;
+	}
+
+    if (write) {
+		int ret = 0;
+		ret = sw_mci_check_r1_ready(card->host, 1000);
+		if (ret != 0)
+			printk(("%s data timeout.\n", __FUNCTION__));
 	}
 
 	return 0;
