@@ -337,8 +337,8 @@ uint dhd_download_fw_on_driverload = TRUE;
 /* Definitions to provide path to the firmware and nvram
  * example nvram_path[MOD_PARAM_PATHLEN]="/projects/wlan/nvram.txt"
  */
-char firmware_path[MOD_PARAM_PATHLEN] = "/lib/modules/3.3/fw_bcm40181a2.bin";
-char nvram_path[MOD_PARAM_PATHLEN] = "/lib/modules/3.3/nvram_ap6210.txt";
+char firmware_path[MOD_PARAM_PATHLEN];
+char nvram_path[MOD_PARAM_PATHLEN];
 
 /* information string to keep firmware, chio, cheip version info visiable from log */
 char info_string[MOD_PARAM_INFOLEN];
@@ -2674,7 +2674,6 @@ dhd_open(struct net_device *net)
 	if (strlen(firmware_path) != 0) {
 		if (firmware_path[strlen(firmware_path)-1] == '\n')
 			firmware_path[strlen(firmware_path)-1] = '\0';
-			printk(("[%s %d]: firmware_path = %s, nvram_path = %s\n", __FUNCTION__, __LINE__, firmware_path, nvram_path));
 		COPY_FW_PATH_BY_CHIP( dhd->pub.bus, fw_path, firmware_path);
 	}
 

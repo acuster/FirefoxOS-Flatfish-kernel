@@ -653,7 +653,7 @@ int bcmsdh_register_oob_intr(void * dhdp)
 		printk("get bcmdhd ap6xxx_wl_host_wake gpio failed\n");
 	else
 		wl_host_wake = val.gpio.gpio;
-    wl_host_wake = 179;
+
 	dev_set_drvdata(sdhcinfo->dev, dhdp);
 
 	if (!sdhcinfo->oob_irq_registered) {

@@ -9,14 +9,14 @@ config BCMDHD
 config BCMDHD_FW_PATH
 	depends on BCMDHD
 	string "Firmware path"
-	default "/lib/modules/3.3/fw_bcm40181a2.bin"
+	default "/system/vendor/modules/fw_bcm40181a2.bin"
 	---help---
 	  Path to the firmware file.
 
 config BCMDHD_NVRAM_PATH
 	depends on BCMDHD
 	string "NVRAM path"
-	default "/lib/modules/3.3/nvram_ap6210.txt"
+	default "/system/vendor/modules/nvram_ap6210.txt"
 	---help---
 	  Path to the calibration file.
 
