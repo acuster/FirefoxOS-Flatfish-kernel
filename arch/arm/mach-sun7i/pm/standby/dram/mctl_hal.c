@@ -187,6 +187,10 @@ void mctl_self_refresh_entry(void)
 	//check whether command has been executed
 	while( mctl_read_w(SDR_DCR)& (0x1U<<31) );
 	wait(0x100);
+
+    #ifdef DRAM_SUPER_STANDBY
+	mctl_write_w(SDR_DPCR, 0x16510001);
+    #endif
 }
 
 void mctl_self_refresh_exit(void)
@@ -274,6 +278,9 @@ void mctl_power_save_entry(void)
 
 	//memc pad hold on
 	mctl_write_w(SDR_DPCR, 0x16510001);
+	printk("set pad hold on. \n");
+	busy_waiting();
+
 }
 void mctl_power_save_exit(void)
 {

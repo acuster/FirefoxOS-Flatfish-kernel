@@ -163,9 +163,7 @@ int main(void)
 		printk("before init devices. \n");
 	}
 	/* initialise mem modules */
-	mem_clk_init();
 	mem_int_init();
-	mem_tmr_init();
 	mem_twi_init(AXP_IICBUS);
 
 	if(unlikely((mem_para_info.debug_mask)&PM_STANDBY_PRINT_STANDBY)){

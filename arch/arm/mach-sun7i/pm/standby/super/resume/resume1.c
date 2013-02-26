@@ -73,7 +73,6 @@ int main(void)
 	flush_icache();
 #endif
 
-	mem_clk_init();
 	//twi freq?
 	setup_twi_env();
 	mem_twi_init(AXP_IICBUS);
@@ -90,7 +89,6 @@ int main(void)
     }
 
 	/* disable watch-dog: coresponding with boot0 */
-	mem_tmr_init();
 	mem_tmr_disable_watchdog();
 #endif
 

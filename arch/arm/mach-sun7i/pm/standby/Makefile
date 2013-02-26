@@ -14,9 +14,9 @@ STANDBY_OBJ = 	common.o         	\
 		standby_twi.o    	\
 		standby_usb.o    	\
 		standby_delay.o  	\
-		./dram/mctl_hal.o        	\
-		./dram/mctl_sys.o      	\
-		./dram/utils.o      	\
+		./mctl_hal.o        	\
+		./mctl_sys.o      	\
+		./utils.o      	\
 		./../pm_debug.o       		\
 		./../mem_mmu_pc_asm.o           \
 		./../mem_serial.o		\
@@ -33,9 +33,9 @@ SUSPEND_OBJ =	./super/common.o              	\
 		./super/super_delay.o       	\
 		./super/super_power.o       	\
 		./super/suspend/suspend.o 	\
-		./super/dram/mctl_hal.o        	\
-		./super/dram/mctl_sys.o      	\
-		./super/dram/utils.o      	\
+		./mctl_hal.o        	\
+		./mctl_sys.o      	\
+		./utils.o      	\
 		./../mem_cpu.o                  \
 		./../mem_mmu_pc.o               \
 		./../mem_mmu_pc_asm.o           \
@@ -53,9 +53,9 @@ RESUME1_OBJ =	./super/common.o             \
 		./super/super_clock.o      \
 		./super/super_power.o      \
 		./super/super_tmr.o        \
-		./super/dram/mctl_hal.o        	\
-		./super/dram/mctl_sys.o      	\
-		./super/dram/utils.o      	\
+		./mctl_hal.o        	\
+		./mctl_sys.o      	\
+		./utils.o      	\
 		./super/resume/resume1.o \
 		./../mem_cpu.o                  \
 		./../mem_mmu_pc.o               \
@@ -122,9 +122,9 @@ standby:
 	$(CC) $(INCLUDE) $(CFLAGS) ./../mem_int.c    -o 		./../mem_int.o
 	$(CC) $(INCLUDE) $(CFLAGS) ./../mem_printk.c    -o 		./../mem_printk.o
 	$(CC) $(INCLUDE) $(CFLAGS) ./../mem_serial.c    -o 		./../mem_serial.o
-	$(CC) $(INCLUDE) $(CFLAGS) ./dram/mctl_hal.c             -o ./dram/mctl_hal.o
-	$(CC) $(INCLUDE) $(CFLAGS) ./dram/mctl_sys.c             -o ./dram/mctl_sys.o
-	$(CC) $(INCLUDE) $(CFLAGS) ./dram/utils.c             -o ./dram/utils.o
+	$(CC) $(INCLUDE) $(CFLAGS) ./dram/mctl_hal.c             -o ./mctl_hal.o
+	$(CC) $(INCLUDE) $(CFLAGS) ./dram/mctl_sys.c             -o ./mctl_sys.o
+	$(CC) $(INCLUDE) $(CFLAGS) ./dram/utils.c             -o ./utils.o
 	$(CROSS_COMPILE)ld -T $(STANDBY_LD_FILE)  -EL  $(STANDBY_OBJ) -o $(STANDBY_OUPUTFILE).elf  -Map $(STANDBY_OUPUTFILE).map
 	$(CROSS_COMPILE)objdump -D $(STANDBY_OUPUTFILE).elf > $(STANDBY_OUPUTFILE).lst
 	$(CROSS_COMPILE)objcopy -O binary $(STANDBY_OUPUTFILE).elf $(STANDBY_OUPUTFILE).bin
@@ -144,9 +144,9 @@ suspend:
 	$(CC) $(INCLUDE) $(CFLAGS) ./super/super_power.c             -o ./super/super_power.o
 	$(CC) $(INCLUDE) $(CFLAGS) ./super/super_delay.S             -o ./super/super_delay.o
 	$(CC) $(INCLUDE) $(CFLAGS) ./super/suspend/suspend.c          -o ./super/suspend/suspend.o
-	$(CC) $(INCLUDE) $(CFLAGS) ./super/dram/mctl_hal.c             -o ./super/dram/mctl_hal.o
-	$(CC) $(INCLUDE) $(CFLAGS) ./super/dram/mctl_sys.c             -o ./super/dram/mctl_sys.o
-	$(CC) $(INCLUDE) $(CFLAGS) ./super/dram/utils.c             -o ./super/dram/utils.o
+	$(CC) $(INCLUDE) $(CFLAGS) -D__DRAM_SUPER_STANDBY__ ./dram/mctl_hal.c             -o ./mctl_hal.o
+	$(CC) $(INCLUDE) $(CFLAGS) ./dram/mctl_sys.c             -o ./mctl_sys.o
+	$(CC) $(INCLUDE) $(CFLAGS) ./dram/utils.c             -o ./utils.o
 
 	$(CC) $(INCLUDE) $(CFLAGS) ./../pm_debug.c    			-o ./../pm_debug.o
 	$(CC) $(INCLUDE) $(CFLAGS) ./../mem_timing.c    		-o ./../mem_timing.o
@@ -179,9 +179,9 @@ resume1:
 	$(CC) $(INCLUDE) $(CFLAGS) ./super/super_power.c             -o ./super/super_power.o
 	$(CC) $(INCLUDE) $(CFLAGS) ./super/super_tmr.c               -o ./super/super_tmr.o
 
-	$(CC) $(INCLUDE) $(CFLAGS) ./super/dram/mctl_hal.c             -o ./super/dram/mctl_hal.o
-	$(CC) $(INCLUDE) $(CFLAGS) ./super/dram/mctl_sys.c             -o ./super/dram/mctl_sys.o
-	$(CC) $(INCLUDE) $(CFLAGS) ./super/dram/utils.c             -o ./super/dram/utils.o
+	$(CC) $(INCLUDE) $(CFLAGS) -D__DRAM_SUPER_STANDBY__ ./dram/mctl_hal.c             -o ./mctl_hal.o
+	$(CC) $(INCLUDE) $(CFLAGS) ./dram/mctl_sys.c             -o ./mctl_sys.o
+	$(CC) $(INCLUDE) $(CFLAGS) ./dram/utils.c             -o ./utils.o
 
 	$(CC) $(INCLUDE) $(CFLAGS) ./super/resume/resume1.c        -o ./super/resume/resume1.o
 

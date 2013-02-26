@@ -373,7 +373,6 @@ static int aw_early_suspend(void)
     mem_sram_save(&(saved_sram_state));
 
 
-#if 1
     if (likely(mem_para_info.axp_enable))
     {
         //backup volt and freq state, after backup device state
@@ -405,7 +404,6 @@ static int aw_early_suspend(void)
         mem_para_info.suspend_dcdc3 = -1;
     }
     printk("dcdc2:%d, dcdc3:%d\n", mem_para_info.suspend_dcdc2, mem_para_info.suspend_dcdc3);
-#endif
 
     /*backup bus ratio*/
     mem_clk_getdiv(&mem_para_info.clk_div);
@@ -959,8 +957,6 @@ static void show_reg(unsigned long addr, int nbytes, const char *name)
     nbytes += (addr & (sizeof(u32) - 1));
     nlines = (nbytes + 31) / 32;
 
-
-    printk("\n========%#lx: %#lx(%d),%d========\n", p, addr, nbytes, nlines);
     for (i = 0; i < nlines; i++) {
         /*
          * just display low 16 bits of address to keep

@@ -26,7 +26,6 @@ static __twic_reg_t*   TWI_REG_BASE[3] = {
 static __u32 TwiClkRegBak = 0;
 static __u32 TwiCtlRegBak = 0;
 static __twic_reg_t *twi_reg  = 0;
-static __ccmu_reg_list_t	*CmuReg;
 
 static __s32 _mem_twi_soft_reset(void);
 static __s32 _mem_twi_soft_reset_nommu(void);
@@ -45,7 +44,7 @@ static __s32 _mem_twi_soft_reset_nommu(void);
 */
 static __s32 _mem_twi_soft_reset(void)
 {
-	CmuReg = (__ccmu_reg_list_t *)SW_VA_CCM_IO_BASE;
+	__ccmu_reg_list_t	*CmuReg = (__ccmu_reg_list_t *)SW_VA_CCM_IO_BASE;
 	//clk gating off
 	*(volatile __u32 *)&CmuReg->Apb1Gate &= (~0x1);
 	//clk gating on
@@ -73,7 +72,7 @@ static __s32 _mem_twi_soft_reset(void)
 */
 static __s32 _mem_twi_soft_reset_nommu(void)
 {
-	CmuReg = (__ccmu_reg_list_t *)SW_PA_CCM_IO_BASE;
+	__ccmu_reg_list_t	*CmuReg = (__ccmu_reg_list_t *)SW_PA_CCM_IO_BASE;
 	//clk gating off
 	*(volatile __u32 *)&CmuReg->Apb1Gate &= (~0x1);
 	//clk gating on
@@ -205,8 +204,7 @@ static int _mem_twi_stop(void)
 */
 void setup_twi_env(void)
 {
-
-	CmuReg = (__ccmu_reg_list_t *)SW_VA_CCM_IO_BASE;
+	__ccmu_reg_list_t	*CmuReg = (__ccmu_reg_list_t *)SW_VA_CCM_IO_BASE;
 
 	/*clk module : setting clk ratio, enable gating*/
 	*(volatile __u32 *)&CmuReg->Apb1ClkDiv = 0; //24M osc
