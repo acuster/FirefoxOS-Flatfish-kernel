@@ -1,31 +1,37 @@
-
 /*
- * drivers\staging\android\switch\switch_headset.c
- * (C) Copyright 2010-2016
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- * huangxin <huangxin@allwinnertech.com>
+ *  drivers/switch/switch_gpio.c
  *
- * some simple description for this code
+ * Copyright (C) 2008 Google, Inc.
+ * Author: Mike Lockwood <lockwood@android.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
  *
- */
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+*/
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include "switch.h"
+#include <linux/switch.h>
 #include <linux/irq.h>
 #include <linux/input.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <asm/irq.h>
 #include <asm/io.h>
+
+#include <linux/switch.h>
+#include <mach/sys_config.h>
+#include <mach/system.h>
 
 #undef SWITCH_DBG
 #if (0)
@@ -34,63 +40,19 @@
     #define SWITCH_DBG(...)
 #endif
 
-#define AUDIO_IRQ_NO 			   61
-
-#define VIR_CODEC_BASSADDRESS      (0xf1c22c00)
-#define SUN6I_PA_CTRL			   (0x24)		//new func
-#define SUN6I_MIC_CTRL			   (0x28)
-#define SUN6I_HMIC_CTL 	           (0x50)		//new func
-#define SUN6I_HMIC_DATA	           (0x54)		//new func
-
-/*0x24*/
-#define HPCOM_CTL				  (29)
-#define LTRNMUTE				  (25)
-#define RTLNMUTE				  (24)
-
-/*0x28 */
-#define HBIASEN					  (31)
-#define HBIASADCEN				  (29)
-#define MIC2AMPEN				  (24)
-#define LINEOUTL_EN			  	  (19)
-#define LINEOUTR_EN			  	  (18)
-
-/*HMIC Control Register
-*codecbase+0x50
-*/
-#define HMIC_M					  (28)
-#define HMIC_N					  (24)
-#define HMIC_DIRQ				  (23)
-#define HMIC_TH1_HYS			  (21)
-#define	HMIC_EARPHONE_OUT_IRQ_EN  (20)
-#define HMIC_EARPHONE_IN_IRQ_EN	  (19)
-#define HMIC_KEY_UP_IRQ_EN		  (18)
-#define HMIC_KEY_DOWN_IRQ_EN	  (17)
-#define HMIC_DATA_IRQ_EN		  (16)
-#define HMIC_DS_SAMP			  (14)
-#define HMIC_TH2_HYS			  (13)
-#define HMIC_TH2_KEY		      (8)
-#define HMIC_SF_SMOOTH_FIL		  (6)
-#define KEY_UP_IRQ_PEND			  (5)
-#define HMIC_TH1_EARPHONE		  (0)
-
-/*HMIC Data Register
-* codecbase+0x54
-*/
-#define HMIC_EARPHONE_OUT_IRQ_PEND  (20)
-#define HMIC_EARPHONE_IN_IRQ_PEND   (19)
-#define HMIC_KEY_UP_IRQ_PEND 	    (18)
-#define HMIC_KEY_DOWN_IRQ_PEND 		(17)
-#define HMIC_DATA_IRQ_PEND			(16)
-#define HMIC_ADC_DATA				(0)
+#define TP_CTRL0 			(0x0)
+#define TP_CTRL1 			(0x4)
+#define TP_INT_FIFO_CTR		(0x10)
+#define TP_INT_FIFO_STATUS	(0x14)
+#define TP_DATA				(0x24)
+#define TP_CTRL_CLK_PARA  	(0x00a6002f)
 
 #define FUNCTION_NAME "h2w"
 #define TIMER_CIRCLE 50
-
-#define hmic_rdreg(reg)	    readl((hmic_base+(reg)))
-#define hmic_wrreg(reg,val)  writel((val),(hmic_base+(reg)))
-
 static int gpio_earphone_switch = 0;
-static void __iomem *hmic_base;
+static void __iomem *tpadc_base;
+static int count_state;
+static int switch_used = 0;
 
 struct gpio_switch_data {
 	struct switch_dev sdev;
@@ -102,103 +64,104 @@ struct gpio_switch_data {
 	struct timer_list timer;
 };
 
-/**
-* codec_wrreg_bits - update codec register bits
-* @reg: codec register
-* @mask: register mask
-* @value: new value
-*
-* Writes new register value.
-* Return 1 for change else 0.
-*/
-int hmic_wrreg_bits(unsigned short reg, unsigned int	mask,	unsigned int value)
+static void earphone_hook_handle(unsigned long data)
 {
-	int change;
-	unsigned int old, new;
+	int fifo_val[4];
+	int ave_count;
+	int temp;
+	struct gpio_switch_data	*switch_data = (struct gpio_switch_data *)data;
 
-	old	=	hmic_rdreg(reg);
-	new	=	(old & ~mask) | value;
-	change = old != new;
+	SWITCH_DBG("enter:%s,line:%d\n", __func__, __LINE__);
+	 //printk("earphone_hook_handle\n");
+	/*判断是否需要采集数据*/
+	temp = readl(tpadc_base + TP_INT_FIFO_STATUS);
+	temp &= (1<<16);
 
-	if (change){
-		hmic_wrreg(reg,new);
-	}
+	if (temp) {
+		fifo_val[0] = readl(tpadc_base + TP_DATA);
+		fifo_val[1] = readl(tpadc_base + TP_DATA);
+		fifo_val[2] = readl(tpadc_base + TP_DATA);
+		fifo_val[3] = readl(tpadc_base + TP_DATA);
 
-	return change;
-}
+		/*清理pending位*/
+		temp = readl(tpadc_base + TP_INT_FIFO_STATUS);
+		temp |= (1<<16);
+		writel(temp, tpadc_base + TP_INT_FIFO_STATUS);
 
-int hmic_wr_control(u32 reg, u32 mask, u32 shift, u32 val)
-{
-	u32 reg_val;
-	reg_val = val << shift;
-	mask = mask << shift;
-	hmic_wrreg_bits(reg, mask, reg_val);
-	return 0;
-}
+		/*取4次fifo中的数据作为平均数*/
+		ave_count = (fifo_val[0] + fifo_val[1] + fifo_val[2] + fifo_val[3])/4;
 
-static irqreturn_t audio_hmic_irq(int irq, void *dev_id)
-{
-	int tmp = 0;
-	struct gpio_switch_data *switch_data = (struct gpio_switch_data *)dev_id;
 
-	tmp = hmic_rdreg(SUN6I_HMIC_DATA);
-	/*bit19 is 1 means the earphone plug in*/
-	tmp &= (0x1<<19);
-	if (tmp) {
-		/*if the irq is hmic earphone plug in, when the irq coming, clean the pending bit*/
-		hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_IN_IRQ_PEND, 0x1);
-		/* if the 17 bit assert 1, it means the three sections earphone has plun in
-		 * if the 17 bit assert 0, it means the four sections earphone has plun in
-		 */
-		tmp = hmic_rdreg(SUN6I_HMIC_DATA);
-		tmp &= (0x1<<17);
-		if (tmp) {
-			/*clean the pending bit*/
-			hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_KEY_DOWN_IRQ_PEND, 0x1);
-			/*because the three section earphone hasn't the mic in, so disable the mic2's bias and mic2's amp_en*/
-			hmic_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASEN, 0x0);
-			hmic_wr_control(SUN6I_MIC_CTRL, 0x1, MIC2AMPEN, 0x0);
+		/*SWITCH_DBG("%s,line:%d,fifo_val[0]:%d\n", __func__, __LINE__,fifo_val[0]);
+		  SWITCH_DBG("%s,line:%d,fifo_val[1]:%d\n", __func__, __LINE__,fifo_val[1]);
+		  SWITCH_DBG("%s,line:%d,fifo_val[2]:%d\n", __func__, __LINE__,fifo_val[2]);
+		  SWITCH_DBG("%s,line:%d,fifo_val[3]:%d\n", __func__, __LINE__,fifo_val[3]);*/
+
+		/*如果x2线端采样值大于2900，代表耳机拔出*/
+		//SWITCH_DBG("%s,line:%d,ave_count:%d\n", __func__, __LINE__,ave_count);
+		if (ave_count > 2200) {
+			switch_data->state = 0;
+			 //printk("state:%d\n",switch_data->state);
+			// printk("0xf1c22c00 is:%x\n", *(volatile int *)0xf1c22c28);
+			SWITCH_DBG("enter:%s,line:%d\n", __func__, __LINE__);
+		/*如果x2线端采样值在0~500之间，代表3段耳机插入*/
+		} else if (ave_count < 500) {
 			switch_data->state = 2;
-		} else {
+
+			//gpio_write_one_pin_value(gpio_earphone_switch, 0, "audio_earphone_ctrl");
+			 //printk("0xf1c22c00 is:%x\n", *(volatile int *)0xf1c22c28);
+			//printk("state:%d\n",switch_data->state);
+			SWITCH_DBG("enter:%s,line:%d\n", __func__, __LINE__);
+		/*如果x2线端采样值大于600,小于2600,代表4段耳机插入*/
+		} else if (ave_count >= 600 && ave_count < 2000) {
 			switch_data->state = 1;
-			/*because the four section earphone has the mic in, so enable the mic2's bias and enable the mic2's amp*/
-			hmic_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASEN, 0x1);
-			hmic_wr_control(SUN6I_MIC_CTRL, 0x1, MIC2AMPEN, 0x1);
+		   //	printk("state:%d\n",switch_data->state);
+		   //	gpio_write_one_pin_value(gpio_earphone_switch, 1, "audio_earphone_ctrl");
 
-			tmp = hmic_rdreg(SUN6I_HMIC_DATA);
-			tmp &= (0x1f<<0);
-			if (tmp <= 31) {//the tmp value should be debug
-				switch_data->state = 3;
+			SWITCH_DBG("enter:%s,line:%d\n", __func__, __LINE__);
+			 //printk("0xf1c22c00 is:%x\n", *(volatile int *)0xf1c22c28);
+
+			/*如果是4段耳机,那么50ms后再次检查是否打开了hook(可以通过耳机mic通话)*/
+			mdelay(30);
+
+			temp = readl(tpadc_base + TP_INT_FIFO_STATUS);
+			temp &= (1<<16);
+			/*判断hook键是否按下*/
+			if (temp) {
+				fifo_val[0] = readl(tpadc_base + TP_DATA);
+				fifo_val[1] = readl(tpadc_base + TP_DATA);
+				fifo_val[2] = readl(tpadc_base + TP_DATA);
+				fifo_val[3] = readl(tpadc_base + TP_DATA);
+
+				temp = readl(tpadc_base + TP_INT_FIFO_STATUS);
+				temp |= (1<<16);
+				writel(temp, tpadc_base + TP_INT_FIFO_STATUS);
+
+				/*取4次fifo中的数据作为平均数*/
+				ave_count = (fifo_val[0] + fifo_val[1] + fifo_val[2] + fifo_val[3])/4;
+				if (ave_count <= 410) {
+					SWITCH_DBG("enter:%s,line:%d\n", __func__, __LINE__);
+					switch_data->state = 3;
+				}
+			  /*SWITCH_DBG("%s,line:%d,fifo_val[0]:%d\n", __func__, __LINE__,fifo_val[0]);
+				SWITCH_DBG("%s,line:%d,fifo_val[1]:%d\n", __func__, __LINE__,fifo_val[1]);
+				SWITCH_DBG("%s,line:%d,fifo_val[2]:%d\n", __func__, __LINE__,fifo_val[2]);
+				SWITCH_DBG("%s,line:%d,fifo_val[3]:%d\n", __func__, __LINE__,fifo_val[3]);
+			  */
 			}
-
 		}
-		/*open the earphone channel, and close the hpcom,line_out(speaker) channel*/
-		hmic_wr_control(SUN6I_PA_CTRL, 0x1, LTRNMUTE, 0x1);
-		hmic_wr_control(SUN6I_PA_CTRL, 0x1, RTLNMUTE, 0x1);
-		hmic_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
-		hmic_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0);
-		hmic_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
+
+		if ((switch_data->pre_state != switch_data->state)
+			&& count_state++ >= 3) {
+			printk("enter:%s,line:%d, pre_state: %d, state: %d\n",
+					__func__, __LINE__, switch_data->pre_state, switch_data->state);
+			switch_data->pre_state = switch_data->state;
+			switch_set_state(&switch_data->sdev, switch_data->state);
+			count_state = 0;
+		}
 	}
 
-	tmp = hmic_rdreg(SUN6I_HMIC_DATA);
-	/*bit20 is 1 means the earphone pull out*/
-	tmp &= (1<<20);
-	if (tmp) {
-		/*if the irq is hmic earphone pull out, when the irq coming, clean the pending bit*/
-		hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_OUT_IRQ_PEND, 0x1);
-		switch_data->state = 0;
-		/*close the earphone channel, and open the line_out(speaker) channel*/
-		hmic_wr_control(SUN6I_PA_CTRL, 0x1, LTRNMUTE, 0x0);
-		hmic_wr_control(SUN6I_PA_CTRL, 0x1, RTLNMUTE, 0x0);
-		hmic_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
-		hmic_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x1);
-		hmic_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x1);
-		/*the earphone has pull out, so disable the mic2's bias and disable the mic2's amp*/
-		hmic_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASEN, 0x0);
-		hmic_wr_control(SUN6I_MIC_CTRL, 0x1, MIC2AMPEN, 0x0);
-	}
-	switch_set_state(&switch_data->sdev, switch_data->state);
-	return IRQ_HANDLED;
+	mod_timer(&switch_data->timer, jiffies + msecs_to_jiffies(200));
 }
 
 static ssize_t switch_gpio_print_state(struct switch_dev *sdev, char *buf)
@@ -222,6 +185,7 @@ static int gpio_switch_probe(struct platform_device *pdev)
 	struct gpio_switch_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_switch_data *switch_data;
 	int ret = 0;
+	int temp;
 
 	SWITCH_DBG("enter:%s,line:%d\n", __func__, __LINE__);
 
@@ -229,30 +193,43 @@ static int gpio_switch_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	hmic_base = (void __iomem *)VIR_CODEC_BASSADDRESS;
-	hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_M, 0x2);//0x2 should be get from hw_debug
-	hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_N, 0x2);//0x2 should be get from hw_debug
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH2_KEY, 0xf);//0xf should be get from hw_debug
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH1_EARPHONE, 0x7);//0x7 should be get from hw_debug
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_DATA_IRQ_EN, 0x1);
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_KEY_DOWN_IRQ_EN, 0x1);
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_KEY_UP_IRQ_EN, 0x1);
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_IN_IRQ_EN, 0x1);
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_OUT_IRQ_EN, 0x1);
+	tpadc_base = (void __iomem *)SW_VA_TP_IO_BASE;
+	writel(TP_CTRL_CLK_PARA, tpadc_base + TP_CTRL0);
+	temp = readl(tpadc_base + TP_CTRL1);
+	temp |= ((1<<3) | (0<<4)); //tp mode function disable and select ADC module.
+	temp |=0x1;//X2 channel
+	writel(temp, tpadc_base + TP_CTRL1);
 
-	hmic_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASADCEN, 0x1);
+	temp = readl(tpadc_base + TP_INT_FIFO_CTR);
+	temp |= (1<<16); //TP FIFO Data available IRQ Enable
+	temp |= (0x3<<8); //4次采样数据的平均值 (3+1)
+	writel(temp, tpadc_base + TP_INT_FIFO_CTR);
+
+	temp = readl(tpadc_base + TP_CTRL1);
+	temp |= (1<<4);
+	writel(temp, tpadc_base + TP_CTRL1);
+
+	SWITCH_DBG("TP adc 0xf1c25000 is:%x\n", *(volatile int *)0xf1c25000);
+	SWITCH_DBG("TP adc 0xf1c25004 is:%x\n", *(volatile int *)0xf1c25004);
+	SWITCH_DBG("TP adc 0xf1c25008 is:%x\n", *(volatile int *)0xf1c25008);
+	SWITCH_DBG("TP adc 0xf1c2500c is:%x\n", *(volatile int *)0xf1c2500c);
+	SWITCH_DBG("TP adc 0xf1c25010 is:%x\n", *(volatile int *)0xf1c25010);
+	SWITCH_DBG("TP adc 0xf1c25014 is:%x\n", *(volatile int *)0xf1c25014);
+	SWITCH_DBG("TP adc 0xf1c25018 is:%x\n", *(volatile int *)0xf1c25018);
+	SWITCH_DBG("TP adc 0xf1c2501c is:%x\n", *(volatile int *)0xf1c2501c);
+	SWITCH_DBG("TP adc 0xf1c25020 is:%x\n", *(volatile int *)0xf1c25020);
 
 	switch_data = kzalloc(sizeof(struct gpio_switch_data), GFP_KERNEL);
 	if (!switch_data) {
 		return -ENOMEM;
 	}
-
-	ret = request_irq(AUDIO_IRQ_NO, audio_hmic_irq, 0, "audio_hmic_irq", NULL);
-    if (ret < 0) {
-        printk("request irq err\n");
-        return -EINVAL;
-    }
-
+	//gpio_earphone_switch = gpio_request_ex("audio_para", "audio_earphone_ctrl");
+//	if(!gpio_earphone_switch) {
+//		printk("earphone request gpio fail!\n");
+//		ret = gpio_earphone_switch;
+//		goto err_gpio_request;
+//	}
+//
 	switch_data->sdev.state = 0;
 	switch_data->pre_state = -1;
 	switch_data->sdev.name = pdata->name;
@@ -265,9 +242,23 @@ static int gpio_switch_probe(struct platform_device *pdev)
 		goto err_switch_dev_register;
 	}
 
+#if 0
+	setup_timer(&switch_data->timer, earphone_hook_handle, (unsigned long)switch_data);
+	mod_timer(&switch_data->timer, jiffies + HZ/2);
+#endif
+
+#if 1
+	init_timer(&switch_data->timer);
+	switch_data->timer.expires = jiffies + 1 * HZ;
+	switch_data->timer.function = &earphone_hook_handle;
+	switch_data->timer.data = (unsigned long)switch_data;
+	add_timer(&switch_data->timer);
+#endif
 	return 0;
 
 err_switch_dev_register:
+		/*gpio_release(switch_data->pio_hdle, 1);*/
+err_gpio_request:
 		kfree(switch_data);
 
 	return ret;
@@ -277,8 +268,17 @@ static int __devexit gpio_switch_remove(struct platform_device *pdev)
 {
 	struct gpio_switch_data *switch_data = platform_get_drvdata(pdev);
 
+	SWITCH_DBG("enter:%s,line:%d\n", __func__, __LINE__);
+
+	/*gpio_release(switch_data->pio_hdle, 1);*/
+	//gpio_release(gpio_earphone_switch, 1);
+	SWITCH_DBG("enter:%s,line:%d\n", __func__, __LINE__);
+	del_timer(&switch_data->timer);
+	SWITCH_DBG("enter:%s,line:%d\n", __func__, __LINE__);
     switch_dev_unregister(&switch_data->sdev);
+    SWITCH_DBG("enter:%s,line:%d\n", __func__, __LINE__);
 	kfree(switch_data);
+	SWITCH_DBG("enter:%s,line:%d\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -298,31 +298,46 @@ static struct gpio_switch_platform_data headset_switch_data = {
 static struct platform_device gpio_switch_device = {
     .name = "switch-gpio",
     .dev = {
-	.platform_data = &headset_switch_data,
+            .platform_data = &headset_switch_data,
     }
 };
 
 static int __init gpio_switch_init(void)
 {
 	int ret = 0;
-
-	ret = platform_device_register(&gpio_switch_device);
-	if (ret == 0) {
-		ret = platform_driver_register(&gpio_switch_driver);
+	static script_item_u   val;
+	script_item_value_type_e  type;
+	/* 获取audio_used值 */
+	type = script_get_item("switch_para", "switch_used", &val);
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != type){
+		printk("type err!");
 	}
-
+	pr_info("value is %d\n", val.val);
+    switch_used=val.val;
+    if (switch_used) {
+		ret = platform_device_register(&gpio_switch_device);
+		if (ret == 0) {
+			ret = platform_driver_register(&gpio_switch_driver);
+		}
+	} else {
+		SWITCH_DBG("[switch]switch headset cannot find any using configuration for controllers, return directly!\n");
+		return 0;
+	}
 	return ret;
 }
 
 static void __exit gpio_switch_exit(void)
 {
-	platform_driver_unregister(&gpio_switch_driver);
-	platform_device_unregister(&gpio_switch_device);
-
+	SWITCH_DBG("enter:%s,line:%d\n", __func__, __LINE__);
+	if (switch_used) {
+		switch_used = 0;
+		platform_driver_unregister(&gpio_switch_driver);
+		platform_device_unregister(&gpio_switch_device);
+	}
 }
 module_init(gpio_switch_init);
 module_exit(gpio_switch_exit);
 
-MODULE_AUTHOR("huanxin<huanxin@allwinnertech.com>");
+MODULE_AUTHOR("Mike Lockwood <lockwood@android.com>");
 MODULE_DESCRIPTION("GPIO Switch driver");
 MODULE_LICENSE("GPL");
