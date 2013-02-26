@@ -1139,7 +1139,7 @@ static int  init_blklayer(void)
   }
   else
   {
-        if(nand_good_block_ratio<=0)
+        if(nand_good_block_ratio.val <= 0)
         {
             printk("[NAND] use nand_good_block_ratio from default parameter\n");
         }
@@ -1431,7 +1431,7 @@ int nand_init(void)
 
 void nand_exit(void)
 {
-    s32 ret;
+ //   s32 ret;
 //	int nand_used = 0;
 	script_item_value_type_e script_ret;
 	script_item_u nand_used;
