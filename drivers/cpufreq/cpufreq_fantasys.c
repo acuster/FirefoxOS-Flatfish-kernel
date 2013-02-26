@@ -215,7 +215,6 @@ static struct dbs_tuners {
     unsigned int max_cpu_lock;      /* max count of online cpu, user limit          */
     atomic_t hotplug_lock;          /* lock cpu online number, disable plug-in/out  */
     unsigned int dvfs_debug;        /* dvfs debug flag, print dbs information       */
-    unsigned int max_power;         /* cpu run max freqency and all cores           */
 } dbs_tuners_ins = {
     .up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
     .down_threshold = DEF_FREQUENCY_DOWN_DIFFERENTIAL,
@@ -229,7 +228,6 @@ static struct dbs_tuners {
     .max_cpu_lock = DEF_MAX_CPU_LOCK,
     .hotplug_lock = ATOMIC_INIT(0),
     .dvfs_debug = 0,
-    .max_power = 0,
 };
 
 
@@ -244,6 +242,11 @@ struct cpufreq_governor cpufreq_gov_fantasys = {
  * CPU hotplug lock interface
  */
 atomic_t g_hotplug_lock = ATOMIC_INIT(0);
+
+/*
+ * CPU max power flag
+ */
+atomic_t g_max_power_flag = ATOMIC_INIT(0);
 
 /*
  * apply cpu hotplug lock, up or down cpu
@@ -338,10 +341,14 @@ show_one(cpu_up_rate, cpu_up_rate);
 show_one(cpu_down_rate, cpu_down_rate);
 show_one(max_cpu_lock, max_cpu_lock);
 show_one(dvfs_debug, dvfs_debug);
-show_one(max_power, max_power);
 static ssize_t show_hotplug_lock(struct kobject *kobj, struct attribute *attr, char *buf)
 {
     return sprintf(buf, "%d\n", atomic_read(&g_hotplug_lock));
+}
+
+static ssize_t show_max_power(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+    return sprintf(buf, "%d\n", atomic_read(&g_max_power_flag));
 }
 
 static ssize_t store_sampling_rate(struct kobject *a, struct attribute *b, const char *buf, size_t count)
@@ -480,7 +487,7 @@ static ssize_t store_max_power(struct kobject *a, struct attribute *b,
                 const char *buf, size_t count)
 {
     unsigned int input;
-    int ret, nr_up, cpu;
+    int ret, nr_up, cpu, max_power_flag;
     struct cpu_dbs_info_s *dbs_info;
 
     dbs_info = &per_cpu(od_cpu_dbs_info, 0);
@@ -491,8 +498,9 @@ static ssize_t store_max_power(struct kobject *a, struct attribute *b,
         return -EINVAL;
     }
 
-    dbs_tuners_ins.max_power = input > 0;
-    if (dbs_tuners_ins.max_power == 1) {
+    atomic_set(&g_max_power_flag, !!input);
+    max_power_flag = atomic_read(&g_max_power_flag);
+    if (max_power_flag == 1) {
         __cpufreq_driver_target(dbs_info->cur_policy, dbs_info->cur_policy->max, CPUFREQ_RELATION_H);
         nr_up = nr_cpu_ids - num_online_cpus();
         for_each_cpu_not(cpu, cpu_online_mask) {
@@ -504,7 +512,7 @@ static ssize_t store_max_power(struct kobject *a, struct attribute *b,
 
             cpu_up(cpu);
         }
-    } else if (dbs_tuners_ins.max_power == 0) {
+    } else if (max_power_flag == 0) {
         hotplug_history->num_hist = 0;
         queue_delayed_work_on(dbs_info->cpu, dvfs_workqueue, &dbs_info->work, 0);
     } else {
@@ -1149,11 +1157,12 @@ static void do_dbs_timer(struct work_struct *work)
 {
     struct cpu_dbs_info_s *dbs_info = container_of(work, struct cpu_dbs_info_s, work.work);
     unsigned int cpu = dbs_info->cpu;
-    int delay;
+    int delay, max_power_flag;
 
     mutex_lock(&dbs_info->timer_mutex);
 
-    if (!dbs_tuners_ins.max_power) {
+    max_power_flag = atomic_read(&g_max_power_flag);
+    if (!max_power_flag) {
         dbs_check_cpu(dbs_info);
 
         /* We want all CPUs to do sampling nearly on
