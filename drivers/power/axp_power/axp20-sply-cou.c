@@ -443,7 +443,8 @@ static int axp_battery_get_property(struct power_supply *psy,
 			val->intval = charger->battery_info->voltage_min_design;
 			break;
 		case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-			val->intval = charger->ocv * 1000;
+			//val->intval = charger->ocv * 1000;
+			val->intval = charger->vbat * 1000;
 			break;
 		case POWER_SUPPLY_PROP_CURRENT_NOW:
 			val->intval = charger->ibat * 1000;
@@ -642,6 +643,7 @@ static void axp_keyup(struct axp_charger *charger)
 	DBG_PSY_MSG("power key up\n");
 	input_report_key(powerkeydev, KEY_POWER, 0);
 	input_sync(powerkeydev);
+	axp_write(charger->master, POWER20_DATA_BUFFERC,0xe);
 }
 
 static void axp_keydown(struct axp_charger *charger)
@@ -649,6 +651,7 @@ static void axp_keydown(struct axp_charger *charger)
 	DBG_PSY_MSG("power key down\n");
 	input_report_key(powerkeydev, KEY_POWER, 1);
 	input_sync(powerkeydev);
+	axp_write(charger->master, POWER20_DATA_BUFFERC,0x00);
 }
 static void axp_capchange(struct axp_charger *charger)
 {
