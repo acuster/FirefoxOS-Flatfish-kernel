@@ -181,3 +181,12 @@ config CSI_S5K4EC
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the
 	  Samsung s5k4ec 5M sensor.
+
+config CSI_GC2035
+	tristate "GalaxyCore GC2035 2M sensor support"
+	default m
+	depends on I2C && VIDEO_V4L2
+	select	CSI_DEV_SEL
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the GalaxyCore
+	  GC2035 2M camera.
