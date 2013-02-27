@@ -29,6 +29,8 @@
 #include <media/videobuf-dma-contig.h>
 #include <linux/moduleparam.h>
 
+#include <linux/gpio.h>
+
 //#include <mach/gpio_v2.h>
 //#include <mach/script_v2.h>
 #include <mach/sys_config.h>
@@ -64,9 +66,6 @@
 #define MAX_WIDTH  (4096)
 #define MAX_HEIGHT (4096)
 #define CAPTURE_FRAME 1
-
-//add by heyihang.Jan 15, 2013
-#define CSI_ISP_SCLK_RATE	(297*1000*1000)
 
 //add by heyihang.Jan 24, 2013
 extern void camera_export_info(char *module_name, int *i2c_addr, int index);
@@ -499,6 +498,11 @@ static inline void csi_set_addr(struct csi_dev *dev,struct csi_buffer *buffer)
 	csi_dbg(3,"buf ptr=%p\n",buf);
 
 	addr_org = videobuf_to_dma_contig((struct videobuf_buffer *)buf);
+	if( (addr_org&0x40000000)!=0 )
+	{
+		addr_org-=0x40000000;
+		csi_dbg(3,"csi recal mem_addr=%p\n",addr_org);
+	}
 
 
 	if(dev->fmt->input_fmt==CSI_RAW){
@@ -606,9 +610,9 @@ static int csi_clk_get(struct csi_dev *dev)
 		return -1;
     }
 
-    //del by heyihang.Jan 16, 2013
+    //add by heyihang.Jan 16, 2013
     #if 0
-	dev->csi_isp_src_clk=clk_get(NULL,"sys_pll7");//"sys_pll7"
+	dev->csi_isp_src_clk=clk_get(NULL,CLK_SYS_PLL3);//"video_pll0"
 	if (dev->csi_isp_src_clk == NULL || IS_ERR(dev->csi_isp_src_clk)) {
     csi_err("get csi_isp source clk error!\n");
 		return -1;
@@ -2295,6 +2299,30 @@ static int fetch_config(struct csi_dev *dev)
 
 	return 0;
 }
+//add by heyihang.Jan 17, 2013
+static int csi_gpio_release(int cnt)
+{
+  /* release gpio */
+	script_item_u   *gpio_list=NULL;
+	//int cnt;
+	int m;
+
+  csi_print("csi free gpio cnt=%d\n",cnt);
+  m=script_get_pio_list("csi1_para",&gpio_list);
+  if(m>cnt)
+  {
+    //printk("csi release gpio less than sys_config\n");
+    csi_dbg(0,"csi release gpio less than sys_config\n");
+    m=cnt;
+  }
+
+	while(m--)
+	{
+		gpio_free(gpio_list[m].gpio.gpio);
+	}
+
+  return 0;
+}
 
 static int csi_probe(struct platform_device *pdev)
 {
@@ -2304,6 +2332,8 @@ static int csi_probe(struct platform_device *pdev)
 	struct i2c_adapter *i2c_adap;
 	int ret = 0;
 	int input_num;
+        script_item_u   *gpio_list=NULL;
+	int cnt, i;
 
         //add by heyihang.Jan 24, 2013
         char *camera_list_para      = "camera_list_para";
@@ -2381,6 +2411,38 @@ static int csi_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&(pdev)->dev, (dev));
 
+    //add by heyihang.Jan 17, 2013
+    cnt = script_get_pio_list("csi1_para",&gpio_list);
+	if (cnt==0) {
+		csi_err("csi1 get pin list error!\n");
+		ret = -ENXIO;
+		goto err_irq;
+	} else {
+        /* request gpio */
+        csi_dbg(0,"csi1 pin request...\n");
+	for(i = 0; i < cnt; i++)
+	{
+            //printk("request gpio cnt=%d, i=%d\n", cnt, i);
+	    if(0 != gpio_request(gpio_list[i].gpio.gpio, NULL))
+	        csi_print("csi1 pin request error at %d\n",i);
+	}
+	    //dev->csi_pin_hd
+	dev->csi_pin_list=gpio_list;
+	    dev->csi_pin_cnt=i;//record pin request
+	/*config gpio*/
+	    if(0 != sw_gpio_setall_range(&gpio_list[0].gpio, cnt))
+	    {
+	        csi_err("sw_gpio_setall_range failed\n");
+	        //goto err_gpio;
+	    }
+	for(i = 0; i < cnt; i++)
+	{
+            //printk("request gpio cnt=%d, i=%d\n", cnt, i);
+	    gpio_free(gpio_list[i].gpio.gpio);
+	}
+	}
+
+
 	/* fetch sys_config1 */
 
 	ret = fetch_config(dev);
@@ -2429,7 +2491,7 @@ static int csi_probe(struct platform_device *pdev)
                 //add by heyihang.Jan 24, 2013
                 script_item_type = script_get_item(camera_list_para, camera_list_para_used, &value);
                 if ((SCIRPT_ITEM_VALUE_TYPE_INT == script_item_type) && (value.val == 1)) {
-                        camera_export_info(dev->ccm_cfg[input_num]->ccm, &dev->ccm_cfg[input_num]->i2c_addr,input_num);
+                        //camera_export_info(dev->ccm_cfg[input_num]->ccm, &dev->ccm_cfg[input_num]->i2c_addr,input_num);
                 }
 
 		dev_sensor[input_num].addr = (unsigned short)(dev->ccm_cfg[input_num]->i2c_addr>>1);
@@ -2546,6 +2608,7 @@ reg_sd:
 	ret = -ENOMEM;
 	vfd = video_device_alloc();
 	if (!vfd) {
+        csi_err("[L%d]call func video_device_alloc fail!!\n", __LINE__);
 		goto err_clk;
 	}
 
@@ -2555,6 +2618,7 @@ reg_sd:
 	dev_set_name(&vfd->dev, "csi-1");
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, video_nr);
 	if (ret < 0) {
+        csi_err("[L%d]call func video_register_device fail!!\n", __LINE__);
 		goto rel_vdev;
 	}
 	video_set_drvdata(vfd, dev);
@@ -2664,6 +2728,9 @@ static int csi_release(void)
 		release_resource(dev->regs_res);
 		kfree(dev->regs_res);
 		kfree(dev);
+
+        //add by heyihang.Jan 17, 2013
+        csi_gpio_release(dev->csi_pin_cnt);
 	}
 
 	csi_print("csi_release ok!\n");

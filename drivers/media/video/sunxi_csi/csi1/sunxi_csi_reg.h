@@ -5,13 +5,14 @@
 #ifndef _SUNXI_CSI1_REG_H_
 #define _SUNXI_CSI1_REG_H_
 
+#include <mach/platform.h>
 #define  W(addr, val)   writel(val, addr)
 #define  R(addr)        readl(addr)
 #define  S(addr,bit)	writel(readl(addr)|bit,addr)
 #define  C(addr,bit)	writel(readl(addr)&(~bit),addr)
 
-#define CSI0_REGS_BASE        0x01c09000
-#define CSI1_REGS_BASE        0X01c1D000
+#define CSI0_REGS_BASE        SW_PA_CSI0_IO_BASE /* 0x01c09000 */
+#define CSI1_REGS_BASE        SW_PA_CSI1_IO_BASE /* 0X01c1D000 */
 #define CSI0_REG_SIZE 				0x1000
 #define CSI1_REG_SIZE 				0x1000
 

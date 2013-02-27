@@ -47,7 +47,7 @@
 #define CSI_RELEASE 0
 #define CSI_VERSION \
 	KERNEL_VERSION(CSI_MAJOR_VERSION, CSI_MINOR_VERSION, CSI_RELEASE)
-#define CSI_MODULE_NAME "sunxi_csi"
+#define CSI_MODULE_NAME "sunxi_csi0"
 
 //#define USE_DMA_CONTIG
 //#define AJUST_DRAM_PRIORITY
@@ -2546,7 +2546,7 @@ static int csi_gpio_release(int cnt)
 	int m;
 
   csi_print("csi free gpio cnt=%d\n",cnt);
-  m=script_get_pio_list("csi1_para",&gpio_list);
+  m=script_get_pio_list("csi0_para",&gpio_list);
   if(m>cnt)
   {
     //printk("csi release gpio less than sys_config\n");
@@ -2571,7 +2571,7 @@ static int csi_probe(struct platform_device *pdev)
 	struct i2c_adapter *i2c_adap;
 	int ret = 0;
 	int input_num;
-        script_item_u   *gpio_list=NULL;
+    script_item_u   *gpio_list=NULL;
 	int cnt, i;
 
         //add by heyihang.Jan 24, 2013
@@ -2669,15 +2669,7 @@ static int csi_probe(struct platform_device *pdev)
 	{
             //printk("request gpio cnt=%d, i=%d\n", cnt, i);
 	    if(0 != gpio_request(gpio_list[i].gpio.gpio, NULL))
-	    {
-	        csi_print("csi1 pin request error at %d\n",i);
-	        //while(i--)
-		    //  gpio_free(gpio_list[i].gpio.gpio);
-
-	        //printk("CSI pin request abort and free pin finished\n");
-			//goto err_gpio;
-			break;
-		}
+	        csi_print("csi0 pin request error at %d\n",i);
 	}
 	    //dev->csi_pin_hd
 	dev->csi_pin_list=gpio_list;
@@ -2688,6 +2680,11 @@ static int csi_probe(struct platform_device *pdev)
 	        csi_err("sw_gpio_setall_range failed\n");
 	        //goto err_gpio;
 	    }
+	for(i = 0; i < cnt; i++)
+	{
+            //printk("request gpio cnt=%d, i=%d\n", cnt, i);
+	    gpio_free(gpio_list[i].gpio.gpio);
+	}
 	}
 
 
@@ -3115,7 +3112,7 @@ static struct platform_driver csi_driver = {
 	.resume		= csi_resume,
 	//.id_table	= csi_driver_ids,
 	.driver = {
-		.name	= "sunxi_csi",
+		.name	= "sunxi_csi0",
 		.owner	= THIS_MODULE,
 	}
 };
@@ -3135,7 +3132,7 @@ static struct resource csi0_resource[] = {
 
 static struct platform_device csi_device[] = {
 	[0] = {
-	.name           	= "sunxi_csi",
+	.name           	= "sunxi_csi0",
         .id             	= 0,
 	.num_resources		= ARRAY_SIZE(csi0_resource),
         .resource       	= csi0_resource,
