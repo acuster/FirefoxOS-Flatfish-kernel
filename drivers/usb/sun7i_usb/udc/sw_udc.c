@@ -2659,8 +2659,8 @@ static int sw_udc_vbus_session(struct usb_gadget *gadget, int is_active)
 		return 0;
 	}
 
+#ifdef CONFIG_AW_FPGA_PLATFORM
 	udc->vbus = (is_active != 0);
-
 
     if(is_active){
         reg_value = USBC_Readl(USBC_REG_PCTL(g_sw_udc_io.usb_vbase));
@@ -2671,6 +2671,7 @@ static int sw_udc_vbus_session(struct usb_gadget *gadget, int is_active)
         reg_value &= (~0x100);
         USBC_Writel(reg_value, USBC_REG_PCTL(g_sw_udc_io.usb_vbase));
     }
+#endif
 
 	return 0;
 }
@@ -3287,7 +3288,7 @@ static int sw_udc_probe_otg(struct platform_device *pdev)
 	the_controller = udc;
 	platform_set_drvdata(pdev, udc);
 
-    return 0;
+    return usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 }
 
 /*
