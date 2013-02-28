@@ -568,6 +568,7 @@ static int disp_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 #ifdef CONFIG_HAS_EARLYSUSPEND
 void backlight_early_suspend(struct early_suspend *h)
 {
@@ -823,6 +824,7 @@ int disp_resume(struct platform_device *pdev)
 
         return 0;
 }
+#endif
 
 void disp_shutdown(struct platform_device *pdev)
 {
@@ -1919,7 +1921,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 case DISP_CMD_MEM_GETADR:
 			ret = g_disp_mm[ubuffer[0]].mem_start;
 			break;
-
+#ifdef CONFIG_PM
                 case DISP_CMD_SUSPEND:
                         {
                                 pm_message_t state;
@@ -1931,7 +1933,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 case DISP_CMD_RESUME:
 			ret = disp_resume(0);
 			break;
-
+#endif
                 case DISP_CMD_PRINT_REG:
                         ret = BSP_disp_print_reg(1, ubuffer[0]);
                         break;
@@ -1958,8 +1960,10 @@ static struct platform_driver disp_driver =
 {
 	.probe		= disp_probe,
 	.remove		= disp_remove,
+#ifdef CONFIG_PM
 	.suspend        = disp_suspend,
 	.resume         = disp_resume,
+#endif
 	.shutdown       = disp_shutdown,
 	.driver		=
 	{
@@ -2010,8 +2014,10 @@ int __init disp_module_init(void)
         {
 		ret = platform_driver_register(&disp_driver);
         }
+#ifdef CONFIG_PM
 #ifdef CONFIG_HAS_EARLYSUSPEND
         register_early_suspend(&backlight_early_suspend_handler);
+#endif
 #endif
 
         return ret;
@@ -2020,9 +2026,10 @@ int __init disp_module_init(void)
 static void __exit disp_module_exit(void)
 {
 	__inf("disp_module_exit\n");
-
+#ifdef CONFIG_PM
 #ifdef CONFIG_HAS_EARLYSUSPEND
         unregister_early_suspend(&backlight_early_suspend_handler);
+#endif
 #endif
         DRV_DISP_Exit();
 
