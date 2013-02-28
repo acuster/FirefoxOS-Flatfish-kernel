@@ -596,9 +596,20 @@ static void sun7i_ir_suspend(struct early_suspend *h)
 	writel(tmp, IR_BASE+IR_CTRL_REG);
 */
 	dprintk(DEBUG_SUSPEND, "EARLYSUSPEND:enter earlysuspend: sun7i_ir_suspend. \n");
+        if(NULL == ir_clk || IS_ERR(ir_clk)) {
+		printk("ir_clk handle is invalid, just return!\n");
+		return;
+	} else {
+		clk_disable(ir_clk);
+	}
 
-	clk_disable(ir_clk);
-	clk_disable(apb_ir_clk);
+	if(NULL == apb_ir_clk || IS_ERR(ir_clk)) {
+		printk("ir_clk handle is invalid, just return!\n");
+		return;
+	} else {
+		clk_disable(apb_ir_clk);
+	}
+
 }
 
 //重新唤醒

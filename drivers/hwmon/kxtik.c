@@ -50,46 +50,48 @@
 			__FILE__, __LINE__, __func__, #expr);\
 	}
 
-#define KXTIK_DRV_NAME	"kxtik"
+#define KXTIK_DRV_NAME	                "kxtik"
 #define SENSOR_NAME 			KXTIK_DRV_NAME
-#define ACCEL_GRP2_RES_12BIT	(1 << 6)
+#define ACCEL_GRP2_RES_12BIT	        (1 << 6)
 #define ACCEL_GRP2_G_MASK		(3 << 3)
 #define ACCEL_GRP2_G_2G			(0 << 3)
-#define ACCEL_GRP2_CTRL_REG1	0x1B
-#define ACCEL_GRP2_DATA_CTRL	0x21
+#define ACCEL_GRP2_CTRL_REG1	        0x1B
+#define ACCEL_GRP2_DATA_CTRL	        0x21
 #define ACCEL_GRP2_PC1_ON		(1 << 7)
 #define ACCEL_GRP2_PC1_OFF		(0 << 7)
 #define ACCEL_G_MAX			8096
 #define ACCEL_FUZZ			3
 #define ACCEL_FLAT			3
-#define POLL_INTERVAL_MAX	500
-#define POLL_INTERVAL		100
-#define INPUT_FUZZ	2
-#define INPUT_FLAT	2
+#define POLL_INTERVAL_MAX	        500
+#define POLL_INTERVAL		        100
+#define INPUT_FUZZ	                2
+#define INPUT_FLAT	                2
 #define ACCEL_GRP2_XOUT_L		0x06
-#define ACCEL_WHO_AM_I		0x0F
-#define KIONIX_ACCEL_WHO_AM_I_KXTIK   0x05
-#define KIONIX_ACCEL_WHO_AM_I_KXTJ9   0x08
+#define ACCEL_WHO_AM_I		        0x0F
+#define KIONIX_ACCEL_WHO_AM_I_KXTIK     0x05
+#define KIONIX_ACCEL_WHO_AM_I_KXTJ9     0x08
 
-#define I2C_ADDRESS    0x0F
+#define I2C_ADDRESS                     0x0F
 
 
-#define MODE_CHANGE_DELAY_MS 100
+#define MODE_CHANGE_DELAY_MS            100
 
 static struct device *hwmon_dev;
 static struct i2c_client *kxtik_i2c_client;
+static struct input_polled_dev *kxtik_idev;
 
 struct kxtik_data_s {
-    struct i2c_client       *client;
-    struct input_polled_dev *pollDev;
-    struct mutex interval_mutex;
-    atomic_t enable;
+        struct i2c_client       *client;
+        struct input_polled_dev *pollDev;
+        struct mutex interval_mutex;
+        atomic_t enable;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 	volatile int suspend_indator;
 #endif
 } kxtik_data;
+
 enum {
 	accel_grp2_ctrl_reg1 = 0,
 	accel_grp2_data_ctrl,
@@ -97,7 +99,7 @@ enum {
 	accel_grp2_regs_count,
 };
 
- u8 accel_registers[4];
+u8 accel_registers[4];
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[2] = {0x0f, I2C_CLIENT_END};;
@@ -110,14 +112,15 @@ static void kxtik_late_resume(struct early_suspend *h);
 #endif
 
 enum {
-	DEBUG_INIT = 1U << 0,
-	DEBUG_CONTROL_INFO = 1U << 1,
-	DEBUG_DATA_INFO = 1U << 2,
-	DEBUG_SUSPEND = 1U << 3,
+	DEBUG_INIT              = 1U << 0,
+	DEBUG_CONTROL_INFO      = 1U << 1,
+	DEBUG_DATA_INFO         = 1U << 2,
+	DEBUG_SUSPEND           = 1U << 3,
 };
 static u32 debug_mask = 0;
 #define dprintk(level_mask, fmt, arg...)	if (unlikely(debug_mask & level_mask)) \
 	printk(KERN_DEBUG fmt , ## arg)
+module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 /**
  * gsensor_fetch_sysconfig_para - get config info from sysconfig.fex file.
@@ -178,7 +181,7 @@ static int gsensor_detect(struct i2c_client *client, struct i2c_board_info *info
         int ret;
 
         if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-            return -ENODEV;
+                return -ENODEV;
 
         if(twi_id == adapter->nr){
                 ret = i2c_smbus_read_byte_data(client,ACCEL_WHO_AM_I);
@@ -204,16 +207,16 @@ static int kionix_i2c_read(struct i2c_client *client, u8 addr, u8 *data, int len
 {
 	struct i2c_msg msgs[] = {
 		{
-			.addr = client->addr,
-			.flags = client->flags,
-			.len = 1,
-			.buf = &addr,
+			.addr   = client->addr,
+			.flags  = client->flags,
+			.len    = 1,
+			.buf    = &addr,
 		},
 		{
-			.addr = client->addr,
-			.flags = client->flags | I2C_M_RD,
-			.len = len,
-			.buf = data,
+			.addr   = client->addr,
+			.flags  = client->flags | I2C_M_RD,
+			.len    = len,
+			.buf    = data,
 		},
 	};
 
@@ -226,9 +229,9 @@ static ssize_t kxtik_delay_show(struct device *dev,
 	struct i2c_client *client = kxtik_i2c_client;
 	struct kxtik_data_s *kxtik = NULL;
 
-        kxtik   = i2c_get_clientdata(client);
-
+        kxtik = i2c_get_clientdata(client);
 	dprintk(DEBUG_CONTROL_INFO, "%d, %s\n", kxtik->pollDev->poll_interval, __FUNCTION__);
+
 	return sprintf(buf, "%d\n", kxtik->pollDev->poll_interval);
 
 }
@@ -242,7 +245,7 @@ static ssize_t kxtik_delay_store(struct device *dev,
 	struct i2c_client *client = kxtik_i2c_client;
 	struct kxtik_data_s *kxtik = NULL;
 
-        kxtik   = i2c_get_clientdata(client);
+        kxtik = i2c_get_clientdata(client);
 	error = strict_strtoul(buf, 10, &data);
 
 	if (error)
@@ -296,11 +299,13 @@ static ssize_t kxtik_enable_store(struct device *dev,
                 error = i2c_smbus_write_byte_data(kxtik_i2c_client,ACCEL_GRP2_CTRL_REG1,
                 accel_registers[accel_grp2_ctrl_reg1] | ACCEL_GRP2_PC1_ON);
                 assert(error==0);
+                kxtik_idev->input->open(kxtik_idev->input);
 	} else {
 	        atomic_set(&kxtik_data.enable,0);
                 error = i2c_smbus_write_byte_data(kxtik_i2c_client,ACCEL_GRP2_CTRL_REG1,
                 accel_registers[accel_grp2_ctrl_reg1] | ACCEL_GRP2_PC1_OFF);
 	        assert(error==0);
+	        kxtik_idev->input->close(kxtik_idev->input);
 	}
 
 	return count;
@@ -356,8 +361,6 @@ static int kxtik_init_client(struct i2c_client *client)
 	return result;
 }
 
-static struct input_polled_dev *kxtik_idev;
-
 static void report_abs(void)
 {
 
@@ -412,11 +415,9 @@ static int __devinit kxtik_probe(struct i2c_client *client,
 					 I2C_FUNC_SMBUS_BYTE_DATA);
 	assert(result);
 
-	/* Initialize the kxtik chip */
-	result = kxtik_init_client(client);
+	result = kxtik_init_client(client);/* Initialize the kxtik chip */
 	assert(result==0);
 
-	//result = 1; // debug by lchen
 	dprintk(DEBUG_INIT, "<%s> kxtik_init_client result %d\n", __func__, result);
 	if(result != 0)
 	{
@@ -500,8 +501,9 @@ static void kxtik_early_suspend(struct early_suspend *h)
 	int result;
         result = i2c_smbus_write_byte_data(kxtik_i2c_client,ACCEL_GRP2_CTRL_REG1,\
                 accel_registers[accel_grp2_ctrl_reg1] | ACCEL_GRP2_PC1_OFF);
-
 	assert(result==0);
+
+	kxtik_idev->input->close(kxtik_idev->input);
 	return;
 }
 
@@ -511,6 +513,8 @@ static void kxtik_late_resume(struct early_suspend *h)
         result = i2c_smbus_write_byte_data(kxtik_i2c_client,ACCEL_GRP2_CTRL_REG1,\
                 accel_registers[accel_grp2_ctrl_reg1] | ACCEL_GRP2_PC1_ON);
 	assert(result==0);
+
+	kxtik_idev->input->open(kxtik_idev->input);
 	return;
 }
 #endif /* CONFIG_HAS_EARLYSUSPEND */
@@ -522,14 +526,14 @@ static const struct i2c_device_id kxtik_id[] = {
 MODULE_DEVICE_TABLE(i2c, kxtik_id);
 
 static struct i2c_driver kxtik_driver = {
-	.class = I2C_CLASS_HWMON,
+	.class  = I2C_CLASS_HWMON,
 	.driver = {
 		.name	= KXTIK_DRV_NAME,
 		.owner	= THIS_MODULE,
 	},
-	.probe	= kxtik_probe,
-	.remove	= __devexit_p(kxtik_remove),
-	.id_table = kxtik_id,
+	.probe	        = kxtik_probe,
+	.remove	        = __devexit_p(kxtik_remove),
+	.id_table       = kxtik_id,
 	.address_list	= normal_i2c,
 };
 
@@ -539,7 +543,7 @@ static int __init kxtik_init(void)
 	dprintk(DEBUG_INIT, "======%s=========. \n", __func__);
 
 	if(gsensor_fetch_sysconfig_para()){
-		printk("%s: err.\n", __func__);
+		printk("%s: gsensor_fetch_sysconfig_para err.\n", __func__);
 		return -1;
 	}
 
@@ -547,7 +551,7 @@ static int __init kxtik_init(void)
 
 	ret = i2c_add_driver(&kxtik_driver);
 	if (ret < 0) {
-		printk(KERN_INFO "add kxtik i2c driver failed\n");
+		printk("add kxtik i2c driver failed\n");
 		return -ENODEV;
 	}
 	dprintk(DEBUG_INIT, "add kxtik i2c driver\n");
@@ -557,7 +561,7 @@ static int __init kxtik_init(void)
 
 static void __exit kxtik_exit(void)
 {
-	printk(KERN_INFO "remove kxtik i2c driver.\n");
+	dprintk(DEBUG_INIT, "remove kxtik i2c driver.\n");
 	i2c_del_driver(&kxtik_driver);
 }
 

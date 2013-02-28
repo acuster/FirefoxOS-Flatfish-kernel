@@ -91,21 +91,22 @@ struct afa750_data_s {
 
 static struct input_polled_dev *afa750_idev;
 enum {
-	DEBUG_INIT = 1U << 0,
-	DEBUG_CONTROL_INFO = 1U << 1,
-	DEBUG_DATA_INFO = 1U << 2,
-	DEBUG_SUSPEND = 1U << 3,
+	DEBUG_INIT              = 1U << 0,
+	DEBUG_CONTROL_INFO      = 1U << 1,
+	DEBUG_DATA_INFO         = 1U << 2,
+	DEBUG_SUSPEND           = 1U << 3,
 };
 static u32 debug_mask = 0xff;
 #define dprintk(level_mask,fmt,arg...)    if(unlikely(debug_mask & level_mask)) \
         printk(KERN_DEBUG fmt , ## arg)
+module_param_named(debug_mask,debug_mask,int,S_IRUGO | S_IWUSR | S_IWGRP);
 
 /* Addresses to scan */
-
 static const unsigned short normal_i2c[2] = {0x3d,I2C_CLIENT_END};
 
 static __u32 twi_id = 0;
-
+static struct mutex enable_mutex;
+static struct mutex delay_mutex;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void afa750_early_suspend(struct early_suspend *h);
 static void afa750_late_resume(struct early_suspend *h);
@@ -169,9 +170,11 @@ static int gsensor_detect(struct i2c_client *client, struct i2c_board_info *info
 
 	if(twi_id == adapter->nr){
 		ret = i2c_smbus_read_byte_data(client,WHO_AM_I);
-	        printk("%s:addr:0x%x,Read ID value is: 0x%x\n",__func__,client->addr,ret);
+	        dprintk(DEBUG_INIT, "%s:addr:0x%x,Read ID value is: 0x%x\n",
+	                __func__, client->addr, ret);
+
 	        if (((ret &0x00FF) == WHO_AM_I_VALUE1)|| ((ret &0x00FF) == WHO_AM_I_VALUE2)) {
-	                printk("afa750 Sensortec Device detected!\n" );
+	                dprintk(DEBUG_INIT, "afa750 Sensortec Device detected!\n" );
 			strlcpy(info->type, SENSOR_NAME, I2C_NAME_SIZE);
                         return 0;
 
@@ -199,6 +202,8 @@ static ssize_t afa750_enable_store(struct device *dev,struct device_attribute *a
 	int en, old_en;
 	int error;
 
+        mutex_lock(&enable_mutex);
+
 	error = strict_strtoul(buf, 10, &data);
 
 	if(error) {
@@ -215,12 +220,16 @@ static ssize_t afa750_enable_store(struct device *dev,struct device_attribute *a
                 return count;
 
 	if(en) {
+	        afa750_idev->input->open(afa750_idev->input);
 	        atomic_set(&afa750_data.suspended,1);
 		assert(error==0);
 	} else {
 		atomic_set(&afa750_data.suspended,0);
 		assert(error==0);
+		afa750_idev->input->close(afa750_idev->input);
 	}
+
+	mutex_unlock(&enable_mutex);
 
 	return count;
 
@@ -244,6 +253,8 @@ static ssize_t afa750_delay_store(struct device *dev,struct device_attribute *at
 
         dprintk(DEBUG_CONTROL_INFO, "delay store %d\n", __LINE__);
 
+        mutex_lock(&delay_mutex);
+
 	error = strict_strtoul(buf, 10, &data);
 	if (error)
 		return error;
@@ -255,6 +266,7 @@ static ssize_t afa750_delay_store(struct device *dev,struct device_attribute *at
 
          afa750_idev->poll_interval = data;
 
+        mutex_unlock(&delay_mutex);
 
 	return count;
 }
@@ -276,13 +288,17 @@ static void report_abs(void)
 {
         u8 buf[6]={0};
         short x = 0, y = 0, z = 0;
+
         if(i2c_smbus_read_i2c_block_data(afa750_i2c_client, DATAX0, (DATAZ1 - DATAX0 + 1), buf) < 6){
                 printk("FrancesLog****: smbus read block fialed \n");
         }
+
         x = ((buf[1] << 8) & 0xff00) | buf[0];
 	y = ((buf[3] << 8) & 0xff00) | buf[2];
 	z = ((buf[5] << 8) & 0xff00) | buf[4];
+
 	dprintk(DEBUG_DATA_INFO,"x[0] = %d, y[1] = %d, z[2] = %d. \n", x, y, z);
+
 	input_report_abs(afa750_idev->input, ABS_X, x);
 	input_report_abs(afa750_idev->input, ABS_Y, y);
 	input_report_abs(afa750_idev->input, ABS_Z, z);
@@ -342,6 +358,7 @@ static int afa750_late_resume(struct i2c_client *client)
 }
 #endif
 #endif /* CONFIG_HAS_EARLYSUSPEND */
+
 static int __devinit afa750_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int result;
@@ -369,6 +386,7 @@ static int __devinit afa750_probe(struct i2c_client *client, const struct i2c_de
 		result = -ENOMEM;
 		return result;
 	}
+
 	afa750_idev->poll = afa750_dev_poll;
 	afa750_idev->poll_interval = POLL_INTERVAL;
 	afa750_idev->poll_interval_max = POLL_INTERVAL_MAX;
@@ -376,7 +394,6 @@ static int __devinit afa750_probe(struct i2c_client *client, const struct i2c_de
 	idev->name = AFA750_DRV_NAME;
 	idev->id.bustype = BUS_I2C;
 	idev->evbit[0] = BIT_MASK(EV_ABS);
-
 
 	input_set_abs_params(idev, ABS_X, -AFA_FULLRES_MIN_VAL, AFA_FULLRES_MAX_VAL, 0, 0);
 	input_set_abs_params(idev, ABS_Y, -AFA_FULLRES_MIN_VAL, AFA_FULLRES_MAX_VAL, 0, 0);
@@ -395,6 +412,8 @@ static int __devinit afa750_probe(struct i2c_client *client, const struct i2c_de
 
 	afa750_data.client  = client;
         afa750_data.pollDev = afa750_idev;
+        mutex_init(&enable_mutex);
+        mutex_init(&delay_mutex);
         atomic_set(&afa750_data.suspended,1);
 
 
@@ -422,7 +441,6 @@ static int __devexit afa750_remove(struct i2c_client *client)
 	afa750_idev->input->close(afa750_idev->input);
 	input_unregister_polled_device(afa750_idev);
 	input_free_polled_device(afa750_idev);
-
 	i2c_set_clientdata(afa750_i2c_client, NULL);
 
 	return result;
@@ -437,13 +455,13 @@ static const struct i2c_device_id afa750_id[] = {
 MODULE_DEVICE_TABLE(i2c, afa750_id);
 
 static struct i2c_driver afa750_driver = {
-	.class = I2C_CLASS_HWMON,
+	.class  = I2C_CLASS_HWMON,
 	.driver = {
 		.name	= AFA750_DRV_NAME,
 		.owner	= THIS_MODULE,
 	},
-	.probe	= afa750_probe,
-	.remove	= __devexit_p(afa750_remove),
+	.probe	  = afa750_probe,
+	.remove	  = __devexit_p(afa750_remove),
 	.id_table = afa750_id,
 #ifdef CONFIG_HAS_EARLYSUSPEND
 
@@ -462,14 +480,14 @@ static int __init afa750_init(void)
 	dprintk(DEBUG_INIT, "****************************************************************\n");
 	printk("======%s=========. \n", __func__);
 	if(gsensor_fetch_sysconfig_para()){
-		printk("%s: err.\n", __func__);
+		printk("%s: gsensor_fetch_sysconfig_para err.\n", __func__);
 		return -1;
 	}
 	afa750_driver.detect = gsensor_detect;
 
 	ret = i2c_add_driver(&afa750_driver);
 	if (ret < 0) {
-		printk(KERN_INFO "add afa750 i2c driver failed\n");
+		printk("add afa750 i2c driver failed\n");
 		return -ENODEV;
 	}
 	dprintk(DEBUG_INIT, "****************************************************************\n");
@@ -479,7 +497,7 @@ static int __init afa750_init(void)
 
 static void __exit afa750_exit(void)
 {
-	printk("remove afa750 i2c driver.\n");
+	dprintk(DEBUG_INIT, "remove afa750 i2c driver.\n");
 	i2c_del_driver(&afa750_driver);
 }
 
@@ -487,6 +505,6 @@ MODULE_AUTHOR("Chen Gang <gang.chen@freescale.com>");
 MODULE_DESCRIPTION("afa750 3-Axis Orientation/Motion Detection Sensor driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.1");
-module_param_named(debug_mask,debug_mask,int,S_IRUGO | S_IWUSR | S_IWGRP);
+
 module_init(afa750_init);
 module_exit(afa750_exit);

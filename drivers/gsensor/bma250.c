@@ -39,10 +39,10 @@
 
 
 enum {
-	DEBUG_INIT = 1U << 0,
-	DEBUG_CONTROL_INFO = 1U << 1,
-	DEBUG_DATA_INFO = 1U << 2,
-	DEBUG_SUSPEND = 1U << 3,
+	DEBUG_INIT              = 1U << 0,
+	DEBUG_CONTROL_INFO      = 1U << 1,
+	DEBUG_DATA_INFO         = 1U << 2,
+	DEBUG_SUSPEND           = 1U << 3,
 };
 static u32 debug_mask = 0;
 #define dprintk(level_mask, fmt, arg...)	if (unlikely(debug_mask & level_mask)) \
@@ -251,7 +251,7 @@ struct bma250_data {
 static const unsigned short normal_i2c[] = {0x18, I2C_CLIENT_END};
 static __u32 twi_id = 0;
 static int i2c_num = 0;
-static const unsigned short i2c_address[3] = {0x18,0x19,0x38};
+static const unsigned short i2c_address[4] = {0x08,0x18,0x19,0x38};
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void bma250_early_suspend(struct early_suspend *h);
@@ -1136,7 +1136,7 @@ static const struct i2c_device_id bma250_id[] = {
 MODULE_DEVICE_TABLE(i2c, bma250_id);
 
 static struct i2c_driver bma250_driver = {
-	.class = I2C_CLASS_HWMON,
+	.class  = I2C_CLASS_HWMON,
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= SENSOR_NAME,
@@ -1148,7 +1148,7 @@ static struct i2c_driver bma250_driver = {
 #else
 #ifdef CONFIG_PM
 	.suspend = bma250_suspend,
-	.resume = bma250_resume,
+	.resume  = bma250_resume,
 #endif
 #endif
 	.address_list	= normal_i2c,

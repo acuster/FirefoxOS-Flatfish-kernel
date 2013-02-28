@@ -55,8 +55,6 @@
 #error The code does not match the hardware version.
 #endif
 
-extern struct ctp_config_info config_info;
-
 struct goodix_ts_data {
 	int retry;
 	int panel_type;
@@ -80,25 +78,12 @@ struct goodix_ts_data {
 };
 
 const char *f3x_ts_name = "gt82x";
-static void goodix_init_events(struct work_struct *work);
-static void goodix_resume_events(struct work_struct *work);
-static struct workqueue_struct *goodix_wq;
-static struct workqueue_struct *goodix_init_wq;
-static struct workqueue_struct *goodix_resume_wq;
-static DECLARE_WORK(goodix_init_work, goodix_init_events);
-static DECLARE_WORK(goodix_resume_work, goodix_resume_events);
-#define X_DIFF (800)
-
-static u32 debug_mask = 0;
-
-#define dprintk(level_mask,fmt,arg...)    if(unlikely(debug_mask & level_mask)) \
-        printk("***CTP***"fmt, ## arg)
-
+/**************************************************************************************************/
 #define CTP_IRQ_NUMBER          (config_info.irq_gpio_number)
 #define CTP_IRQ_MODE		(TRIG_EDGE_NEGATIVE)
-#define CTP_NAME		"gt82x"
 #define SCREEN_MAX_X		(screen_max_x)
 #define SCREEN_MAX_Y		(screen_max_y)
+#define CTP_NAME		"gt82x"
 #define PRESS_MAX		(255)
 
 
@@ -111,17 +96,31 @@ static int revert_x_flag = 0;
 static int revert_y_flag = 0;
 static int exchange_x_y_flag = 0;
 static u32 int_handle = 0;
+static __u32 twi_id = 0;
 static bool is_suspend = false;
 
+extern struct ctp_config_info config_info;
 
-static __u32 twi_id = 0;
+static u32 debug_mask = 0;
+#define dprintk(level_mask,fmt,arg...)    if(unlikely(debug_mask & level_mask)) \
+        printk("***CTP***"fmt, ## arg)
+module_param_named(debug_mask,debug_mask,int,S_IRUGO | S_IWUSR | S_IWGRP);
 
+/**************************************************************************************************/
+/*------------------------------------------------------------------------------------------*/
 /* Addresses to scan */
-
 static const unsigned short normal_i2c[2] = {0x5d,I2C_CLIENT_END};
 static const int chip_id_value[3] = {0x13,0x27,0x28};
 static uint8_t read_chip_value[3] = {0x0f,0x7d,0};
 
+static void goodix_init_events(struct work_struct *work);
+static void goodix_resume_events(struct work_struct *work);
+static struct workqueue_struct *goodix_wq;
+static struct workqueue_struct *goodix_init_wq;
+static struct workqueue_struct *goodix_resume_wq;
+static DECLARE_WORK(goodix_init_work, goodix_init_events);
+static DECLARE_WORK(goodix_resume_work, goodix_resume_events);
+/*------------------------------------------------------------------------------------------*/
 /*used by GT80X-IAP module */
 struct i2c_client * i2c_connect_client = NULL;
 
@@ -139,19 +138,19 @@ Output:
 static int i2c_read_bytes(struct i2c_client *client, uint8_t *buf, uint16_t len)
 {
 	struct i2c_msg msgs[2];
-	int ret=-1;
+	int ret = -1;
 	//发送写地址
 	msgs[0].flags = !I2C_M_RD;
-	msgs[0].addr = client->addr;
-	msgs[0].len = 2;		//data address
-	msgs[0].buf = buf;
+	msgs[0].addr  = client->addr;
+	msgs[0].len   = 2;		//data address
+	msgs[0].buf   = buf;
 	//接收数据
 	msgs[1].flags = I2C_M_RD;//读消息
-	msgs[1].addr = client->addr;
-	msgs[1].len = len-2;
-	msgs[1].buf = buf+2;
+	msgs[1].addr  = client->addr;
+	msgs[1].len   = len-2;
+	msgs[1].buf   = buf+2;
 
-	ret=i2c_transfer(client->adapter, msgs, 2);
+	ret = i2c_transfer(client->adapter, msgs, 2);
 	return ret;
 }
 
@@ -172,11 +171,11 @@ static int i2c_write_bytes(struct i2c_client *client, uint8_t *data, uint16_t le
 	int ret=-1;
 
 	msg.flags = !I2C_M_RD;//写消息
-	msg.addr = client->addr;
-	msg.len = len;
-	msg.buf = data;
+	msg.addr  = client->addr;
+	msg.len   = len;
+	msg.buf   = data;
 
-	ret=i2c_transfer(client->adapter, &msg,1);
+	ret = i2c_transfer(client->adapter, &msg,1);
 	return ret;
 }
 
@@ -191,9 +190,9 @@ return：
 static s32 i2c_end_cmd(struct goodix_ts_data *ts)
 {
         s32 ret;
-        u8 end_cmd_data[2]={0x80, 0x00};
+        u8 end_cmd_data[2] = {0x80, 0x00};
 
-        ret=i2c_write_bytes(ts->client,end_cmd_data,2);
+        ret = i2c_write_bytes(ts->client,end_cmd_data,2);
         return ret;
 }
 
@@ -210,8 +209,7 @@ static bool goodix_i2c_test(struct i2c_client * client)
 	int ret, retry;
 	uint8_t test_data[1] = { 0 };	//only write a data address.
 
-	for(retry=0; retry < 5; retry++)
-	{
+	for(retry=0; retry < 2; retry++) {
 		ret =i2c_write_bytes(client, test_data, 1);	//Test i2c.
 		if (ret == 1)
 			break;
@@ -236,15 +234,15 @@ static int ctp_detect(struct i2c_client *client, struct i2c_board_info *info)
                 return -ENODEV;
         }
         if(twi_id == adapter->nr){
-	        i2c_read_bytes(client,read_chip_value,3);
-                dprintk(DEBUG_INIT,"addr:0x%x,chip_id_value:0x%x\n",client->addr,read_chip_value[2]);
+	        i2c_read_bytes(client, read_chip_value, 3);
+                dprintk(DEBUG_INIT,"addr:0x%x,chip_id_value:0x%x\n", client->addr, read_chip_value[2]);
                 while(chip_id_value[i++]){
                         if(read_chip_value[2] == chip_id_value[i - 1]){
 		                strlcpy(info->type, CTP_NAME, I2C_NAME_SIZE);
 		                return 0;
                         }
 		}
-		printk("%s:I2C connection might be something wrong ! \n",__func__);
+		printk("%s:I2C connection might be something wrong ! \n", __func__);
 		return -ENODEV;
 	}else{
 	        return -ENODEV;
@@ -264,7 +262,7 @@ static int goodix_init_panel(struct goodix_ts_data *ts)
 	int ret=-1;
 	int i = 0;
         uint8_t config_info1[114];
-        uint8_t data_info0[] = {
+        uint8_t data_info0[] = { /* gt813 data info */
                 0x0F,0x80,
                 0x02,0x11,0x03,0x12,0x04,0x13,0x05,0x14,
                 0x06,0x15,0x07,0x16,0x08,0x17,0x09,0x18,
@@ -281,7 +279,7 @@ static int goodix_init_panel(struct goodix_ts_data *ts)
                 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
                 0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x01
         };
-         uint8_t data_info1[] = {
+         uint8_t data_info1[] = { /* gt828 data info */
                 0x0F,0x80,
                 0x00,0x0F,0x01,0x10,0x02,0x11,0x03,0x12,
                 0x04,0x13,0x05,0x14,0x06,0x15,0x07,0x16,
@@ -770,6 +768,7 @@ err_input_register_device_failed:
 	input_free_device(ts->input_dev);
 err_input_dev_alloc_failed:
 	i2c_set_clientdata(ts->client, NULL);
+	kfree(ts);
 err_alloc_data_failed:
 	return ret;
 }
@@ -815,15 +814,15 @@ static const struct i2c_device_id goodix_ts_id[] = {
 
 //设备驱动结构体
 static struct i2c_driver goodix_ts_driver = {
-	.class = I2C_CLASS_HWMON,
+	.class          = I2C_CLASS_HWMON,
 	.probe		= goodix_ts_probe,
 	.remove		= __devexit_p(goodix_ts_remove),
 	.id_table	= goodix_ts_id,
-	.suspend  =  goodix_ts_suspend,
-	.resume   =  goodix_ts_resume,
+	.suspend        =  goodix_ts_suspend,
+	.resume         =  goodix_ts_resume,
 	.driver = {
 		.name	= CTP_NAME,
-		.owner = THIS_MODULE,
+		.owner  = THIS_MODULE,
 	},
 	.address_list	= normal_i2c,
 };
@@ -877,6 +876,6 @@ static void __exit goodix_ts_exit(void)
 
 late_initcall(goodix_ts_init);
 module_exit(goodix_ts_exit);
-module_param_named(debug_mask,debug_mask,int,S_IRUGO | S_IWUSR | S_IWGRP);
+
 MODULE_DESCRIPTION("Goodix Touchscreen Driver");
 MODULE_LICENSE("GPL v2");

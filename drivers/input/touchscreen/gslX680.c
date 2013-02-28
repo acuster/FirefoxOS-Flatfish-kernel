@@ -51,7 +51,7 @@
 #include <mach/gpio.h>
 #include <linux/ctp.h>
 
-#include "gslX680.h" //resolution:1024*768
+#include "gslX680.h"
 #define FOR_TSLIB_TEST
 //#define GSL_TIMER
 //#define PRINT_POINT_INFO
@@ -68,17 +68,17 @@ static u32 gslX680_debug_mask = 1;
 #define GSL_STATUS_REG		0xe0
 #define GSL_PAGE_REG		0xf0
 
-#define PRESS_MAX    			255
+#define PRESS_MAX    		255
 #define MAX_FINGERS 		10//5 //最大手指个数
 #define MAX_CONTACTS 		10
 #define DMA_TRANS_LEN		0x20
 
-#define PHO_CFG2_OFFSET	(0X104)
+#define PHO_CFG2_OFFSET	        (0X104)
 #define PHO_DAT_OFFSET		(0X10C)
 #define PHO_PULL1_OFFSET	(0X11C)
-#define GPIOF_CON			0x7f0080a0
-#define GPIOF_DAT			0x7f0080a4
-#define GPIOF_PUD			0x7f0080a8
+#define GPIOF_CON		0x7f0080a0
+#define GPIOF_DAT		0x7f0080a4
+#define GPIOF_PUD		0x7f0080a8
 
 #ifdef HAVE_TOUCH_KEY
 static u16 key = 0;
@@ -97,11 +97,12 @@ struct key_data {
 #define KEY_SEARCH	4
 
 const u16 key_array[]={
-                                      KEY_BACK,
-                                      KEY_HOME,
-                                      KEY_MENU,
-                                      KEY_SEARCH,
-                                     };
+        KEY_BACK,
+        KEY_HOME,
+        KEY_MENU,
+        KEY_SEARCH,
+};
+
 #define MAX_KEY_NUM     (sizeof(key_array)/sizeof(key_array[0]))
 
 struct key_data gsl_key_data[MAX_KEY_NUM] = {
@@ -163,11 +164,6 @@ struct gsl_ts {
 #endif
 
 };
-extern struct ctp_config_info config_info;
-
-static u32 debug_mask = 0;
-#define dprintk(level_mask,fmt,arg...)    if(unlikely(debug_mask & level_mask)) \
-        printk("***CTP***"fmt, ## arg)
 
 static u32 id_sign[MAX_CONTACTS+1] = {0};
 static u8 id_state_flag[MAX_CONTACTS+1] = {0};
@@ -178,26 +174,32 @@ static u16 x_new = 0;
 static u16 y_new = 0;
 
 
-///////////////////////////////////////////////
-//specific tp related macro: need be configured for specific tp
+/**************************************************************************************************/
 
-#define CTP_IRQ_NUMBER                  (config_info.irq_gpio_number)
-#define CTP_IRQ_MODE			(TRIG_EDGE_NEGATIVE)
-#define CTP_NAME			GSLX680_I2C_NAME
-#define SCREEN_MAX_X		        (screen_max_x)
-#define SCREEN_MAX_Y		        (screen_max_y)
-
+#define CTP_IRQ_NUMBER          (config_info.irq_gpio_number)
+#define CTP_IRQ_MODE		(TRIG_EDGE_NEGATIVE)
+#define SCREEN_MAX_X		(screen_max_x)
+#define SCREEN_MAX_Y            (screen_max_y)
+#define CTP_NAME		GSLX680_I2C_NAME
 
 static int screen_max_x = 0;
 static int screen_max_y = 0;
 static int revert_x_flag = 0;
 static int revert_y_flag = 0;
 static int exchange_x_y_flag = 0;
-static u32 int_handle = 0;
 static  char* fwname;
-
+static u32 int_handle = 0;
 static __u32 twi_id = 0;
 
+extern struct ctp_config_info config_info;
+
+static u32 debug_mask = 0;
+#define dprintk(level_mask,fmt,arg...)    if(unlikely(debug_mask & level_mask)) \
+        printk("***CTP***"fmt, ## arg)
+
+module_param_named(debug_mask,debug_mask,int,S_IRUGO | S_IWUSR | S_IWGRP);
+/***************************************************************************************************/
+/*------------------------------------------------------------------------------------------*/
 /* Addresses to scan */
 static const unsigned short normal_i2c[2] = {0x40,I2C_CLIENT_END};
 
@@ -209,6 +211,8 @@ static DECLARE_WORK(glsX680_init_work, glsX680_init_events);
 static DECLARE_WORK(glsX680_resume_work, glsX680_resume_events);
 struct i2c_client *glsX680_i2c;
 struct gsl_ts *ts_init;
+/*------------------------------------------------------------------------------------------*/
+
 
 static int ctp_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
@@ -219,15 +223,15 @@ static int ctp_detect(struct i2c_client *client, struct i2c_board_info *info)
                 return -ENODEV;
 
 	if(twi_id == adapter->nr){
-                dprintk(DEBUG_INIT,"%s: addr= %x\n",__func__,client->addr);
+                dprintk(DEBUG_INIT,"%s: addr = %x\n", __func__, client->addr);
                 ret = ctp_i2c_test(client);
                 if(!ret){
-			printk("%s:I2C connection might be something wrong \n",__func__);
+			printk("%s:I2C connection might be something wrong \n", __func__);
 			return -ENODEV;
 		}else{
 		        strlcpy(info->type, CTP_NAME, I2C_NAME_SIZE);
 		    return 0;
-	             }
+	        }
 
 	}else{
 		return -ENODEV;
@@ -732,10 +736,8 @@ schedule:
 static u32 gsl_ts_irq(struct gsl_ts *ts)
 {
 	dprintk(DEBUG_INT_INFO,"==========GSLX680 Interrupt============\n");
-        dprintk(DEBUG_INT_INFO,"Enter work\n");
 	queue_work(ts->wq, &ts->work);
 	return 0;
-
 }
 
 #ifdef GSL_TIMER
@@ -1074,17 +1076,17 @@ static const struct i2c_device_id gsl_ts_id[] = {
 MODULE_DEVICE_TABLE(i2c, gsl_ts_id);
 
 static struct i2c_driver gsl_ts_driver = {
-	.class = I2C_CLASS_HWMON,
+	.class  = I2C_CLASS_HWMON,
 	.driver = {
-		.name = GSLX680_I2C_NAME,
-		.owner = THIS_MODULE,
+	         .name = GSLX680_I2C_NAME,
+	         .owner = THIS_MODULE,
 	},
 	.probe		= gsl_ts_probe,
 	.remove		= __devexit_p(gsl_ts_remove),
-	.id_table		= gsl_ts_id,
+	.id_table	= gsl_ts_id,
 	.address_list	= normal_i2c,
-	.suspend  =  gsl_ts_suspend,
-	.resume   =  gsl_ts_resume,
+	.suspend        =  gsl_ts_suspend,
+	.resume         =  gsl_ts_resume,
 };
 static int ctp_get_system_config(void)
 {
@@ -1139,7 +1141,6 @@ static void __exit gsl_ts_exit(void)
 
 late_initcall(gsl_ts_init);
 module_exit(gsl_ts_exit);
-module_param_named(debug_mask,debug_mask,int,S_IRUGO | S_IWUSR | S_IWGRP);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GSLX680 touchscreen controller driver");
 MODULE_AUTHOR("Guan Yuwei, guanyuwei@basewin.com");

@@ -200,7 +200,7 @@ static u32 debug_mask = 0;
 
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
-struct sun6i_ts_data {
+struct sunxi_ts_data {
 	struct resource *res;
 	struct input_dev *input;
 	void __iomem *base_addr;
@@ -233,7 +233,7 @@ struct ts_sample_data {
 	unsigned int sample_time;
 };
 
-struct sun6i_ts_data * mtTsData =NULL;
+struct sunxi_ts_data * mtTsData =NULL;
 static int touch_mode = UP_TOUCH_MODE;
 static int change_mode = TRUE;
 static int tp_irq_state = TRUE;
@@ -299,7 +299,7 @@ DECLARE_TASKLET(tp_tasklet,tp_do_tasklet,0);
 static int  tp_init(void);
 /* 停用设备 */
 #ifdef CONFIG_HAS_EARLYSUSPEND
-static void sun6i_ts_early_suspend(struct early_suspend *h)
+static void sunxi_ts_early_suspend(struct early_suspend *h)
 {
 	dprintk(DEBUG_SUSPEND_INFO, "[%s] enter standby state: %d. \n", __FUNCTION__, (int)standby_type);
 
@@ -311,7 +311,7 @@ static void sun6i_ts_early_suspend(struct early_suspend *h)
 }
 
 /* 重新唤醒 */
-static void sun6i_ts_late_resume(struct early_suspend *h)
+static void sunxi_ts_late_resume(struct early_suspend *h)
 {
 	dprintk(DEBUG_SUSPEND_INFO, "[%s] return from standby state: %d. \n", __FUNCTION__, (int)standby_type);
 
@@ -327,7 +327,7 @@ static void sun6i_ts_late_resume(struct early_suspend *h)
 #else
 /* 停用设备 */
 #ifdef CONFIG_PM
-static int sun6i_ts_suspend(struct platform_device *pdev, pm_message_t state)
+static int sunxi_ts_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	dprintk(DEBUG_SUSPEND_INFO, "[%s] enter standby state: %d. \n", __FUNCTION__, (int)standby_type);
 
@@ -338,7 +338,7 @@ static int sun6i_ts_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int sun6i_ts_resume(struct platform_device *pdev)
+static int sunxi_ts_resume(struct platform_device *pdev)
 {
         dprintk(DEBUG_SUSPEND_INFO, "[%s] return from standby state: %d. \n", __FUNCTION__, (int)standby_type);
 
@@ -415,7 +415,7 @@ static void backup_transfered_data(struct ts_sample_data *sample_data)
 	return;
 }
 
-static void report_single_point_implement(struct sun6i_ts_data *ts_data, struct ts_sample_data *sample_data)
+static void report_single_point_implement(struct sunxi_ts_data *ts_data, struct ts_sample_data *sample_data)
 {
 	input_report_abs(ts_data->input, ABS_MT_TOUCH_MAJOR,800);
 	input_report_abs(ts_data->input, ABS_MT_POSITION_X, sample_data->x);
@@ -429,14 +429,14 @@ static void report_single_point_implement(struct sun6i_ts_data *ts_data, struct 
 	return;
 }
 
-static void report_single_point(struct sun6i_ts_data *ts_data, struct ts_sample_data *sample_data)
+static void report_single_point(struct sunxi_ts_data *ts_data, struct ts_sample_data *sample_data)
 {
 	backup_transfered_data(sample_data);
 	report_single_point_implement(ts_data, sample_data);
 	return;
 }
 
-static void report_slide_data(struct sun6i_ts_data *ts_data)
+static void report_slide_data(struct sunxi_ts_data *ts_data)
 {
 	int start = 0;
 	int end = 0;
@@ -489,7 +489,7 @@ static void report_slide_data(struct sun6i_ts_data *ts_data)
 	}
 }
 
-static void report_up_event_implement(struct sun6i_ts_data *ts_data)
+static void report_up_event_implement(struct sunxi_ts_data *ts_data)
 {
 	static const int UP_EVENT_DELAY_TIME = 3;
 	static const int SLIDE_MIN_CNT = 3;
@@ -583,7 +583,7 @@ static void filter_double_point_init(struct ts_sample_data *sample_data, int bac
 	return;
 }
 
-static void change_to_double_mode(struct sun6i_ts_data *ts_data)
+static void change_to_double_mode(struct sunxi_ts_data *ts_data)
 {
 	if((CHANGING_TO_DOUBLE_TOUCH_MODE != touch_mode) && \
 	(DOUBLE_TOUCH_MODE != touch_mode)&& \
@@ -596,7 +596,7 @@ static void change_to_double_mode(struct sun6i_ts_data *ts_data)
 	return;
 }
 
-static void change_to_zoom_in(struct sun6i_ts_data *ts_data, struct ts_sample_data *sample_data)
+static void change_to_zoom_in(struct sunxi_ts_data *ts_data, struct ts_sample_data *sample_data)
 {
 	zoom_flag = ZOOM_IN;
 	zoom_change_cnt = 0;
@@ -606,7 +606,7 @@ static void change_to_zoom_in(struct sun6i_ts_data *ts_data, struct ts_sample_da
 	return;
 }
 
-static void change_to_zoom_out(struct sun6i_ts_data *ts_data, struct ts_sample_data *sample_data)
+static void change_to_zoom_out(struct sunxi_ts_data *ts_data, struct ts_sample_data *sample_data)
 {
 	zoom_flag = ZOOM_OUT;
 	zoom_change_cnt = 0;
@@ -726,7 +726,7 @@ static void filter_zoom_out_data(struct ts_sample_data * report_data, struct ts_
 	return;
 }
 
-static int filter_double_point(struct sun6i_ts_data *ts_data, struct ts_sample_data *sample_data)
+static int filter_double_point(struct sunxi_ts_data *ts_data, struct ts_sample_data *sample_data)
 {
 	int ret = 0;
 	static int prev_sample_ds = 0;
@@ -884,7 +884,7 @@ static int filter_double_point(struct sun6i_ts_data *ts_data, struct ts_sample_d
 	return ret;
 }
 
-static void report_double_point(struct sun6i_ts_data *ts_data, struct ts_sample_data *sample_data)
+static void report_double_point(struct sunxi_ts_data *ts_data, struct ts_sample_data *sample_data)
 {
 	int x1,x2,y1,y2;
 
@@ -948,7 +948,7 @@ static void report_double_point(struct sun6i_ts_data *ts_data, struct ts_sample_
 	return;
 }
 
-static void report_data(struct sun6i_ts_data *ts_data, struct ts_sample_data *sample_data)
+static void report_data(struct sunxi_ts_data *ts_data, struct ts_sample_data *sample_data)
 {
 	if (TRUE == change_mode) {                                       /* only up event happened, change_mode is allowed. */
 		printk("err: report_data: never execute. \n ");
@@ -975,7 +975,7 @@ static void report_data(struct sun6i_ts_data *ts_data, struct ts_sample_data *sa
 
 static void report_up_event(unsigned long data)
 {
-	struct sun6i_ts_data *ts_data = (struct sun6i_ts_data *)data;
+	struct sunxi_ts_data *ts_data = (struct sunxi_ts_data *)data;
 
 	/*when the time is out, and the buffer data can not affect the timer to re-timing immediately,
 	*this will happen,
@@ -991,7 +991,7 @@ static void report_up_event(unsigned long data)
 	return;
 }
 
-static void process_data(struct sun6i_ts_data *ts_data, struct ts_sample_data *sample_data)
+static void process_data(struct sunxi_ts_data *ts_data, struct ts_sample_data *sample_data)
 {
 	ts_data->touchflag = 1;
 	if (((sample_data->dx) > DUAL_TOUCH)&&((sample_data->dy) > DUAL_TOUCH)) {
@@ -1053,7 +1053,7 @@ static void process_data(struct sun6i_ts_data *ts_data, struct ts_sample_data *s
 
 void tp_do_tasklet(unsigned long data)
 {
-	struct sun6i_ts_data *ts_data = mtTsData;
+	struct sunxi_ts_data *ts_data = mtTsData;
 	struct ts_sample_data *sample_data;
 	int head = 0;
 	int tail = 0;
@@ -1189,7 +1189,7 @@ out:
 static irqreturn_t sun6i_isr_tp(int irq, void *dev_id)
 {
 	struct platform_device *pdev = dev_id;
-	struct sun6i_ts_data *ts_data = (struct sun6i_ts_data *)platform_get_drvdata(pdev);
+	struct sunxi_ts_data *ts_data = (struct sunxi_ts_data *)platform_get_drvdata(pdev);
 
 	unsigned int reg_val;
 	unsigned int reg_fifoc;
@@ -1312,21 +1312,21 @@ static irqreturn_t sun6i_isr_tp(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int sun6i_ts_open(struct input_dev *dev)
+static int sunxi_ts_open(struct input_dev *dev)
 {
 	/* enable clock */
 	return 0;
 }
 
-static void sun6i_ts_close(struct input_dev *dev)
+static void sunxi_ts_close(struct input_dev *dev)
 {
 	/* disable clock */
 }
 
-static struct sun6i_ts_data *sun6i_ts_data_alloc(struct platform_device *pdev)
+static struct sunxi_ts_data *sunxi_ts_data_alloc(struct platform_device *pdev)
 {
 
-	struct sun6i_ts_data *ts_data = kzalloc(sizeof(*ts_data), GFP_KERNEL);
+	struct sunxi_ts_data *ts_data = kzalloc(sizeof(*ts_data), GFP_KERNEL);
 
 	if (!ts_data)
 		return NULL;
@@ -1347,14 +1347,14 @@ static struct sun6i_ts_data *sun6i_ts_data_alloc(struct platform_device *pdev)
 
 
 	ts_data->input->name = pdev->name;
-	ts_data->input->phys = "sun6i_ts/input0";
+	ts_data->input->phys = "sunxi_ts/input0";
 	ts_data->input->id.bustype = BUS_HOST ;
 	ts_data->input->id.vendor = 0x0001;
 	ts_data->input->id.product = 0x0001;
 	ts_data->input->id.version = 0x0100;
 
-	ts_data->input->open = sun6i_ts_open;
-	ts_data->input->close = sun6i_ts_close;
+	ts_data->input->open = sunxi_ts_open;
+	ts_data->input->close = sunxi_ts_close;
 	ts_data->input->dev.parent = &pdev->dev;
 	ts_data->ts_sample_status = TP_INITIAL;
 	ts_data->ts_process_status = TP_INITIAL;
@@ -1371,7 +1371,7 @@ static struct sun6i_ts_data *sun6i_ts_data_alloc(struct platform_device *pdev)
 
 
 
-static void sun6i_ts_data_free(struct sun6i_ts_data *ts_data)
+static void sunxi_ts_data_free(struct sunxi_ts_data *ts_data)
 {
 	if (!ts_data)
 		return;
@@ -1381,16 +1381,16 @@ static void sun6i_ts_data_free(struct sun6i_ts_data *ts_data)
 }
 
 
-static int __devinit sun6i_ts_probe(struct platform_device *pdev)
+static int __devinit sunxi_ts_probe(struct platform_device *pdev)
 {
 	int err =0;
 	int irq = platform_get_irq(pdev, 0);
-	struct sun6i_ts_data *ts_data;
+	struct sunxi_ts_data *ts_data;
 	tp_flag = 0;
 
-	dprintk(DEBUG_INIT, "sun6i-ts.c: sun6i_ts_probe: start...\n");
+	dprintk(DEBUG_INIT, "sunxi-ts.c: sunxi_ts_probe: start...\n");
 
-	ts_data = sun6i_ts_data_alloc(pdev);
+	ts_data = sunxi_ts_data_alloc(pdev);
 	if (!ts_data) {
 		dev_err(&pdev->dev, "Cannot allocate driver structures\n");
 		err = -ENOMEM;
@@ -1424,8 +1424,8 @@ static int __devinit sun6i_ts_probe(struct platform_device *pdev)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	printk("==register_early_suspend =\n");
 	ts_data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	ts_data->early_suspend.suspend = sun6i_ts_early_suspend;
-	ts_data->early_suspend.resume	= sun6i_ts_late_resume;
+	ts_data->early_suspend.suspend = sunxi_ts_early_suspend;
+	ts_data->early_suspend.resume	= sunxi_ts_late_resume;
 	register_early_suspend(&ts_data->early_suspend);
 #endif
 
@@ -1449,7 +1449,7 @@ static int __devinit sun6i_ts_probe(struct platform_device *pdev)
 		goto err_out3;
 	}
 
-	dprintk(DEBUG_INIT, "sun6i-ts.c: sun6i_ts_probe: end\n");
+	dprintk(DEBUG_INIT, "sunxi-ts.c: sunxi_ts_probe: end\n");
 
     return 0;
 
@@ -1459,18 +1459,18 @@ err_out2:
 	if (ts_data->irq)
 		free_irq(ts_data->irq, pdev);
 err_out1:
-	sun6i_ts_data_free(ts_data);
+	sunxi_ts_data_free(ts_data);
 err_out:
 
-	dprintk(DEBUG_INIT, "sun6i-ts.c: sun6i_ts_probe: failed!\n");
+	dprintk(DEBUG_INIT, "sunxi-ts.c: sunxi_ts_probe: failed!\n");
 
 	return err;
 }
 
-static int __devexit sun6i_ts_remove(struct platform_device *pdev)
+static int __devexit sunxi_ts_remove(struct platform_device *pdev)
 {
 
-	struct sun6i_ts_data *ts_data = platform_get_drvdata(pdev);
+	struct sunxi_ts_data *ts_data = platform_get_drvdata(pdev);
 	free_irq(ts_data->irq, pdev);
 	/* cancel tasklet? */
 	tasklet_disable(&tp_tasklet);
@@ -1488,35 +1488,35 @@ static int __devexit sun6i_ts_remove(struct platform_device *pdev)
 	unregister_early_suspend(&ts_data->early_suspend);
 #endif
 	input_unregister_device(ts_data->input);
-	sun6i_ts_data_free(ts_data);
+	sunxi_ts_data_free(ts_data);
 
 	return 0;
 }
 
 
-static struct platform_driver sun6i_ts_driver = {
-	.probe		= sun6i_ts_probe,
-	.remove		= __devexit_p(sun6i_ts_remove),
+static struct platform_driver sunxi_ts_driver = {
+	.probe		= sunxi_ts_probe,
+	.remove		= __devexit_p(sunxi_ts_remove),
 #ifdef CONFIG_HAS_EARLYSUSPEND
 
 #else
 #ifdef CONFIG_PM
-	.suspend	= sun6i_ts_suspend,
-	.resume		= sun6i_ts_resume,
+	.suspend	= sunxi_ts_suspend,
+	.resume		= sunxi_ts_resume,
 #endif
 #endif
 	.driver		= {
-		.name	= "sun6i-ts",
+		.name	= "sunxi-ts",
 	},
 };
 
 
-static void sun6i_ts_nop_release(struct device *dev)
+static void sunxi_ts_nop_release(struct device *dev)
 {
 	/* Nothing */
 }
 
-static struct resource sun6i_ts_resource[] = {
+static struct resource sunxi_ts_resource[] = {
 	{
 	.flags  = IORESOURCE_IRQ,
 	.start  = IRQ_TP ,
@@ -1530,18 +1530,18 @@ static struct resource sun6i_ts_resource[] = {
 	},
 };
 
-struct platform_device sun6i_ts_device = {
-	.name		= "sun6i-ts",
+struct platform_device sunxi_ts_device = {
+	.name		= "sun7i-ts",
 	.id		    = -1,
 	.dev = {
-		.release = sun6i_ts_nop_release,
+		.release = sunxi_ts_nop_release,
 		},
-	.resource	= sun6i_ts_resource,
-	.num_resources	= ARRAY_SIZE(sun6i_ts_resource),
+	.resource	= sunxi_ts_resource,
+	.num_resources	= ARRAY_SIZE(sunxi_ts_resource),
 };
 
 
-static int __init sun6i_ts_init(void)
+static int __init sunxi_ts_init(void)
 {
 	int device_used = 0;
 	int ret = -1;
@@ -1550,7 +1550,7 @@ static int __init sun6i_ts_init(void)
 	script_item_u	val;
 	script_item_value_type_e  type;
 
-	dprintk(DEBUG_INIT, "sun6i-ts.c: sun6i_ts_init: start ...\n");
+	dprintk(DEBUG_INIT, "sunxi-ts.c: sunxi_ts_init: start ...\n");
 
 	type = script_get_item("rtp_para", "rtp_used", &val);
 
@@ -1563,7 +1563,7 @@ static int __init sun6i_ts_init(void)
 	if (1 == device_used) {
 		type = script_get_item("rtp_para", "rtp_screen_size", &val);
 		if(SCIRPT_ITEM_VALUE_TYPE_INT  != type){
-	        pr_err("sun6i_ts_init: script_get err. \n");
+	        pr_err("sunxi_ts_init: script_get err. \n");
 	        goto script_get_err;
 		}
 		tp_screen_size = val.val;
@@ -1583,7 +1583,7 @@ static int __init sun6i_ts_init(void)
 
 		type = script_get_item("rtp_para", "rtp_regidity_level", &val);
 		if (SCIRPT_ITEM_VALUE_TYPE_INT  != type) {
-			pr_err("sun6i_ts_init: script_get err rtp_regidity_level. \n");
+			pr_err("sunxi_ts_init: script_get err rtp_regidity_level. \n");
 			goto script_get_err;
 		}
 		tp_regidity_level = val.val;
@@ -1596,7 +1596,7 @@ static int __init sun6i_ts_init(void)
 
 		type = script_get_item("rtp_para", "rtp_press_threshold_enable", &val);
 		if (SCIRPT_ITEM_VALUE_TYPE_INT  != type) {
-			pr_err("sun6i_ts_init: script_get err rtp_press_threshold_enable. \n");
+			pr_err("sunxi_ts_init: script_get err rtp_press_threshold_enable. \n");
 			goto script_get_err;
 		}
 		tp_press_threshold_enable = val.val;
@@ -1610,7 +1610,7 @@ static int __init sun6i_ts_init(void)
 		if (1 == tp_press_threshold_enable) {
 			type = script_get_item("rtp_para", "rtp_press_threshold", &val);
 			if (SCIRPT_ITEM_VALUE_TYPE_INT  != type) {
-				pr_err("sun6i_ts_init: script_get err rtp_press_threshold. \n");
+				pr_err("sunxi_ts_init: script_get err rtp_press_threshold. \n");
 				goto script_get_err;
 			}
 			tp_press_threshold = val.val;
@@ -1624,7 +1624,7 @@ static int __init sun6i_ts_init(void)
 
 		type = script_get_item("rtp_para", "rtp_sensitive_level", &val);
 		if (SCIRPT_ITEM_VALUE_TYPE_INT  != type) {
-			pr_err("sun6i_ts_init: script_get err rtp_sensitive_level. \n");
+			pr_err("sunxi_ts_init: script_get err rtp_sensitive_level. \n");
 			goto script_get_err;
 		}
 		tp_sensitive_level = val.val;
@@ -1637,7 +1637,7 @@ static int __init sun6i_ts_init(void)
 
 		type = script_get_item("rtp_para", "rtp_exchange_x_y_flag", &val);
 		if (SCIRPT_ITEM_VALUE_TYPE_INT  != type) {
-			pr_err("sun6i_ts_init: script_get err rtp_exchange_x_y_flag. \n");
+			pr_err("sunxi_ts_init: script_get err rtp_exchange_x_y_flag. \n");
 			goto script_get_err;
 		}
 		tp_exchange_x_y = val.val;
@@ -1652,22 +1652,22 @@ static int __init sun6i_ts_init(void)
 		goto script_get_err;
 	}
 
-	platform_device_register(&sun6i_ts_device);
-	ret = platform_driver_register(&sun6i_ts_driver);
+	platform_device_register(&sunxi_ts_device);
+	ret = platform_driver_register(&sunxi_ts_driver);
 
 script_get_err:
 	return ret;
 }
 
-static void __exit sun6i_ts_exit(void)
+static void __exit sunxi_ts_exit(void)
 {
-	platform_driver_unregister(&sun6i_ts_driver);
-	platform_device_unregister(&sun6i_ts_device);
+	platform_driver_unregister(&sunxi_ts_driver);
+	platform_device_unregister(&sunxi_ts_device);
 }
 
-module_init(sun6i_ts_init);
-module_exit(sun6i_ts_exit);
+module_init(sunxi_ts_init);
+module_exit(sunxi_ts_exit);
 
 MODULE_AUTHOR("zhengdixu <@>");
-MODULE_DESCRIPTION("sun6i touchscreen driver");
+MODULE_DESCRIPTION("sunxi touchscreen driver");
 MODULE_LICENSE("GPL");

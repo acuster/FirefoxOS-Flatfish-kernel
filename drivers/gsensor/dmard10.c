@@ -72,17 +72,17 @@ static raw_data offset;
 static struct dmt_data dev;
 
 enum {
-	DEBUG_I2C_DETECT = 1U << 0,
-	DEBUG_INT = 1U << 1,
-	DEBUG_REPORT_ACC_DATA = 1U << 2,
-	DEBUG_SUSPEND = 1U << 3,
+	DEBUG_I2C_DETECT        = 1U << 0,
+	DEBUG_INT               = 1U << 1,
+	DEBUG_REPORT_ACC_DATA   = 1U << 2,
+	DEBUG_SUSPEND           = 1U << 3,
 
 };
 
 static u32 debug_mask = 0xff;
 #define dprintk(level_mask, fmt, arg...)	if (unlikely(debug_mask & level_mask)) \
 	printk(KERN_DEBUG fmt , ## arg)
-
+module_param_named(debug_mask,debug_mask,int,S_IRUGO | S_IWUSR | S_IWGRP);
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[2] = {0x18, I2C_CLIENT_END};
@@ -169,8 +169,18 @@ static int device_i2c_rxdata( struct i2c_client *client, unsigned char *rxData, 
 {
 	struct i2c_msg msgs[] =
 	{
-		{.addr = client->addr, .flags = 0, .len = 1, .buf = rxData,},
-		{.addr = client->addr, .flags = I2C_M_RD, .len = length, .buf = rxData,},
+		{
+		        .addr   = client->addr,
+		        .flags  = 0,
+		        .len    = 1,
+		        .buf    = rxData,
+		},
+		{
+		        .addr   = client->addr,
+		        .flags  = I2C_M_RD,
+		        .len    = length,
+		        .buf    = rxData,
+		},
 	};
 
 	if (i2c_transfer(client->adapter, msgs, 2) < 0) {
@@ -185,7 +195,12 @@ static int device_i2c_txdata( struct i2c_client *client, unsigned char *txData, 
 {
 	struct i2c_msg msg[] =
 	{
-		{.addr = client->addr, .flags = 0, .len = length, .buf = txData,},
+		{
+		        .addr   = client->addr,
+		        .flags  = 0,
+		        .len    = length,
+		        .buf    = txData,
+		},
 	};
 
 	if (i2c_transfer(client->adapter, msg, 1) < 0) {
@@ -747,12 +762,12 @@ static int device_i2c_resume(struct i2c_client *client)
 }
 struct file_operations dmt_g_sensor_fops =
 {
-	.owner = THIS_MODULE,
-	.read = device_read,
-	.write = device_write,
+	.owner          = THIS_MODULE,
+	.read           = device_read,
+	.write          = device_write,
 	.unlocked_ioctl = device_ioctl,
-	.open = device_open,
-	.release = device_close,
+	.open           = device_open,
+	.release        = device_close,
 };
 
 static const struct i2c_device_id device_i2c_ids[] =
@@ -763,19 +778,18 @@ static const struct i2c_device_id device_i2c_ids[] =
 
 MODULE_DEVICE_TABLE(i2c, device_i2c_ids);
 
-static struct i2c_driver device_i2c_driver =
-{
-	.class = I2C_CLASS_HWMON,
+static struct i2c_driver device_i2c_driver = {
+	.class  = I2C_CLASS_HWMON,
 	.driver	= {
 		.owner = THIS_MODULE,
-		.name = DEVICE_I2C_NAME,
+		.name  = DEVICE_I2C_NAME,
 		},
-	.class = I2C_CLASS_HWMON,
-	.probe = device_i2c_probe,
-	.remove	= __devexit_p(device_i2c_remove),
-	.suspend = device_i2c_suspend,
-	.resume	= device_i2c_resume,
-	.id_table = device_i2c_ids,
+	.class          = I2C_CLASS_HWMON,
+	.probe          = device_i2c_probe,
+	.remove	        = __devexit_p(device_i2c_remove),
+	.suspend        = device_i2c_suspend,
+	.resume	        = device_i2c_resume,
+	.id_table       = device_i2c_ids,
 	.address_list	= normal_i2c,
 };
 static int __init device_init(void)
@@ -784,7 +798,7 @@ static int __init device_init(void)
 
 	dprintk(DEBUG_INT,"dmard10 init----!\n");
         if(gsensor_fetch_sysconfig_para()){
-		printk("%s: err.\n", __func__);
+		printk("%s: gsensor_fetch_sysconfig_para err.\n", __func__);
 		return -1;
 	}
 
@@ -802,12 +816,13 @@ static int __init device_init(void)
 
 static void __exit device_exit(void)
 {
+	dprintk(DEBUG_INT, "device_exit!\n");
 	i2c_del_driver(&device_i2c_driver);
 
 }
 
 //*********************************************************************************************************
-module_param_named(debug_mask,debug_mask,int,S_IRUGO | S_IWUSR | S_IWGRP);
+
 MODULE_AUTHOR("DMT_RD");
 MODULE_DESCRIPTION("DMT Gsensor Driver");
 MODULE_LICENSE("GPL");

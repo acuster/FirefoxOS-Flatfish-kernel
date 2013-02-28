@@ -68,10 +68,10 @@
 #define MMA8452_I2C_ADDR1       0x1D
 
 enum {
-	DEBUG_INIT = 1U << 0,
-	DEBUG_CONTROL_INFO = 1U << 1,
-	DEBUG_DATA_INFO = 1U << 2,
-	DEBUG_SUSPEND = 1U << 3,
+	DEBUG_INIT              = 1U << 0,
+	DEBUG_CONTROL_INFO      = 1U << 1,
+	DEBUG_DATA_INFO         = 1U << 2,
+	DEBUG_SUSPEND           = 1U << 3,
 };
 static u32 debug_mask = 0;
 #define dprintk(level_mask, fmt, arg...)	if (unlikely(debug_mask & level_mask)) \
@@ -161,7 +161,7 @@ struct mma8452_status {
 };
 
 static struct mma8452_status mma_status = {
-	.mode 	= 0,
+	.mode 	        = 0,
 	.ctl_reg1	= 0
 };
 
@@ -566,16 +566,6 @@ static int __devinit mma8452_probe(struct i2c_client *client,
 					 I2C_FUNC_SMBUS_BYTE_DATA);
 	assert(result);
 
-	dprintk(DEBUG_INIT, "check mma8452 chip ID\n");
-	result = i2c_smbus_read_byte_data(client, MMA8452_WHO_AM_I);
-
-	if (MMA8452_ID != (result)) {	//compare the address value
-		dev_err(&client->dev,"read chip ID 0x%x is not equal to 0x%x!\n", result,MMA8452_ID);
-		printk(KERN_INFO "read chip ID failed\n");
-		result = -EINVAL;
-		goto err_detach_client;
-	}
-
 	mutex_init(&init_mutex);
 	mutex_init(&enable_mutex);
 
@@ -593,17 +583,17 @@ static int __devinit mma8452_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "build time %s %s\n", __DATE__, __TIME__);
 
-
-	/*input poll device register */
-	mma8452_idev = input_allocate_polled_device();
+	mma8452_idev = input_allocate_polled_device();/*input poll device register */
 	if (!mma8452_idev) {
 		dev_err(&client->dev, "alloc poll device failed!\n");
 		result = -ENOMEM;
 		return result;
 	}
+
 	mma8452_idev->poll = mma8452_dev_poll;
 	mma8452_idev->poll_interval = POLL_INTERVAL;
 	mma8452_idev->poll_interval_max = POLL_INTERVAL_MAX;
+
 	idev = mma8452_idev->input;
 	idev->name = MMA8452_DRV_NAME;
 	idev->id.bustype = BUS_I2C;
@@ -612,12 +602,14 @@ static int __devinit mma8452_probe(struct i2c_client *client,
 	input_set_abs_params(idev, ABS_X, -8192, 8191, INPUT_FUZZ, INPUT_FLAT);
 	input_set_abs_params(idev, ABS_Y, -8192, 8191, INPUT_FUZZ, INPUT_FLAT);
 	input_set_abs_params(idev, ABS_Z, -8192, 8191, INPUT_FUZZ, INPUT_FLAT);
+
 	result = input_register_polled_device(mma8452_idev);
-	mma8452_idev->input->close(mma8452_idev->input);
 	if (result) {
 		dev_err(&client->dev, "register poll device failed!\n");
 		return result;
 	}
+	mma8452_idev->input->close(mma8452_idev->input);
+
 	result = sysfs_create_group(&mma8452_idev->input->dev.kobj, &mma8452_attribute_group);
 
 	mma8452_resume_wq = create_singlethread_workqueue("mma8452_resume");
@@ -641,11 +633,12 @@ static int __devinit mma8452_probe(struct i2c_client *client,
 #endif
 	atomic_set(&mma8452_suspend_id, 0);
 	dprintk(DEBUG_INIT, "mma8452 probe end\n");
+
 	return result;
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 err_alloc_data_failed:
 #endif
-err_detach_client:
 	return result;
 }
 
@@ -683,7 +676,7 @@ static const struct i2c_device_id mma8452_id[] = {
 MODULE_DEVICE_TABLE(i2c, mma8452_id);
 
 static struct i2c_driver mma8452_driver = {
-	.class = I2C_CLASS_HWMON,
+	.class  = I2C_CLASS_HWMON,
 	.driver = {
 	.name	= MMA8452_DRV_NAME,
 	.owner	= THIS_MODULE,
@@ -695,27 +688,26 @@ static struct i2c_driver mma8452_driver = {
 #else
 #ifdef CONFIG_PM
 	.suspend = mma8452_suspend,
-	.resume = mma8452_resume,
+	.resume  = mma8452_resume,
 #endif
 #endif
-	.id_table = mma8452_id,
+	.id_table       = mma8452_id,
 	.address_list	= normal_i2c,
 };
 
 static int __init mma8452_init(void)
 {
-	/* register driver */
 	int res;
 	dprintk(DEBUG_INIT, "======%s=========. \n", __func__);
 	if(gsensor_fetch_sysconfig_para()){
-		printk("%s: err.\n", __func__);
+		printk("%s: gsensor_fetch_sysconfig_para err.\n", __func__);
 		return -1;
 	}
 
 	mma8452_driver.detect = gsensor_detect;
 	res = i2c_add_driver(&mma8452_driver);
 	if (res < 0) {
-		printk(KERN_INFO "add mma8452 i2c driver failed\n");
+		printk("add mma8452 i2c driver failed\n");
 		return -ENODEV;
 	}
 	dprintk(DEBUG_INIT, "add mma8452 i2c driver\n");

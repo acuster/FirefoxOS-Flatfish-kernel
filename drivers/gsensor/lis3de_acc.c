@@ -51,7 +51,7 @@
 
 /* #define	DEBUG		1 */
 
-#define	G_MAX		16000
+#define	G_MAX		        16000
 
 /* Accelerometer Sensor Operating Mode */
 #define LIS3DE_ACC_ENABLE	(0x01)
@@ -175,10 +175,10 @@
 /* end RESUME STATE INDICES */
 
 enum {
-	DEBUG_INIT = 1U << 0,
-	DEBUG_CONTROL_INFO = 1U << 1,
-	DEBUG_DATA_INFO = 1U << 2,
-	DEBUG_SUSPEND = 1U << 3,
+	DEBUG_INIT              = 1U << 0,
+	DEBUG_CONTROL_INFO      = 1U << 1,
+	DEBUG_DATA_INFO         = 1U << 2,
+	DEBUG_SUSPEND           = 1U << 3,
 };
 static u32 debug_mask = 0;
 #define dprintk(level_mask, fmt, arg...)	if (unlikely(debug_mask & level_mask)) \
@@ -466,24 +466,25 @@ static int lis3de_acc_hw_init(struct lis3de_acc_status *stat)
 
 	dprintk(DEBUG_INIT, "%s: hw init start\n", LIS3DE_ACC_DEV_NAME);
 
-	buf[0] = WHO_AM_I;
+	/*buf[0] = WHO_AM_I;
 	err = lis3de_acc_i2c_read(stat, buf, 1);
 	if (err < 0) {
 		dev_warn(&stat->client->dev, "Error reading WHO_AM_I:"
 				" is device available/working?\n");
 		goto err_firstread;
 	} else
-		stat->hw_working = 1;
+
 
 	if (buf[0] != WHOAMI_LIS3DE_ACC) {
 		dev_err(&stat->client->dev,
 			"device unknown. Expected: 0x%02x,"
 			" Replies: 0x%02x\n",
 			WHOAMI_LIS3DE_ACC, buf[0]);
-		err = -1; /* choose the right coded error */
+		err = -1; // choose the right coded error
 		goto err_unknown_device;
-	}
+	}*/
 
+        stat->hw_working = 1;
 
 	buf[0] = CTRL_REG1;
 	buf[1] = stat->resume_state[RES_CTRL_REG1];
@@ -544,9 +545,6 @@ static int lis3de_acc_hw_init(struct lis3de_acc_status *stat)
 	dprintk(DEBUG_INIT, "%s: hw init done\n", LIS3DE_ACC_DEV_NAME);
 	return 0;
 
-err_firstread:
-	stat->hw_working = 0;
-err_unknown_device:
 err_resume_state:
 	stat->hw_initialized = 0;
 	dev_err(&stat->client->dev, "hw init error 0x%02x,0x%02x: %d\n", buf[0],
@@ -770,13 +768,14 @@ static int lis3de_acc_register_write(struct lis3de_acc_status *stat,
 {
 	int err = -1;
 
-		/* Sets configuration register at reg_address
-		 *  NOTE: this is a straight overwrite  */
-		buf[0] = reg_address;
-		buf[1] = new_value;
-		err = lis3de_acc_i2c_write(stat, buf, 1);
-		if (err < 0)
-			return err;
+	/* Sets configuration register at reg_address
+	 *  NOTE: this is a straight overwrite  */
+	buf[0] = reg_address;
+	buf[1] = new_value;
+	err = lis3de_acc_i2c_write(stat, buf, 1);
+	if (err < 0)
+		return err;
+
 	return err;
 }
 
@@ -1457,8 +1456,7 @@ static int lis3de_acc_probe(struct i2c_client *client,
 	if (stat->pdata == NULL) {
 		err = -ENOMEM;
 		dev_err(&client->dev,
-				"failed to allocate memory for pdata: %d\n",
-				err);
+				"failed to allocate memory for pdata!\n");
 		goto err_mutexunlock;
 	}
 
@@ -1627,7 +1625,8 @@ err_destoyworkqueue2:
 	if (stat->pdata->gpio_int2 >= 0)
 		destroy_workqueue(stat->irq2_work_queue);
 err_free_irq1:
-	free_irq(stat->irq1, stat);
+        if (stat->pdata->gpio_int1 >= 0)
+	        free_irq(stat->irq1, stat);
 err_destoyworkqueue1:
 	if (stat->pdata->gpio_int1 >= 0)
 		destroy_workqueue(stat->irq1_work_queue);
@@ -1644,7 +1643,6 @@ exit_kfree_pdata:
 	kfree(stat->pdata);
 err_mutexunlock:
 	mutex_unlock(&stat->lock);
-/* err_freedata: */
 	kfree(stat);
 exit_check_functionality_failed:
 	pr_err("%s: Driver Init failed\n", LIS3DE_ACC_DEV_NAME);
@@ -1662,13 +1660,11 @@ static int __devexit lis3de_acc_remove(struct i2c_client *client)
 
 	if (stat->pdata->gpio_int1 >= 0) {
 		free_irq(stat->irq1, stat);
-		//gpio_free(stat->pdata->gpio_int1);
 		destroy_workqueue(stat->irq1_work_queue);
 	}
 
 	if (stat->pdata->gpio_int2 >= 0) {
 		free_irq(stat->irq2, stat);
-		//gpio_free(stat->pdata->gpio_int2);
 		destroy_workqueue(stat->irq2_work_queue);
 	}
 
@@ -1728,9 +1724,6 @@ static int lis3de_acc_suspend(struct i2c_client *client, pm_message_t mesg)
 	stat->on_before_suspend = atomic_read(&stat->enabled);
 	return lis3de_acc_disable(stat);
 }
-#else
-#define lis3de_acc_suspend	NULL
-#define lis3de_acc_resume	NULL
 #endif /* CONFIG_PM */
 #endif /* CONFIG_HAS_EARLYSUSPEND */
 
@@ -1741,19 +1734,19 @@ MODULE_DEVICE_TABLE(i2c, lis3de_acc_id);
 
 
 static struct i2c_driver lis3de_acc_driver = {
-	.class = I2C_CLASS_HWMON,
+	.class  = I2C_CLASS_HWMON,
 	.driver = {
 		.owner = THIS_MODULE,
-		.name = LIS3DE_ACC_DEV_NAME,
+		.name  = LIS3DE_ACC_DEV_NAME,
 		  },
-	.probe = lis3de_acc_probe,
+	.probe  = lis3de_acc_probe,
 	.remove = __devexit_p(lis3de_acc_remove),
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #else
 	.suspend = lis3de_acc_suspend,
-	.resume = lis3de_acc_resume,
+	.resume  = lis3de_acc_resume,
 #endif
-	.id_table = lis3de_acc_id,
+	.id_table       = lis3de_acc_id,
 	.address_list	= normal_i2c,
 };
 
@@ -1762,7 +1755,7 @@ static int __init lis3de_acc_init(void)
 	dprintk(DEBUG_INIT, "%s accelerometer driver: init\n",
 						LIS3DE_ACC_DEV_NAME);
 	if (gsensor_fetch_sysconfig_para()) {
-		printk("%s: err.\n", __func__);
+		printk("%s: gsensor_fetch_sysconfig_para err.\n", __func__);
 		return -1;
 	}
 

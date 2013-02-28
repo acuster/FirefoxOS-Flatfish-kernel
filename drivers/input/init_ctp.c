@@ -20,7 +20,7 @@ EXPORT_SYMBOL_GPL(config_info);
 
 static u32 debug_mask = 0;
 
-#define dprintk(level_mask,fmt,arg...)    if(unlikely(debug_mask & level_mask)) \
+#define dprintk(level_mask, fmt, arg...)    if(unlikely(debug_mask & level_mask)) \
         printk("***CTP***"fmt, ## arg)
 
 int ctp_i2c_write_bytes(struct i2c_client *client, uint8_t *data, uint16_t len)
@@ -44,14 +44,14 @@ int ctp_i2c_read_bytes_addr16(struct i2c_client *client, uint8_t *buf, uint16_t 
 	int ret=-1;
 
 	msgs[0].flags = !I2C_M_RD;
-	msgs[0].addr = client->addr;
-	msgs[0].len = 2;		//data address
-	msgs[0].buf = buf;
+	msgs[0].addr  = client->addr;
+	msgs[0].len   = 2;		//data address
+	msgs[0].buf   = buf;
 
 	msgs[1].flags = I2C_M_RD;
-	msgs[1].addr = client->addr;
-	msgs[1].len = len-2;
-	msgs[1].buf = buf+2;
+	msgs[1].addr  = client->addr;
+	msgs[1].len   = len-2;
+	msgs[1].buf   = buf+2;
 
 	ret=i2c_transfer(client->adapter, msgs, 2);
 	return ret;
@@ -68,7 +68,7 @@ bool ctp_i2c_test(struct i2c_client * client)
                 ret =ctp_i2c_write_bytes(client, test_data, 1);	//Test i2c.
 		if (ret == 1)
 		        break;
-		msleep(50);
+		msleep(10);
         }
 
         return ret==1 ? true : false;

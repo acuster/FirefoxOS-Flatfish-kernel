@@ -806,9 +806,10 @@ config  TOUCHSCREEN_GT82X
        help
          gt813,gt827,gt828 touchscreen driver
 
-config  TOUCHSCREEN_SUN7I_TS
-       tristate  "sun7i-ts touchscreen driver"
+config  TOUCHSCREEN_SUNXI_TS
+       tristate  "sunxi-ts touchscreen driver"
        help
-           sun7i-ts touchscreen driver
+           sunxi-ts touchscreen driver of resistance
+
 
 endif
