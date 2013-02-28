@@ -196,8 +196,8 @@ int main(void)
 		goto suspend_dram_err;
 	}
 #else
-	//mctl_power_save_entry();
-	mctl_self_refresh_entry();
+	mctl_power_save_entry();
+	//mctl_self_refresh_entry();
 #endif
 
 	/* gating off dram clock */

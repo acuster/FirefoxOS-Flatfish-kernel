@@ -256,6 +256,55 @@ void mctl_host_port_cfg(uint32 port_no, uint32 cfg)
 
 	mctl_write_w(addr, cfg);
 }
+
+
+#define SAVE_SDR_ZQSR_TO_RTC
+#define MAX_RETRY_TIMES (5)
+/*
+ * backup dram calibration value
+ */
+static mctl_save_SDR_ZQSR(void)
+{
+
+#ifdef SAVE_SDR_ZQSR_TO_RTC
+	uint32 reg_val;
+    //save memc ZQ value into RTC GP register
+    reg_val = mctl_read_w(SDR_ZQSR)&0xfffff;
+    reg_val |= 0x1<<20;             //super standby flag
+    mctl_write_w(SDR_GP_REG0, reg_val);
+
+#elif defined(SAVE_SDR_ZQSR_TO_AXP)
+	uint32 value;
+	unsigned char reg_val;
+	unsigned char reg_addr_1st = 0x0a;
+	unsigned char reg_addr_2nd = 0x0b;
+	unsigned char reg_addr_3rd = 0x0c;
+	uint32 retry = MAX_RETRY_TIMES;
+
+	value = mctl_read_w(SDR_ZQSR) & 0xfffff;
+    for(retry = 0; retry < MAX_RETRY_TIMES; retry++)
+    {
+        reg_val = value&0xff;
+        if(twi_byte_rw(TWI_OP_WR, AXP_ADDR,reg_addr_1st, &reg_val)){
+            continue;
+        }
+        reg_val = (value>>8)&0xff;
+        if(twi_byte_rw(TWI_OP_WR, AXP_ADDR,reg_addr_2nd, &reg_val)){
+            continue;
+        }
+        reg_val = (value>>16)&0x0f;
+        if(twi_byte_rw(TWI_OP_WR, AXP_ADDR,reg_addr_3rd, &reg_val)){
+            continue;
+        }
+        break;
+    }
+#else
+#error "super standby has not save SDR_ZQSR"
+#endif
+}
+
+
+
 //*****************************************************************************
 //	void mctl_power_save_entry()
 //  Description:	Enter into super power save state
@@ -271,15 +320,13 @@ void mctl_power_save_entry(void)
 	//put dram in self refresh state
 	mctl_self_refresh_entry();
 
-	//save memc ZQ value into RTC GP register
-	reg_val = mctl_read_w(SDR_ZQSR)&0xfffff;
-	reg_val |= 0x1<<20;				//super standby flag
-	mctl_write_w(SDR_GP_REG0, reg_val);
+	//save memc ZQ value
+    mctl_save_SDR_ZQSR();
 
 	//memc pad hold on
 	mctl_write_w(SDR_DPCR, 0x16510001);
 	printk("set pad hold on. \n");
-	busy_waiting();
+	//busy_waiting();
 
 }
 void mctl_power_save_exit(void)
