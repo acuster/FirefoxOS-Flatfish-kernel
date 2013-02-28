@@ -46,20 +46,20 @@
 #define SUN7I_GPIO_SPACE    5 /* for debugging purposes so that failed if request extra gpio_nr */
 #define AW_GPIO_NEXT(gpio)  gpio##_NR_BASE + gpio##_NR + SUN7I_GPIO_SPACE + 1
 enum sun7i_gpio_number {
-    PA_NR_BASE = 0,
-    PB_NR_BASE = AW_GPIO_NEXT(PA),
-    PC_NR_BASE = AW_GPIO_NEXT(PB),
-    PD_NR_BASE = AW_GPIO_NEXT(PC),
-    PE_NR_BASE = AW_GPIO_NEXT(PD),
-    PF_NR_BASE = AW_GPIO_NEXT(PE),
-    PG_NR_BASE = AW_GPIO_NEXT(PF),
-    PH_NR_BASE = AW_GPIO_NEXT(PG),
-    PI_NR_BASE = AW_GPIO_NEXT(PH),
+    PA_NR_BASE = 0,                 /* 0    */
+    PB_NR_BASE = AW_GPIO_NEXT(PA),  /* 24   */
+    PC_NR_BASE = AW_GPIO_NEXT(PB),  /* 54   */
+    PD_NR_BASE = AW_GPIO_NEXT(PC),  /* 85   */
+    PE_NR_BASE = AW_GPIO_NEXT(PD),  /* 119  */
+    PF_NR_BASE = AW_GPIO_NEXT(PE),  /* 137  */
+    PG_NR_BASE = AW_GPIO_NEXT(PF),  /* 149  */
+    PH_NR_BASE = AW_GPIO_NEXT(PG),  /* 167  */
+    PI_NR_BASE = AW_GPIO_NEXT(PH),  /* 201  */
 #ifdef CONFIG_AW_AXP20
-    AXP_NR_BASE     = AW_GPIO_NEXT(PI),
-    GPIO_INDEX_END  = AW_GPIO_NEXT(AXP),
+    AXP_NR_BASE     = AW_GPIO_NEXT(PI),     /* 229 */
+    GPIO_INDEX_END  = AW_GPIO_NEXT(AXP),    /* 240 */
 #else
-    GPIO_INDEX_END  = AW_GPIO_NEXT(PI),
+    GPIO_INDEX_END  = AW_GPIO_NEXT(PI),     /* 229 */
 #endif
 };
 
