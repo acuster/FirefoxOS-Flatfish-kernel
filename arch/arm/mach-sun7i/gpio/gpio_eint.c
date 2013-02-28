@@ -814,7 +814,12 @@ void sw_gpio_irq_free(u32 handle)
 
     PIO_DBG("%s: handle 0x%08x\n", __func__, (u32)handle);
 
-    if (false == is_gpio_canbe_eint(pdev_id->gpio) || !pdev_id) {
+    if (!pdev_id) {
+        PIO_ERR("%s: null handle, invalid\n", __func__);
+        return;
+    }
+
+    if (false == is_gpio_canbe_eint(pdev_id->gpio)) {
         PIO_ERR("%s: gpio %d can not be eint\n", __func__, gpio);
         return;
     }
