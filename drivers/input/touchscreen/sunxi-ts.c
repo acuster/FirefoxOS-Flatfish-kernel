@@ -72,7 +72,7 @@ static int tp_flag = 0;
 
 #define TP_FIX_CENTER
 
-#define IRQ_TP                 (60)
+#define IRQ_TP                 (29)
 #define TP_BASSADDRESS         (0xf1c25000)
 #define TP_CTRL0               (0x00)
 #define TP_CTRL1               (0x04)
@@ -98,10 +98,10 @@ static int tp_flag = 0;
 
 #define STYLUS_UP_DEBOUNCE     (0<<12)
 #define STYLUS_UP_DEBOUCE_EN   (0<<9)
-#define TOUCH_PAN_CALI_EN      (1<<7)
-#define TP_DUAL_EN             (1<<6)
-#define TP_MODE_EN             (1<<5)
-#define TP_ADC_SELECT          (0<<4)
+#define TOUCH_PAN_CALI_EN      (1<<6)
+#define TP_DUAL_EN             (1<<5)
+#define TP_MODE_EN             (1<<4)
+#define TP_ADC_SELECT          (0<<3)
 #define ADC_CHAN_SELECT        (0)
 
 //#define TP_SENSITIVE_ADJUST    (0xf<<28)
@@ -135,7 +135,7 @@ static int tp_flag = 0;
 #define UP_TO_SINGLE_CNT_LIMIT (10)
 
 #define TPDATA_MASK            (0xfff)
-#define FILTER_NOISE_LOWER_LIMIT  (2)
+#define FILTER_NOISE_LOWER_LIMIT  (10)
 #define MAX_DELTA_X            (700-100)                       /* avoid excursion */
 #define MAX_DELTA_Y            (1200-200)
 #define X_TURN_POINT           (330)                           /* x1 < (1647 - MAX_DELTA_X) /3 */
@@ -194,9 +194,12 @@ enum {
 	DEBUG_SUSPEND_INFO = 1U << 7,
 	DEBUG_INIT = 1U << 8,
 };
-static u32 debug_mask = 0xff;
+static u32 debug_mask = 0x0;
 #define dprintk(level_mask, fmt, arg...)	if (unlikely(debug_mask & level_mask)) \
 	printk(KERN_DEBUG fmt , ## arg)
+
+//#define dprintk(level_mask, fmt, arg...)	printk(KERN_DEBUG fmt , ## arg)
+
 
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
@@ -563,7 +566,7 @@ static int judge_zoom_orientation(struct ts_sample_data *sample_data)
 		dprintk(DEBUG_ORIENTATION_INFO, "judge_zoom_orientation: lack reference point .\n");
 	}
 
-	dprintk(DEBUG_ORIENTATION_INFO, "sun6i-ts: orientation_flag == %d . \n", ret);
+	dprintk(DEBUG_ORIENTATION_INFO, "sunxi-ts: orientation_flag == %d . \n", ret);
 	return ret;
 }
 static void filter_double_point_init(struct ts_sample_data *sample_data, int backup_samp_flag)
@@ -751,7 +754,7 @@ static int filter_double_point(struct sunxi_ts_data *ts_data, struct ts_sample_d
 			if(delta_ds > min(GLIDE_DELTA_DS_MAX_LIMIT, (GLIDE_DELTA_DS_MAX_TIMES*accmulate_zoom_out_ds/zoom_out_count))) {
 				/* noise */
 				cur_sample_ds = prev_sample_ds;            /* discard the noise, and can not be reference. */
-				dprintk(DEBUG_FILTER_DOUBLE_POINT_STATUS_INFO, "sun6i-ts: noise, zoom in when zoom out. \n");
+				dprintk(DEBUG_FILTER_DOUBLE_POINT_STATUS_INFO, "sunxi-ts: noise, zoom in when zoom out. \n");
 				ret = TRUE;
 			} else {
 				/* normal zoom in */
@@ -764,7 +767,7 @@ static int filter_double_point(struct sunxi_ts_data *ts_data, struct ts_sample_d
 					filter_zoom_in_data_init();
 					filter_zoom_in_data(&prev_report_samp, sample_data);
 				} else {
-					dprintk(DEBUG_FILTER_DOUBLE_POINT_STATUS_INFO, "sun6i-ts: normal zoom in, but this will cause twitter. \n");
+					dprintk(DEBUG_FILTER_DOUBLE_POINT_STATUS_INFO, "sunxi-ts: normal zoom in, but this will cause twitter. \n");
 					ret = TRUE;
 				}
 			}
@@ -809,7 +812,7 @@ static int filter_double_point(struct sunxi_ts_data *ts_data, struct ts_sample_d
 			if (delta_ds > min(GLIDE_DELTA_DS_MAX_LIMIT, (GLIDE_DELTA_DS_MAX_TIMES*accmulate_zoom_in_ds/zoom_in_count))) {  /* noise */
 
 				cur_sample_ds = prev_sample_ds;                          /* discard the noise, and can not be reference. */
-				dprintk(DEBUG_FILTER_DOUBLE_POINT_STATUS_INFO, "sun6i-ts: noise, zoom out when zoom in. \n");
+				dprintk(DEBUG_FILTER_DOUBLE_POINT_STATUS_INFO, "sunxi-ts: noise, zoom out when zoom in. \n");
 
 				ret = TRUE;
 			} else {                                                   /* normal zoom out */
@@ -822,7 +825,7 @@ static int filter_double_point(struct sunxi_ts_data *ts_data, struct ts_sample_d
 					filter_zoom_out_data_init();
 					filter_zoom_out_data(&prev_report_samp, sample_data);
 				} else {
-					dprintk(DEBUG_FILTER_DOUBLE_POINT_STATUS_INFO, "sun6i-ts: normal zoom out, but this will cause twitter. \n");
+					dprintk(DEBUG_FILTER_DOUBLE_POINT_STATUS_INFO, "sunxi-ts: normal zoom out, but this will cause twitter. \n");
 					ret = TRUE;
 				}
 			}
@@ -998,7 +1001,7 @@ static void process_data(struct sunxi_ts_data *ts_data, struct ts_sample_data *s
 		ts_data->touchflag = 2;
 		ts_data->double_point_cnt++;
 		if (UP_TOUCH_MODE == touch_mode ) {
-			dprintk(DEBUG_ORIENTATION_INFO, "sun6i-ts: need to get the single point. \n");
+			dprintk(DEBUG_ORIENTATION_INFO, "sunxi-ts: need to get the single point. \n");
 
 			reference_point_flag = 0;
 			touch_mode = SINGLE_TOUCH_MODE;
@@ -1009,7 +1012,7 @@ static void process_data(struct sunxi_ts_data *ts_data, struct ts_sample_data *s
 					touch_mode = CHANGING_TO_DOUBLE_TOUCH_MODE;
 					orientation_flag = 0;
 					filter_double_point_init(sample_data, 1);
-					dprintk(DEBUG_ORIENTATION_INFO, "sun6i-ts: CHANGING_TO_DOUBLE_TOUCH_MODE orientation_flag == %d . \n", \
+					dprintk(DEBUG_ORIENTATION_INFO, "sunxi-ts: CHANGING_TO_DOUBLE_TOUCH_MODE orientation_flag == %d . \n", \
 						orientation_flag);
 					return;
 				}
@@ -1186,7 +1189,7 @@ out:
 	tp_do_tasklet_running = 0;
 }
 
-static irqreturn_t sun6i_isr_tp(int irq, void *dev_id)
+static irqreturn_t sunxi_isr_tp(int irq, void *dev_id)
 {
 	struct platform_device *pdev = dev_id;
 	struct sunxi_ts_data *ts_data = (struct sunxi_ts_data *)platform_get_drvdata(pdev);
@@ -1442,7 +1445,7 @@ static int __devinit sunxi_ts_probe(struct platform_device *pdev)
 	tp_init();
 
 
-	err = request_irq(irq, sun6i_isr_tp,
+	err = request_irq(irq, sunxi_isr_tp,
 		IRQF_DISABLED, pdev->name, pdev);
 	if (err) {
 		dev_err(&pdev->dev, "Cannot request ts IRQ\n");
@@ -1519,8 +1522,8 @@ static void sunxi_ts_nop_release(struct device *dev)
 static struct resource sunxi_ts_resource[] = {
 	{
 	.flags  = IORESOURCE_IRQ,
-	.start  = IRQ_TP ,
-	.end    = IRQ_TP ,
+	.start  = AW_IRQ_TOUCH_PANEL ,
+	.end    = AW_IRQ_TOUCH_PANEL ,
 	},
 
 	{
@@ -1567,7 +1570,7 @@ static int __init sunxi_ts_init(void)
 	        goto script_get_err;
 		}
 		tp_screen_size = val.val;
-		printk("sun6i-ts: tp_screen_size is %d inch.\n", tp_screen_size);
+		printk("sunxi-ts: tp_screen_size is %d inch.\n", tp_screen_size);
 		if (7 == tp_screen_size) {
 			dual_touch_distance = 20;
 			glide_delta_ds_max_limit = 90;
@@ -1577,7 +1580,7 @@ static int __init sunxi_ts_init(void)
 			glide_delta_ds_max_limit = 150;
 			tp_regidity_level = 5;
 		} else {
-			pr_err("sun6i-ts: tp_screen_size is not supported. \n");
+			pr_err("sunxi-ts: tp_screen_size is not supported. \n");
 			goto script_get_err;
 		}
 
@@ -1587,10 +1590,10 @@ static int __init sunxi_ts_init(void)
 			goto script_get_err;
 		}
 		tp_regidity_level = val.val;
-		printk("sun6i-ts: tp_regidity_level is %d.\n", tp_regidity_level);
+		printk("sunxi-ts: tp_regidity_level is %d.\n", tp_regidity_level);
 
 		if (tp_regidity_level < 2 || tp_regidity_level > 10) {
-			printk("sun6i-ts: only tp_regidity_level between 2 and 10  is supported. \n");
+			printk("sunxi-ts: only tp_regidity_level between 2 and 10  is supported. \n");
 			goto script_get_err;
 		}
 
@@ -1600,10 +1603,10 @@ static int __init sunxi_ts_init(void)
 			goto script_get_err;
 		}
 		tp_press_threshold_enable = val.val;
-		printk("sun6i-ts: tp_press_threshold_enable is %d.\n", tp_press_threshold_enable);
+		printk("sunxi-ts: tp_press_threshold_enable is %d.\n", tp_press_threshold_enable);
 
 		if(0 != tp_press_threshold_enable  && 1 != tp_press_threshold_enable) {
-			printk("sun6i-ts: only tp_press_threshold_enable  0 or 1  is supported. \n");
+			printk("sunxi-ts: only tp_press_threshold_enable  0 or 1  is supported. \n");
 			goto script_get_err;
 		}
 
@@ -1614,10 +1617,10 @@ static int __init sunxi_ts_init(void)
 				goto script_get_err;
 			}
 			tp_press_threshold = val.val;
-			printk("sun6i-ts: rtp_press_threshold is %d.\n", tp_press_threshold);
+			printk("sunxi-ts: rtp_press_threshold is %d.\n", tp_press_threshold);
 
 			if(tp_press_threshold < 0 || tp_press_threshold > 0xFFFFFF) {
-				printk("sun6i-ts: only tp_regidity_level between 0 and 0xFFFFFF  is supported. \n");
+				printk("sunxi-ts: only tp_regidity_level between 0 and 0xFFFFFF  is supported. \n");
 				goto script_get_err;
 			}
 		}
@@ -1628,10 +1631,10 @@ static int __init sunxi_ts_init(void)
 			goto script_get_err;
 		}
 		tp_sensitive_level = val.val;
-		printk("sun6i-ts: rtp_sensitive_level is %d.\n", tp_sensitive_level);
+		printk("sunxi-ts: rtp_sensitive_level is %d.\n", tp_sensitive_level);
 
 		if (tp_sensitive_level < 0 || tp_sensitive_level > 0xf) {
-			printk("sun6i-ts: only tp_regidity_level between 0 and 0xf  is supported. \n");
+			printk("sunxi-ts: only tp_regidity_level between 0 and 0xf  is supported. \n");
 			goto script_get_err;
 		}
 
@@ -1641,10 +1644,10 @@ static int __init sunxi_ts_init(void)
 			goto script_get_err;
 		}
 		tp_exchange_x_y = val.val;
-		printk("sun6i-ts: rtp_exchange_x_y_flag is %d.\n", tp_exchange_x_y);
+		printk("sunxi-ts: rtp_exchange_x_y_flag is %d.\n", tp_exchange_x_y);
 
 		if (0 != tp_exchange_x_y && 1 != tp_exchange_x_y) {
-			printk("sun6i-ts: only tp_exchange_x_y==1 or  tp_exchange_x_y==0 is supported. \n");
+			printk("sunxi-ts: only tp_exchange_x_y==1 or  tp_exchange_x_y==0 is supported. \n");
 			goto script_get_err;
 		}
 
