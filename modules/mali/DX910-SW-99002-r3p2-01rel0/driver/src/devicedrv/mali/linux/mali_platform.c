@@ -51,8 +51,6 @@ static struct resource mali_gpu_resources[]=
                                         AW_IRQ_GPU_PP0, AW_IRQ_GPU_PPMMU0, AW_IRQ_GPU_PP1, AW_IRQ_GPU_PPMMU1)
 };
 
-
-
 static struct platform_device mali_gpu_device =
 {
     .name = MALI_GPU_NAME_UTGARD,
@@ -71,7 +69,6 @@ static struct mali_gpu_device_data mali_gpu_data =
     .utilization_handler = mali_gpu_utilization_handler,
 };
 
-
 static void mali_platform_device_release(struct device *device)
 {
     MALI_DEBUG_PRINT(2,("mali_platform_device_release() called\n"));
@@ -82,10 +79,12 @@ _mali_osk_errcode_t mali_platform_init(void)
 	unsigned long rate;
     script_item_u   mali_use, clk_drv;
 
+    h_ahb_mali = h_mali_clk = h_ve_pll = 0;
 	//get mali ahb clock
     h_ahb_mali = clk_get(NULL, CLK_AHB_MALI);
 	if(!h_ahb_mali || IS_ERR(h_ahb_mali)){
 		MALI_PRINT(("try to get ahb mali clock failed!\n"));
+        return _MALI_OSK_ERR_FAULT;
 	} else
 		pr_info("%s(%d): get %s handle success!\n", __func__, __LINE__, CLK_AHB_MALI);
 
@@ -93,18 +92,21 @@ _mali_osk_errcode_t mali_platform_init(void)
 	h_mali_clk = clk_get(NULL, CLK_MOD_MALI);
 	if(!h_mali_clk || IS_ERR(h_ahb_mali)){
 		MALI_PRINT(("try to get mali clock failed!\n"));
+        return _MALI_OSK_ERR_FAULT;
 	} else
 		pr_info("%s(%d): get %s handle success!\n", __func__, __LINE__, CLK_MOD_MALI);
 
 	h_ve_pll = clk_get(NULL, CLK_SYS_PLL4);
 	if(!h_ve_pll || IS_ERR(h_ahb_mali)){
 		MALI_PRINT(("try to get ve pll clock failed!\n"));
+        return _MALI_OSK_ERR_FAULT;
 	} else
 		pr_info("%s(%d): get %s handle success!\n", __func__, __LINE__, CLK_SYS_PLL4);
 
 	//set mali parent clock
 	if(clk_set_parent(h_mali_clk, h_ve_pll)){
 		MALI_PRINT(("try to set mali clock source failed!\n"));
+        return _MALI_OSK_ERR_FAULT;
 	} else
 		pr_info("%s(%d): set mali clock source success!\n", __func__, __LINE__);
 
@@ -130,39 +132,20 @@ _mali_osk_errcode_t mali_platform_init(void)
 	rate /= mali_clk_div;
 	if(clk_set_rate(h_mali_clk, rate)){
 		MALI_PRINT(("try to set mali clock failed!\n"));
+        return _MALI_OSK_ERR_FAULT;
 	} else
 		pr_info("%s(%d): set mali clock rate success!\n", __func__, __LINE__);
 
 	if(clk_reset(h_mali_clk, AW_CCU_CLK_NRESET)){
 		MALI_PRINT(("try to reset release failed!\n"));
+        return _MALI_OSK_ERR_FAULT;
 	} else
 		pr_info("%s(%d): reset release success!\n", __func__, __LINE__);
 
-    MALI_SUCCESS;
-}
-
-_mali_osk_errcode_t mali_platform_deinit(void)
-{
-    /*close mali axi/apb clock*/
-    if(mali_clk_flag == 1)
-    {
-	//MALI_PRINT(("disable mali clock\n"));
-	mali_clk_flag = 0;
-       clk_disable(h_mali_clk);
-       clk_disable(h_ahb_mali);
-    }
-    MALI_SUCCESS;
-}
-
-_mali_osk_errcode_t mali_platform_power_mode_change(mali_power_mode power_mode)
-{
-    MALI_PRINT(("mali_platform_power_mode_change in!\n"));
-	if(power_mode == MALI_POWER_MODE_ON)
-    {
-	if(mali_clk_flag == 0)
+    if(mali_clk_flag == 0)//jshwang add 2012-8-23 16:05:50
 	{
 		//printk(KERN_WARNING "enable mali clock\n");
-		//MALI_PRINT(("enable mali clock\n"));
+		MALI_PRINT(("enable mali clock\n"));
 		mali_clk_flag = 1;
 	       if(clk_enable(h_ahb_mali))
 	       {
@@ -173,51 +156,68 @@ _mali_osk_errcode_t mali_platform_power_mode_change(mali_power_mode power_mode)
 		       MALI_PRINT(("try to enable mali clock failed!\n"));
 	        }
 	}
-    }
-    else if(power_mode == MALI_POWER_MODE_LIGHT_SLEEP)
-    {
-	//close mali axi/apb clock/
-	if(mali_clk_flag == 1)
-	{
-		//MALI_PRINT(("disable mali clock\n"));
-		mali_clk_flag = 0;
-	       clk_disable(h_mali_clk);
-	       clk_disable(h_ahb_mali);
-	}
-    }
-    else if(power_mode == MALI_POWER_MODE_DEEP_SLEEP)
-    {
-	//close mali axi/apb clock
-	if(mali_clk_flag == 1)
-	{
-		//MALI_PRINT(("disable mali clock\n"));
-		mali_clk_flag = 0;
-	       clk_disable(h_mali_clk);
-	       clk_disable(h_ahb_mali);
-	}
-    }
-    MALI_PRINT(("mali_platform_power_mode_change out!\n"));
     MALI_SUCCESS;
 }
 
+_mali_osk_errcode_t mali_platform_deinit(void)
+{
+    /*close mali axi/apb clock*/
+    if(mali_clk_flag == 1){
+        //MALI_PRINT(("disable mali clock\n"));
+        mali_clk_flag = 0;
+        clk_disable(h_mali_clk);
+        clk_disable(h_ahb_mali);
+    }
+    MALI_SUCCESS;
+}
 
-int sun5i_mali_platform_device_register(void)
+_mali_osk_errcode_t mali_platform_power_mode_change(mali_power_mode power_mode)
+{
+    if(power_mode == MALI_POWER_MODE_ON){
+        if(mali_clk_flag == 0){
+            mali_clk_flag = 1;
+            if(clk_enable(h_ahb_mali)){
+                MALI_PRINT(("try to enable mali ahb failed!\n"));
+                return _MALI_OSK_ERR_FAULT;
+            }
+            if(clk_enable(h_mali_clk)){
+                MALI_PRINT(("try to enable mali clock failed!\n"));
+                return _MALI_OSK_ERR_FAULT;
+            }
+        }
+    } else if(power_mode == MALI_POWER_MODE_LIGHT_SLEEP){
+        //close mali axi/apb clock/
+        if(mali_clk_flag == 1){
+            //MALI_PRINT(("disable mali clock\n"));
+            mali_clk_flag = 0;
+            clk_disable(h_mali_clk);
+            clk_disable(h_ahb_mali);
+        }
+    } else if(power_mode == MALI_POWER_MODE_DEEP_SLEEP){
+	//close mali axi/apb clock
+        if(mali_clk_flag == 1){
+            //MALI_PRINT(("disable mali clock\n"));
+            mali_clk_flag = 0;
+            clk_disable(h_mali_clk);
+            clk_disable(h_ahb_mali);
+        }
+    }
+    MALI_SUCCESS;
+}
+
+int sun7i_mali_platform_device_register(void)
 {
     int err;
 
-    MALI_DEBUG_PRINT(2,("sun5i__mali_platform_device_register() called\n"));
-    MALI_DEBUG_PRINT(2,("sizeof:%d, sizof:%d\n", sizeof(mali_gpu_resources), sizeof(mali_gpu_resources[0])));
+    MALI_DEBUG_PRINT(2,("sun7i_mali_platform_device_register() called\n"));
 
     err = platform_device_add_resources(&mali_gpu_device, mali_gpu_resources, sizeof(mali_gpu_resources) / sizeof(mali_gpu_resources[0]));
-    if (0 == err)
-    {
+    if (0 == err){
         err = platform_device_add_data(&mali_gpu_device, &mali_gpu_data, sizeof(mali_gpu_data));
-        if(0 == err)
-        {
+        if(0 == err){
             err = platform_device_register(&mali_gpu_device);
-            if (0 == err)
-            {
-                mali_platform_init();
+            if (0 == err){
+                if(_MALI_OSK_ERR_OK != mali_platform_init())return _MALI_OSK_ERR_FAULT;
 #ifdef CONFIG_PM_RUNTIME
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
 				pm_runtime_set_autosuspend_delay(&(mali_gpu_device.dev), 1000);
@@ -225,14 +225,13 @@ int sun5i_mali_platform_device_register(void)
 #endif
 				pm_runtime_enable(&(mali_gpu_device.dev));
 #endif
-
-                 MALI_DEBUG_PRINT(2,("sun5i_mali_platform_device_register() sucess!!\n"));
+                 MALI_PRINT(("sun7i_mali_platform_device_register() sucess!!\n"));
 
                 return 0;
             }
         }
 
-        MALI_DEBUG_PRINT(2,("sun5i__mali_platform_device_register() add data failed!\n"));
+        MALI_DEBUG_PRINT(2,("sun7i_mali_platform_device_register() add data failed!\n"));
 
         platform_device_unregister(&mali_gpu_device);
     }
