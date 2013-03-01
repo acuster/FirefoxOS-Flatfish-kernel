@@ -55,127 +55,127 @@
 static int tp_flag = 0;
 
 /* tp status value */
-#define TP_INITIAL             (-1)
-#define TP_DOWN                (0)
-#define TP_UP                  (1)
-#define TP_DATA_VA             (2)
+#define TP_INITIAL                      (-1)
+#define TP_DOWN                         (0)
+#define TP_UP                           (1)
+#define TP_DATA_VA                      (2)
 
-#define DUAL_TOUCH             (dual_touch_distance)
-#define TOUCH_CHANGE           (3)
-#define TP_DATA_AV_NO          (0x3)
+#define DUAL_TOUCH                      (dual_touch_distance)
+#define TOUCH_CHANGE                    (3)
+#define TP_DATA_AV_NO                   (0x3)
 
 //#define FIX_ORIENTATION
-#define ORIENTATION_DEFAULT_VAL   (-1)
+#define ORIENTATION_DEFAULT_VAL         (-1)
 //#define TP_INT_PERIOD_TEST
 //#define TP_TEMP_DEBUG
 //#define TP_FREQ_DEBUG
 
 #define TP_FIX_CENTER
 
-#define IRQ_TP                 (29)
-#define TP_BASSADDRESS         (0xf1c25000)
-#define TP_CTRL0               (0x00)
-#define TP_CTRL1               (0x04)
-#define TP_CTRL2               (0x08)
-#define TP_CTRL3               (0x0c)
-#define TP_INT_FIFOC           (0x10)
-#define TP_INT_FIFOS           (0x14)
-#define TP_TPR                 (0x18)
-#define TP_CDAT                (0x1c)
-#define TEMP_DATA              (0x20)
-#define TP_DATA                (0x24)
+#define IRQ_TP                          (29)
+#define TP_BASSADDRESS                  (0xf1c25000)
+#define TP_CTRL0                        (0x00)
+#define TP_CTRL1                        (0x04)
+#define TP_CTRL2                        (0x08)
+#define TP_CTRL3                        (0x0c)
+#define TP_INT_FIFOC                    (0x10)
+#define TP_INT_FIFOS                    (0x14)
+#define TP_TPR                          (0x18)
+#define TP_CDAT                         (0x1c)
+#define TEMP_DATA                       (0x20)
+#define TP_DATA                         (0x24)
 
 
-#define ADC_FIRST_DLY          (0x1<<24)
-#define ADC_FIRST_DLY_MODE     (0x1<<23)
-#define ADC_CLK_SELECT         (0x0<<22)
-#define ADC_CLK_DIVIDER        (0x2<<20)
-//#define CLK                    (6)
-#define CLK                    (7)
-#define FS_DIV                 (CLK<<16)
-#define ACQ                    (0x3f)
-#define T_ACQ                  (ACQ)
+#define ADC_FIRST_DLY                   (0x1<<24)
+#define ADC_FIRST_DLY_MODE              (0x1<<23)
+#define ADC_CLK_SELECT                  (0x0<<22)
+#define ADC_CLK_DIVIDER                 (0x2<<20)
+//#define CLK                           (6)
+#define CLK                             (7)
+#define FS_DIV                          (CLK<<16)
+#define ACQ                             (0x3f)
+#define T_ACQ                           (ACQ)
 
-#define STYLUS_UP_DEBOUNCE     (0<<12)
-#define STYLUS_UP_DEBOUCE_EN   (0<<9)
-#define TOUCH_PAN_CALI_EN      (1<<6)
-#define TP_DUAL_EN             (1<<5)
-#define TP_MODE_EN             (1<<4)
-#define TP_ADC_SELECT          (0<<3)
-#define ADC_CHAN_SELECT        (0)
+#define STYLUS_UP_DEBOUNCE              (0<<12)
+#define STYLUS_UP_DEBOUCE_EN            (0<<9)
+#define TOUCH_PAN_CALI_EN               (1<<6)
+#define TP_DUAL_EN                      (1<<5)
+#define TP_MODE_EN                      (1<<4)
+#define TP_ADC_SELECT                   (0<<3)
+#define ADC_CHAN_SELECT                 (0)
 
-//#define TP_SENSITIVE_ADJUST    (0xf<<28)
-#define TP_SENSITIVE_ADJUST    (tp_sensitive_level<<28)        /* mark by young for test angda 5" 0xc */
-#define TP_MODE_SELECT         (0x1<<26)
-#define PRE_MEA_EN             (0x1<<24)
-#define PRE_MEA_THRE_CNT       (tp_press_threshold<<0)         /* 0x1f40 */
+//#define TP_SENSITIVE_ADJUST           (0xf<<28)
+#define TP_SENSITIVE_ADJUST             (tp_sensitive_level<<28)        /* mark by young for test angda 5" 0xc */
+#define TP_MODE_SELECT                  (0x1<<26)
+#define PRE_MEA_EN                      (0x1<<24)
+#define PRE_MEA_THRE_CNT                (tp_press_threshold<<0)         /* 0x1f40 */
 
 
-#define FILTER_EN              (1<<2)
-#define FILTER_TYPE            (0x01<<0)
+#define FILTER_EN                       (1<<2)
+#define FILTER_TYPE                     (0x01<<0)
 
-#define TP_DATA_IRQ_EN         (1<<16)
-#define TP_DATA_XY_CHANGE      (tp_exchange_x_y<<13)           /* tp_exchange_x_y */
-#define TP_FIFO_TRIG_LEVEL     (3<<8)
-#define TP_FIFO_FLUSH          (1<<4)
-#define TP_UP_IRQ_EN           (1<<1)
-#define TP_DOWN_IRQ_EN         (1<<0)
+#define TP_DATA_IRQ_EN                  (1<<16)
+#define TP_DATA_XY_CHANGE               (tp_exchange_x_y<<13)           /* tp_exchange_x_y */
+#define TP_FIFO_TRIG_LEVEL              (3<<8)
+#define TP_FIFO_FLUSH                   (1<<4)
+#define TP_UP_IRQ_EN                    (1<<1)
+#define TP_DOWN_IRQ_EN                  (1<<0)
 
-#define FIFO_DATA_PENDING      (1<<16)
-#define TP_UP_PENDING          (1<<1)
-#define TP_DOWN_PENDING        (1<<0)
+#define FIFO_DATA_PENDING               (1<<16)
+#define TP_UP_PENDING                   (1<<1)
+#define TP_DOWN_PENDING                 (1<<0)
 
-#define SINGLE_TOUCH_MODE      (1)
-#define CHANGING_TO_DOUBLE_TOUCH_MODE (2)
-#define DOUBLE_TOUCH_MODE      (3)
-#define UP_TOUCH_MODE           (4)
+#define SINGLE_TOUCH_MODE               (1)
+#define CHANGING_TO_DOUBLE_TOUCH_MODE   (2)
+#define DOUBLE_TOUCH_MODE               (3)
+#define UP_TOUCH_MODE                   (4)
 
-#define SINGLE_CNT_LIMIT       (40)
-#define DOUBLE_CNT_LIMIT       (2)
-#define UP_TO_SINGLE_CNT_LIMIT (10)
+#define SINGLE_CNT_LIMIT                (40)
+#define DOUBLE_CNT_LIMIT                (2)
+#define UP_TO_SINGLE_CNT_LIMIT          (10)
 
-#define TPDATA_MASK            (0xfff)
-#define FILTER_NOISE_LOWER_LIMIT  (10)
-#define MAX_DELTA_X            (700-100)                       /* avoid excursion */
-#define MAX_DELTA_Y            (1200-200)
-#define X_TURN_POINT           (330)                           /* x1 < (1647 - MAX_DELTA_X) /3 */
-#define X_COMPENSATE           (4*X_TURN_POINT)
-#define Y_TURN_POINT           (260)                           /* y1 < (1468 -MAX_DELTA_Y ) */
-#define Y_COMPENSATE           (2*Y_TURN_POINT)
+#define TPDATA_MASK                     (0xfff)
+#define FILTER_NOISE_LOWER_LIMIT        (10)
+#define MAX_DELTA_X                     (700-100)                       /* avoid excursion */
+#define MAX_DELTA_Y                     (1200-200)
+#define X_TURN_POINT                    (330)                           /* x1 < (1647 - MAX_DELTA_X) /3 */
+#define X_COMPENSATE                    (4*X_TURN_POINT)
+#define Y_TURN_POINT                    (260)                           /* y1 < (1468 -MAX_DELTA_Y ) */
+#define Y_COMPENSATE                    (2*Y_TURN_POINT)
 
 #ifdef TP_FIX_CENTER
-#define X_CENTER_COORDINATE    (2048)                          /* for construct two point */
-#define Y_CENTER_COORDINATE    (2048)
+#define X_CENTER_COORDINATE             (2048)                          /* for construct two point */
+#define Y_CENTER_COORDINATE             (2048)
 #else
-#define X_CENTER_COORDINATE    (sample_data->x)
-#define Y_CENTER_COORDINATE    (sample_data->y)
+#define X_CENTER_COORDINATE             (sample_data->x)
+#define Y_CENTER_COORDINATE             (sample_data->y)
 #endif
 
-#define CYCLE_BUFFER_SIZE      (64)                            /* must be 2^n */
-#define DELAY_PERIOD           (6)                             /* delay 60 ms, unit is 10ms */
-#define DELAY_COMPENSTAE_PEROID   (3)                          /* the os is busy, can not process the data in time. */
+#define CYCLE_BUFFER_SIZE               (64)                            /* must be 2^n */
+#define DELAY_PERIOD                    (6)                             /* delay 60 ms, unit is 10ms */
+#define DELAY_COMPENSTAE_PEROID         (3)                          /* the os is busy, can not process the data in time. */
 
-#define ZOOM_CHANGE_LIMIT_CNT  (3)
-#define ZOOM_IN                (1)
-#define ZOOM_OUT               (2)
-#define ZOOM_INIT_STATE        (3)
-#define ZOOM_STATIC            (4)
+#define ZOOM_CHANGE_LIMIT_CNT           (3)
+#define ZOOM_IN                         (1)
+#define ZOOM_OUT                        (2)
+#define ZOOM_INIT_STATE                 (3)
+#define ZOOM_STATIC                     (4)
 
-#define SAMPLE_TIME            (9.6)                           /* unit is ms. ??? */
-#define SAMPLE_TIME_FACTOR     (9.6/SAMPLE_TIME)
+#define SAMPLE_TIME                     (9.6)                           /* unit is ms. ??? */
+#define SAMPLE_TIME_FACTOR              (9.6/SAMPLE_TIME)
 
-#define MIN_DX                 (DUAL_TOUCH*20)
-#define MIN_DY                 (DUAL_TOUCH*20)
-#define MAX_DX                 (DUAL_TOUCH*40)
-#define MAX_DY                 (DUAL_TOUCH*40)
-#define DELTA_DS_LIMIT         (1)
-#define HOLD_DS_LIMIT          (3)
-#define ZOOM_IN_CNT_LIMIT      (3)
-#define TOTAL_TIMES            (4)
-#define FIRST_ZOOM_IN_COMPENSTATE  (3)                         /* actually zoom out, usually with zoom in ops first. */
-#define ZOOM_OUT_CNT_LIMIT         (tp_regidity_level)         /* related with screen's regidity */
-#define GLIDE_DELTA_DS_MAX_TIMES   (4)
-#define GLIDE_DELTA_DS_MAX_LIMIT   (glide_delta_ds_max_limit)
+#define MIN_DX                          (DUAL_TOUCH*20)
+#define MIN_DY                          (DUAL_TOUCH*20)
+#define MAX_DX                          (DUAL_TOUCH*40)
+#define MAX_DY                          (DUAL_TOUCH*40)
+#define DELTA_DS_LIMIT                  (1)
+#define HOLD_DS_LIMIT                   (3)
+#define ZOOM_IN_CNT_LIMIT               (3)
+#define TOTAL_TIMES                     (4)
+#define FIRST_ZOOM_IN_COMPENSTATE       (3)                         /* actually zoom out, usually with zoom in ops first. */
+#define ZOOM_OUT_CNT_LIMIT              (tp_regidity_level)         /* related with screen's regidity */
+#define GLIDE_DELTA_DS_MAX_TIMES        (4)
+#define GLIDE_DELTA_DS_MAX_LIMIT        (glide_delta_ds_max_limit)
 
 
 #ifndef TRUE
@@ -184,15 +184,15 @@ static int tp_flag = 0;
 #endif
 
 enum {
-	DEBUG_REPORT_STATUS_INFO = 1U << 0,
-	DEBUG_REPORT_DATA_INFO = 1U << 1,
-	DEBUG_INT_INFO = 1U << 2,
-	DEBUG_FILTER_INFO = 1U << 3,
-	DEBUG_TASKLET_INFO = 1U << 4,
-	DEBUG_ORIENTATION_INFO  = 1U << 5,
-	DEBUG_FILTER_DOUBLE_POINT_STATUS_INFO = 1U << 6,
-	DEBUG_SUSPEND_INFO = 1U << 7,
-	DEBUG_INIT = 1U << 8,
+	DEBUG_REPORT_STATUS_INFO                = 1U << 0,
+	DEBUG_REPORT_DATA_INFO                  = 1U << 1,
+	DEBUG_INT_INFO                          = 1U << 2,
+	DEBUG_FILTER_INFO                       = 1U << 3,
+	DEBUG_TASKLET_INFO                      = 1U << 4,
+	DEBUG_ORIENTATION_INFO                  = 1U << 5,
+	DEBUG_FILTER_DOUBLE_POINT_STATUS_INFO   = 1U << 6,
+	DEBUG_SUSPEND_INFO                      = 1U << 7,
+	DEBUG_INIT                              = 1U << 8,
 };
 static u32 debug_mask = 0x0;
 #define dprintk(level_mask, fmt, arg...)	if (unlikely(debug_mask & level_mask)) \

@@ -1204,7 +1204,7 @@ static int sun7i_i2c_probe(struct platform_device *pdev)
 	i2c->adap.timeout = 5*HZ;
 	i2c->adap.class   = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	i2c->bus_freq     = pdata->frequency;
-	i2c->irq 		  = irq;
+	i2c->irq 	  = irq;
 	i2c->bus_num      = pdata->bus_num;
 	i2c->status       = I2C_XFER_IDLE;
 	i2c->suspended    = 0;
@@ -1466,8 +1466,8 @@ static struct resource sun7i_twi1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= 34,
-		.end	= 34,
+		.start	= AW_IRQ_TWI1,
+		.end	= AW_IRQ_TWI1,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
