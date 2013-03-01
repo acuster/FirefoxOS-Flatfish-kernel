@@ -96,7 +96,7 @@ _mali_osk_errcode_t mali_platform_init(void)
 	} else
 		pr_info("%s(%d): get %s handle success!\n", __func__, __LINE__, CLK_MOD_MALI);
 
-	h_ve_pll = clk_get(NULL, CLK_SYS_PLL4);
+	h_ve_pll = clk_get(NULL, CLK_SYS_PLL8);
 	if(!h_ve_pll || IS_ERR(h_ahb_mali)){
 		MALI_PRINT(("try to get ve pll clock failed!\n"));
         return _MALI_OSK_ERR_FAULT;
