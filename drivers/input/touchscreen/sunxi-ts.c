@@ -194,7 +194,7 @@ enum {
 	DEBUG_SUSPEND_INFO = 1U << 7,
 	DEBUG_INIT = 1U << 8,
 };
-static u32 debug_mask = 0;
+static u32 debug_mask = 0xff;
 #define dprintk(level_mask, fmt, arg...)	if (unlikely(debug_mask & level_mask)) \
 	printk(KERN_DEBUG fmt , ## arg)
 
@@ -1531,7 +1531,7 @@ static struct resource sunxi_ts_resource[] = {
 };
 
 struct platform_device sunxi_ts_device = {
-	.name		= "sun7i-ts",
+	.name		= "sunxi-ts",
 	.id		    = -1,
 	.dev = {
 		.release = sunxi_ts_nop_release,

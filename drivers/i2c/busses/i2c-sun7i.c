@@ -331,11 +331,13 @@ static void twi_set_gpio_sysconfig(struct sun7i_i2c *i2c)
 {
 	int cnt, i;
 	char twi_para[16] = {0};
+	char twi_used[16] = {0};
 	script_item_u used, *list = NULL;
 	script_item_value_type_e type;
 
 	sprintf(twi_para, "twi%d_para", i2c->bus_num);
-	type = script_get_item(twi_para, "twi_used", &used);
+	sprintf(twi_used, "twi%d_used", i2c->bus_num);
+	type = script_get_item(twi_para,twi_used, &used);
 	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
 		I2C_ERR("[i2c%d] twi_used err!\n", i2c->bus_num);
 		return;
@@ -352,7 +354,7 @@ static void twi_set_gpio_sysconfig(struct sun7i_i2c *i2c)
 		/* 申请gpio */
 		for (i = 0; i < cnt; i++)
 			if (0 != gpio_request(list[i].gpio.gpio, NULL)){
-			        I2C_ERR("[i2c%d] gpio_request i:%d, gpio:%d failed\n", i, list[i].gpio.gpio);
+			        I2C_ERR("[i2c%d] gpio_request i:%d, gpio:%d failed\n", i2c->bus_num, i, list[i].gpio.gpio);
 				goto end;
 			}
 
@@ -1531,10 +1533,12 @@ static int __init sun7i_i2c_adap_init(void)
         script_item_value_type_e type;
         int i = 0;
         char twi_para[16] = {0};
+        char twi_used[16] = {0};
 
-        for (i=0; i<4; i++) {
+        for (i=0; i < 3; i++) {
                 sprintf(twi_para, "twi%d_para", i);
-		type = script_get_item(twi_para, "twi_used", &used);
+                sprintf(twi_used, "twi%d_used", i);
+		type = script_get_item(twi_para, twi_used, &used);
 
 		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
 		        I2C_ERR("[i2c%d] fetch para from sysconfig failed\n", i);
