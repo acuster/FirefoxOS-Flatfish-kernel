@@ -261,10 +261,14 @@ void dma_dump_chain(dma_channel_t *pchan)
 	printk("  bconti_mode:       %d\n", pchan->bconti_mode);
 	printk("  channel irq_spt:   0x%08x\n", pchan->irq_spt);
 	printk("  channel reg_base:  0x%08x\n", pchan->reg_base);
-	printk("  	config:  0x%08x\n", readl(pchan->reg_base + DMA_OFF_REG_CTRL));
-	printk("  	   src:  0x%08x\n", readl(pchan->reg_base + DMA_OFF_REG_SADR));
-	printk("  	   dst:  0x%08x\n", readl(pchan->reg_base + DMA_OFF_REG_DADR));
-	printk("  	 bycnt:  0x%08x\n", readl(pchan->reg_base + DMA_OFF_REG_BC));
+	printk("        irq_en:  0x%08x\n", readl(DMA_IRQ_EN_REG));
+	printk("        irq_pd:  0x%08x\n", readl(DMA_IRQ_PEND_REG));
+	printk("     auto_gate:  0x%08x\n", readl(NDMA_AUTO_GAT_REG));
+	printk("        config:  0x%08x\n", readl(pchan->reg_base + DMA_OFF_REG_CTRL));
+	printk("        config:  0x%08x\n", readl(pchan->reg_base + DMA_OFF_REG_CTRL));
+	printk("           src:  0x%08x\n", readl(pchan->reg_base + DMA_OFF_REG_SADR));
+	printk("           dst:  0x%08x\n", readl(pchan->reg_base + DMA_OFF_REG_DADR));
+	printk("         bycnt:  0x%08x\n", readl(pchan->reg_base + DMA_OFF_REG_BC));
 	if(IS_DEDICATE(pchan->id))
 		printk("  	  para:  0x%08x\n", readl(pchan->reg_base + DMA_OFF_REG_PARA));
 	printk("  channel state:     0x%08x\n", (u32)pchan->state);
