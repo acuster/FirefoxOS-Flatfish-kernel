@@ -46,6 +46,7 @@ u32 __dma_start(dma_hdl_t dma_hdl)
 	csp_dma_irq_enable(pchan, pchan->irq_spt);
 	/* set ctrl reg */
 	csp_dma_set_ctrl(pchan, *(u32 *)&pchan->ctrl);
+
 	/* start dma */
 	csp_dma_start(pchan);
 	pchan->state = CHAN_STA_RUNING;
@@ -260,6 +261,12 @@ void dma_dump_chain(dma_channel_t *pchan)
 	printk("  bconti_mode:       %d\n", pchan->bconti_mode);
 	printk("  channel irq_spt:   0x%08x\n", pchan->irq_spt);
 	printk("  channel reg_base:  0x%08x\n", pchan->reg_base);
+	printk("  	config:  0x%08x\n", readl(pchan->reg_base + DMA_OFF_REG_CTRL));
+	printk("  	   src:  0x%08x\n", readl(pchan->reg_base + DMA_OFF_REG_SADR));
+	printk("  	   dst:  0x%08x\n", readl(pchan->reg_base + DMA_OFF_REG_DADR));
+	printk("  	 bycnt:  0x%08x\n", readl(pchan->reg_base + DMA_OFF_REG_BC));
+	if(IS_DEDICATE(pchan->id))
+		printk("  	  para:  0x%08x\n", readl(pchan->reg_base + DMA_OFF_REG_PARA));
 	printk("  channel state:     0x%08x\n", (u32)pchan->state);
 	printk("  channel hd_cb:     0x%08x\n", (u32)pchan->hd_cb.func);
 	printk("  channel fd_cb:     0x%08x\n", (u32)pchan->fd_cb.func);

@@ -117,7 +117,7 @@ void __cb_hd_2(dma_hdl_t dma_hdl, void *parg)
 u32 __waitdone_2(void)
 {
 	long 	ret = 0;
-	long 	timeout = 10 * HZ; /* 10s */
+	long 	timeout = 5 * HZ;
 
 	/* wait dma done */
 	ret = wait_event_interruptible_timeout(g_dtc_queue[2], \
@@ -373,7 +373,7 @@ void __cb_hd_1(dma_hdl_t dma_hdl, void *parg)
 u32 __waitdone_1(void)
 {
 	long 	ret = 0;
-	long 	timeout = 10 * HZ; /* 10s */
+	long 	timeout = 5 * HZ;
 
 	/* wait dma done */
 	ret = wait_event_interruptible_timeout(g_dtc_queue[1], \

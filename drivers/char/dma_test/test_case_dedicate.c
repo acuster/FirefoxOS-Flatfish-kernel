@@ -98,7 +98,7 @@ void __cb_hd_dedicate(dma_hdl_t dma_hdl, void *parg)
 u32 __waitdone_dedicate(void)
 {
 	long 	ret = 0;
-	long 	timeout = 10 * HZ; /* 10s */
+	long 	timeout = 2 * HZ;
 
 	/* wait dma done */
 	ret = wait_event_interruptible_timeout(g_dtc_queue[DTC_DEDICATE], \

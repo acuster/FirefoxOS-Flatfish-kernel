@@ -785,7 +785,7 @@ u32 __dtc_stop(void)
 	if(0 == memcmp(src_vaddr, dst_vaddr, TOTAL_LEN_STOP))
 		pr_info("%s: data check ok!\n", __func__);
 	else {
-		pr_err("%s: data check err!\n", __func__);
+		pr_err("%s: data check err, finely!\n", __func__);
 		//uret = __LINE__; /* we donnot need data ok, just test stop cmd */
 	}
 

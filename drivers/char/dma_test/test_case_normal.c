@@ -99,7 +99,7 @@ void __cb_hd_normal(dma_hdl_t dma_hdl, void *parg)
 u32 __waitdone_normal(void)
 {
 	long 	ret = 0;
-	long 	timeout = 10 * HZ; /* 10s */
+	long 	timeout = 2 * HZ;
 
 	/* wait dma done */
 	ret = wait_event_interruptible_timeout(g_dtc_queue[DTC_NORMAL], \
@@ -196,6 +196,7 @@ u32 __dtc_normal(void)
 	}
 	pr_info("%s: sw_dma_config success\n", __func__);
 
+#if 0 /* add or not add, both ok, 2013-2-28 21:08 */
 	/* set src/dst secu */
 	tmp = SRC_SECU_DST_SECU;
 	if(0 != sw_dma_ctl(dma_hdl, DMA_OP_SET_SECURITY, &tmp)) {
@@ -213,6 +214,8 @@ u32 __dtc_normal(void)
 		}
 		pr_info("%s: DMA_OP_SET_WAIT_STATE success\n", __func__);
 	}
+#endif
+
 #if 0
 	/* set para reg, ddma only */
 	{
@@ -269,7 +272,7 @@ u32 __dtc_normal(void)
 	 * NOTE: must sleep here, becase when __waitdone_normal return, buffer enqueue complete, but
 	 * data might not transfer complete, 2012-11-14
 	 */
-	msleep(2000);
+	msleep(1200);
 
 	/* check if data ok */
 	if(0 == memcmp(src_vaddr, dst_vaddr, TOTAL_LEN_NORMAL))
