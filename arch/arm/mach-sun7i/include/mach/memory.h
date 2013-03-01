@@ -27,12 +27,11 @@
 #define SYS_CONFIG_MEMBASE             (PLAT_PHYS_OFFSET + SZ_32M + SZ_16M) /* +48M */
 #define SYS_CONFIG_MEMSIZE             (SZ_64K) /* 64K */
 
-#define SW_VE_MEM_BASE                 (PLAT_PHYS_OFFSET + SZ_64M)
-#define SW_VE_MEM_SIZE                 (SZ_64M + SZ_16M)
 
-#define SW_FB_MEM_SIZE                 0x02000000 /* SZ_32M */
-#define SW_GPU_MEM_SIZE                0x04000000 /* SZ_64M */
+#define SW_VE_MEM_SIZE                 (SZ_64M + SZ_16M)
 #define SW_G2D_MEM_SIZE                0x01000000 /* SZ_16M */
+#define SW_FB_MEM_SIZE                 0x01000000 /* SZ_16M */
+#define SW_GPU_MEM_SIZE                0x04000000 /* SZ_64M */
 
 #define SUPER_STANDBY_SIZE             0x00010000 /* SZ_64K */
 #define SUPER_STANDBY_BASE             (0x52000000) /* NOTICE: this addr can not be change */
@@ -40,9 +39,15 @@
 /*
  * memory reserved areas.
  */
-#define SW_GPU_MEM_BASE                (PLAT_PHYS_OFFSET + PLAT_MEM_SIZE - SW_GPU_MEM_SIZE)
-#define SW_FB_MEM_BASE                 (SW_GPU_MEM_BASE - SW_FB_MEM_SIZE)
-#define SW_G2D_MEM_BASE                (SW_FB_MEM_BASE - SW_G2D_MEM_SIZE)
+#define HW_RESERVED_MEM_BASE    (SUPER_STANDBY_BASE + SZ_4M)
+#define HW_RESERVED_MEM_SIZE    (SW_VE_MEM_SIZE + SW_G2D_MEM_SIZE + SW_FB_MEM_SIZE + SW_GPU_MEM_SIZE)   		/* 232M(DE+VE(CSI)+MP) */
+
+#define SW_VE_MEM_BASE                 (HW_RESERVED_MEM_BASE)
+#define SW_G2D_MEM_BASE                (SW_VE_MEM_BASE + SW_VE_MEM_SIZE)
+#define SW_FB_MEM_BASE                 (SW_G2D_MEM_BASE + SW_G2D_MEM_SIZE)
+#define SW_GPU_MEM_BASE                (SW_FB_MEM_BASE + SW_FB_MEM_SIZE)
+
+
 
 #if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
 #define ION_CARVEOUT_MEM_BASE          (SUPER_STANDBY_BASE + SUPER_STANDBY_SIZE) /* +332M */
