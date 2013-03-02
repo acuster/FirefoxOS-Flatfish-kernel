@@ -33,7 +33,7 @@
 #include  "../include/sw_usb_config.h"
 
 #define  SW_UDC_DOUBLE_FIFO       /* 双 FIFO          */
-//#define  SW_UDC_DMA               /* DMA 传输         */
+#define  SW_UDC_DMA               /* DMA 传输         */
 #define  SW_UDC_HS_TO_FS          /* 支持高速跳转全速 */
 
 

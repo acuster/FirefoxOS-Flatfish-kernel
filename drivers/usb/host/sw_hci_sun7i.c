@@ -621,7 +621,11 @@ static int open_clock(struct sw_hci_hcd *sw_hci, u32 ohci)
 		clk_reset(sw_hci->phy_reset, 0);
 
         if(ohci && sw_hci->ohci_gate){
+            __u32 reg_val;
             clk_enable(sw_hci->ohci_gate);
+            reg_val = readl(SW_VA_CCM_IO_BASE + 0xcc);
+            reg_val |= (1<<5);
+            writel(reg_val, SW_VA_CCM_IO_BASE + 0xcc);
         }
 
         mdelay(10);

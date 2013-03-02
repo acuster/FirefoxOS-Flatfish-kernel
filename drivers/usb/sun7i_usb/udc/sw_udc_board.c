@@ -138,7 +138,7 @@ u32 close_usb_clock(sw_udc_io_t *sw_udc_io)
 	return 0;
 }
 
-
+#ifdef CONFIG_AW_FPGA_PLATFORM
 static void clear_usb_reg(__u32 usb_base)
 {
 	__u32 reg_val = 0;
@@ -210,6 +210,7 @@ static void clear_usb_reg(__u32 usb_base)
 
 	return;
 }
+#endif
 
 /*
 *******************************************************************************

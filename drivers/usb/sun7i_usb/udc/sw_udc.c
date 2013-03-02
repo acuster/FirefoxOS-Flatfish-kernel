@@ -475,8 +475,10 @@ int dma_write_fifo(struct sw_udc_ep *ep, struct sw_udc_request *req)
 	int		fifo_reg    = 0;
 	u8		old_ep_index 	= 0;
 
-	idx = ep->bEndpointAddress & 0x7F;
+    if(ep->dma_working)
+        return 0;
 
+	idx = ep->bEndpointAddress & 0x7F;
 
     /* select ep */
 	old_ep_index = USBC_GetActiveEp(g_sw_udc_io.usb_bsp_hdle);
@@ -1831,7 +1833,7 @@ void sw_udc_dma_completion(struct sw_udc *dev, struct sw_udc_ep *ep, struct sw_u
 	}
 
 	dma_transmit_len = sw_udc_dma_transmit_length(ep, ((ep->bEndpointAddress) & USB_DIR_IN), (__u32)req->req.buf);
-	DMSG_INFO_UDC("dma xfer %d bytes\n", dma_transmit_len);
+	DMSG_DBG_UDC("dma xfer %d bytes\n", dma_transmit_len);
 	if(dma_transmit_len < req->req.length){
 		DMSG_PANIC("WRN: DMA recieve data not complete, (%d, %d, %d)\n",
 					req->req.length, req->req.actual, dma_transmit_len);
@@ -1848,7 +1850,7 @@ void sw_udc_dma_completion(struct sw_udc *dev, struct sw_udc_ep *ep, struct sw_u
     /* 如果本次传输有数据没有传输完毕，得接着传输 */
 	req->req.actual += dma_transmit_len;
 	if(req->req.actual < req->req.length){
-		DMSG_INFO_UDC("dma complete, data not complete\n");
+		DMSG_DBG_UDC("dma complete, data not complete\n");
 		if(((ep->bEndpointAddress & USB_DIR_IN) != 0)
 			&& !USBC_Dev_IsWriteDataReady(dev->sw_udc_io->usb_bsp_hdle, USBC_EP_TYPE_TX)){
 			if(pio_write_fifo(ep, req)){
@@ -1863,7 +1865,7 @@ void sw_udc_dma_completion(struct sw_udc *dev, struct sw_udc_ep *ep, struct sw_u
 			}
 		}
 	}else{	/* 如果DMA完成的传输了数据，就done */
-	    DMSG_INFO_UDC("dma & data complete\n");
+	    DMSG_DBG_UDC("dma & data complete\n");
 		sw_udc_done(ep, req, 0);
 		is_complete = 1;
 	}
@@ -2649,8 +2651,9 @@ static int sw_udc_set_pullup(struct sw_udc *udc, int is_on)
 */
 static int sw_udc_vbus_session(struct usb_gadget *gadget, int is_active)
 {
+#ifdef CONFIG_AW_FPGA_PLATFORM
     __u32 reg_value = 0;
-	struct sw_udc *udc = to_sw_udc(gadget);
+#endif
 
 	DMSG_INFO_UDC("sw_udc_vbus_session\n");
 

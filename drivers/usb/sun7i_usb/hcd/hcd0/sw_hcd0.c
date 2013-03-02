@@ -392,6 +392,7 @@ static void sw_hcd_board_set_vbus(struct sw_hcd *sw_hcd, int is_on)
     return;
 }
 
+#ifdef CONFIG_AW_FPGA_PLATFORM
 static void clear_usb_reg(__u32 usb_base)
 {
 	__u32 reg_val = 0;
@@ -463,6 +464,7 @@ static void clear_usb_reg(__u32 usb_base)
 
 	return;
 }
+#endif
 
 /*
 *******************************************************************************
