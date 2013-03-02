@@ -42,8 +42,6 @@ struct aw_pm_info  pm_info;
 #define DRAM_BASE_ADDR      0xc0000000
 static __u8 dram_traning_area_back[DRAM_TRANING_SIZE];
 
-
-
 /*
 *********************************************************************************************************
 *                                   STANDBY MAIN PROCESS ENTRY
@@ -95,7 +93,7 @@ int main(struct aw_pm_info *arg)
     standby_clk_apbinit();
     mem_int_init();
     standby_tmr_init();
-    standby_power_init(pm_info.standby_para.axp_src);
+    standby_power_init(pm_info.standby_para.event_enable);
     /* init some system wake source */
     if(pm_info.standby_para.event_enable & SUSPEND_WAKEUP_SRC_EXINT){
         mem_enable_int(INT_SOURCE_EXTNMI);
@@ -128,8 +126,8 @@ int main(struct aw_pm_info *arg)
     /* save stack pointer registger, switch stack to sram */
     sp_backup = save_sp();
     /* enable dram enter into self-refresh */
-    //dram_power_save_process();
-	mctl_self_refresh_entry();
+    dram_power_save_process();
+	//mctl_self_refresh_entry();
 
     /* process standby */
     standby();
@@ -137,8 +135,8 @@ int main(struct aw_pm_info *arg)
     /* enable watch-dog to preserve dram training failed */
     standby_tmr_enable_watchdog();
     /* restore dram */
-    //dram_power_up_process();
-	mctl_self_refresh_exit();
+    dram_power_up_process();
+	//mctl_self_refresh_exit();
 
     /* disable watch-dog    */
     standby_tmr_disable_watchdog();
@@ -159,7 +157,7 @@ int main(struct aw_pm_info *arg)
     if(pm_info.standby_para.event_enable & SUSPEND_WAKEUP_SRC_KEY){
         standby_key_exit();
     }
-    standby_power_exit(pm_info.standby_para.axp_src);
+    standby_power_exit(pm_info.standby_para.event_enable);
     standby_tmr_exit();
     mem_int_exit();
     standby_clk_apbexit();
@@ -242,7 +240,6 @@ static void standby(void)
     #endif
 
     /* cpu enter sleep, wait wakeup by interrupt */
-//    printk("WFI!\n");
     asm("WFI");
 
     #if(ALLOW_DISABLE_HOSC)

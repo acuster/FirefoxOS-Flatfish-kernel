@@ -191,7 +191,7 @@ int main(void)
 #ifdef GET_CYCLE_CNT
 	start = get_cyclecount();
 #endif
-#if 0
+#if 1
 	if(dram_power_save_process()){
 		goto suspend_dram_err;
 	}
@@ -234,7 +234,7 @@ suspend_err:
 		printk("err: \n");
 	}
 #ifdef DRAM_ENTER_SELFRESH
-#if 0
+#if 1
 	init_DRAM();
 #else
 	mctl_self_refresh_exit();

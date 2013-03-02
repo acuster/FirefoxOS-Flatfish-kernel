@@ -221,7 +221,7 @@ static void axp_set_startup_sequence(struct axp_charger *charger)
 	axp_write(charger->master,0xF4,0x06); //open REGF2/5 Lock
 	axp_write(charger->master,0xF2,0x04); //open REG10x Lock
 	axp_write(charger->master,0xFF,0x01);
-	axp_write(charger->master,0x03,0x42); //set EXTEN power up at step 2 and 4ms step by step
+	axp_write(charger->master,0x03,0xc2); //set EXTEN power up at step 2 and 4ms step by step
 					     // highest 2bit depend the startup time,00-1ms,01-4ms,10-16ms,11-32ms
 	axp_write(charger->master,0x04,0x08); //set Core-VDD power up at step 2
 	axp_write(charger->master,0xFF,0x00);
