@@ -576,7 +576,7 @@ __s32 hdmi_clk_init(void)
 
 	OSAL_CCMU_MclkOnOff(h_hdmiahbclk, CLK_ON);
 	g_clk_status |= CLK_HDMI_AHB_ON;
-
+        hdmi_clk_on();
 	return DIS_SUCCESS;
 }
 

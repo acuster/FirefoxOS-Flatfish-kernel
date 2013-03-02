@@ -38,7 +38,8 @@ __s32 hdmi_core_initial(void)
 	video_mode  = 	HDMI720P_50;
 	memset(&audio_info,0,sizeof(HDMI_AUDIO_INFO));
 	memset(Device_Support_VIC,0,sizeof(Device_Support_VIC));
-    HDMI_WUINT32(0x004,0x80000000);			//start hdmi controller
+        HDMI_WUINT32(0x004,0x80000000);				//start hdmi controller
+        HDMI_WUINT32(0x200,0xe0000000);   			//power enable
 	return 0;
 }
 
