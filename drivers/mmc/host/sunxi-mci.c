@@ -1356,12 +1356,15 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		else
 			smc_host->mod_clk = ios->clock;
 		smc_host->card_clk = ios->clock;
-		#ifdef CONFIG_AW_FPGA_PLATFORM
+#ifdef CONFIG_AW_FPGA_PLATFORM
         if (smc_host->mod_clk > 24000000)
 		    smc_host->mod_clk = 24000000;
 		if (smc_host->card_clk > smc_host->mod_clk)
 			smc_host->card_clk = smc_host->mod_clk;
-		#endif
+#elif defined CONFIG_AW_ASIC_PLATFORM
+        if (smc_host->mod_clk > 45000000)
+            smc_host->mod_clk = 45000000;
+#endif
 		sw_mci_set_clk(smc_host, smc_host->card_clk);
 		last_clock[id] = ios->clock;
 		usleep_range(50000, 55000);
