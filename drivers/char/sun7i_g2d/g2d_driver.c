@@ -1,4 +1,5 @@
 #include"g2d_driver_i.h"
+#include<mach/platform.h>
 #include<linux/g2d_driver.h>
 #include"g2d.h"
 
