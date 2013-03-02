@@ -560,7 +560,7 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case IOCTL_RESET_VE:
 		clk_disable(dram_veclk);
-		pr_info("%s(%d): IOCTL_RESET_VE to check, liugang added 2013-2-19\n", __func__, __LINE__);
+		//pr_info("%s(%d): IOCTL_RESET_VE to check, liugang added 2013-2-19\n", __func__, __LINE__);
 		clk_reset(ve_moduleclk, AW_CCU_CLK_RESET);
 		clk_reset(ve_moduleclk, AW_CCU_CLK_NRESET);
 		clk_enable(dram_veclk);
