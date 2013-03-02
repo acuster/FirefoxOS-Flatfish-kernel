@@ -1368,13 +1368,23 @@ static int sun7i_i2c_suspend(struct device *dev)
 	struct sun7i_i2c *i2c = platform_get_drvdata(pdev);
 	int count = 10;
 
+	i2c->suspended = 1;
+	/*
+	 * twi0 is for power, it will be accessed by axp driver
+	 * before twi resume, so, don't suspend twi0
+	 */
+	if(0 == i2c->bus_num) {
+		i2c->suspended = 0;
+		return 0;
+	}
+
 	while ((i2c->status != I2C_XFER_IDLE) && (count-- > 0)) {
 		I2C_ERR("[i2c%d] suspend while xfer,dev addr = 0x%x\n",
 			i2c->adap.nr, i2c->msg? i2c->msg->addr : 0xff);
 		msleep(100);
 	}
 
-	i2c->suspended = 1;
+
 	if(sun7i_i2c_clk_exit(i2c)) {
 		I2C_ERR("[i2c%d] suspend failed.. \n", i2c->bus_num);
 		i2c->suspended = 0;
@@ -1391,6 +1401,10 @@ static int sun7i_i2c_resume(struct device *dev)
 #ifndef CONFIG_AW_FPGA_PLATFORM
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sun7i_i2c *i2c = platform_get_drvdata(pdev);
+
+	if(0 == i2c->bus_num) {
+		return 0;
+	}
 
 	i2c->suspended = 0;
 
