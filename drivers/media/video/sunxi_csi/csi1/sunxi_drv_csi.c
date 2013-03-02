@@ -683,7 +683,7 @@ static void csi_reset_enable(struct csi_dev *dev)
 	clk_reset(dev->csi_isp_clk, AW_CCU_CLK_RESET);
     #endif
 
-	clk_reset(dev->csi_ahb_clk, AW_CCU_CLK_RESET);
+	clk_reset(dev->csi_module_clk, AW_CCU_CLK_RESET);
 }
 
 static void csi_reset_disable(struct csi_dev *dev)
@@ -695,7 +695,7 @@ static void csi_reset_disable(struct csi_dev *dev)
 	clk_reset(dev->csi_isp_clk, AW_CCU_CLK_NRESET);
     #endif
 
-	clk_reset(dev->csi_ahb_clk, AW_CCU_CLK_NRESET);
+	clk_reset(dev->csi_module_clk, AW_CCU_CLK_NRESET);
 }
 
 static int csi_clk_enable(struct csi_dev *dev)

@@ -18,8 +18,8 @@
 #define CSI1_REG_SIZE 				0x1000
 
 //FPGA
-#define SW_INTC_IRQNO_CSI0              (32+16)//74
-#define SW_INTC_IRQNO_CSI1              (32+14)//75
+#define SW_INTC_IRQNO_CSI0              AW_IRQ_CSI0
+#define SW_INTC_IRQNO_CSI1              AW_IRQ_CSI1
 
 #define CSI_REG_EN           (0x00)
 #define CSI_REG_CONF         (0x04)
