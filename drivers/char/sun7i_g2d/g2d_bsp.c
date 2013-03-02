@@ -110,6 +110,7 @@ __u32 mixer_reg_init(void){
 
     for(i=0;i<=0x120;i+=4)
 	write_wvalue(i, 0);
+    write_wvalue(G2D_SCAN_ORDER_REG,0x15FF0000);//DMA MBUS Length
 
     /* initial the color space converter parameter */
     csc_coeff_set();
