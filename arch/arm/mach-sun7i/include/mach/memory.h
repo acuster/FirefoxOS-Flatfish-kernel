@@ -39,13 +39,14 @@
 /*
  * memory reserved areas.
  */
-#define HW_RESERVED_MEM_BASE    (SUPER_STANDBY_BASE + SZ_4M)
-#define HW_RESERVED_MEM_SIZE    (SW_VE_MEM_SIZE + SW_G2D_MEM_SIZE + SW_FB_MEM_SIZE + SW_GPU_MEM_SIZE)   		/* 232M(DE+VE(CSI)+MP) */
-
-#define SW_VE_MEM_BASE                 (HW_RESERVED_MEM_BASE)
+#define SW_VE_MEM_BASE                 (PLAT_PHYS_OFFSET + SZ_64M)
 #define SW_G2D_MEM_BASE                (SW_VE_MEM_BASE + SW_VE_MEM_SIZE)
 #define SW_FB_MEM_BASE                 (SW_G2D_MEM_BASE + SW_G2D_MEM_SIZE)
 #define SW_GPU_MEM_BASE                (SW_FB_MEM_BASE + SW_FB_MEM_SIZE)
+
+#define HW_RESERVED_MEM_BASE    (SW_VE_MEM_BASE)
+#define HW_RESERVED_MEM_SIZE    (SW_VE_MEM_SIZE + SW_G2D_MEM_SIZE + SW_FB_MEM_SIZE + SW_GPU_MEM_SIZE)   		/* 232M(DE+VE(CSI)+MP) */
+
 
 
 
