@@ -103,6 +103,16 @@ static void cpu_up_work(struct work_struct *work)
             }
         } else if (online_backup_fantasys == 0){
             cpufreq_fantasys_cpu_unlock(1);
+
+            #if 1
+            /* on all possible cpus firstly */
+            cpufreq_fantasys_cpu_lock(num_possible_cpus());
+            while (num_online_cpus() != num_possible_cpus()) {
+                msleep(50);
+            }
+            cpufreq_fantasys_cpu_unlock(num_possible_cpus());
+            #endif
+
         } else {
             printk("ERROR online_backup_fantasys is %d\n", online_backup_fantasys);
         }

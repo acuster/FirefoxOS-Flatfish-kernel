@@ -1301,7 +1301,7 @@ __s32 Disp_lcdc_init(__u32 sel)
         {
             OSAL_RegISR(INTC_IRQNO_DSI,0,Disp_lcdc_event_proc,(void*)sel,0,0);
         }
-        LCD_get_panel_funs_0(&lcd_panel_fun[sel]);
+        //LCD_get_panel_funs_0(&lcd_panel_fun[sel]);
 #ifndef __LINUX_OSAL__
         OSAL_InterruptEnable(INTC_IRQNO_LCDC0);
 		OSAL_InterruptEnable(INTC_IRQNO_DSI);
@@ -1310,7 +1310,7 @@ __s32 Disp_lcdc_init(__u32 sel)
     else
     {        
         OSAL_RegISR(INTC_IRQNO_LCDC1,0,Disp_lcdc_event_proc,(void*)sel,0,0);
-        LCD_get_panel_funs_1(&lcd_panel_fun[sel]);
+        //LCD_get_panel_funs_1(&lcd_panel_fun[sel]);
 #ifndef __LINUX_OSAL__
         OSAL_InterruptEnable(INTC_IRQNO_LCDC1);
 #endif
@@ -1793,7 +1793,7 @@ __s32 BSP_disp_lcd_open_before(__u32 sel)
     {
         dsi_cfg(sel, (__panel_para_t*)&gpanel_info[sel]);
     }
-    //BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_LCD);
+    BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_LCD, BSP_disp_drc_get_input_csc(sel));
     DE_BE_set_display_size(sel, gpanel_info[sel].lcd_x, gpanel_info[sel].lcd_y);
     DE_BE_Output_Select(sel, sel);
 
@@ -2118,6 +2118,33 @@ __s32 BSP_disp_close_lcd_backlight(__u32 sel)
 
     return 0;
 }
+
+__s32 BSP_disp_open_lcd_backlight(__u32 sel)
+{
+    disp_gpio_set_t  gpio_info[1];
+    __hdle hdl;
+    int ret;
+    char primary_key[20];
+
+    sprintf(primary_key, "lcd%d_para", sel);
+    
+    ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_bl_en", (int *)gpio_info, sizeof(disp_gpio_set_t)/sizeof(int));
+    if(ret == 0)
+    {
+        hdl = OSAL_GPIO_Request(gpio_info, 1);
+        OSAL_GPIO_Release(hdl, 2);
+    }
+
+    ret = OSAL_Script_FetchParser_Data(primary_key,"lcd_pwm", (int *)gpio_info, sizeof(disp_gpio_set_t)/sizeof(int));
+    if(ret == 0)
+    {
+        hdl = OSAL_GPIO_Request(gpio_info, 1);
+        OSAL_GPIO_Release(hdl, 2);
+    }
+
+    return 0;
+}
+
 
 __s32 BSP_disp_lcd_set_bright_dimming(__u32 sel, __u32 backlight_dimming)
 {

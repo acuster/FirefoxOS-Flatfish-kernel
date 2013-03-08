@@ -86,8 +86,11 @@ LINUX :=1
 __linux__ :=1
 SUPPORT_MEMINFO_IDS :=0
 PVRSRV_DUMP_MK_TRACE :=0
+PVRSRV_USSE_EDM_STATUS_DEBUG := 0
 SUPPORT_ACTIVE_POWER_MANAGEMENT :=1
 SUPPORT_SGX_LOW_LATENCY_SCHEDULING :=1
+PVRSRV_NEED_PVR_DPF =: 1
+PVRSRV_NEW_PVR_DPF =: 1
 ##################
 
 # We have more memory on OMAP platforms, so we can spare to make the

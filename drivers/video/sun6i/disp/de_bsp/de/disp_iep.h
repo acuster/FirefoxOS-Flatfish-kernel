@@ -19,6 +19,7 @@ __s32 disp_deu_set_frame_info(__u32 sel, __u32 hid);
 __s32 disp_cmu_layer_clear(__u32 sel);
 __s32 disp_deu_clear(__u32 sel, __u32 hid);
 __s32 disp_deu_output_select(__u32 sel, __u32 hid, __u32 ch);
+__s32 BSP_disp_drc_get_input_csc(__u32 sel);
 
 
 #endif

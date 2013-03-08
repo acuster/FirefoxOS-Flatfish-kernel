@@ -27,38 +27,67 @@ struct platform_device hdmi_device =
 	.dev            = {}
 };
 
-static ssize_t hdmi_print_level_show(struct device *dev,
+static ssize_t hdmi_debug_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", hdmi_print);
+	return sprintf(buf, "debug=%s\n", hdmi_print?"on" : "off");
 }
 
-static ssize_t hdmi_print_level_store(struct device *dev,
+static ssize_t hdmi_debug_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	int err;
-    unsigned long val;
-    
-	err = strict_strtoul(buf, 10, &val);
-	if (err) {
-		printk("Invalid size\n");
-		return err;
-	}
+	if (count < 1)
+        return -EINVAL;
 
-    if(val == 0)
-    {
-        hdmi_print = 0;
-    }else
+    if (strnicmp(buf, "on", 2) == 0 || strnicmp(buf, "1", 1) == 0)
     {
         hdmi_print = 1;
 	}
-    
+    else if (strnicmp(buf, "off", 3) == 0 || strnicmp(buf, "0", 1) == 0)
+	{
+        hdmi_print = 0;
+    }
+    else
+    {
+        return -EINVAL;
+    }
+
 	return count;
 }
 
-static DEVICE_ATTR(print_level, S_IRUGO|S_IWUSR|S_IWGRP,
-		hdmi_print_level_show, hdmi_print_level_store);
+static DEVICE_ATTR(debug, S_IRUGO|S_IWUSR|S_IWGRP,
+		hdmi_debug_show, hdmi_debug_store);
+
+__s32 hdmi_hpd_state(__u32 state);
+static ssize_t hdmi_state_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "nothing\n");
+}
+
+static ssize_t hdmi_state_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	if (count < 1)
+        return -EINVAL;
+
+    if (strnicmp(buf, "1", 1) == 0)
+    {
+        hdmi_hpd_state(1);
+	}
+    else
+	{
+        hdmi_hpd_state(0);
+    }
+
+	return count;
+}
+
+static DEVICE_ATTR(state, S_IRUGO|S_IWUSR|S_IWGRP,
+		hdmi_state_show, hdmi_state_store);
+
 
 static int __init hdmi_probe(struct platform_device *pdev)
 {
@@ -152,7 +181,8 @@ static const struct file_operations hdmi_fops = {
 };
 
 static struct attribute *hdmi_attributes[] = {
-    &dev_attr_print_level.attr,
+    &dev_attr_debug.attr,
+    &dev_attr_state.attr,
     NULL
 };
 

@@ -41,7 +41,7 @@ int ar100_dvfs_set_cpufreq(unsigned int freq, unsigned long mode, ar100_cb_t cb,
  *
  * return: result, 0 - super standby successed, !0 - super standby failed;
  */
-int ar100_standby_super(struct super_standby_para *para);
+int ar100_standby_super(struct super_standby_para *para, ar100_cb_t cb, void *cb_arg);
 
 /**
  * query super-standby wakeup source.
@@ -65,7 +65,7 @@ int ar100_query_dram_crc_result(unsigned long *perror, unsigned long *ptotal_cou
 
 int ar100_set_dram_crc_result(unsigned long error, unsigned long total_count,
 	unsigned long error_count);
-	
+
 /**
  * notify ar100 cpux restored.
  * @para:  none.
@@ -81,7 +81,7 @@ int ar100_cpux_ready_notify(void);
  * @data:    point of registers data;
  * @len :    number of read registers, max len:8;
  *
- * return: result, 0 - read register successed, 
+ * return: result, 0 - read register successed,
  *                !0 - read register failed or the len more then max len;
  */
 int ar100_axp_read_reg(unsigned char *addr, unsigned char *data, unsigned long len);
@@ -92,7 +92,7 @@ int ar100_axp_read_reg(unsigned char *addr, unsigned char *data, unsigned long l
  * data:     point of registers data;
  * len :     number of write registers, max len:8;
  *
- * return: result, 0 - write register successed, 
+ * return: result, 0 - write register successed,
  *                !0 - write register failedor the len more then max len;
  */
 int ar100_axp_write_reg(unsigned char *addr, unsigned char *data, unsigned long len);
@@ -122,7 +122,7 @@ int ar100_enable_axp_irq(void);
 int ar100_message_loopback(void);
 
 /* talk-standby interfaces */
-int ar100_standby_talk(struct super_standby_para *para);
+int ar100_standby_talk(struct super_standby_para *para, ar100_cb_t cb, void *cb_arg);
 int ar100_cpux_talkstandby_ready_notify(void);
 
 #endif	/* __ASM_ARCH_A100_H */

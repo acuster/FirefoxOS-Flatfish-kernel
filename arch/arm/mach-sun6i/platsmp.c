@@ -47,50 +47,65 @@ static DEFINE_SPINLOCK(boot_lock);
  */
 static void __iomem *scu_base_addr(void)
 {
-	pr_debug("[%s] enter\n", __FUNCTION__);
-	return __io_address(AW_SCU_BASE);
+    pr_debug("[%s] enter\n", __FUNCTION__);
+    return __io_address(AW_SCU_BASE);
 }
 
 
 void enable_aw_cpu(int cpu)
 {
-	long paddr;
-	u32 pwr_reg;
+    long paddr;
+    u32 pwr_reg;
 
-	paddr = virt_to_phys(sun6i_secondary_startup);
-	writel(paddr, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_P_REG0);
+    paddr = virt_to_phys(sun6i_secondary_startup);
+    writel(paddr, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_P_REG0);
 
-	/*
-	 * Clear the clamp control.
-	 */
-	writel(0x00, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
+    /* step1: Assert nCOREPORESET LOW and hold L1RSTDISABLE LOW.
+              Ensure DBGPWRDUP is held LOW to prevent any external
+              debug access to the processor.
+    */
+    /* assert cpu core reset */
+    writel(0, IO_ADDRESS(AW_R_CPUCFG_BASE) + CPUX_RESET_CTL(cpu));
+    /* L1RSTDISABLE hold low */
+    pwr_reg = readl(IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_GENCTL);
+    pwr_reg &= ~(1<<cpu);
+    writel(pwr_reg, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_GENCTL);
+    /* DBGPWRDUP hold low */
+    pwr_reg = readl(IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_DBGCTL1);
+    pwr_reg &= ~(1<<cpu);
+    writel(pwr_reg, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_DBGCTL1);
 
-	/*
-	 * Clear the poweroff gateing.
-	 */
-	pwr_reg = readl(IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPU_PWROFF_REG);
-	pwr_reg &= ~(0x00000001<<cpu);
-	writel(pwr_reg, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPU_PWROFF_REG);
+    /* step2: release power clamp */
+    writel(0x00, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
+    mdelay(10);
 
-	/*
-	 * Set the reset Control
-	 */
-	writel(3, IO_ADDRESS(AW_R_CPUCFG_BASE) + CPUX_RESET_CTL(cpu));
-	pr_debug("[boot_secondary]: open the cpu%d\n", cpu);
+    /* step3: clear power-off gating */
+    pwr_reg = readl(IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPU_PWROFF_REG);
+    pwr_reg &= ~(0x00000001<<cpu);
+    writel(pwr_reg, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPU_PWROFF_REG);
+    mdelay(1);
+
+    /* step4: de-assert core reset */
+    writel(3, IO_ADDRESS(AW_R_CPUCFG_BASE) + CPUX_RESET_CTL(cpu));
+
+    /* step5: assert DBGPWRDUP signal */
+    pwr_reg = readl(IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_DBGCTL1);
+    pwr_reg |= (1<<cpu);
+    writel(pwr_reg, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_DBGCTL1);
 }
 
 void __init smp_init_cpus(void)
 {
-	unsigned int i, ncores;
+    unsigned int i, ncores;
 
-	ncores =  scu_get_core_count(NULL);
-	pr_debug("[%s] ncores=%d\n", __FUNCTION__, ncores);
+    ncores =  scu_get_core_count(NULL);
+    pr_debug("[%s] ncores=%d\n", __FUNCTION__, ncores);
 
-	for (i = 0; i < ncores; i++) {
-	    set_cpu_possible(i, true);
-	}
+    for (i = 0; i < ncores; i++) {
+        set_cpu_possible(i, true);
+    }
 
-	set_smp_cross_call(gic_raise_softirq);
+    set_smp_cross_call(gic_raise_softirq);
 }
 
 /*
@@ -98,11 +113,11 @@ void __init smp_init_cpus(void)
  */
 void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 {
-	void __iomem *scu_base;
+    void __iomem *scu_base;
 
-	pr_debug("[%s] enter\n", __FUNCTION__);
-	scu_base = scu_base_addr();
-	scu_enable(scu_base);
+    pr_debug("[%s] enter\n", __FUNCTION__);
+    scu_base = scu_base_addr();
+    scu_enable(scu_base);
 }
 
 /*
@@ -111,8 +126,8 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 extern int arch_timer_common_register(void);
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
-	pr_debug("[%s] enter, cpu:%d\n", __FUNCTION__, cpu);
-	gic_secondary_init(0);
+    pr_debug("[%s] enter, cpu:%d\n", __FUNCTION__, cpu);
+    gic_secondary_init(0);
 }
 
 /*
@@ -120,11 +135,11 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
  */
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	pr_debug("[%s] enter\n", __FUNCTION__);
-	spin_lock(&boot_lock);
-	enable_aw_cpu(cpu);
-	spin_unlock(&boot_lock);
-	return 0;
+    pr_debug("[%s] enter\n", __FUNCTION__);
+    spin_lock(&boot_lock);
+    enable_aw_cpu(cpu);
+    spin_unlock(&boot_lock);
+    return 0;
 }
 
 

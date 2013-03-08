@@ -236,9 +236,9 @@ __s32 image_clk_init(__u32 sel)
 #ifdef RESET_OSAL
 		OSAL_CCMU_MclkReset(h_debe0mclk, RST_INVAILD);
 #endif	
-		OSAL_CCMU_SetMclkSrc(h_debe0mclk, SYS_CLK_PLL10);
+		OSAL_CCMU_SetMclkSrc(h_debe0mclk, SYS_CLK_DE_PLL);
 
-		pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10);
+		pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_DE_PLL);
         mclk_div = 1;
         while((pll_freq / mclk_div) > 300000000)
         {
@@ -263,9 +263,9 @@ __s32 image_clk_init(__u32 sel)
 	
         OSAL_CCMU_MclkReset(h_debe1mclk, RST_INVAILD);
 #endif 
-        OSAL_CCMU_SetMclkSrc(h_debe1mclk, SYS_CLK_PLL10);//FIX CONNECT TO PLL10
+        OSAL_CCMU_SetMclkSrc(h_debe1mclk, SYS_CLK_DE_PLL);//
 
-		pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10);
+		pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_DE_PLL);
         mclk_div = 1;
         while((pll_freq / mclk_div) > 300000000)
         {
@@ -399,8 +399,8 @@ __s32 scaler_clk_init(__u32 sel)
 		h_defe0dramclk = OSAL_CCMU_OpenMclk(DRAM_CLK_DEFE0);
 		h_defe0mclk = OSAL_CCMU_OpenMclk(MOD_CLK_DEFE0);
 	
-		OSAL_CCMU_SetMclkSrc(h_defe0mclk, SYS_CLK_PLL10);	//FIX CONNECT TO  PLL10
-		pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10);
+		OSAL_CCMU_SetMclkSrc(h_defe0mclk, SYS_CLK_DE_PLL);	//FIX CONNECT TO  PLL10
+		pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_DE_PLL);
         mclk_div = 1;
         while((pll_freq / mclk_div) > 300000000)
         {
@@ -424,8 +424,8 @@ __s32 scaler_clk_init(__u32 sel)
 		h_defe1dramclk = OSAL_CCMU_OpenMclk(DRAM_CLK_DEFE1);
 		h_defe1mclk = OSAL_CCMU_OpenMclk(MOD_CLK_DEFE1);
 
-		OSAL_CCMU_SetMclkSrc(h_defe1mclk, SYS_CLK_PLL10);	
-		pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10);
+		OSAL_CCMU_SetMclkSrc(h_defe1mclk, SYS_CLK_DE_PLL);	
+		pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_DE_PLL);
         mclk_div = 1;
         while((pll_freq / mclk_div) > 300000000)
         {
@@ -1400,7 +1400,7 @@ __s32 BSP_disp_clk_on(__u32 type)
         	__u32 pll_freq;
             __u32 mclk_div;
 
-            pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10);
+            pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_DE_PLL);
             mclk_div = 1;
             while((pll_freq / mclk_div) > 300000000)
             {
@@ -1413,7 +1413,7 @@ __s32 BSP_disp_clk_on(__u32 type)
             __u32 pll_freq;
             __u32 mclk_div;
 
-            pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10);
+            pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_DE_PLL);
             mclk_div = 1;
             while((pll_freq / mclk_div) > 300000000)
             {

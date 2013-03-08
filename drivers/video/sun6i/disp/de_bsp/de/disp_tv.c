@@ -189,7 +189,7 @@ __s32 BSP_disp_tv_open(__u32 sel)
         lcdc_clk_on(sel, 1, 1);
         tcon_init(sel);
 
-        BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_TV);
+        BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_TV, BSP_disp_drc_get_input_csc(sel));
         DE_BE_set_display_size(sel, tv_mode_to_width(tv_mod), tv_mode_to_height(tv_mod));
         DE_BE_Output_Select(sel, sel);
         

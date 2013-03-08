@@ -206,5 +206,4 @@ void anx9804_init(__panel_para_t * info)
 	lcd_iic_write(0x70, 0x82, 0x33);
 }
 
-EXPORT_SYMBOL(LCD_get_panel_funs_0);
 

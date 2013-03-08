@@ -1,9 +1,9 @@
 #
 # sun6i gpio test configuration.
 #
-
 config GPIO_TEST_DRIVER
 	tristate "sun6i gpio test driver"
-	default y
+	default m
 	help
-	This is sun6i gpio test drivers.
+	Nothing help.
+

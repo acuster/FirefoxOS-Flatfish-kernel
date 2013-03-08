@@ -156,26 +156,27 @@ __s32 BSP_disp_drc_get_window(__u32 sel,__disp_rect_t *regn)
 
 __s32 BSP_disp_drc_set_mode(__u32 sel,__u32 mode)	
 {
-    if(DISP_OUTPUT_TYPE_LCD == BSP_disp_get_output_type(sel))
+    gdisp.screen[sel].drc.mode = mode;
+    if(BSP_disp_drc_get_enable(sel) == 1)
     {
-        gdisp.screen[sel].drc.mode = mode;
-        if(BSP_disp_drc_get_enable(sel) == 1)
-        {
-            IEP_Drc_Set_Mode(sel,mode);
-        }
-        return DIS_SUCCESS;
+        IEP_Drc_Set_Mode(sel,mode);
     }
-
-    return DIS_NOT_SUPPORT;
+    return DIS_SUCCESS;
 }
 __s32 BSP_disp_drc_get_mode(__u32 sel)	
 {
-    if(DISP_OUTPUT_TYPE_LCD == BSP_disp_get_output_type(sel))
-    {
-        return gdisp.screen[sel].drc.mode;
-    }
+    return gdisp.screen[sel].drc.mode;
+}
 
-    return DIS_NOT_SUPPORT;
+//csc: 0(rgb);  1(yuv)
+__s32 BSP_disp_drc_get_input_csc(__u32 sel)	
+{
+    if(BSP_disp_drc_get_enable(sel) && (gdisp.screen[sel].drc.mode == IEP_DRC_MODE_VIDEO))
+    {
+        return 1;
+    }
+    
+    return 0;
 }
 
 

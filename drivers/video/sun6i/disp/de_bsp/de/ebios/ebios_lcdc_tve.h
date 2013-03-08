@@ -49,6 +49,8 @@ typedef struct
 	__bool	hor_sync_polarity;
 	__bool	ver_sync_polarity;
 	__bool  interlace;
+    __u16   vactive_space;
+    __bool  trd_mode;
 }__disp_timing_t;
 
 

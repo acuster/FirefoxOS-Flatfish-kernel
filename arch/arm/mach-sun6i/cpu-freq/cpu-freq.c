@@ -331,15 +331,6 @@ fail:
  */
 static int sunxi_cpufreq_init(struct cpufreq_policy *policy)
 {
-    /* init cpu frequency from sysconfig */
-    if(__init_freq_syscfg()) {
-        CPUFREQ_ERR("%s, use default cpu max/min frequency, max freq: %uMHz, min freq: %uMHz\n",
-                    __func__, cpu_freq_max/1000, cpu_freq_min/1000);
-    }else{
-        CPUFREQ_INF("%s, get cpu frequency from sysconfig, max freq: %uMHz, min freq: %uMHz\n",
-                    __func__, cpu_freq_max/1000, cpu_freq_min/1000);
-    }
-
     policy->cur = sunxi_cpufreq_get(0);
     policy->min = policy->cpuinfo.min_freq = cpu_freq_min;
     policy->max = policy->cpuinfo.max_freq = cpu_freq_max;
@@ -457,6 +448,15 @@ static int __init sunxi_cpufreq_initcall(void)
     /* initialise current frequency configuration */
     sunxi_cpufreq_getcur(&cpu_cur);
     sunxi_cpufreq_show("cur", &cpu_cur);
+
+    /* init cpu frequency from sysconfig */
+    if(__init_freq_syscfg()) {
+        CPUFREQ_ERR("%s, use default cpu max/min frequency, max freq: %uMHz, min freq: %uMHz\n",
+                    __func__, cpu_freq_max/1000, cpu_freq_min/1000);
+    }else{
+        CPUFREQ_INF("%s, get cpu frequency from sysconfig, max freq: %uMHz, min freq: %uMHz\n",
+                    __func__, cpu_freq_max/1000, cpu_freq_min/1000);
+    }
 
     /* register cpu frequency driver */
     ret = cpufreq_register_driver(&sunxi_cpufreq_driver);

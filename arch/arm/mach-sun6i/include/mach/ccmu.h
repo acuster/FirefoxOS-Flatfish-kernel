@@ -256,7 +256,7 @@ typedef struct __CCMU_APB1_GATE_REG0068
     __u32   Adda:1;             //bit0,  gating APB clock for audio codec, 0-mask, 1-pass
     __u32   Spdif:1;            //bit1,  gating APB clock for SPDIF, 0-mask, 1-pass
     __u32   reserved0:2;        //bit2,  reserved
-    __u32   Dmic:1;             //bit4,  gating APB clock for digital mic 
+    __u32   Dmic:1;             //bit4,  gating APB clock for digital mic
     __u32   Pio:1;              //bit5,  gating APB clock for PIO, 0-mask, 1-pass
     __u32   reserved1:6;        //bit6,  reserved
     __u32   I2s0:1;             //bit12, gating APB clock for I2s-0, 0-mask, 1-pass
@@ -447,11 +447,11 @@ typedef struct __CCMU_MIPI_CLK
 } __ccmu_mipi_clk_t;
 
 
-typedef struct __CCMU_PLLLOCK_REG0200
+typedef struct __CCMU_PLLLOCK_REG
 {
     __u32   LockTime:16;        //bit0,  PLL lock time, based on us
     __u32   reserved:16;        //bit16, reserved
-} __ccmu_plllock_reg0200_t;
+} __ccmu_plllock_reg_t;
 
 
 typedef struct __CCMU_MOD_RST_REG02C0
@@ -665,16 +665,47 @@ typedef struct __CCMU_REG_LIST
     volatile __ccmu_module0_clk_t               GpuMem;     //0x01A4, GPU Memory clock
     volatile __ccmu_module0_clk_t               GpuHyd;     //0x01A8, GPU hyd clock
     volatile __u32                              reserved19[21]; //0x01AC, reserved
-    volatile __ccmu_plllock_reg0200_t           PllLock;    //0x0200, pll lock time
-    volatile __u32                              reserved20[47]; //0x0204, reserved
+    volatile __ccmu_plllock_reg_t               PllLock;    //0x0200, pll lock time
+    volatile __ccmu_plllock_reg_t               Pll1Lock;   //0x0204, pll1 lock time
+    volatile __u32                              reserved20[6]; //0x0208, reserved
+    volatile __u32                              Pll1Bias;   //0x220, pll1 bias control
+    volatile __u32                              Pll2Bias;   //0x224, pll1 bias control
+    volatile __u32                              Pll3Bias;   //0x228, pll1 bias control
+    volatile __u32                              Pll4Bias;   //0x22c, pll1 bias control
+    volatile __u32                              Pll5Bias;   //0x230, pll1 bias control
+    volatile __u32                              Pll6Bias;   //0x234, pll1 bias control
+    volatile __u32                              Pll7Bias;   //0x238, pll1 bias control
+    volatile __u32                              Pll8Bias;   //0x23c, pll1 bias control
+    volatile __u32                              MipiBias;   //0x240, pll1 bias control
+    volatile __u32                              Pll9Bias;   //0x244, pll1 bias control
+    volatile __u32                              Pll10Bias;  //0x248, pll1 bias control
+    volatile __u32                              reserved21; //0x024c, reserved
+    volatile __u32                              Pll1Tune;   //0x250, pll1 tuning control
+    volatile __u32                              reserved22[3]; //0x0254, reserved
+    volatile __u32                              Pll5Tune;  //0x260, pll1 tuning control
+    volatile __u32                              reserved23[3]; //0x0264, reserved
+    volatile __u32                              MipiTune;  //0x270, mipi pll tuning control
+    volatile __u32                              reserved24[3]; //0x0274, reserved
+    volatile __u32                              PLL1Pat;  //0x280, PLL1 pattern control
+    volatile __u32                              PLL2Pat;  //0x284, PLL2 pattern control
+    volatile __u32                              PLL3Pat;  //0x288, PLL3 pattern control
+    volatile __u32                              PLL4Pat;  //0x28c, PLL4 pattern control
+    volatile __u32                              PLL5Pat;  //0x290, PLL5 pattern control
+    volatile __u32                              reserved25; //0x0294, reserved
+    volatile __u32                              PLL7Pat;  //0x298, PLL7 pattern control
+    volatile __u32                              PLL8Pat;  //0x29c, PLL8 pattern control
+    volatile __u32                              MipiPat;  //0x2a0, mipi pll pattern control
+    volatile __u32                              PLL9Pat;  //0x2a4, PLL9 pattern control
+    volatile __u32                              PLL10Pat; //0x2a8, PLL10 pattern control
+    volatile __u32                              reserved26[5]; //0x02ac, reserved
     volatile __ccmu_mod_rst_reg02c0_t           AhbReset0;  //0x02c0, AHB1 module reset register 0
     volatile __ccmu_mod_rst_reg02c4_t           AhbReset1;  //0x02c4, AHB1 module reset register 1
     volatile __ccmu_mod_rst_reg02c8_t           AhbReset2;  //0x02c8, AHB1 module reset register 2
-    volatile __u32                              reserved21; //0x02cc, reserved
+    volatile __u32                              reserved27; //0x02cc, reserved
     volatile __ccmu_mod_rst_reg02d0_t           Apb1Reset;  //0x02d0, APB1 module reset register
-    volatile __u32                              reserved22; //0x02d4, reserved
+    volatile __u32                              reserved28; //0x02d4, reserved
     volatile __ccmu_mod_rst_reg02d8_t           Apb2Reset;  //0x02d8, APB2 module reset register
-    volatile __u32                              reserved23[9];  //0x02dc, reserved
+    volatile __u32                              reserved29[9];  //0x02dc, reserved
     volatile __ccmu_clk_out_t                   ClkOutA;    //0x0300, pll lock time
     volatile __ccmu_clk_out_t                   ClkOutB;    //0x0304, pll lock time
     volatile __ccmu_clk_out_t                   ClkOutC;    //0x0308, pll lock time

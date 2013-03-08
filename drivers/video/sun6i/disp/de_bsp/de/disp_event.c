@@ -7,8 +7,8 @@
 #include "disp_lcd.h"
 
 #define VINT_TIME_LEN 100
-unsigned long vint_time_index[2] = {0,0};
-unsigned long vint_time[2][VINT_TIME_LEN];//jiffies
+static unsigned long vint_time_index[2] = {0,0};
+static unsigned long vint_time[2][VINT_TIME_LEN];//jiffies
 
 extern __panel_para_t gpanel_info[2];
 
@@ -45,7 +45,7 @@ __s32 BSP_disp_vsync_event_enable(__u32 sel, __bool enable)
     
     return DIS_SUCCESS;
 }
-
+//return 10fps
 __s32 bsp_disp_get_fps(__u32 sel)
 {
     __u32 pre_time_index, cur_time_index;
@@ -60,7 +60,7 @@ __s32 bsp_disp_get_fps(__u32 sel)
 
     if(pre_time != cur_time)
     {
-        fps = 1000 * 100 * 10 / (cur_time - pre_time);
+        fps = 1000 * 100 / (cur_time - pre_time);
     }
     
     return fps;

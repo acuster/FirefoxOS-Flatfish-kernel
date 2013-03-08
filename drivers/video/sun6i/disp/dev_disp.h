@@ -65,6 +65,7 @@ typedef struct
     void    *cb_arg[10];
     __bool  b_ovl_request;
     __bool  b_no_output;
+    struct mutex	runtime_lock;
 }fb_info_t;
 
 typedef struct

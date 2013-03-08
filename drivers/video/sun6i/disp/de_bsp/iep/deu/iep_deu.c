@@ -36,9 +36,9 @@ __s32 deu_clk_init(__u32 sel)
 	    h_deumclk0 = OSAL_CCMU_OpenMclk(MOD_CLK_IEPDEU0);
 
 		
-		OSAL_CCMU_SetMclkSrc(h_deumclk0, SYS_CLK_PLL10);	//FIX CONNECT TO  PLL10
+		OSAL_CCMU_SetMclkSrc(h_deumclk0, SYS_CLK_DE_PLL);	//FIX CONNECT TO  PLL10
 		OSAL_CCMU_SetMclkDiv(h_deumclk0, 1);
-        pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10);
+        pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_DE_PLL);
         mclk_div = 1;
         while((pll_freq / mclk_div) > 300000000)
         {
@@ -60,9 +60,9 @@ __s32 deu_clk_init(__u32 sel)
 	    h_deudramclk1 = OSAL_CCMU_OpenMclk(DRAM_CLK_DEU1);
 	    h_deumclk1 = OSAL_CCMU_OpenMclk(MOD_CLK_IEPDEU1);
 
-		OSAL_CCMU_SetMclkSrc(h_deumclk1, SYS_CLK_PLL10);	//FIX CONNECT TO PLL9
+		OSAL_CCMU_SetMclkSrc(h_deumclk1, SYS_CLK_DE_PLL);	//FIX CONNECT TO PLL9
 		OSAL_CCMU_SetMclkDiv(h_deumclk1, 1);
-        pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL10);
+        pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_DE_PLL);
         mclk_div = 1;
         while((pll_freq / mclk_div) > 300000000)
         {

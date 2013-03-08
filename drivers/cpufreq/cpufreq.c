@@ -2014,7 +2014,7 @@ static int reboot_notifier_call(struct notifier_block *this, unsigned long code,
         while (num_online_cpus() != 1) {
             msleep(20);
         }
-        return NOTIFY_DONE;
+        goto out;
     }
     #endif
 
@@ -2025,6 +2025,8 @@ static int reboot_notifier_call(struct notifier_block *this, unsigned long code,
         cpu_down(cpu);
     }
 
+out:
+    printk("%s:%s: stop none boot cpus done\n", __FILE__, __func__);
     return NOTIFY_DONE;
 }
 

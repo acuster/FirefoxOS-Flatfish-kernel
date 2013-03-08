@@ -27,6 +27,8 @@
 #include "../nandtest/nand_test.h"
 #include <mach/sys_config.h>
 
+extern int NAND_BurnBoot0(uint length, void *buf);
+extern int NAND_BurnBoot1(uint length, void *buf);
 
 extern __u32 nand_current_dev_num;
 extern int part_secur[ND_MAX_PART_COUNT];
@@ -85,6 +87,13 @@ struct collect_ops collect_arg;
 
 #endif
 
+struct burn_param_t{
+	void* buffer;
+  long length;
+	
+};
+
+
 //for CLK
 extern int NAND_ClkRequest(__u32 nand_index);
 extern void NAND_ClkRelease(__u32 nand_index);
@@ -122,6 +131,8 @@ static int nand_flush(struct nand_blk_dev *dev);
 static int nand_logrelease(struct nand_blk_dev *dev);
 
 static int nand_flush_force(__u32 dev_num);
+static int nand_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg);
+
 static struct nand_state nand_reg_state;
 
 #ifdef __LINUX_NAND_SUPPORT_INT__	
@@ -1219,69 +1230,6 @@ static int nand_release(struct gendisk *disk, fmode_t mode)
 }
 
 
-/*filp->f_dentry->d_inode->i_bdev->bd_disk->fops->ioctl(filp->f_dentry->d_inode, filp, cmd, arg);*/
-#define DISABLE_WRITE         _IO('V',0)
-#define ENABLE_WRITE          _IO('V',1)
-#define DISABLE_READ 	     _IO('V',2)
-#define ENABLE_READ 	     _IO('V',3)
-static int nand_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg)
-{
-	struct nand_blk_dev *dev = bdev->bd_disk->private_data;
-	struct nand_blk_ops *nandr = dev->nandr;
-
-	switch (cmd) {
-	case BLKFLSBUF:
-		dbg_err("BLKFLSBUF called!\n");
-		if (nandr->flush)
-			return nandr->flush(dev);
-		/* The core code did the work, we had nothing to do. */
-		return 0;
-
-	case HDIO_GETGEO:
-		if (nandr->getgeo) {
-			struct hd_geometry g;
-			int ret;
-
-			memset(&g, 0, sizeof(g));
-			ret = nandr->getgeo(dev, &g);
-			if (ret)
-				return ret;
-  			dbg_err("HDIO_GETGEO called!\n");
-			g.start = get_start_sect(bdev);
-			if (copy_to_user((void __user *)arg, &g, sizeof(g)))
-				return -EFAULT;
-
-			return 0;
-		}
-		return 0;
-	case ENABLE_WRITE:
-		dbg_err("enable write!\n");
-		dev->disable_access = 0;
-		dev->readonly = 0;
-		set_disk_ro(dev->blkcore_priv, 0);
-		return 0;
-
-	case DISABLE_WRITE:
-		dbg_err("disable write!\n");
-		dev->readonly = 1;
-		set_disk_ro(dev->blkcore_priv, 1);
-		return 0;
-
-	case ENABLE_READ:
-		dbg_err("enable read!\n");
-		dev->disable_access = 0;
-		dev->writeonly = 0;
-		return 0;
-
-	case DISABLE_READ:
-		dbg_err("disable read!\n");
-		dev->writeonly = 1;
-		return 0;
-	default:
-		return -ENOTTY;
-	}
-}
-
 struct block_device_operations nand_blktrans_ops = {
 	.owner		= THIS_MODULE,
 	.open		= nand_open,
@@ -1606,6 +1554,102 @@ static struct nand_blk_ops mytr = {
 };
 
 
+/*filp->f_dentry->d_inode->i_bdev->bd_disk->fops->ioctl(filp->f_dentry->d_inode, filp, cmd, arg);*/
+#define DISABLE_WRITE         _IO('V',0)
+#define ENABLE_WRITE          _IO('V',1)
+#define DISABLE_READ 	     _IO('V',2)
+#define ENABLE_READ 	     _IO('V',3)
+#define BLKBURNBOOT0 		_IO('v',127)
+#define BLKBURNBOOT1 		_IO('v',128)
+
+
+static int nand_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg)
+{
+	struct nand_blk_dev *dev = bdev->bd_disk->private_data;
+	struct nand_blk_ops *nandr = dev->nandr;
+	struct burn_param_t *burn_param;
+	int ret=0;
+
+	burn_param = (struct burn_param_t *)arg;
+
+	switch (cmd) {
+	case BLKFLSBUF:
+		dbg_err("BLKFLSBUF called!\n");
+		if (nandr->flush)
+			return nandr->flush(dev);
+		/* The core code did the work, we had nothing to do. */
+		return 0;
+
+	case HDIO_GETGEO:
+		if (nandr->getgeo) {
+			struct hd_geometry g;
+			int ret;
+
+			memset(&g, 0, sizeof(g));
+			ret = nandr->getgeo(dev, &g);
+			if (ret)
+				return ret;
+  			dbg_err("HDIO_GETGEO called!\n");
+			g.start = get_start_sect(bdev);
+			if (copy_to_user((void __user *)arg, &g, sizeof(g)))
+				return -EFAULT;
+
+			return 0;
+		}
+		return 0;
+	case ENABLE_WRITE:
+		dbg_err("enable write!\n");
+		dev->disable_access = 0;
+		dev->readonly = 0;
+		set_disk_ro(dev->blkcore_priv, 0);
+		return 0;
+
+	case DISABLE_WRITE:
+		dbg_err("disable write!\n");
+		dev->readonly = 1;
+		set_disk_ro(dev->blkcore_priv, 1);
+		return 0;
+
+	case ENABLE_READ:
+		dbg_err("enable read!\n");
+		dev->disable_access = 0;
+		dev->writeonly = 0;
+		return 0;
+
+	case DISABLE_READ:
+		dbg_err("disable read!\n");
+		dev->writeonly = 1;
+		return 0;
+
+	case BLKBURNBOOT0:
+
+		if (0 == down_trylock(&(nandr->nand_ops_mutex)))
+		{
+			IS_IDLE = 0;
+			ret = NAND_BurnBoot0(burn_param->length, burn_param->buffer);
+			up(&(nandr->nand_ops_mutex));
+			IS_IDLE = 1;
+		}
+		return ret;
+	
+	case BLKBURNBOOT1:
+
+		if (0 == down_trylock(&(nandr->nand_ops_mutex)))
+		{
+			IS_IDLE = 0;
+			ret = NAND_BurnBoot1(burn_param->length, burn_param->buffer);
+			up(&(nandr->nand_ops_mutex));
+			IS_IDLE = 1;
+		}
+		return ret;
+
+	default:
+		return -ENOTTY;
+	}
+}
+
+
+
 static int nand_flush(struct nand_blk_dev *dev)
 {
 	if (0 == down_trylock(&mytr.nand_ops_mutex))
@@ -1680,6 +1724,7 @@ static void nand_flush_all(void)
     /* get nand ops mutex */
     down(&mytr.nand_ops_mutex);
 
+#if 0
     #ifdef NAND_CACHE_RW
     NAND_CacheFlush();
     #else
@@ -1687,6 +1732,20 @@ static void nand_flush_all(void)
     #endif
     BMM_WriteBackAllMapTbl();
     printk("Nand flash shutdown ok!\n");
+#else
+	#ifdef NAND_CACHE_RW
+    	NAND_CacheFlush();
+		NAND_CacheClose();
+	#else
+		LML_FlushPageCache();
+	#endif
+
+	LML_Exit();
+	FMT_Exit();
+	PHY_Exit();
+
+#endif
+
 }
 
 
@@ -1971,14 +2030,15 @@ static int nand_resume(struct platform_device *plat_dev)
         {
         	NAND_SetCurrentCH(j);
 		//printk("nand ch %d, chipconnectinfo: 0x%x\n ", j, NAND_GetChipConnect());
-		
+			__u32 bank = 0;
         	for(i=0; i<4; i++)
 	        {
 	            if(NAND_GetChipConnect()&(0x1<<i)) //chip valid
 	            {
 	                //printk("nand reset ch %d, chip %d!\n",j, i);
 	                ret = PHY_ResetChip(i);
-	                ret |= PHY_SynchBank(i, 0);
+	                ret |= PHY_SynchBank(bank, 0);
+					bank++;
 	                if(ret)
 	                    printk("nand reset ch %d, chip %d failed!\n",j, i);
 			

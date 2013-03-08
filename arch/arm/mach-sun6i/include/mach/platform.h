@@ -293,6 +293,12 @@
 #define AW_CPUCFG_P_REG0            0x01a4
 #define AW_CPUCFG_P_REG1            0x01a8
 #define CPUX_RESET_CTL(x) (0x40 + (x)*0x40)
+#define CPUX_CONTROL(x)   (0x44 + (x)*0x40)
+#define CPUX_STATUS(x)    (0x48 + (x)*0x40)
+#define AW_CPUCFG_GENCTL            0x0184
+#define AW_CPUCFG_DBGCTL0           0x01e0
+#define AW_CPUCFG_DBGCTL1           0x01e4
+
 
 /*
  * PRCM

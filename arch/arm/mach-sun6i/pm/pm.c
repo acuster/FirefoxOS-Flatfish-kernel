@@ -312,6 +312,37 @@ int aw_pm_prepare_late(void)
     return 0;
 }
 
+int aw_suspend_cpu_die(void)
+{
+	unsigned long actlr;
+	
+    /* step1: disable cache */
+    asm("mrc    p15, 0, %0, c1, c0, 0" : "=r" (actlr) );
+    actlr &= ~(1<<2);
+    asm("mcr    p15, 0, %0, c1, c0, 0\n" : : "r" (actlr));
+
+    /* step2: clean and ivalidate L1 cache */
+    flush_cache_all();
+
+    /* step3: execute a CLREX instruction */
+    asm("clrex" : : : "memory", "cc");
+
+    /* step4: switch cpu from SMP mode to AMP mode, aim is to disable cache coherency */
+    asm("mrc    p15, 0, %0, c1, c0, 1" : "=r" (actlr) );
+    actlr &= ~(1<<6);
+    asm("mcr    p15, 0, %0, c1, c0, 1\n" : : "r" (actlr));
+
+    /* step5: execute an ISB instruction */
+    isb();
+    /* step6: execute a DSB instruction  */
+    dsb();
+
+    /* step7: execute a WFI instruction */
+    asm("wfi" : : : "memory", "cc");
+    
+    return 0;
+}
+
 /*
 *********************************************************************************************************
 *                           aw_early_suspend
@@ -388,17 +419,7 @@ static int aw_early_suspend(void)
 
 	//create 0x0000,0000 mapping table: 0x0000,0000 -> 0x0000,0000
 	create_mapping();
-
-#if 1
-	//before creating mapping, build the coherent between cache and memory
-	//clean and flush
-	__cpuc_flush_kern_all();
-	__cpuc_flush_user_all();
-
-	__cpuc_coherent_user_range(0x00000000, 0xc0000000-1);
-	__cpuc_coherent_kern_range(0xc0000000, 0xffffffff-1);
-#endif
-
+	
 #ifdef ENTER_SUPER_STANDBY
 	//print_call_info();
 	super_standby_para_info.event = mem_para_info.axp_event;
@@ -418,17 +439,11 @@ static int aw_early_suspend(void)
 
 	//disable int to make sure the cpu0 into wfi state.
 	mem_int_init();
-	ar100_standby_super((struct super_standby_para *)(&super_standby_para_info));
-
-	if(unlikely(debug_mask&PM_STANDBY_PRINT_STANDBY)){
-		pr_info("warning: cpus not sync to enter super standby. \n");
-		while(1){
-			printk("afer assert, reset reg val: = 0x%x. \n", readl(0xf1f01c40));
-		}
-	}
-
-	asm("WFI");
-	busy_waiting();
+	ar100_standby_super((struct super_standby_para *)(&super_standby_para_info), NULL, NULL);
+	
+	aw_suspend_cpu_die();
+	pr_info("standby suspend failed\n");
+	//busy_waiting();
 #endif
 
 	return -2;

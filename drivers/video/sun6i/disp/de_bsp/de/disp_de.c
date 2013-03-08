@@ -145,7 +145,7 @@ __s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t * size)
     return DIS_SUCCESS;
 }
 
-__s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type)
+__s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type, __u32 drc_csc)
 {
     __disp_color_range_t out_color_range = DISP_COLOR_RANGE_0_255;
     __u32 out_csc = 0;
@@ -190,6 +190,11 @@ __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type)
             saturation = gdisp.screen[sel].lcd_cfg.lcd_saturation;
             hue = gdisp.screen[sel].lcd_cfg.lcd_hue;
         }
+    }
+
+    if(drc_csc)//if drc csc equ 1, indicate yuv for drc
+    {
+        out_csc = 3;
     }
 
    gdisp.screen[sel].out_color_range = out_color_range;

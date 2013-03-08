@@ -10,7 +10,7 @@
 //---------------------------------------------------------------
 //  结构体 定义
 //---------------------------------------------------------------
-typedef struct 
+typedef struct
 {
 	__u32		ChannelCnt;
 	__u32        ChipCnt;                            //the count of the total nand flash chips are currently connecting on the CE pin
@@ -26,8 +26,8 @@ typedef struct
     __u32       BlkCntPerDie;                       //the count of the physic blocks in one die, include valid block and invalid block
     __u32       OperationOpt;                       //the mask of the operation types which current nand flash can support support
     __u32        FrequencePar;                       //the parameter of the hardware access clock, based on 'MHz'
-    __u32        EccMode;                            //the Ecc Mode for the nand flash chip, 0: bch-16, 1:bch-28, 2:bch_32   
-    __u32        NandChipId[8];                      //the nand chip id of current connecting nand chip
+    __u32        EccMode;                            //the Ecc Mode for the nand flash chip, 0: bch-16, 1:bch-28, 2:bch_32
+    __u8        NandChipId[8];                      //the nand chip id of current connecting nand chip
     __u32       ValidBlkRatio;                      //the ratio of the valid physical blocks, based on 1024
 	__u32 		good_block_ratio;					//good block ratio get from hwscan
 	__u32		ReadRetryType;						//the read retry type
@@ -101,6 +101,7 @@ extern __s32 PHY_ChangeMode(__u8 serial_mode);
 extern __s32 PHY_ScanDDRParam(void);
 extern __s32 PHY_SynchBank(__u32 nBank, __u32 bMode);
 extern __s32 PHY_ResetChip(__u32 nChip);
+extern __s32 PHY_Readretry_reset(void);
 
 //for simplie(boot0)
 extern __s32 PHY_SimpleErase(struct boot_physical_param * eraseop);
@@ -135,6 +136,7 @@ extern __u32 NAND_GetChipCnt(void);
 extern __u32 NAND_GetChipConnect(void);
 extern __u32 NAND_GetBadBlockFlagPos(void);
 extern __u32 NAND_GetReadRetryType(void);
+extern __u32 NAND_GetVersion(__u8* nand_version);
 
 
 //for lsb mode
@@ -161,13 +163,15 @@ extern __u32 NFC_DmaIntOccur(void);
 //for mbr
 extern int mbr2disks(struct nand_disk* disk_array);
 
+extern int NAND_Print(const char *fmt, ...);
 
 
-/* 
+
+/*
 *   Description:
 *   1. if u wanna set dma callback hanlder(sleep during dma transfer) to free cpu for other tasks,
 *      one must call the interface before nand flash initialization.
-      this option is also protected by dma poll method,wakup(succeed or timeout) then check 
+      this option is also protected by dma poll method,wakup(succeed or timeout) then check
       dma transfer complete or still running.
 *   2. if u use dma poll method,no need to call the interface.
 *

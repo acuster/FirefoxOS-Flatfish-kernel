@@ -110,7 +110,6 @@ __s32 hdmi_main_task_loop(void)
     		 {
     		 	hdmi_state = 	HDMI_State_EDID_Parse;
     		 	__inf("plugin\n");
-                Hdmi_hpd_event();
     		 }else
     		 {
     		 	return 0;
@@ -133,6 +132,7 @@ __s32 hdmi_main_task_loop(void)
     		 HDMI_RUINT32(0x5f0);
 
     		 hdmi_state = HDMI_State_Wait_Video_config;
+             Hdmi_hpd_event();
 
     	case HDMI_State_Wait_Video_config:
     	    if(video_enable)

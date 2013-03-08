@@ -37,7 +37,7 @@
 #include <mach/clock.h>
 
 #define SPI_INF(...)    printk(__VA_ARGS__)
-#define SPI_ERR(...)    do {printk("%s(Line%d) ", __FILE__, __LINE__); printk(__VA_ARGS__);} while(0)
+#define SPI_ERR(...)    do {printk(KERN_ERR "%s(Line%d) ", __FILE__, __LINE__); printk(__VA_ARGS__);} while(0)
 
 #if 0
     #define SPI_DBG(...)    printk(__VA_ARGS__)
@@ -1254,28 +1254,28 @@ static int sun6i_spi_set_mclk(struct sun6i_spi *sspi, u32 mod_clk)
 
     if (!source_clock || IS_ERR(source_clock)) {
 		ret = PTR_ERR(source_clock);
-		SPI_ERR("Unable to get spi source clock resource\n");
+		SPI_ERR("[spi-%d] Unable to get spi source clock resource\n", sspi->master->bus_num);
 		return -1;
 	}
 
     if (clk_set_parent(sspi->mclk, source_clock)) {
-        SPI_ERR("spi clk_set_parent failed\n");
+        SPI_ERR("[spi-%d] spi clk_set_parent failed\n", sspi->master->bus_num);
         ret = -1;
         goto out;
     }
 
 	rate = clk_round_rate(sspi->mclk, mod_clk);
     if (clk_set_rate(sspi->mclk, rate)) {
-        SPI_ERR("spi clk_set_rate failed\n");
+        SPI_ERR("[spi-%d] spi clk_set_rate failed\n", sspi->master->bus_num);
         ret = -1;
         goto out;
     }
 
-    SPI_INF("[spi-%d]: source = %s, src_clk = %u, mclk %u\n", sspi->master->bus_num,
+    SPI_INF("[spi-%d] source = %s, src_clk = %u, mclk %u\n", sspi->master->bus_num,
             name, (unsigned)clk_get_rate(source_clock), (unsigned)clk_get_rate(sspi->mclk));
 
 	if (clk_enable(sspi->mclk)) {
-		SPI_ERR("[spi-%d]: Couldn't enable module clock 'spi'\n", sspi->master->bus_num);
+		SPI_ERR("[spi-%d] Couldn't enable module clock 'spi'\n", sspi->master->bus_num);
 		ret = -EBUSY;
 		goto out;
 	}
@@ -1296,17 +1296,22 @@ static int sun6i_spi_hw_init(struct sun6i_spi *sspi)
 
     sspi->mclk = clk_get(&sspi->pdev->dev, mclk_name[sspi->pdev->id]);
 	if (!sspi->mclk || IS_ERR(sspi->mclk)) {
-		SPI_ERR("Unable to acquire module clock 'spi'\n");
+		SPI_ERR("[spi-%d] Unable to acquire module clock 'spi'\n", sspi->master->bus_num);
 		return -1;
 	}
 
     if (sun6i_spi_set_mclk(sspi, 100000000))
     {
-        SPI_ERR("sun6i_spi_set_mclk 'spi'\n");
+        SPI_ERR("[spi-%d] sun6i_spi_set_mclk 'spi'\n", sspi->master->bus_num);
         clk_put(sspi->mclk);
 		sspi->mclk = NULL;
         return -1;
     }
+
+	if (clk_reset(sspi->mclk, AW_CCU_CLK_NRESET)) {
+		SPI_ERR("[spi-%d] NRESET module clock failed!\n", sspi->master->bus_num);
+		return -1;
+	}
 
 	/* 1. enable the spi module */
 	spi_enable_bus(base_addr);
@@ -1343,15 +1348,21 @@ static int sun6i_spi_hw_exit(struct sun6i_spi *sspi)
 
 	/* disable module clock */
 	if(!sspi->mclk || IS_ERR(sspi->mclk)) {
-		printk("sspi mclk handle is invalid, just return!\n");
+		printk("[spi-%d] spi mclk handle is invalid, just return!\n", sspi->master->bus_num);
+		return -1;
 	} else {
+		if (clk_reset( sspi->mclk, AW_CCU_CLK_RESET)) {
+			printk("[spi-%d] RESET module clock failed!\n", sspi->master->bus_num);
+			return -1;
+		}
 		clk_disable(sspi->mclk);
 		clk_put(sspi->mclk);
 		sspi->mclk = NULL;
 	}
 
 	if(!sspi->hclk || IS_ERR(sspi->hclk)) {
-		printk("sspi hclk handle is invalid, just return!\n");
+		printk("[spi-%d] spi hclk handle is invalid, just return!\n", sspi->master->bus_num);
+		return -1;
 	} else {
 		clk_disable(sspi->hclk);
 		clk_put(sspi->hclk);

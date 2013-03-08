@@ -1102,8 +1102,10 @@ __s32 DRV_disp_int_process(__u32 sel)
 
 static void post2_cb(struct work_struct *work)
 {
-    int r_count = g_fbi.cb_r_conut;
+    int r_count = 0;
 
+    mutex_lock(&g_fbi.runtime_lock);
+    r_count = g_fbi.cb_r_conut;
     while(r_count != g_fbi.cb_w_conut)
     {
         if(r_count >= 9)
@@ -1126,6 +1128,7 @@ static void post2_cb(struct work_struct *work)
             g_fbi.cb_r_conut = r_count;
         }
     }
+    mutex_unlock(&g_fbi.runtime_lock);
 }
 
 int disp_set_ovl_mode(__u32 sel, __u32 mode)
@@ -1211,6 +1214,7 @@ int dispc_gralloc_queue(setup_dispc_data_t *psDispcData, int ui32DispcDataLength
 		BSP_disp_layer_close(0, 100);
 	}
 
+    mutex_lock(&g_fbi.runtime_lock);
     if(g_fbi.b_no_output)
     {
         cb_fn(cb_arg, 1);
@@ -1231,6 +1235,7 @@ int dispc_gralloc_queue(setup_dispc_data_t *psDispcData, int ui32DispcDataLength
 
     	//printk(KERN_WARNING "##w_conut:%d %x %d %d %d\n", g_fbi.cb_w_conut, (unsigned int)cb_arg, psDispcData->use_sgx, psDispcData->post2_layers, psDispcData->fb_yoffset);
 	}
+	mutex_unlock(&g_fbi.runtime_lock);
 
     return 0;
 }
@@ -1593,6 +1598,7 @@ __s32 Fb_Init(__u32 from)
     INIT_WORK(&g_fbi.post2_cb_work, post2_cb);
     INIT_WORK(&g_fbi.lcd_open_work[0], lcd_open_work_0);
     INIT_WORK(&g_fbi.lcd_open_work[1], lcd_open_work_1);
+    mutex_init(&g_fbi.runtime_lock);
     
     if(from == 0)//call from lcd driver
     {

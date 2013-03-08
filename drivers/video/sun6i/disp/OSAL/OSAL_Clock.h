@@ -83,6 +83,8 @@ typedef enum
     DRAM_CLK_DEBE1,
 }__disp_clk_id_t;
 
+#define SYS_CLK_DE_PLL SYS_CLK_PLL10
+
 typedef struct
 {
     __disp_clk_id_t       id;     /* clock id         */

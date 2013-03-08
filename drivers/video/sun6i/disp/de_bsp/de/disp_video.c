@@ -10,6 +10,13 @@ frame_para_t g_video[2][4];
 static __u32 maf_flag_mem_len = 2048*2/8*544*2;
 static void *maf_flag_mem[2][2];//2048*2/8 *544   * 2
 static dit_mode_t dit_mode_default[2];
+
+#define VIDEO_TIME_LEN 100
+static unsigned long video_time_index[2][4] = {{0,0}};
+static unsigned long video_time[2][4][VIDEO_TIME_LEN];//jiffies
+
+__s32 disp_video_checkin(__u32 sel, __u32 id);
+
 #if 1
 static __s32 video_enhancement_start(__u32 sel, __u32 id)
 {
@@ -55,6 +62,7 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
         g_video[sel][id].cur_maf_flag_addr ^=  g_video[sel][id].pre_maf_flag_addr;
         g_video[sel][id].pre_maf_flag_addr ^=  g_video[sel][id].cur_maf_flag_addr;
         g_video[sel][id].cur_maf_flag_addr ^=  g_video[sel][id].pre_maf_flag_addr;
+        disp_video_checkin(sel, id);
     }
 
     if(gdisp.screen[sel].layer_manage[id].para.mode == DISP_LAYER_WORK_MODE_SCALER)
@@ -397,10 +405,14 @@ __s32 BSP_disp_video_stop(__u32 sel, __u32 hid)
 
 __s32 BSP_disp_video_get_start(__u32 sel, __u32 hid)
 {
+    __layer_man_t *layer_man;
+
     hid = HANDTOID(hid);
     HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
 
-    return g_video[sel][hid].enable;
+    layer_man = &gdisp.screen[sel].layer_manage[hid];
+
+    return ((layer_man->status & LAYER_USED) && (g_video[sel][hid].enable));
 }
 
 __s32 disp_video_init()
@@ -441,4 +453,54 @@ __s32 disp_video_get_dit_mode(__u32 scaler_index)
      return dit_mode_default[scaler_index];
 }
 
+__s32 BSP_disp_video_get_fb(__u32 sel, __u32 hid, __disp_video_fb_t *in_addr)
+{
+    hid = HANDTOID(hid);
+    HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
+
+    if(g_video[sel][hid].enable)
+    {
+    	memcpy(in_addr, &g_video[sel][hid].video_new, sizeof(__disp_video_fb_t));
+
+    	return DIS_SUCCESS;
+    }
+    else
+    {
+        return DIS_FAIL;
+    }
+}
+
+//return 10fps
+__s32 bsp_disp_video_get_fps(__u32 sel, __u32 hid)
+{
+    __u32 pre_time_index, cur_time_index;
+    __u32 pre_time, cur_time;
+    __u32 fps = 0xff;
+
+    hid = HANDTOID(hid);
+    HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
+
+    pre_time_index = video_time_index[sel][hid];
+    cur_time_index = (pre_time_index == 0)? (VIDEO_TIME_LEN -1):(pre_time_index-1);
+
+    pre_time = video_time[sel][hid][pre_time_index];
+    cur_time = video_time[sel][hid][cur_time_index];
+
+    if(pre_time != cur_time)
+    {
+        fps = 1000 * 100 / (cur_time - pre_time);
+    }
+    
+    return fps;
+}
+
+__s32 disp_video_checkin(__u32 sel, __u32 id)
+{
+    video_time[sel][id][video_time_index[sel][id]] = jiffies;
+    video_time_index[sel][id] ++;
+
+    video_time_index[sel][id] = (video_time_index[sel][id] >= VIDEO_TIME_LEN)? 0:video_time_index[sel][id];
+
+    return 0;
+}
 

@@ -552,9 +552,13 @@ static struct attribute_group dbs_attr_group = {
  */
 static void cpu_up_work(struct work_struct *work)
 {
-    int cpu, nr_up;
-    int online = num_online_cpus();
-    int hotplug_lock = atomic_read(&g_hotplug_lock);
+    int cpu, nr_up, online, hotplug_lock;
+    struct cpu_dbs_info_s *dbs_info;
+
+    dbs_info = &per_cpu(od_cpu_dbs_info, 0);
+    mutex_lock(&dbs_info->timer_mutex);
+    online = num_online_cpus();
+    hotplug_lock = atomic_read(&g_hotplug_lock);
 
     if (hotplug_lock) {
         nr_up = (hotplug_lock - online) > 0? (hotplug_lock-online) : 0;
@@ -572,6 +576,7 @@ static void cpu_up_work(struct work_struct *work)
         FANTASY_WRN("cpu up:%d\n", cpu);
         cpu_up(cpu);
     }
+    mutex_unlock(&dbs_info->timer_mutex);
 }
 
 /*
@@ -579,10 +584,13 @@ static void cpu_up_work(struct work_struct *work)
  */
 static void cpu_down_work(struct work_struct *work)
 {
-    int cpu;
-    int online = num_online_cpus();
-    int nr_down;
-    int hotplug_lock = atomic_read(&g_hotplug_lock);
+    int cpu, nr_down, online, hotplug_lock;
+    struct cpu_dbs_info_s *dbs_info;
+
+    dbs_info = &per_cpu(od_cpu_dbs_info, 0);
+    mutex_lock(&dbs_info->timer_mutex);
+    online = num_online_cpus();
+    hotplug_lock = atomic_read(&g_hotplug_lock);
 
     if (hotplug_lock) {
         nr_down = (online - hotplug_lock) > 0? (online-hotplug_lock) : 0;
@@ -600,6 +608,7 @@ static void cpu_down_work(struct work_struct *work)
         FANTASY_DBG("cpu down:%d\n", cpu);
         cpu_down(cpu);
     }
+    mutex_unlock(&dbs_info->timer_mutex);
 }
 
 
@@ -1357,6 +1366,9 @@ MODULE_AUTHOR("kevin.z.m <kevin@allwinnertech.com>");
 MODULE_DESCRIPTION("'cpufreq_fantasys' - A dynamic cpufreq/cpuhotplug governor");
 MODULE_LICENSE("GPL");
 
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_FANTASYS
+fs_initcall(cpufreq_gov_dbs_init);
+#else
 module_init(cpufreq_gov_dbs_init);
+#endif
 module_exit(cpufreq_gov_dbs_exit);
-

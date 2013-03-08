@@ -167,7 +167,7 @@ extern __s32 BSP_disp_enhance_enable(__u32 sel, __bool enable);
 extern __s32 BSP_disp_get_enhance_enable(__u32 sel);
 extern __s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t * para);
 extern __s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t * size);
-extern __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type);
+extern __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type, __u32 drc_csc);
 extern __s32 BSP_disp_de_flicker_enable(__u32 sel, __bool b_en);
 extern __s32 BSP_disp_store_image_reg(__u32 sel, __u32 addr);
 extern __s32 BSP_disp_restore_image_reg(__u32 sel, __u32 addr);
@@ -236,11 +236,13 @@ extern __s32 BSP_disp_hwc_set_framebuffer(__u32 sel, __disp_hwc_pattern_t *patme
 extern __s32 BSP_disp_hwc_set_palette(__u32 sel, void *palette,__u32 offset, __u32 palette_size);
 
 extern __s32 BSP_disp_video_set_fb(__u32 sel, __u32 hid, __disp_video_fb_t *in_addr);
+extern __s32 BSP_disp_video_get_fb(__u32 sel, __u32 hid, __disp_video_fb_t *in_addr);
 extern __s32 BSP_disp_video_get_frame_id(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_video_get_dit_info(__u32 sel, __u32 hid, __disp_dit_info_t * dit_info);
 extern __s32 BSP_disp_video_start(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_video_stop(__u32 sel, __u32 hid);
 extern __s32 BSP_disp_video_get_start(__u32 sel, __u32 hid);
+extern __s32 bsp_disp_video_get_fps(__u32 sel, __u32 hid);
 
 extern __s32 BSP_disp_lcd_open_before(__u32 sel);
 extern __s32 BSP_disp_lcd_open_after(__u32 sel);
@@ -261,6 +263,7 @@ extern __s32 pwm_get_para(__u32 channel, __pwm_info_t * pwm_info);
 extern __s32 BSP_disp_get_timming(__u32 sel, __disp_tcon_timing_t * tt);
 extern __u32 BSP_disp_get_cur_line(__u32 sel);
 extern __s32 BSP_disp_close_lcd_backlight(__u32 sel);
+extern __s32 BSP_disp_open_lcd_backlight(__u32 sel);
 extern __s32 BSP_disp_lcd_set_bright_dimming(__u32 sel, __u32 bright_dimming);  //for drc 
 extern __s32 BSP_disp_lcd_used(__u32 sel);
 extern __s32 BSP_disp_restore_lcdc_reg(__u32 sel);

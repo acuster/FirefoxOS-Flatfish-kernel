@@ -48,6 +48,7 @@
 */
 int OSAL_RegISR(__u32 IrqNo, __u32 Flags,ISRCallback Handler,void *pArg,__u32 DataSize,__u32 Prio)
 {
+    __inf("OSAL_RegISR, irqNo=%d, Handler=0x%x, pArg=0x%x\n", IrqNo, (int)Handler, (int)pArg);
     return request_irq(IrqNo, (irq_handler_t)Handler, IRQF_DISABLED, "dispaly", pArg);
 }				
 
