@@ -76,8 +76,16 @@ void enable_aw_cpu(int cpu)
     writel(pwr_reg, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_DBGCTL1);
 
     /* step2: release power clamp */
+    //write bit3, bit4 to 0
+    writel(0xe7, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
+    while((0xe7) != readl(IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUX_PWR_CLAMP_STATUS(cpu)))
+	    ;
+    //write 012567 bit to 0
     writel(0x00, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
-    mdelay(10);
+    while((0x00) != readl(IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUX_PWR_CLAMP_STATUS(cpu)))
+	    ;
+    mdelay(2);
+
 
     /* step3: clear power-off gating */
     pwr_reg = readl(IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPU_PWROFF_REG);

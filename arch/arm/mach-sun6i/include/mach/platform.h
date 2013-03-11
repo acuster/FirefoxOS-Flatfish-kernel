@@ -306,6 +306,7 @@
 #define AW_CPU_PWROFF_REG			0x100
 /* cpu0 has no clmap register! */
 #define AW_CPUX_PWR_CLAMP(x)		(0x140 + (x)*0x04)
+#define AW_CPUX_PWR_CLAMP_STATUS(x)	(0x64 + (x)*0x40)
 
 /*
  * UART

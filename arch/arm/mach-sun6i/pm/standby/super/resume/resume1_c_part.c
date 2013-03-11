@@ -133,7 +133,7 @@ void set_pll( void )
 	//switch to 24M
 	*(volatile __u32 *)(&CmuReg->SysClkDiv) = 0x00010000;
 	//enable pll1 and setting PLL1 to 408M
-	*(volatile __u32 *)(&CmuReg->Pll1Ctl) = (0x00001000) | (0x80000000); //N = 16, K=M=1 -> pll1 = 17*24 = 408M
+	*(volatile __u32 *)(&CmuReg->Pll1Ctl) = (0x00001011) | (0x80000000); //N = 16, K=M=2 -> pll1 = 17*24 = 408M
 	//setting pll6 to 600M
 	//enable pll6
 	*(volatile __u32 *)(&CmuReg->Pll6Ctl) = 0x80041811;

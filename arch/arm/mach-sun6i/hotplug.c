@@ -36,22 +36,38 @@ int platform_cpu_kill(unsigned int cpu)
     for (k = 0; k < 1000; k++) {
         if (cpumask_test_cpu(cpu, &dead_cpus) && IS_WFI_MODE(cpu)) {
 
-            /* step8: deassert DBGPWRDUP signal */
-            pwr_reg = readl(IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_DBGCTL1);
-            pwr_reg &= ~(1<<cpu);
-            writel(pwr_reg, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_DBGCTL1);
+		/* step8: deassert DBGPWRDUP signal */
+		pwr_reg = readl(IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_DBGCTL1);
+		pwr_reg &= ~(1<<cpu);
+		writel(pwr_reg, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_DBGCTL1);
 
-            /* step9: set up power-off signal */
-            pwr_reg = readl(IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPU_PWROFF_REG);
-            pwr_reg |= (1<<cpu);
-            writel(pwr_reg, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPU_PWROFF_REG);
-            mdelay(1);
+		/* step9: set up power-off signal */
+		pwr_reg = readl(IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPU_PWROFF_REG);
+		pwr_reg |= (1<<cpu);
+		writel(pwr_reg, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPU_PWROFF_REG);
+		mdelay(1);
 
-            /* step10: active the power output clamp */
-            writel(0xff, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
-            pr_info("[hotplug]: cpu%d is killed!\n", cpu);
+		/* step10: active the power output clamp */
+		writel(0x01, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
+		mdelay(2);
+		writel(0x03, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
+		mdelay(2);
+		writel(0x07, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
+		mdelay(2);
+		writel(0x0f, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
+		mdelay(2);
+		writel(0x1f, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
+		mdelay(2);
+		writel(0x3f, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
+		mdelay(2);
+		writel(0x7f, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
+		mdelay(2);
+		writel(0xff, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
+		mdelay(2);
 
-            return 1;
+		pr_info("[hotplug]: cpu%d is killed! not power off pwr clamp.\n", cpu);
+
+		return 1;
         }
 
         mdelay(1);
