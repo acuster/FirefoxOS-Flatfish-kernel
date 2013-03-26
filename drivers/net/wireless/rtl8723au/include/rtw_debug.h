@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -25,15 +25,16 @@
 #include <drv_types.h>
 
 
-#define _drv_emerg_			1
-#define _drv_alert_			2
-#define _drv_crit_			3
-#define _drv_err_			4
-#define	_drv_warning_		5
-#define _drv_notice_			6
-#define _drv_info_			7
-#define _drv_dump_			8
-#define	_drv_debug_		9
+#define _drv_always_		1
+#define _drv_emerg_			2
+#define _drv_alert_			3
+#define _drv_crit_			4
+#define _drv_err_			5
+#define	_drv_warning_		6
+#define _drv_notice_		7
+#define _drv_info_			8
+#define _drv_dump_			9
+#define	_drv_debug_			10
 
 
 #define _module_rtl871x_xmit_c_		BIT(0)
@@ -102,9 +103,9 @@
 	#define	_MODULE_DEFINE_	_module_rtl871x_security_c_
 #elif defined _RTW_EEPROM_C_
 	#define	_MODULE_DEFINE_	_module_rtl871x_eeprom_c_
-#elif defined _HAL_INIT_C_
+#elif defined _HAL_INTF_C_
 	#define	_MODULE_DEFINE_	_module_hal_init_c_
-#elif defined _HCI_HAL_INIT_C_
+#elif (defined _HCI_HAL_INIT_C_) || (defined _SDIO_HALINIT_C_)
 	#define	_MODULE_DEFINE_	_module_hci_hal_init_c_
 #elif defined _RTL871X_IOCTL_C_
 	#define	_MODULE_DEFINE_	_module_rtl871x_ioctl_c_
@@ -159,39 +160,72 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 #define _func_exit_ do{}while(0)
 #define RT_PRINT_DATA(_Comp, _Level, _TitleString, _HexData, _HexDataLen) do{}while(0)
 
+#ifdef PLATFORM_WINDOWS
+	#define DBG_871X do {} while(0)
+	#define MSG_8192C do {} while(0)
+	#define DBG_8192C do {} while(0)
+	#define DBG_871X_LEVEL do {} while(0)
+#else
+	#define DBG_871X(x, ...) do {} while(0)
+	#define MSG_8192C(x, ...) do {} while(0)
+	#define DBG_8192C(x,...) do {} while(0)
+	#define DBG_871X_LEVEL(x,...) do {} while(0)
+#endif
+
 #undef	_dbgdump
+#ifdef PLATFORM_WINDOWS
+
+	#ifdef PLATFORM_OS_XP
+		#define _dbgdump	DbgPrint
+	#elif defined PLATFORM_OS_CE
+		#define _dbgdump	rtl871x_cedbg
+	#endif
+
+#elif defined PLATFORM_LINUX
+	#define _dbgdump	printk
+#elif defined PLATFORM_FREEBSD
+	#define _dbgdump	printf
+#endif
+
+#define DRIVER_PREFIX	"RTL871X: "
+#define DEBUG_LEVEL	(_drv_err_)
+#if 	defined (_dbgdump)
+	#undef DBG_871X_LEVEL
+	#define DBG_871X_LEVEL(level, fmt, arg...)     \
+	do {\
+		if (level <= DEBUG_LEVEL) {\
+			if (level <= _drv_err_ && level > _drv_always_) \
+				_dbgdump(DRIVER_PREFIX"ERROR " fmt, ##arg);\
+			else \
+				_dbgdump(DRIVER_PREFIX fmt, ##arg);\
+		}\
+	}while(0)
+#endif
+
+#ifdef CONFIG_DEBUG
+#if	defined (_dbgdump)
+	#undef DBG_871X
+	#define DBG_871X(...)     do {\
+		_dbgdump(DRIVER_PREFIX __VA_ARGS__);\
+	}while(0)
+
+	#undef MSG_8192C
+	#define MSG_8192C(...)     do {\
+		_dbgdump(DRIVER_PREFIX __VA_ARGS__);\
+	}while(0)
+
+	#undef DBG_8192C
+	#define DBG_8192C(...)     do {\
+		_dbgdump(DRIVER_PREFIX __VA_ARGS__);\
+	}while(0)
+#endif
+#endif /* CONFIG_DEBUG */
 
 #ifdef CONFIG_DEBUG_RTL871X
-
 #ifndef _RTL871X_DEBUG_C_
 	extern u32 GlobalDebugLevel;
 	extern u64 GlobalDebugComponents;
 #endif
-
-#ifdef PLATFORM_WINDOWS
-
-	#ifdef PLATFORM_OS_XP
-
-	#define _dbgdump	DbgPrint
-
-	#elif defined PLATFORM_OS_CE
-
-	#define _dbgdump	rtl871x_cedbg
-
-	#endif
-
-#elif defined PLATFORM_LINUX
-
-	#define _dbgdump	printk
-
-#elif defined PLATFORM_FREEBSD
-
-	#define _dbgdump	printf
-
-#endif
-
-#endif /* CONFIG_DEBUG_RTL871X */
-
 
 #if	defined (_dbgdump) && defined (_MODULE_DEFINE_)
 
@@ -199,7 +233,7 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 		#define RT_TRACE(_Comp, _Level, Fmt)\
 		do {\
 			if((_Comp & GlobalDebugComponents) && (_Level <= GlobalDebugLevel)) {\
-				_dbgdump("%s [0x%08x,%d]", RTL871X_MODULE_NAME, (unsigned int)_Comp, _Level);\
+				_dbgdump("%s [0x%08x,%d]", DRIVER_PREFIX, (unsigned int)_Comp, _Level);\
 				_dbgdump Fmt;\
 			}\
 		}while(0)
@@ -214,7 +248,7 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 		do {	\
 			if (GlobalDebugLevel >= _drv_debug_) \
 			{																	\
-				_dbgdump("\n %s : %s enters at %d\n", RTL871X_MODULE_NAME, __FUNCTION__, __LINE__);\
+				_dbgdump("\n %s : %s enters at %d\n", DRIVER_PREFIX, __FUNCTION__, __LINE__);\
 			}		\
 		} while(0)
 
@@ -223,7 +257,7 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 		do {	\
 			if (GlobalDebugLevel >= _drv_debug_) \
 			{																	\
-				_dbgdump("\n %s : %s exits at %d\n", RTL871X_MODULE_NAME, __FUNCTION__, __LINE__); \
+				_dbgdump("\n %s : %s exits at %d\n", DRIVER_PREFIX, __FUNCTION__, __LINE__); \
 			}	\
 		} while(0)
 
@@ -233,7 +267,7 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 			{									\
 				int __i;								\
 				u8	*ptr = (u8 *)_HexData;				\
-				_dbgdump("Rtl871x: ");						\
+				_dbgdump("%s", DRIVER_PREFIX);						\
 				_dbgdump(_TitleString);						\
 				for( __i=0; __i<(int)_HexDataLen; __i++ )				\
 				{								\
@@ -243,78 +277,7 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 				_dbgdump("\n");							\
 			}
 #endif
-
-
-#ifdef CONFIG_DEBUG_RTL819X
-
-#undef	_dbgdump
-
-#ifdef PLATFORM_WINDOWS
-
-	#ifdef PLATFORM_OS_XP
-
-	#define _dbgdump	DbgPrint
-
-	#elif defined PLATFORM_OS_CE
-
-	#define _dbgdump	rtl871x_cedbg
-
-	#endif
-
-#elif defined PLATFORM_LINUX
-
-	#define _dbgdump	printk
-
-#elif defined PLATFORM_FREEBSD
-
-	#define _dbgdump	printf
-
-#endif
-
-#endif /* CONFIG_DEBUG_RTL819X */
-
-
-#ifdef PLATFORM_WINDOWS
-	#define DBG_871X do {} while(0)
-	#define MSG_8192C do {} while(0)
-	#define DBG_8192C do {} while(0)
-	#define WRN_8192C do {} while(0)
-	#define ERR_8192C do {} while(0)
-#endif
-
-#ifdef PLATFORM_LINUX
-	#define DBG_871X(x, ...) do {} while(0)
-	#define MSG_8192C(x, ...) do {} while(0)
-	#define DBG_8192C(x,...) do {} while(0)
-	#define WRN_8192C(x,...) do {} while(0)
-	#define ERR_8192C(x,...) do {} while(0)
-#endif
-
-#ifdef PLATFORM_FREEBSD
-	#define _dbgdump	printf
-	#define DBG_871X(x, ...) do {} while(0)
-	#define MSG_8192C(x, ...) do {} while(0)
-	#define DBG_8192C(x,...) do {} while(0)
-	#define WRN_8192C(x,...) do {} while(0)
-	#define ERR_8192C(x,...) do {} while(0)
-#endif
-
-#if	defined (_dbgdump)
-	#undef DBG_871X
-	#define DBG_871X _dbgdump
-
-	#undef MSG_8192C
-	#define MSG_8192C _dbgdump
-
-	#undef DBG_8192C
-	#define DBG_8192C _dbgdump
-
-	#undef WRN_8192C
-	#define WRN_8192C _dbgdump
-
-	#undef ERR_8192C
-	#define ERR_8192C _dbgdump
-#endif
+#endif /* CONFIG_DEBUG_RTL871X */
 
 
 #ifdef CONFIG_PROC_DEBUG
@@ -385,7 +348,7 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 	int proc_get_mac_reg_dump3(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data);
-	
+
 	int proc_get_bb_reg_dump1(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data);
@@ -393,11 +356,11 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 	int proc_get_bb_reg_dump2(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data);
-	
+
 	int proc_get_bb_reg_dump3(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data);
-	
+
 	int proc_get_rf_reg_dump1(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data);
@@ -440,7 +403,40 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 
 	int proc_set_rx_signal(struct file *file, const char *buffer,
 		unsigned long count, void *data);
+#ifdef CONFIG_80211N_HT
 
+	int proc_get_ht_enable(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+			  
+	int proc_set_ht_enable(struct file *file, const char *buffer,
+		unsigned long count, void *data);
+
+	int proc_get_cbw40_enable(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_set_cbw40_enable(struct file *file, const char *buffer,
+		unsigned long count, void *data);
+	
+	int proc_get_ampdu_enable(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+			  
+	int proc_set_ampdu_enable(struct file *file, const char *buffer,
+		unsigned long count, void *data);
+	
+	int proc_get_rx_stbc(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+		
+	int proc_set_rx_stbc(struct file *file, const char *buffer,
+		unsigned long count, void *data);
+#endif //CONFIG_80211N_HT
+
+	int proc_get_two_path_rssi(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
 
 	int proc_get_rssi_disp(char *page, char **start,
 			  off_t offset, int count,
@@ -448,8 +444,16 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 
 	int proc_set_rssi_disp(struct file *file, const char *buffer,
 		unsigned long count, void *data);
-	
 
+#ifdef CONFIG_BT_COEXIST
+	int proc_get_btcoex_dbg(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_set_btcoex_dbg(struct file *file, const char *buffer,
+		unsigned long count, void *data);
+
+#endif //CONFIG_BT_COEXIST
 #endif //CONFIG_PROC_DEBUG
 
 #endif	//__RTW_DEBUG_H__

@@ -37,6 +37,7 @@ unsigned char MARVELL_OUI[] = {0x00, 0x50, 0x43};
 unsigned char RALINK_OUI[] = {0x00, 0x0c, 0x43};
 unsigned char REALTEK_OUI[] = {0x00, 0xe0, 0x4c};
 unsigned char AIRGOCAP_OUI[] = {0x00, 0x0a, 0xf5};
+unsigned char EPIGRAM_OUI[] = {0x00, 0x90, 0x4c};
 
 unsigned char REALTEK_96B_IE[] = {0x00, 0xe0, 0x4c, 0x02, 0x01, 0x20};
 
@@ -446,63 +447,78 @@ void Set_MSR(_adapter *padapter, u8 type)
 	}
 }
 
+inline u8 rtw_get_oper_ch(_adapter *adapter)
+{
+	return adapter_to_dvobj(adapter)->oper_channel;
+}
+
+inline void rtw_set_oper_ch(_adapter *adapter, u8 ch)
+{
+	adapter_to_dvobj(adapter)->oper_channel = ch;
+}
+
+inline u8 rtw_get_oper_bw(_adapter *adapter)
+{
+	return adapter_to_dvobj(adapter)->oper_bwmode;
+}
+
+inline void rtw_set_oper_bw(_adapter *adapter, u8 bw)
+{
+	adapter_to_dvobj(adapter)->oper_bwmode = bw;
+}
+
+inline u8 rtw_get_oper_choffset(_adapter *adapter)
+{
+	return adapter_to_dvobj(adapter)->oper_ch_offset;
+}
+
+inline void rtw_set_oper_choffset(_adapter *adapter, u8 offset)
+{
+	adapter_to_dvobj(adapter)->oper_ch_offset = offset;
+}
+
 void SelectChannel(_adapter *padapter, unsigned char channel)
 {
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;	
+
 #ifdef CONFIG_DUALMAC_CONCURRENT
+	//saved channel info
+	rtw_set_oper_ch(padapter, channel);
 	dc_SelectChannel(padapter, channel);
 #else //CONFIG_DUALMAC_CONCURRENT
 
-	unsigned int scanMode;
-	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	_enter_critical_mutex(&(adapter_to_dvobj(padapter)->setch_mutex), NULL);
 	
-#ifdef CONFIG_CONCURRENT_MODE
-	_enter_critical_mutex(padapter->psetch_mutex, NULL);
-#endif
-	
-	scanMode = (pmlmeext->sitesurvey_res.scan_mode == SCAN_ACTIVE)? 1: 0;//todo:
+	//saved channel info
+	rtw_set_oper_ch(padapter, channel);
 
-	{
-#ifdef CONFIG_CONCURRENT_MODE
-		if(padapter->pcodatapriv)
-		{
-			padapter->pcodatapriv->co_ch = channel;
-		}
-#endif //CONFIG_CONCURRENT_MODE	
-		rtw_hal_set_chan(padapter, channel);
-	}	
+	rtw_hal_set_chan(padapter, channel);
 	
-
-#ifdef CONFIG_CONCURRENT_MODE
-	_exit_critical_mutex(padapter->psetch_mutex, NULL);
-#endif
+	_exit_critical_mutex(&(adapter_to_dvobj(padapter)->setch_mutex), NULL);
 		
 #endif // CONFIG_DUALMAC_CONCURRENT
 }
 
 void SetBWMode(_adapter *padapter, unsigned short bwmode, unsigned char channel_offset)
 {
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+
 #ifdef CONFIG_DUALMAC_CONCURRENT
+	//saved bw info
+	rtw_set_oper_bw(padapter, bwmode);
+	rtw_set_oper_choffset(padapter, channel_offset);
 	dc_SetBWMode(padapter, bwmode, channel_offset);
 #else //CONFIG_DUALMAC_CONCURRENT
 
-#ifdef CONFIG_CONCURRENT_MODE
-	_enter_critical_mutex(padapter->psetbw_mutex, NULL);
-#endif
+	_enter_critical_mutex(&(adapter_to_dvobj(padapter)->setbw_mutex), NULL);
 
-	{	
-#ifdef CONFIG_CONCURRENT_MODE
-		if(padapter->pcodatapriv)
-		{
-			padapter->pcodatapriv->co_bw = bwmode;
-			padapter->pcodatapriv->co_ch_offset = channel_offset;
-		}
-#endif //CONFIG_CONCURRENT_MODE
-		rtw_hal_set_bwmode(padapter, (HT_CHANNEL_WIDTH)bwmode, channel_offset);
-	}	
+	//saved bw info
+	rtw_set_oper_bw(padapter, bwmode);
+	rtw_set_oper_choffset(padapter, channel_offset);
 
-#ifdef CONFIG_CONCURRENT_MODE
-	_exit_critical_mutex(padapter->psetbw_mutex, NULL);
-#endif
+	rtw_hal_set_bwmode(padapter, (HT_CHANNEL_WIDTH)bwmode, channel_offset);
+
+	_exit_critical_mutex(&(adapter_to_dvobj(padapter)->setbw_mutex), NULL);
 
 #endif // CONFIG_DUALMAC_CONCURRENT
 }
@@ -510,8 +526,12 @@ void SetBWMode(_adapter *padapter, unsigned short bwmode, unsigned char channel_
 void set_channel_bwmode(_adapter *padapter, unsigned char channel, unsigned char channel_offset, unsigned short bwmode)
 {
 	u8 center_ch;
-	unsigned int scanMode;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+
+	if ( padapter->bNotifyChannelChange )
+	{
+		DBG_871X( "[%s] ch = %d, offset = %d, bwmode = %d\n", __FUNCTION__, channel, channel_offset, bwmode );
+	}
 
 	if((bwmode == HT_CHANNEL_WIDTH_20)||(channel_offset == HAL_PRIME_CHNL_OFFSET_DONT_CARE))
 	{
@@ -534,31 +554,24 @@ void set_channel_bwmode(_adapter *padapter, unsigned char channel, unsigned char
 	}	
 
 	//set Channel
-#ifdef CONFIG_DUALMAC_Ccenter_chONCURRENT
+#ifdef CONFIG_DUALMAC_CONCURRENT
+	//saved channel/bw info
+	rtw_set_oper_ch(padapter, channel);
+	rtw_set_oper_bw(padapter, bwmode);
+	rtw_set_oper_choffset(padapter, channel_offset);
 	dc_SelectChannel(padapter, center_ch);// set center channel
 #else //CONFIG_DUALMAC_CONCURRENT
 
+	_enter_critical_mutex(&(adapter_to_dvobj(padapter)->setch_mutex), NULL);
 	
-#ifdef CONFIG_CONCURRENT_MODE
-	_enter_critical_mutex(padapter->psetch_mutex, NULL);
-#endif
-	
-	scanMode = (pmlmeext->sitesurvey_res.scan_mode == SCAN_ACTIVE)? 1: 0;//todo:
+	//saved channel/bw info
+	rtw_set_oper_ch(padapter, channel);
+	rtw_set_oper_bw(padapter, bwmode);
+	rtw_set_oper_choffset(padapter, channel_offset);
 
-	{
-#ifdef CONFIG_CONCURRENT_MODE
-		if(padapter->pcodatapriv)
-		{
-			padapter->pcodatapriv->co_ch = channel;//save primary channel
-		}
-#endif //CONFIG_CONCURRENT_MODE	
-		rtw_hal_set_chan(padapter, center_ch); // set center channel
-	}	
-	
+	rtw_hal_set_chan(padapter, center_ch); // set center channel
 
-#ifdef CONFIG_CONCURRENT_MODE
-	_exit_critical_mutex(padapter->psetch_mutex, NULL);
-#endif
+        _exit_critical_mutex(&(adapter_to_dvobj(padapter)->setch_mutex), NULL);
 
 #endif // CONFIG_DUALMAC_CONCURRENT
 
@@ -1104,6 +1117,9 @@ static void bwmode_update_check(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs pI
 		
 		pmlmeext->cur_bwmode = new_bwmode;
 		pmlmeext->cur_ch_offset = new_ch_offset;
+
+		//update HT info also
+		HT_info_handler(padapter, pIE);
 	}
 	else
 	{
@@ -2058,6 +2074,10 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 {
 	unsigned int	i;
 	PNDIS_802_11_VARIABLE_IEs	pIE;
+	u8	epigram_vendor_flag;
+	u8	ralink_vendor_flag;
+	epigram_vendor_flag = 0;
+	ralink_vendor_flag = 0;
 
 	for (i = sizeof(NDIS_802_11_FIXED_IEs); i < len;)
 	{
@@ -2085,8 +2105,12 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 				}
 				else if (_rtw_memcmp(pIE->data, RALINK_OUI, 3))
 				{
-					DBG_871X("link to Ralink AP\n");
-					return HT_IOT_PEER_RALINK;
+					if (!ralink_vendor_flag) {
+						ralink_vendor_flag = 1;
+					} else {
+						DBG_871X("link to Ralink AP\n");
+						return HT_IOT_PEER_RALINK;
+					}
 				}
 				else if (_rtw_memcmp(pIE->data, CISCO_OUI, 3))
 				{
@@ -2103,6 +2127,16 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 					DBG_871X("link to Airgo Cap\n");
 					return HT_IOT_PEER_AIRGO;
 				}
+				else if (_rtw_memcmp(pIE->data, EPIGRAM_OUI, 3))
+				{
+					 epigram_vendor_flag = 1;
+					if(ralink_vendor_flag) {
+						DBG_871X("link to Tenda W311R AP\n");
+						 return HT_IOT_PEER_TENDA;
+					} else {
+						DBG_871X("Capture EPIGRAM_OUI\n");
+					}
+				}
 				else
 				{
 					break;
@@ -2115,8 +2149,16 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 		i += (pIE->Length + 2);
 	}
 	
-	DBG_871X("link to new AP\n");
-	return HT_IOT_PEER_UNKNOWN;
+	if (ralink_vendor_flag && !epigram_vendor_flag) {
+		DBG_871X("link to Ralink AP\n");
+		return HT_IOT_PEER_RALINK;
+	} else if (ralink_vendor_flag && epigram_vendor_flag){
+		DBG_871X("link to Tenda W311R AP\n");
+		return HT_IOT_PEER_TENDA;
+	} else {
+		DBG_871X("link to new AP\n");
+		return HT_IOT_PEER_UNKNOWN;
+	}
 }
 
 void update_IOT_info(_adapter *padapter)

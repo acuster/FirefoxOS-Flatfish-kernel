@@ -124,7 +124,7 @@ static ssize_t sw_module_set_power(struct device *dev,
 
 static struct device_attribute sw_module_attrs[] = {
 	__ATTR(modem_name, 0444, sw_module_show_name, NULL),
-    __ATTR(modem_power, 0644, sw_module_show_power, sw_module_set_power),
+    __ATTR(modem_power, 0777, sw_module_show_power, sw_module_set_power),
 
 	__ATTR_NULL,
 };
@@ -135,6 +135,8 @@ static int __sw_modem_start(void * pArg)
 
 	allow_signal(SIGTERM);
 	complete(&mdev->thread_started);
+
+	g_sw_module_power = 1;
 
     if(mdev->modem->ops->start){
         mdev->modem->ops->start(mdev->modem);

@@ -111,7 +111,7 @@ static enum hrtimer_restart vibrator_timer_func(struct hrtimer *timer)
 }
 
 static struct timed_output_dev sun6i_vibrator = {
-	.name = "sun6i-vibrator",
+	.name = "vibrator",
 	.get_time = vibrator_get_time,
 	.enable = vibrator_enable,
 };

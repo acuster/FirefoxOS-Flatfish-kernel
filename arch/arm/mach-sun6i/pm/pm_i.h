@@ -162,5 +162,8 @@ __s32 mem_sram_restore(struct sram_state *psram_state);
 __s32 mem_ccu_save(__ccmu_reg_list_t *pReg);
 __s32 mem_ccu_restore(__ccmu_reg_list_t *pReg);
 
+void standby_delay(int cycle);
+void standby_delay_cycle(int cycle);
+
 #endif /*_PM_I_H*/
 

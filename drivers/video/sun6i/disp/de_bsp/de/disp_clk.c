@@ -399,8 +399,8 @@ __s32 scaler_clk_init(__u32 sel)
 		h_defe0dramclk = OSAL_CCMU_OpenMclk(DRAM_CLK_DEFE0);
 		h_defe0mclk = OSAL_CCMU_OpenMclk(MOD_CLK_DEFE0);
 	
-		OSAL_CCMU_SetMclkSrc(h_defe0mclk, SYS_CLK_DE_PLL);	//FIX CONNECT TO  PLL10
-		pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_DE_PLL);
+		OSAL_CCMU_SetMclkSrc(h_defe0mclk, SYS_CLK_PLL7);	//FIX CONNECT TO   PLL7
+		pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL7);
         mclk_div = 1;
         while((pll_freq / mclk_div) > 300000000)
         {
@@ -424,8 +424,8 @@ __s32 scaler_clk_init(__u32 sel)
 		h_defe1dramclk = OSAL_CCMU_OpenMclk(DRAM_CLK_DEFE1);
 		h_defe1mclk = OSAL_CCMU_OpenMclk(MOD_CLK_DEFE1);
 
-		OSAL_CCMU_SetMclkSrc(h_defe1mclk, SYS_CLK_DE_PLL);	
-		pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_DE_PLL);
+		OSAL_CCMU_SetMclkSrc(h_defe1mclk, SYS_CLK_PLL7);
+		pll_freq = OSAL_CCMU_GetSrcFreq(SYS_CLK_PLL7);
         mclk_div = 1;
         while((pll_freq / mclk_div) > 300000000)
         {
@@ -941,7 +941,8 @@ static __s32 LCD_PLL_Calc(__u32 sel, __panel_para_t * info, __u32 *divider)
 	__s32 pll_freq = -1;
 	
 	lcd_dclk_freq = info->lcd_dclk_freq * 1000000;
-	if (info->lcd_if == LCD_IF_HV || info->lcd_if == LCD_IF_CPU ||  (info->lcd_if == LCD_IF_EDP))// hv panel , CPU panel and	ttl panel
+	if ((info->lcd_if == LCD_IF_HV) || (info->lcd_if == LCD_IF_CPU) ||  (info->lcd_if == LCD_IF_EDP)
+        ||  (info->lcd_if == LCD_IF_EXT_DSI))// hv panel , CPU panel and    ttl panel
 	{
          *divider = 6;
           pll_freq = lcd_dclk_freq * (*divider);

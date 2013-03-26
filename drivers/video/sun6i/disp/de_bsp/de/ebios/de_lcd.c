@@ -138,6 +138,7 @@ __u32 tcon_get_reg_base(__u32 sel)
 
 __s32 tcon_init(__u32 sel)
 {
+	//tcon0_close(sel);
 	lcd_dev[sel]->tcon0_ctl.bits.tcon0_en = 0;
 	lcd_dev[sel]->tcon1_ctl.bits.tcon1_en = 0;
 	lcd_dev[sel]->tcon0_dclk.bits.tcon0_dclk_en = 0xf;
@@ -230,10 +231,16 @@ __s32 tcon0_src_select(__u32 sel, __lcd_src_t src)
     return 0;
 }
 
+__s32 tcon0_src_get(__u32 sel)
+{
+    return lcd_dev[sel]->tcon0_ctl.bits.src_sel;
+}
+
 __s32 tcon0_open(__u32 sel, __panel_para_t * panel)
 {
 	lcd_dev[sel]->tcon_gint0.bits.tcon_irq_flag = 0;
-	if((panel->lcd_if == LCD_IF_HV) || (panel->lcd_if == LCD_IF_LVDS) || (panel->lcd_if == LCD_IF_EDP))
+	if((panel->lcd_if == LCD_IF_HV) || (panel->lcd_if == LCD_IF_LVDS) || (panel->lcd_if == LCD_IF_EDP)
+        || (panel->lcd_if == LCD_IF_EXT_DSI))
 	{
 		lcd_dev[sel]->tcon0_ctl.bits.tcon0_en = 1;
 		tcon_irq_enable(sel,LCD_IRQ_TCON0_VBLK);
@@ -259,7 +266,7 @@ __s32 tcon0_close(__u32 sel)
     tcon_irq_disable(sel,LCD_IRQ_TCON0_VBLK);
     tcon_irq_disable(sel,LCD_IRQ_TCON0_TRIF);	
     lcd_dev[sel]->tcon0_ctl.bits.tcon0_en = 0;
-    
+    while(lcd_dev[sel]->tcon0_cpu_ctl.bits.trigger_start);
 	return 1;
 }
 
@@ -385,14 +392,7 @@ __s32 tcon0_cfg_mode_tri(__u32 sel, __panel_para_t * panel)
 
 __s32 tcon0_cfg(__u32 sel, __panel_para_t * panel)
 {
-	__u32 vsync_phase,hsync_phase,dclk_phase,de_phase;
-
-    vsync_phase = (panel->lcd_io_phase>>0x0)&0x1;
-    hsync_phase = (panel->lcd_io_phase>>0x4)&0x1;
-    dclk_phase  = (panel->lcd_io_phase>>0x8)&0x1;
-    de_phase    = (panel->lcd_io_phase>>0xc)&0x1;
-
-    if((panel->lcd_if == LCD_IF_HV) || (panel->lcd_if == LCD_IF_EDP))
+    if((panel->lcd_if == LCD_IF_HV) || (panel->lcd_if == LCD_IF_EDP) || (panel->lcd_if == LCD_IF_EXT_DSI))
 	{
 		lcd_dev[sel]->tcon0_ctl.bits.tcon0_if = 0;
 		lcd_dev[sel]->tcon0_hv_ctl.bits.hv_mode = panel->lcd_hv_if;
@@ -442,7 +442,30 @@ __s32 tcon0_cfg(__u32 sel, __panel_para_t * panel)
 	lcd_dev[sel]->tcon0_io_tri.bits.rgb_endian = panel->lcd_rgb_endian;
 	lcd_dev[sel]->tcon_volume_ctl.bits.safe_period_mode = 3;
 	lcd_dev[sel]->tcon_volume_ctl.bits.safe_period_fifo_num = panel->lcd_dclk_freq*15;
-	lcd_dev[sel]->tcon0_io_pol.dwval = ((vsync_phase<<0) | (hsync_phase<<1) | (dclk_phase<<2) | (de_phase<<3))<<24;
+	lcd_dev[sel]->tcon0_io_pol.bits.sync_inv = panel->lcd_hv_sync_polarity;
+	switch(panel->lcd_hv_clk_phase)
+	{
+		case 0:
+			lcd_dev[sel]->tcon0_io_pol.bits.clk_inv = 0;
+			lcd_dev[sel]->tcon0_io_pol.bits.dclk_sel = 0;
+			break;
+		case 1:
+			lcd_dev[sel]->tcon0_io_pol.bits.clk_inv = 0;
+			lcd_dev[sel]->tcon0_io_pol.bits.dclk_sel = 2;
+			break;
+		case 2:
+			lcd_dev[sel]->tcon0_io_pol.bits.clk_inv = 1;
+			lcd_dev[sel]->tcon0_io_pol.bits.dclk_sel = 0;
+			break;
+		case 3:
+			lcd_dev[sel]->tcon0_io_pol.bits.clk_inv = 1;
+			lcd_dev[sel]->tcon0_io_pol.bits.dclk_sel = 2;
+			break;
+		default:
+			lcd_dev[sel]->tcon0_io_pol.bits.clk_inv = 0;
+			lcd_dev[sel]->tcon0_io_pol.bits.dclk_sel = 0;
+			break;
+	}
 
 	if(panel->lcd_fresh_mode == 1)
 	{
@@ -461,6 +484,12 @@ __s32 tcon0_cfg(__u32 sel, __panel_para_t * panel)
 	lcd_dev[sel]->tcon0_io_tri.bits.data_output_tri_en = 0;
 	return 0;
 }
+
+__s32 tcon0_tri_busy(__u32 sel)
+{
+	return lcd_dev[sel]->tcon0_cpu_ctl.bits.trigger_start;
+}
+
 
 __s32 tcon0_tri_start(__u32 sel)
 {
@@ -611,7 +640,7 @@ __s32 tcon1_close(__u32 sel)
 }
 
 __disp_timing_t tv_timing_tbl[30]	= {
-	//	   clk,    x,   y,    ht, hfp, hsa, hbp,   vt, vfp, vsa, vbp, hsp, vsp,  int, act_space, trd
+	//	   clk,        x,       y,       ht,    hfp,   hsa,  hbp, vt,      vfp,  vsa,  vbp,   hsp,  vsp,  int, act_space, trd
 	{ 13500000,  720,  480,  858,  19,  62,  57,  525,   4,   3,  15,   0,   0,   1,  0, 0},	//DISP_TV_MOD_480I
 	{ 13500000,  720,  576,  864,  12,  63,  69,  625,   2,   3,  19,   0,   0,   1,  0, 0},	//DISP_TV_MOD_576I
 	{ 27000000,  720,  480,  858,  16,  62,  60,  525,   9,   6,  30,   0,   0,   0,  0, 0},	//DISP_TV_MOD_480P

@@ -7,18 +7,21 @@ intf_usb()
 	sed -i '/CONFIG_USB_HCI = /c\CONFIG_USB_HCI = y' Makefile
 	sed -i '/CONFIG_PCI_HCI = /c\CONFIG_PCI_HCI = n' Makefile
 	sed -i '/CONFIG_SDIO_HCI = /c\CONFIG_SDIO_HCI = n' Makefile
+	sed -i '/CONFIG_GSPI_HCI = /c\CONFIG_GSPI_HCI = n' Makefile
 }
 intf_pcie()
 {
 	sed -i '/CONFIG_USB_HCI = /c\CONFIG_USB_HCI = n' Makefile
 	sed -i '/CONFIG_PCI_HCI = /c\CONFIG_PCI_HCI = y' Makefile
 	sed -i '/CONFIG_SDIO_HCI = /c\CONFIG_SDIO_HCI = n' Makefile
+	sed -i '/CONFIG_GSPI_HCI = /c\CONFIG_GSPI_HCI = n' Makefile
 }
 intf_sdio()
 {
 	sed -i '/CONFIG_USB_HCI = /c\CONFIG_USB_HCI = n' Makefile
 	sed -i '/CONFIG_PCI_HCI = /c\CONFIG_PCI_HCI = n' Makefile
 	sed -i '/CONFIG_SDIO_HCI = /c\CONFIG_SDIO_HCI = y' Makefile
+	sed -i '/CONFIG_GSPI_HCI = /c\CONFIG_GSPI_HCI = n' Makefile
 }
 
 nic_8192c()
@@ -161,7 +164,7 @@ if [ ! -f include/rtw_version.h ]; then
 	# Make Version string
 	if [ -z "$2" ]; then
 		get_svn_revision
-		version="v4.1.1_"$svn_rev
+		version="v4.1.3_"$svn_rev
 		datestr=$(date +%Y%m%d)
 		postfix=$version.$datestr
 	else

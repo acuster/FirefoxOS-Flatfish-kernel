@@ -27,23 +27,26 @@ CheckCondition(
     const u4Byte  Hex
     )
 {
-    u4Byte board = Hex & 0xFF;
-    u4Byte interface4Byte = Hex & 0xFF00;
-    u4Byte platform = Hex & 0xFF0000;
+    u4Byte _board     = (Hex & 0x000000FF);
+    u4Byte _interface = (Hex & 0x0000FF00) >> 8;
+    u4Byte _platform  = (Hex & 0x00FF0000) >> 16;
     u4Byte cond = Condition;
 
-    cond = Condition & 0xFF;
-    if ( (board & cond) == 0 && cond != 0x1F)
+    if ( Condition == 0xCDCDCDCD )
+        return TRUE;
+
+    cond = Condition & 0x000000FF;
+    if ( (_board == cond) && cond != 0x00)
         return FALSE;
 
-    cond = Condition & 0xFF00;
+    cond = Condition & 0x0000FF00;
     cond = cond >> 8;
-    if ( (interface4Byte & cond) == 0 && cond != 0x07)
+    if ( (_interface & cond) == 0 && cond != 0x07)
         return FALSE;
 
-    cond = Condition & 0xFF0000;
+    cond = Condition & 0x00FF0000;
     cond = cond >> 16;
-    if ( (platform & cond) == 0 && cond != 0x0F)
+    if ( (_platform & cond) == 0 && cond != 0x0F)
         return FALSE;
     return TRUE;
 }
@@ -222,17 +225,21 @@ ODM_ReadAndConfig_AGC_TAB_1T_8723A(
  	IN   PDM_ODM_T  pDM_Odm
  	)
 {
+	#define READ_NEXT_PAIR(v1, v2, i) do { i += 2; v1 = Array[i]; v2 = Array[i+1]; } while(0)
+
 	u4Byte     hex         = 0;
 	u4Byte     i           = 0;
+	u2Byte     count       = 0;
+	pu4Byte    ptr_array   = NULL;
 	u1Byte     platform    = pDM_Odm->SupportPlatform;
-	u1Byte     interface1Byte   = pDM_Odm->SupportInterface;
+	u1Byte     interfaceValue   = pDM_Odm->SupportInterface;
 	u1Byte     board       = pDM_Odm->BoardType;  
 	u4Byte     ArrayLen    = sizeof(Array_AGC_TAB_1T_8723A)/sizeof(u4Byte);
 	pu4Byte    Array       = Array_AGC_TAB_1T_8723A;
 
 
 	hex += board;
-	hex += interface1Byte << 8;
+	hex += interfaceValue << 8;
 	hex += platform << 16;
 	hex += 0xFF000000;
 	for (i = 0; i < ArrayLen; i += 2 )
@@ -250,22 +257,37 @@ ODM_ReadAndConfig_AGC_TAB_1T_8723A(
 		{ // This line is the start line of branch.
 		    if ( !CheckCondition(Array[i], hex) )
 		    { // Discard the following (offset, data) pairs.
-		        i += 2;
-		        v1 = Array[i];
-		        v2 = Array[i+1];
+		        READ_NEXT_PAIR(v1, v2, i);
 		        while (v2 != 0xDEAD && 
-	                   v2 != 0xCDEF && 
-	                   v2 != 0xCDCD)
+		               v2 != 0xCDEF && 
+		               v2 != 0xCDCD && i < ArrayLen -2)
 		        {
-		            i += 2;
-		            v1 = Array[i];
-		            v2 = Array[i+1];
+		            READ_NEXT_PAIR(v1, v2, i);
 		        }
+		        i -= 2; // prevent from for-loop += 2
 		    }
-		}
+		    else // Configure matched pairs and skip to end of if-else.
+		    {
+		        READ_NEXT_PAIR(v1, v2, i);
+		        while (v2 != 0xDEAD && 
+		               v2 != 0xCDEF && 
+		               v2 != 0xCDCD && i < ArrayLen -2)
+		        {
+		     		odm_ConfigBB_AGC_8723A(pDM_Odm, v1, bMaskDWord, v2);
+		            READ_NEXT_PAIR(v1, v2, i);
+		        }
+
+		        while (v2 != 0xDEAD && i < ArrayLen -2)
+		        {
+		            READ_NEXT_PAIR(v1, v2, i);
+		        }
+		        
+		    }
+		}	
 	}
 
 }
+
 
 /******************************************************************************
 *                           PHY_REG_1T.TXT
@@ -276,7 +298,7 @@ u4Byte Array_PHY_REG_1T_8723A[] = {
 		0x804, 0x00000003,
 		0x808, 0x0000FC00,
 		0x80C, 0x0000000A,
-		0x810, 0x10005388,
+		0x810, 0x10001331,
 		0x814, 0x020C3D10,
 		0x818, 0x02200385,
 		0x81C, 0x00000000,
@@ -344,7 +366,11 @@ u4Byte Array_PHY_REG_1T_8723A[] = {
 		0xC28, 0x00000000,
 		0xC2C, 0x00000000,
 		0xC30, 0x69E9AC44,
+	0xFF0F011F, 0xABCD,
 		0xC34, 0x469652CF,
+	0xCDCDCDCD, 0xCDCD,
+		0xC34, 0x469652AF,
+	0xFF0F011F, 0xDEAD,
 		0xC38, 0x49795994,
 		0xC3C, 0x0A97971C,
 		0xC40, 0x1F7C403F,
@@ -356,7 +382,11 @@ u4Byte Array_PHY_REG_1T_8723A[] = {
 		0xC58, 0x69543420,
 		0xC5C, 0x433C0094,
 		0xC60, 0x00000000,
+	0xFF0F011F, 0xABCD,
 		0xC64, 0x7116848B,
+	0xCDCDCDCD, 0xCDCD,
+		0xC64, 0x7112848B,
+	0xFF0F011F, 0xDEAD,
 		0xC68, 0x47C00BFF,
 		0xC6C, 0x00000036,
 		0xC70, 0x2C7F000D,
@@ -466,17 +496,21 @@ ODM_ReadAndConfig_PHY_REG_1T_8723A(
  	IN   PDM_ODM_T  pDM_Odm
  	)
 {
+	#define READ_NEXT_PAIR(v1, v2, i) do { i += 2; v1 = Array[i]; v2 = Array[i+1]; } while(0)
+
 	u4Byte     hex         = 0;
 	u4Byte     i           = 0;
+	u2Byte     count       = 0;
+	pu4Byte    ptr_array   = NULL;
 	u1Byte     platform    = pDM_Odm->SupportPlatform;
-	u1Byte     interface1Byte   = pDM_Odm->SupportInterface;
+	u1Byte     interfaceValue   = pDM_Odm->SupportInterface;
 	u1Byte     board       = pDM_Odm->BoardType;  
 	u4Byte     ArrayLen    = sizeof(Array_PHY_REG_1T_8723A)/sizeof(u4Byte);
 	pu4Byte    Array       = Array_PHY_REG_1T_8723A;
 
 
 	hex += board;
-	hex += interface1Byte << 8;
+	hex += interfaceValue << 8;
 	hex += platform << 16;
 	hex += 0xFF000000;
 	for (i = 0; i < ArrayLen; i += 2 )
@@ -494,22 +528,37 @@ ODM_ReadAndConfig_PHY_REG_1T_8723A(
 		{ // This line is the start line of branch.
 		    if ( !CheckCondition(Array[i], hex) )
 		    { // Discard the following (offset, data) pairs.
-		        i += 2;
-		        v1 = Array[i];
-		        v2 = Array[i+1];
+		        READ_NEXT_PAIR(v1, v2, i);
 		        while (v2 != 0xDEAD && 
-	                   v2 != 0xCDEF && 
-	                   v2 != 0xCDCD)
+		               v2 != 0xCDEF && 
+		               v2 != 0xCDCD && i < ArrayLen -2)
 		        {
-		            i += 2;
-		            v1 = Array[i];
-		            v2 = Array[i+1];
+		            READ_NEXT_PAIR(v1, v2, i);
 		        }
+		        i -= 2; // prevent from for-loop += 2
 		    }
-		}
+		    else // Configure matched pairs and skip to end of if-else.
+		    {
+		        READ_NEXT_PAIR(v1, v2, i);
+		        while (v2 != 0xDEAD && 
+		               v2 != 0xCDEF && 
+		               v2 != 0xCDCD && i < ArrayLen -2)
+		        {
+		   			odm_ConfigBB_PHY_8723A(pDM_Odm, v1, bMaskDWord, v2);
+		            READ_NEXT_PAIR(v1, v2, i);
+		        }
+
+		        while (v2 != 0xDEAD && i < ArrayLen -2)
+		        {
+		            READ_NEXT_PAIR(v1, v2, i);
+		        }
+		        
+		    }
+		}	
 	}
 
 }
+
 
 /******************************************************************************
 *                           PHY_REG_MP.TXT
@@ -526,17 +575,21 @@ ODM_ReadAndConfig_PHY_REG_MP_8723A(
  	IN   PDM_ODM_T  pDM_Odm
  	)
 {
+	#define READ_NEXT_PAIR(v1, v2, i) do { i += 2; v1 = Array[i]; v2 = Array[i+1]; } while(0)
+
 	u4Byte     hex         = 0;
 	u4Byte     i           = 0;
+	u2Byte     count       = 0;
+	pu4Byte    ptr_array   = NULL;
 	u1Byte     platform    = pDM_Odm->SupportPlatform;
-	u1Byte     interface1Byte   = pDM_Odm->SupportInterface;
+	u1Byte     interfaceValue   = pDM_Odm->SupportInterface;
 	u1Byte     board       = pDM_Odm->BoardType;  
 	u4Byte     ArrayLen    = sizeof(Array_PHY_REG_MP_8723A)/sizeof(u4Byte);
 	pu4Byte    Array       = Array_PHY_REG_MP_8723A;
 
 
 	hex += board;
-	hex += interface1Byte << 8;
+	hex += interfaceValue << 8;
 	hex += platform << 16;
 	hex += 0xFF000000;
 	for (i = 0; i < ArrayLen; i += 2 )
@@ -554,22 +607,37 @@ ODM_ReadAndConfig_PHY_REG_MP_8723A(
 		{ // This line is the start line of branch.
 		    if ( !CheckCondition(Array[i], hex) )
 		    { // Discard the following (offset, data) pairs.
-		        i += 2;
-		        v1 = Array[i];
-		        v2 = Array[i+1];
+		        READ_NEXT_PAIR(v1, v2, i);
 		        while (v2 != 0xDEAD && 
-	                   v2 != 0xCDEF && 
-	                   v2 != 0xCDCD)
+		               v2 != 0xCDEF && 
+		               v2 != 0xCDCD && i < ArrayLen -2)
 		        {
-		            i += 2;
-		            v1 = Array[i];
-		            v2 = Array[i+1];
+		            READ_NEXT_PAIR(v1, v2, i);
 		        }
+		        i -= 2; // prevent from for-loop += 2
 		    }
-		}
+		    else // Configure matched pairs and skip to end of if-else.
+		    {
+		        READ_NEXT_PAIR(v1, v2, i);
+		        while (v2 != 0xDEAD && 
+		               v2 != 0xCDEF && 
+		               v2 != 0xCDCD && i < ArrayLen -2)
+		        {
+		   			odm_ConfigBB_PHY_8723A(pDM_Odm, v1, bMaskDWord, v2);
+		            READ_NEXT_PAIR(v1, v2, i);
+		        }
+
+		        while (v2 != 0xDEAD && i < ArrayLen -2)
+		        {
+		            READ_NEXT_PAIR(v1, v2, i);
+		        }
+		        
+		    }
+		}	
 	}
 
 }
+
 
 /******************************************************************************
 *                           PHY_REG_PG.TXT
@@ -698,14 +766,16 @@ ODM_ReadAndConfig_PHY_REG_PG_8723A(
 {
 	u4Byte     hex = 0;
 	u4Byte     i           = 0;
+	u2Byte     count       = 0;
+	pu4Byte    ptr_array   = NULL;
 	u1Byte     platform    = pDM_Odm->SupportPlatform;
-	u1Byte     interface1Byte   = pDM_Odm->SupportInterface;
+	u1Byte     interfaceValue   = pDM_Odm->SupportInterface;
 	u1Byte     board       = pDM_Odm->BoardType;  
 	u4Byte     ArrayLen    = sizeof(Array_PHY_REG_PG_8723A)/sizeof(u4Byte);
 	pu4Byte    Array       = Array_PHY_REG_PG_8723A;
 
 	hex += board;
-	hex += interface1Byte << 8;
+	hex += interfaceValue << 8;
 	hex += platform << 16;
 	hex += 0xFF000000;
 	for (i = 0; i < ArrayLen; i += 3 )
@@ -739,7 +809,6 @@ ODM_ReadAndConfig_PHY_REG_PG_8723A(
 	    }
 	}
 }
-
 
 
 #endif // end of HWIMG_SUPPORT

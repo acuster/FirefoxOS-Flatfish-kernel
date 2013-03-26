@@ -68,6 +68,7 @@ void anx6345_init(__panel_para_t * info)
     __u32 count = 0;
     __u32 lanes;
     __u32 data_rate;
+    __u32 colordepth;
 
     lanes = info->lcd_edp_tx_lane;
     data_rate = 0x06;
@@ -79,6 +80,8 @@ void anx6345_init(__panel_para_t * info)
     {
         data_rate = 0x0a;//2.7G
     }
+
+    colordepth = (info->lcd_edp_colordepth == 1)? 0x00:0x10;//0x00: 6bit;  0x10:8bit
 	
 		SP_TX_Write_Reg (0x72, 0x05, 0x00);
 
@@ -160,7 +163,7 @@ void anx6345_init(__panel_para_t * info)
 	*/
 	
 			//VESA range, 8bits BPC, RGB
-		SP_TX_Write_Reg(0x72, SP_TX_VID_CTRL2_REG, 0x10);
+		SP_TX_Write_Reg(0x72, SP_TX_VID_CTRL2_REG, colordepth);
 	
 		//ANX6345 chip analog setting
 		SP_TX_Write_Reg(0x70, SP_TX_PLL_CTRL_REG, 0x00);				  //UPDATE: FROM 0X07 TO 0X00

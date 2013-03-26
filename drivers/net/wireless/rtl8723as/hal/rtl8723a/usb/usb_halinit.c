@@ -1151,7 +1151,7 @@ _InitRFType(
 
 static VOID _InitAdhocWorkaroundParams(IN PADAPTER Adapter)
 {
-#if RTL8192CU_ADHOC_WORKAROUND_SETTING
+#ifdef RTL8192CU_ADHOC_WORKAROUND_SETTING
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);	
 	pHalData->RegBcnCtrlVal = rtw_read8(Adapter, REG_BCN_CTRL);
 	pHalData->RegTxPause = rtw_read8(Adapter, REG_TXPAUSE); 
@@ -1819,7 +1819,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC02);
 	rtl8723a_InitBeaconParameters(Adapter);
 	rtl8723a_InitBeaconMaxError(Adapter, _TRUE);
 
-#if RTL8192CU_ADHOC_WORKAROUND_SETTING
+#ifdef RTL8192CU_ADHOC_WORKAROUND_SETTING
 	_InitAdhocWorkaroundParams(Adapter);
 #endif
 

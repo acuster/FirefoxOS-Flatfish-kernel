@@ -249,10 +249,9 @@ typedef union
 	struct
 	{
 		__u32 data_inv                   : 24 ;    // default: 0;
-		__u32 io0_inv                    :  1 ;    // default: 0;
-		__u32 io1_inv                    :  1 ;    // default: 0;
-		__u32 io2_inv                    :  1 ;    // default: 0;
-		__u32 io3_inv                    :  1 ;    // default: 0;
+		__u32 sync_inv                   :  2 ;    // default: 0;
+		__u32 clk_inv                    :  1 ;    // default: 0;
+		__u32 de_inv                     :  1 ;    // default: 0;
 		__u32 dclk_sel                   :  3 ;    // default: 0;
 		__u32 io_output_sel              :  1 ;    // default: 0;
 	} bits;

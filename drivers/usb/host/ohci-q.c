@@ -862,6 +862,13 @@ static struct td *dl_reverse_done_list (struct ohci_hcd *ohci)
 	struct td	*td = NULL;
 
 	td_dma = hc32_to_cpup (ohci, &ohci->hcca->done_head);
+	{
+		int i = 1000;
+		while(!td_dma && i --){
+			udelay(1);
+			td_dma = hc32_to_cpup (ohci, &ohci->hcca->done_head);
+		}		
+	}
 	ohci->hcca->done_head = 0;
 	wmb();
 

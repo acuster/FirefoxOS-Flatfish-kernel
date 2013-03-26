@@ -32,87 +32,25 @@
 #include <rtl8723a_hal.h>
 
 
-#if 0
-static BOOLEAN
-CheckWriteMSG(
-	IN	PADAPTER		Adapter,
-	IN	u8		BoxNum
-)
-{
-	u8	valHMETFR;
-	BOOLEAN	Result = _FALSE;
-
-	valHMETFR = rtw_read8(Adapter, REG_HMETFR);
-
-	//DbgPrint("CheckWriteH2C(): Reg[0x%2x] = %x\n",REG_HMETFR, valHMETFR);
-
-	if(((valHMETFR>>BoxNum)&BIT0) == 1)
-		Result = _TRUE;
-
-	return Result;
-
-}
-
-static BOOLEAN CheckFwReadLastMSG(
-	IN	PADAPTER		Adapter,
-	IN	u8		BoxNum
-)
-{
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-	u8	valHMETFR, valMCUTST_1;
-	BOOLEAN	 Result = _FALSE;
-
-	valHMETFR = rtw_read8(Adapter, REG_HMETFR);
-	valMCUTST_1 = rtw_read8(Adapter, (REG_MCUTST_1+BoxNum));
-
-	//DbgPrint("REG[%x] = %x, REG[%x] = %x\n",
-	//	REG_HMETFR, valHMETFR, REG_MCUTST_1+BoxNum, valMCUTST_1 );
-
-	// Do not seperate to 91C and 88C, we use the same setting. Suggested by SD4 Filen. 2009.12.03.
-	if(IS_NORMAL_CHIP(pHalData->VersionID))
-	{
-		if(((valHMETFR>>BoxNum)&BIT0) == 0)
-			Result = _TRUE;
-	}
-	else
-	{
-		if((((valHMETFR>>BoxNum)&BIT0) == 0) && (valMCUTST_1 == 0))
-		{
-			Result = _TRUE;
-		}
-	}
-
-	return Result;
-}
-#endif
-
-
 #define RTL92C_MAX_H2C_BOX_NUMS	4
 #define RTL92C_MAX_CMD_LEN	5
 #define MESSAGE_BOX_SIZE		4
 #define EX_MESSAGE_BOX_SIZE	2
 
 
-static u8 _is_fw_read_cmd_down(_adapter* padapter, u8 isvern, u8 msgbox_num)
+static u8 _is_fw_read_cmd_down(_adapter* padapter, u8 msgbox_num)
 {
 	u8	read_down = _FALSE;
 	int 	retry_cnts = 100;
 
 	u8 valid;
 
-//	DBG_8192C(" _is_fw_read_cmd_down ,isnormal_chip(%x),reg_1cc(%x),msg_box(%d)...\n",isvern,rtw_read8(padapter,REG_HMETFR),msgbox_num);
+	//DBG_8192C(" _is_fw_read_cmd_down ,reg_1cc(%x),msg_box(%d)...\n",rtw_read8(padapter,REG_HMETFR),msgbox_num);
 
 	do{
 		valid = rtw_read8(padapter,REG_HMETFR) & BIT(msgbox_num);
-		if(isvern){
-			if(0 == valid ){
-				read_down = _TRUE;
-			}
-		}
-		else{
-			if((0 == valid) && (0 == rtw_read8(padapter, REG_MCUTST_1+msgbox_num))){
-				read_down = _TRUE;
-			}
+		if(0 == valid ){
+			read_down = _TRUE;
 		}
 	}while( (!read_down) && (retry_cnts--));
 
@@ -135,27 +73,16 @@ s32 FillH2CCmd(PADAPTER padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer)
 	u32	msgbox_addr;
 	u32 msgbox_ex_addr;
 	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(padapter);
-	u8 isnchip = IS_NORMAL_CHIP(pHalData->VersionID);
 	u32	h2c_cmd = 0;
 	u16	h2c_cmd_ex = 0;
 	s32 ret = _FAIL;
 
 _func_enter_;
 
-#ifdef CONFIG_CONCURRENT_MODE
-
-	if(padapter->adapter_type > PRIMARY_ADAPTER)
-	{
-		padapter = padapter->pbuddy_adapter;
-	}
-	
+	padapter = GET_PRIMARY_ADAPTER(padapter);		
 	pHalData = GET_HAL_DATA(padapter);
-	isnchip = IS_NORMAL_CHIP(pHalData->VersionID);
-	
 
-	_enter_critical_mutex(padapter->ph2c_fwcmd_mutex, NULL);
-	
-#endif
+	_enter_critical_mutex(&(adapter_to_dvobj(padapter)->h2c_fwcmd_mutex), NULL);
 
 	if (!pCmdBuffer) {
 		goto exit;
@@ -170,7 +97,7 @@ _func_enter_;
 	do{
 		h2c_box_num = pHalData->LastHMEBoxNum;
 
-		if(!_is_fw_read_cmd_down(padapter, isnchip, h2c_box_num)){
+		if(!_is_fw_read_cmd_down(padapter, h2c_box_num)){
 			DBG_8192C(" fw read cmd failed...\n");
 			goto exit;
 		}
@@ -196,14 +123,6 @@ _func_enter_;
 		h2c_cmd = le32_to_cpu( h2c_cmd );
 		rtw_write32(padapter,msgbox_addr, h2c_cmd);
 
-		if(!isnchip){//for Test chip
-			if(! (rtw_read8(padapter, REG_HMETFR) & BIT(h2c_box_num))){
-				DBG_8192C("Chip test  - check fw write failed, write again..\n");
-				continue;
-			}
-			// Fill H2C protection register.
-			rtw_write8(padapter,REG_MCUTST_1+h2c_box_num, 0xFF);
-		}
 		bcmd_down = _TRUE;
 
 	//	DBG_8192C("MSG_BOX:%d,CmdLen(%d), reg:0x%x =>h2c_cmd:0x%x, reg:0x%x =>h2c_cmd_ex:0x%x ..\n"
@@ -217,9 +136,7 @@ _func_enter_;
 
 exit:
 
-#ifdef CONFIG_CONCURRENT_MODE
-	_exit_critical_mutex(padapter->ph2c_fwcmd_mutex, NULL);	
-#endif
+	_exit_critical_mutex(&(adapter_to_dvobj(padapter)->h2c_fwcmd_mutex), NULL);	
 
 _func_exit_;
 
@@ -297,10 +214,27 @@ _func_exit_;
 //bitmap[28:31]= Rate Adaptive id
 //arg[0:4] = macid
 //arg[5] = Short GI
-void rtl8192c_Add_RateATid(PADAPTER pAdapter, u32 bitmap, u8 arg)
+void rtl8192c_Add_RateATid(PADAPTER pAdapter, u32 bitmap, u8 arg, u8 rssi_level)
 {
-
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
+
+	u8 macid = arg&0x1f;
+	
+#ifdef CONFIG_ODM_REFRESH_RAMASK
+	u8 raid = (bitmap>>28) & 0x0f;
+
+#ifdef CONFIG_CONCURRENT_MODE
+	if(rtw_buddy_adapter_up(pAdapter) && pAdapter->adapter_type > PRIMARY_ADAPTER)	
+		pHalData = GET_HAL_DATA(pAdapter->pbuddy_adapter);				
+#endif //CONFIG_CONCURRENT_MODE
+
+	bitmap &=0x0fffffff;	
+	if(rssi_level != DM_RATR_STA_INIT)
+		bitmap = ODM_Get_Rate_Bitmap(&pHalData->odmpriv, macid, bitmap, rssi_level);	
+	
+	bitmap |= ((raid<<28)&0xf0000000);
+#endif //CONFIG_ODM_REFRESH_RAMASK
+	
 
 	if(pHalData->fw_ractrl == _TRUE)
 	{
@@ -308,12 +242,11 @@ void rtl8192c_Add_RateATid(PADAPTER pAdapter, u32 bitmap, u8 arg)
 	}
 	else
 	{
-		u8 macid, init_rate, shortGIrate=_FALSE;
+		u8 init_rate, shortGIrate=_FALSE;
 
 		init_rate = get_highest_rate_idx(bitmap&0x0fffffff)&0x3f;
 
-		macid = arg&0x1f;
-
+		
 		shortGIrate = (arg&BIT(5)) ? _TRUE:_FALSE;
 
 		if (shortGIrate==_TRUE)
@@ -768,6 +701,9 @@ _func_enter_;
 
 	if(mstatus == 1)
 	{
+		BOOLEAN bRecover = _FALSE;
+		u8 v8;
+	
 		// We should set AID, correct TSF, HW seq enable before set JoinBssReport to Fw in 88/92C.
 		// Suggested by filen. Added by tynli.
 		rtw_write16(padapter, REG_BCN_PSR_RPT, (0xC000|pmlmeinfo->aid));
@@ -777,54 +713,48 @@ _func_enter_;
 		//rtw_write16(padapter, REG_NQOS_SEQ, ((pmlmeext->mgnt_seq+100)&0xFFF));
 		//rtw_write8(padapter, REG_HWSEQ_CTRL, 0xFF);
 
-		if(IS_NORMAL_CHIP(pHalData->VersionID))
-		{
-			BOOLEAN bRecover = _FALSE;
-			u8 v8;
+		// set REG_CR bit 8
+		v8 = rtw_read8(padapter, REG_CR+1);
+		v8 |= BIT(0); // ENSWBCN
+		rtw_write8(padapter,  REG_CR+1, v8);
 
-			// set REG_CR bit 8
-			v8 = rtw_read8(padapter, REG_CR+1);
-			v8 |= BIT(0); // ENSWBCN
-			rtw_write8(padapter,  REG_CR+1, v8);
-
-			// Disable Hw protection for a time which revserd for Hw sending beacon.
-			// Fix download reserved page packet fail that access collision with the protection time.
-			// 2010.05.11. Added by tynli.
+		// Disable Hw protection for a time which revserd for Hw sending beacon.
+		// Fix download reserved page packet fail that access collision with the protection time.
+		// 2010.05.11. Added by tynli.
 //			SetBcnCtrlReg(padapter, 0, BIT(3));
 //			SetBcnCtrlReg(padapter, BIT(4), 0);
-			SetBcnCtrlReg(padapter, BIT(4), BIT(3));
+		SetBcnCtrlReg(padapter, BIT(4), BIT(3));
 
-			// Set FWHW_TXQ_CTRL 0x422[6]=0 to tell Hw the packet is not a real beacon frame.
-			if (pHalData->RegFwHwTxQCtrl & BIT(6))
-				bRecover = _TRUE;
+		// Set FWHW_TXQ_CTRL 0x422[6]=0 to tell Hw the packet is not a real beacon frame.
+		if (pHalData->RegFwHwTxQCtrl & BIT(6))
+			bRecover = _TRUE;
 
-			// To tell Hw the packet is not a real beacon frame.
-			//U1bTmp = rtw_read8(padapter, REG_FWHW_TXQ_CTRL+2);
-			rtw_write8(padapter, REG_FWHW_TXQ_CTRL+2, pHalData->RegFwHwTxQCtrl & ~BIT(6));
-			pHalData->RegFwHwTxQCtrl &= ~BIT(6);
-			SetFwRsvdPagePkt(padapter, 0);
+		// To tell Hw the packet is not a real beacon frame.
+		//U1bTmp = rtw_read8(padapter, REG_FWHW_TXQ_CTRL+2);
+		rtw_write8(padapter, REG_FWHW_TXQ_CTRL+2, pHalData->RegFwHwTxQCtrl & ~BIT(6));
+		pHalData->RegFwHwTxQCtrl &= ~BIT(6);
+		SetFwRsvdPagePkt(padapter, 0);
 
-			// 2010.05.11. Added by tynli.
+		// 2010.05.11. Added by tynli.
 //			SetBcnCtrlReg(padapter, BIT3, 0);
 //			SetBcnCtrlReg(padapter, 0, BIT4);
-			SetBcnCtrlReg(padapter, BIT(3), BIT(4));
+		SetBcnCtrlReg(padapter, BIT(3), BIT(4));
 
-			// To make sure that if there exists an adapter which would like to send beacon.
-			// If exists, the origianl value of 0x422[6] will be 1, we should check this to
-			// prevent from setting 0x422[6] to 0 after download reserved page, or it will cause
-			// the beacon cannot be sent by HW.
-			// 2010.06.23. Added by tynli.
-			if(bRecover)
-			{
-				rtw_write8(padapter, REG_FWHW_TXQ_CTRL+2, pHalData->RegFwHwTxQCtrl | BIT(6));
-				pHalData->RegFwHwTxQCtrl |= BIT(6);
-			}
-
-			// Clear CR[8] or beacon packet will not be send to TxBuf anymore.
-			v8 = rtw_read8(padapter, REG_CR+1);
-			v8 &= ~BIT(0); // ~ENSWBCN
-			rtw_write8(padapter, REG_CR+1, v8);
+		// To make sure that if there exists an adapter which would like to send beacon.
+		// If exists, the origianl value of 0x422[6] will be 1, we should check this to
+		// prevent from setting 0x422[6] to 0 after download reserved page, or it will cause
+		// the beacon cannot be sent by HW.
+		// 2010.06.23. Added by tynli.
+		if(bRecover)
+		{
+			rtw_write8(padapter, REG_FWHW_TXQ_CTRL+2, pHalData->RegFwHwTxQCtrl | BIT(6));
+			pHalData->RegFwHwTxQCtrl |= BIT(6);
 		}
+
+		// Clear CR[8] or beacon packet will not be send to TxBuf anymore.
+		v8 = rtw_read8(padapter, REG_CR+1);
+		v8 &= ~BIT(0); // ~ENSWBCN
+		rtw_write8(padapter, REG_CR+1, v8);
 	}
 
 	JoinBssRptParm.OpMode = mstatus;
@@ -1015,17 +945,7 @@ void rtl8723a_set_BTCoex_AP_mode_FwRsvdPkt_cmd(PADAPTER padapter)
 }
 #endif
 
-#ifdef CONFIG_P2P
-void rtl8192c_set_p2p_ctw_period_cmd(_adapter* padapter, u8 ctwindow)
-{
-	struct P2P_PS_CTWPeriod_t p2p_ps_ctw;
-
-	p2p_ps_ctw.CTWPeriod = ctwindow;
-
-	FillH2CCmd(padapter, P2P_PS_CTW_CMD_EID, 1, (u8 *)(&p2p_ps_ctw));
-
-}
-
+#ifdef CONFIG_P2P_PS
 void rtl8192c_set_p2p_ps_offload_cmd(_adapter* padapter, u8 p2p_ps_state)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
@@ -1033,8 +953,6 @@ void rtl8192c_set_p2p_ps_offload_cmd(_adapter* padapter, u8 p2p_ps_state)
 	struct wifidirect_info	*pwdinfo = &( padapter->wdinfo );
 	struct P2P_PS_Offload_t	*p2p_ps_offload = &pHalData->p2p_ps_offload;
 	u8	i;
-	u16	ctwindow;
-	u32	start_time, tsf_low;
 
 _func_enter_;
 
@@ -1050,49 +968,31 @@ _func_enter_;
 			if( pwdinfo->ctwindow > 0 )
 			{
 				p2p_ps_offload->CTWindow_En = 1;
-				ctwindow = pwdinfo->ctwindow;
-				if(IS_HARDWARE_TYPE_8723A(padapter))
-				{
-					//rtw_write16(padapter, REG_ATIMWND, ctwindow);
-				}
-				else
-				{
-					rtl8192c_set_p2p_ctw_period_cmd(padapter, ctwindow);
-				}
+				rtw_write8(padapter, REG_P2P_CTWIN, pwdinfo->ctwindow);
 			}
 
 			// hw only support 2 set of NoA
 			for( i=0 ; i<pwdinfo->noa_num ; i++)
 			{
 				// To control the register setting for which NOA
-				rtw_write8(padapter, 0x5CF, (i << 4));
+				rtw_write8(padapter, REG_NOA_DESC_SEL, (i << 4));
 				if(i == 0)
 					p2p_ps_offload->NoA0_En = 1;
 				else
 					p2p_ps_offload->NoA1_En = 1;
 
 				// config P2P NoA Descriptor Register
-				rtw_write32(padapter, 0x5E0, pwdinfo->noa_duration[i]);
+				//DBG_8192C("%s(): noa_duration = %x\n",__FUNCTION__,pwdinfo->noa_duration[i]);
+				rtw_write32(padapter, REG_NOA_DESC_DURATION, pwdinfo->noa_duration[i]);
 
-				rtw_write32(padapter, 0x5E4, pwdinfo->noa_interval[i]);
+				//DBG_8192C("%s(): noa_interval = %x\n",__FUNCTION__,pwdinfo->noa_interval[i]);
+				rtw_write32(padapter, REG_NOA_DESC_INTERVAL, pwdinfo->noa_interval[i]);
 
-				//Get Current TSF value
-				tsf_low = rtw_read32(padapter, REG_TSFTR);
+				//DBG_8192C("%s(): start_time = %x\n",__FUNCTION__,pwdinfo->noa_start_time[i]);
+				rtw_write32(padapter, REG_NOA_DESC_START, pwdinfo->noa_start_time[i]);
 
-				start_time = pwdinfo->noa_start_time[i];
-				if(pwdinfo->noa_count[i] != 1)
-				{
-					while( start_time <= (tsf_low+(50*1024) ) )
-					{
-						start_time += pwdinfo->noa_interval[i];
-						if(pwdinfo->noa_count[i] != 255)
-							pwdinfo->noa_count[i]--;
-					}
-				}
-				//DBG_8192C("%s(): start_time = %x\n",__FUNCTION__,start_time);
-				rtw_write32(padapter, 0x5E8, start_time);
-
-				rtw_write8(padapter, 0x5EC, pwdinfo->noa_count[i]);
+				//DBG_8192C("%s(): noa_count = %x\n",__FUNCTION__,pwdinfo->noa_count[i]);
+				rtw_write8(padapter, REG_NOA_DESC_COUNT, pwdinfo->noa_count[i]);
 			}
 
 			if( (pwdinfo->opp_ps == 1) || (pwdinfo->noa_num > 0) )
@@ -1122,7 +1022,7 @@ _func_enter_;
 		case P2P_PS_SCAN_DONE:
 			DBG_8192C("P2P_PS_SCAN_DONE \n");
 			p2p_ps_offload->discovery = 0;
-			pwdinfo->p2p_ps = P2P_PS_ENABLE;
+			pwdinfo->p2p_ps_state = P2P_PS_ENABLE;
 			break;
 		default:
 			break;
@@ -1133,11 +1033,14 @@ _func_enter_;
 _func_exit_;
 
 }
-#endif //CONFIG_P2P
+#endif //CONFIG_P2P_PS
 
 #ifdef CONFIG_IOL
 #include <rtw_iol.h>
-int rtl8192c_IOL_exec_cmds_sync(ADAPTER *adapter, struct xmit_frame *xmit_frame, u32 max_wating_ms)
+#ifdef CONFIG_USB_HCI
+#include <usb_ops.h>
+#endif
+int rtl8192c_IOL_exec_cmds_sync(ADAPTER *adapter, struct xmit_frame *xmit_frame, u32 max_wating_ms, u32 bndy_cnt)
 {
 	IO_OFFLOAD_LOC	IoOffloadLoc;
 	u32 start_time = rtw_get_current_time();
@@ -1147,9 +1050,19 @@ int rtl8192c_IOL_exec_cmds_sync(ADAPTER *adapter, struct xmit_frame *xmit_frame,
 
 	if (rtw_IOL_append_END_cmd(xmit_frame) != _SUCCESS)
 		goto exit;
+#ifdef CONFIG_USB_HCI
+	{
+		struct pkt_attrib	*pattrib = &xmit_frame->attrib;		
+		if(rtw_usb_bulk_size_boundary(adapter,TXDESC_SIZE+pattrib->last_txcmdsz))
+		{
+			if (rtw_IOL_append_END_cmd(xmit_frame) != _SUCCESS)
+				goto exit;
+		}			
+	}
+#endif //CONFIG_USB_HCI	
+
 	
-	//rtw_hal_mgnt_xmit(adapter, xmit_frame);
-	rtw_dump_xframe_sync(adapter, xmit_frame);
+	dump_mgntframe_and_wait(adapter, xmit_frame, max_wating_ms);
 
 	IoOffloadLoc.LocCmd = 0;
 	if(_SUCCESS != FillH2CCmd(adapter, H2C_92C_IO_OFFLOAD, sizeof(IO_OFFLOAD_LOC), (u8 *)&IoOffloadLoc))

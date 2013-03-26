@@ -2,9 +2,9 @@
  *  BCMSDH interface glue
  *  implement bcmsdh API for SDIOH driver
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh.c 335570 2012-05-29 12:04:50Z $
+ * $Id: bcmsdh.c 373330 2012-12-07 04:46:17Z $
  */
 
 /**
@@ -71,6 +71,26 @@ void
 bcmsdh_enable_hw_oob_intr(bcmsdh_info_t *sdh, bool enable)
 {
 	sdioh_enable_hw_oob_intr(sdh->sdioh, enable);
+}
+#endif
+
+#if defined(HW_OOB)
+#include <sbchipc.h>
+void
+bcmsdh_config_hw_oob_intr(bcmsdh_info_t *sdh, uint chip)
+{
+	uint32 gpiocontrol, addr;
+
+ 	printf("%s: Enter\n", __FUNCTION__);
+	if (CHIPID(chip) == BCM43362_CHIP_ID) {
+		addr = SI_ENUM_BASE + OFFSETOF(chipcregs_t, gpiocontrol);
+		gpiocontrol = bcmsdh_reg_read(sdh, addr, 4);
+		gpiocontrol |= 0x2;
+		bcmsdh_reg_write(sdh, addr, 4, gpiocontrol);
+		bcmsdh_cfg_write(sdh, SDIO_FUNC_1, 0x10005, 0xf, NULL);
+		bcmsdh_cfg_write(sdh, SDIO_FUNC_1, 0x10006, 0x0, NULL);
+		bcmsdh_cfg_write(sdh, SDIO_FUNC_1, 0x10007, 0x2, NULL);
+	}
 }
 #endif
 
@@ -362,9 +382,10 @@ bcmsdh_cis_read(void *sdh, uint func, uint8 *cis, uint length)
 		}
 		bcopy(cis, tmp_buf, length);
 		for (tmp_ptr = tmp_buf, ptr = cis; ptr < (cis + length - 4); tmp_ptr++) {
-			ptr += sprintf((char*)ptr, "%.2x ", *tmp_ptr & 0xff);
+			ptr += snprintf((char*)ptr, (cis + length - ptr - 4),
+				"%.2x ", *tmp_ptr & 0xff);
 			if ((((tmp_ptr - tmp_buf) + 1) & 0xf) == 0)
-				ptr += sprintf((char *)ptr, "\n");
+				ptr += snprintf((char *)ptr, (cis + length - ptr -4), "\n");
 		}
 		MFREE(bcmsdh->osh, tmp_buf, length);
 	}
@@ -740,10 +761,16 @@ bcmsdh_glom_clear(void *sdh)
 	sdioh_glom_clear(bcmsdh->sdioh);
 }
 
-uint8
-bcmsdh_get_version(void *sdh)
+uint
+bcmsdh_set_mode(void *sdh, uint mode)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
-	return (sdioh_get_version(bcmsdh->sdioh));
+	return (sdioh_set_mode(bcmsdh->sdioh, mode));
+}
+
+bool
+bcmsdh_glom_enabled(void)
+{
+	return (sdioh_glom_enabled());
 }
 #endif /* BCMSDIOH_TXGLOM */

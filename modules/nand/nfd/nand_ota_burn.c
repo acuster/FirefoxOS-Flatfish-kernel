@@ -44,6 +44,7 @@
 extern int get_nand_para(void *boot_buf);
 extern int gen_check_sum( void *boot_buf );
 extern int get_dram_para(void *boot_buf);
+extern int get_nand_para_for_boot1(void *boot_buf);
 
 __s32  burn_boot0_1k_mode( __u32 read_retry_type, __u32 Boot0_buf )
 {
@@ -268,7 +269,7 @@ error:
 
 __s32  read_boot0_1k_mode( __u32 read_retry_type, __u32 Boot0_buf )
 {
-    __u32 i, j, k,err_flag;
+    __u32 i, j, k,m,err_flag;
     __u32 length;
 	__u32 pages_per_block;
 	__u32 copies_per_block;
@@ -307,11 +308,11 @@ __s32  read_boot0_1k_mode( __u32 read_retry_type, __u32 Boot0_buf )
 				para.page = j * NAND_BOOT0_PAGE_CNT_PER_COPY + k;
 				para.mainbuf = (void *) (Boot0_buf + k * 1024);
 				para.oobbuf = oob_buf;
-				for(i=0;i<32;i++)
-			        oob_buf[i] = 0x55;
+				for(m=0;m<32;m++)
+			        oob_buf[m] = 0x55;
 				if( PHY_SimpleRead_1K( &para ) <0)
 				{
-					debug("Warning. Fail in writing page %d in block %d.\n", j * NAND_BOOT0_PAGE_CNT_PER_COPY + k, i );
+					debug("Warning. Fail in read page %d in block %d.\n", j * NAND_BOOT0_PAGE_CNT_PER_COPY + k, i );
 					err_flag = 1;
 					break;
 				}
@@ -342,7 +343,7 @@ __s32  read_boot0_lsb_mode(__u32 read_retry_type, __u32 Boot0_buf )
     __u32 page_size;
     struct boot_physical_param  para;
 
-	
+
 
 	/* ¼ì²é page count */
 	page_size = NAND_GetPageSize();
@@ -374,8 +375,8 @@ __s32  read_boot0_lsb_mode(__u32 read_retry_type, __u32 Boot0_buf )
 			para.mainbuf = (void *) (Boot0_buf + k * page_size);
 			para.oobbuf = oob_buf;
 
-			for(i=0;i<32;i++)
-				oob_buf[i]=0x55;
+			for(j=0;j<32;j++)
+				oob_buf[j]=0x55;
 
 			if( PHY_SimpleRead_Seq( &para ) <0 )
 			{
@@ -658,6 +659,9 @@ int NAND_BurnBoot1(uint length, void *buf)
 	buffer =(void *) kmalloc(length,GFP_KERNEL);
 
 	copy_from_user(buffer, (const void*)buf, length);
+
+	get_nand_para_for_boot1(buffer);
+	gen_check_sum(buffer);
 
 	PHY_Readretry_reset();
 

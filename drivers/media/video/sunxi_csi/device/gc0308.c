@@ -1000,7 +1000,7 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			if(dev->iovdd) {
 				regulator_enable(dev->iovdd);
 			}
-			mdelay(10);
+			mdelay(100);
 			//standby off io
 			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_OFF);
 			mdelay(10);
@@ -1012,7 +1012,7 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			mdelay(30);
 			//reset off io
 			csi_gpio_write(sd,&dev->reset_io,CSI_RST_OFF);
-			mdelay(10);
+			mdelay(50);
 			break;
 		case CSI_SUBDEV_PWR_OFF:
 			csi_dev_dbg("CSI_SUBDEV_PWR_OFF\n");

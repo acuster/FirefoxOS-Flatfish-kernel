@@ -402,6 +402,7 @@ int sw_hcd_hub_control(struct usb_hcd	*hcd,
 	int retval = 0;
 	unsigned long flags = 0;
 	void __iomem *usbc_base = sw_hcd->mregs;
+	int set_vbus_flag = -1;
 
     if(hcd == NULL){
         DMSG_PANIC("ERR: invalid argment\n");
@@ -451,7 +452,8 @@ int sw_hcd_hub_control(struct usb_hcd	*hcd,
 
     		    case USB_PORT_FEAT_POWER:
 					/* fixme */
-				    sw_hcd_set_vbus(sw_hcd, 0);
+				    //sw_hcd_set_vbus(sw_hcd, 0);
+				    set_vbus_flag = 0;
     			break;
 
         		case USB_PORT_FEAT_C_CONNECTION:
@@ -560,6 +562,7 @@ int sw_hcd_hub_control(struct usb_hcd	*hcd,
         			 */
 
         			sw_hcd_start(sw_hcd);
+					set_vbus_flag = 1;
 
     			break;
 
@@ -643,7 +646,9 @@ error:
 	}
 
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
-
+	if(set_vbus_flag != -1){
+		sw_hcd_set_vbus(sw_hcd, set_vbus_flag);
+	}
     return retval;
 }
 EXPORT_SYMBOL(sw_hcd_hub_control);

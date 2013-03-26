@@ -751,21 +751,17 @@ s32 rtl8723a_FirmwareDownload(PADAPTER padapter)
 		}
 		else if (IS_8723A_B_CUT(pHalData->VersionID))
 		{
-		    #ifdef CONFIG_MP_INCLUDED
-         	if(padapter->registrypriv.mp_mode == 1)
-         	{
-			FwImage = (u8*)Rtl8723_FwUMCBCutMPImageArray;
-			FwImageLen = Rtl8723_UMCBCutMPImgArrayLength;
-			DBG_871X(" Rtl8723_FwUMCBCutMPImageArray for RTL8723A B CUT\n");
-			}	
-			else
-			#endif //20121224 version,complied error bugfix by sw 2013-1-23 9:46:47
-			{
 			// WLAN Fw.
-			FwImage = (u8*)Rtl8723_FwUMCBCutImageArray;
-			FwImageLen = Rtl8723_UMCBCutImgArrayLength;
-			DBG_871X(" Rtl8723_FwUMCBCutImageArray for RTL8723A B CUT\n");
-			}
+#ifdef CONFIG_BT_COEXIST
+					FwImage = (u8*)Rtl8723_FwUMCBCutImageArrayWithBT;
+					FwImageLen = Rtl8723_UMCBCutImgArrayWithBTLength;
+					DBG_871X(" Rtl8723_FwUMCBCutImageArrayWithBT for RTL8723A B CUT\n");
+#else
+					FwImage = (u8*)Rtl8723_FwUMCBCutImageArrayWithoutBT;
+					FwImageLen = Rtl8723_UMCBCutImgArrayWithoutBTLength;
+					DBG_871X(" Rtl8723_FwUMCBCutImageArrayWithoutBT for RTL8723A B CUT\n");
+#endif
+
 	      		pFwImageFileName = R8723FwImageFileName_UMC_B;
 		}
 		else
@@ -2574,6 +2570,15 @@ void hal_notch_filter_8723a(_adapter *adapter, bool enable)
 	}
 }
 
+s32 c2h_id_filter_ccx_8723a(u8 id)
+{
+	s32 ret = _FALSE;
+	if (id == C2H_CCX_TX_RPT)
+		ret = _TRUE;
+	
+	return ret;
+}
+
 static s32 c2h_handler_8723a(_adapter *padapter, struct c2h_evt_hdr *c2h_evt)
 {
 	s32 ret = _SUCCESS;
@@ -2664,8 +2669,8 @@ void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->cancel_thread= &rtl8723a_stop_thread;
 
 #ifdef CONFIG_ANTENNA_DIVERSITY
-	pHalFunc->AntDivBeforeLinkHandler = &AntDivBeforeLink8192C;
-	pHalFunc->AntDivCompareHandler = &AntDivCompare8192C;
+	pHalFunc->AntDivBeforeLinkHandler = &odm_AntDivBeforeLink8192C;
+	pHalFunc->AntDivCompareHandler = &odm_AntDivCompare8192C;
 #endif
 
 	pHalFunc->read_bbreg = &rtl8192c_PHY_QueryBBReg;
@@ -2700,6 +2705,14 @@ void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->hal_notch_filter = &hal_notch_filter_8723a;
 
 	pHalFunc->c2h_handler = c2h_handler_8723a;
+	pHalFunc->c2h_id_filter_ccx = c2h_id_filter_ccx_8723a;
+
+#if defined(CONFIG_CHECK_BT_HANG) && defined(CONFIG_BT_COEXIST)
+	pHalFunc->hal_init_checkbthang_workqueue = &rtl8723a_init_checkbthang_workqueue;
+	pHalFunc->hal_free_checkbthang_workqueue = &rtl8723a_free_checkbthang_workqueue;
+	pHalFunc->hal_cancel_checkbthang_workqueue = &rtl8723a_cancel_checkbthang_workqueue;
+	pHalFunc->hal_checke_bt_hang = &rtl8723a_hal_check_bt_hang;
+#endif	
 }
 
 void rtl8723a_InitAntenna_Selection(PADAPTER padapter)
@@ -3660,19 +3673,24 @@ Hal_EfuseParseAntennaDiversity(
 	IN	BOOLEAN			AutoLoadFail
 	)
 {
-#if 0
+#ifdef CONFIG_ANTENNA_DIVERSITY
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
+	struct registry_priv	*registry_par = &padapter->registrypriv;
+	
 
 	if(!AutoLoadFail)
 	{
-		// Antenna Diversity setting.
-		if(GetRegAntDiv(padapter) == 2)
+		// Antenna Diversity setting. 
+		if(registry_par->antdiv_cfg == 2) // 2: From Efuse
 			pHalData->AntDivCfg = (hwinfo[RF_OPTION1_8723A]&0x18)>>3;
 		else
-			pHalData->AntDivCfg = GetRegAntDiv(padapter);
+			pHalData->AntDivCfg = registry_par->antdiv_cfg ;  // 0:OFF , 1:ON,
 
 		if(pHalData->EEPROMBluetoothCoexist!=0 && pHalData->EEPROMBluetoothAntNum==Ant_x1)
 			pHalData->AntDivCfg = 0;
+
+		DBG_8192C("### AntDivCfg(%x) EEPROMBluetoothCoexist(%x) EEPROMBluetoothAntNum(%x)\n"
+			,pHalData->AntDivCfg,pHalData->EEPROMBluetoothCoexist,pHalData->EEPROMBluetoothAntNum);	
 	}
 	else
 	{
@@ -4043,6 +4061,12 @@ void rtl8723a_fill_default_txdesc(
 #ifdef CONFIG_XMIT_ACK
 		//CCX-TXRPT ack for xmit mgmt frames.
 		if (pxmitframe->ack_report) {
+			#ifdef DBG_CCX
+			static u16 ccx_sw = 0x123;
+			txdesc_set_ccx_sw_8723a(ptxdesc, ccx_sw);
+			DBG_871X("%s set ccx, sw:0x%03x\n", __func__, ccx_sw);
+			ccx_sw = (ccx_sw+1)%0xfff;
+			#endif
 			ptxdesc->ccx = 1;
 		}
 #endif //CONFIG_XMIT_ACK
@@ -5147,11 +5171,11 @@ _func_enter_;
 			rtl8723a_set_FwJoinBssReport_cmd(padapter, *val);
 			break;
 
-#ifdef CONFIG_P2P
+#ifdef CONFIG_P2P_PS
 		case HW_VAR_H2C_FW_P2P_PS_OFFLOAD:
 			rtl8192c_set_p2p_ps_offload_cmd(padapter, *val);
 			break;
-#endif //CONFIG_P2P
+#endif //CONFIG_P2P_PS
 
 		case HW_VAR_INITIAL_GAIN:
 			{

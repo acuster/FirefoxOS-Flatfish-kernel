@@ -567,6 +567,8 @@ __inline static int IsFrameTypeCtrl(unsigned char *pframe)
 #define _SRC_IE_				59
 #define _HT_EXTRA_INFO_IE_			61
 #define _HT_ADD_INFO_IE_			61 //_HT_EXTRA_INFO_IE_
+#define _WAPI_IE_					68
+
 
 #define	EID_BSSCoexistence			72 // 20/40 BSS Coexistence
 #define	EID_BSSIntolerantChlReport	73
@@ -937,6 +939,7 @@ typedef enum _HT_CAP_AMPDU_FACTOR {
 #define WPS_ATTR_MODEL_NUMBER		0x1024
 #define WPS_ATTR_SERIAL_NUMBER		0x1042
 #define WPS_ATTR_PRIMARY_DEV_TYPE	0x1054
+#define WPS_ATTR_SEC_DEV_TYPE_LIST	0x1055
 #define WPS_ATTR_DEVICE_NAME			0x1011
 #define WPS_ATTR_CONF_METHOD			0x1008
 #define WPS_ATTR_RF_BANDS				0x103C
@@ -945,7 +948,7 @@ typedef enum _HT_CAP_AMPDU_FACTOR {
 #define WPS_ATTR_ASSOCIATION_STATE	0x1002
 #define WPS_ATTR_CONFIG_ERROR			0x1009
 #define WPS_ATTR_VENDOR_EXT			0x1049
-#define WPA_ATTR_SELECTED_REGISTRAR	0x1041
+#define WPS_ATTR_SELECTED_REGISTRAR	0x1041
 
 //	Value of WPS attribute "WPS_ATTR_DEVICE_NAME
 #define WPS_MAX_DEVICE_NAME_LEN		32
@@ -985,12 +988,13 @@ typedef enum _HT_CAP_AMPDU_FACTOR {
 #define WPS_CONFIG_METHOD_PDISPLAY	0x4008
 
 //	Value of Category ID of WPS Primary Device Type Attribute
+#define WPS_PDT_CID_DISPLAYS			0x0007
 #define WPS_PDT_CID_MULIT_MEDIA		0x0008
-#define WPS_PDT_CID_RTK_WIDI			0x001E
+#define WPS_PDT_CID_RTK_WIDI			WPS_PDT_CID_MULIT_MEDIA
 
 //	Value of Sub Category ID of WPS Primary Device Type Attribute
 #define WPS_PDT_SCID_MEDIA_SERVER	0x0005
-#define WPS_PDT_SCID_RTK_DMP			0x0001
+#define WPS_PDT_SCID_RTK_DMP			WPS_PDT_SCID_MEDIA_SERVER
 
 //	Value of Device Password ID
 #define WPS_DPID_PIN					0x0000
@@ -1057,7 +1061,8 @@ typedef enum _HT_CAP_AMPDU_FACTOR {
 									P2P_DEVCAP_CLIENT_DISCOVERABILITY | \
 									P2P_DEVCAP_CONCURRENT_OPERATION | \
 									P2P_DEVCAP_INVITATION_PROC)
-#define	DMP_P2P_GRPCAP_SUPPORT	(P2P_GRPCAP_PERSISTENT_GROUP | 	P2P_GRPCAP_INTRABSS)
+
+#define	DMP_P2P_GRPCAP_SUPPORT	(P2P_GRPCAP_INTRABSS)
 
 //	Value of Device Capability Bitmap
 #define	P2P_DEVCAP_SERVICE_DISCOVERY		BIT(0)
@@ -1116,7 +1121,7 @@ typedef enum _HT_CAP_AMPDU_FACTOR {
 #define	P2P_TX_PRESCAN_TIMEOUT				100		//	100ms
 #define	P2P_INVITE_TIMEOUT					5000	//	5 seconds timeout for sending the invitation request
 #define	P2P_CONCURRENT_INVITE_TIMEOUT		3000	//	3 seconds timeout for sending the invitation request under concurrent mode
-
+#define	P2P_RESET_SCAN_CH						25000	//	25 seconds timeout to reset the scan channel ( based on channel plan )
 #define	P2P_MAX_INTENT						15
 
 #define	P2P_MAX_NOA_NUM						2
@@ -1159,10 +1164,13 @@ enum P2P_STATE {
 	P2P_STATE_PROVISIONING_ING = 13,				//	Doing the P2P WPS
 	P2P_STATE_PROVISIONING_DONE = 14,			//	Finish the P2P WPS
 	P2P_STATE_TX_INVITE_REQ = 15,					//	Transmit the P2P Invitation request
-	P2P_STATE_RX_INVITE_RESP = 16,				//	Receiving the P2P Invitation response
+	P2P_STATE_RX_INVITE_RESP_OK = 16,				//	Receiving the P2P Invitation response
 	P2P_STATE_RECV_INVITE_REQ_DISMATCH = 17,	//	receiving the P2P Inviation request and dismatch with the profile.
 	P2P_STATE_RECV_INVITE_REQ_GO = 18,			//	receiving the P2P Inviation request and this wifi is GO.
 	P2P_STATE_RECV_INVITE_REQ_JOIN = 19,			//	receiving the P2P Inviation request to join an existing P2P Group.
+	P2P_STATE_RX_INVITE_RESP_FAIL = 20,			//	recveing the P2P Inviation response with failure
+	P2P_STATE_RX_INFOR_NOREADY = 21, 			// receiving p2p negoitation response with information is not available
+	P2P_STATE_TX_INFOR_NOREADY = 22, 			// sending p2p negoitation response with information is not available
 };
 
 enum P2P_WPSINFO {
@@ -1185,14 +1193,24 @@ enum P2P_PROTO_WK_ID
 	P2P_RO_CH_WK = 6,
 };
 
-enum P2P_PS
+#ifdef CONFIG_P2P_PS
+enum P2P_PS_STATE
 {
-	P2P_PS_DISABLE=0,
-	P2P_PS_ENABLE=1,
-	P2P_PS_SCAN=2,
-	P2P_PS_SCAN_DONE=3,
-	P2P_PS_ALLSTASLEEP=4, // for owner
+	P2P_PS_DISABLE = 0,
+	P2P_PS_ENABLE = 1,
+	P2P_PS_SCAN = 2,
+	P2P_PS_SCAN_DONE = 3,
+	P2P_PS_ALLSTASLEEP = 4, // for P2P GO
 };
+
+enum P2P_PS_MODE
+{
+	P2P_PS_NONE = 0,
+	P2P_PS_CTWINDOW = 1,
+	P2P_PS_NOA	 = 2,
+	P2P_PS_MIX = 3, // CTWindow and NoA
+};
+#endif // CONFIG_P2P_PS
 
 //	=====================WFD Section=====================
 //	For Wi-Fi Display
@@ -1207,11 +1225,12 @@ enum P2P_PS
 #define	WFD_DEVINFO_SOURCE					0x0000
 #define	WFD_DEVINFO_PSINK					0x0001
 #define	WFD_DEVINFO_SSINK					0x0002
+#define	WFD_DEVINFO_DUAL 					0x0003
 
 #define	WFD_DEVINFO_SESSION_AVAIL			0x0010
 #define	WFD_DEVINFO_WSD						0x0040
 #define	WFD_DEVINFO_PC_TDLS					0x0080
-
+#define	WFD_DEVINFO_HDCP_SUPPORT			0x0100
 
 #ifdef  CONFIG_TX_MCAST2UNI
 #define IP_MCAST_MAC(mac)		((mac[0]==0x01)&&(mac[1]==0x00)&&(mac[2]==0x5e))
@@ -1219,6 +1238,21 @@ enum P2P_PS
 #endif	// CONFIG_TX_MCAST2UNI
 
 
+
+#ifdef CONFIG_WAPI_SUPPORT
+#ifndef IW_AUTH_WAPI_VERSION_1
+#define IW_AUTH_WAPI_VERSION_1		0x00000008
+#endif
+#ifndef IW_AUTH_KEY_MGMT_WAPI_PSK
+#define IW_AUTH_KEY_MGMT_WAPI_PSK	0x04
+#endif
+#ifndef IW_AUTH_WAPI_ENABLED
+#define IW_AUTH_WAPI_ENABLED		0x20
+#endif
+#ifndef IW_ENCODE_ALG_SM4
+#define IW_ENCODE_ALG_SM4			0x20
+#endif
+#endif
 
 #endif // _WIFI_H_
 

@@ -42,9 +42,15 @@ extern __s32 Hdmi_hal_audio_enable(__u8 mode, __u8 channel);
 extern __s32 Hdmi_hal_set_audio_para(hdmi_audio_t * audio_para);
 extern __s32 Hdmi_hal_mode_support(__u32 mode);
 extern __s32 Hdmi_hal_get_HPD(void);
+extern __s32 Hmdi_hal_get_input_csc(void);
 extern __s32 Hdmi_hal_get_state(void);
 extern __s32 Hdmi_hal_main_task(void);
 extern __s32 Hdmi_hal_set_pll(__u32 pll, __u32 clk);
+//extern __s32 Hdmi_hal_dvi_enable(__u32 mode);
+extern __s32 Hdmi_hal_cts_enable(__u32 mode);
+extern __s32 Hdmi_hal_dvi_support(void);
+extern __s32 Hdmi_hal_suspend(void);
+extern __s32 Hdmi_hal_resume(void);
 
 
 #endif

@@ -58,7 +58,7 @@ __s32  Scaler_sw_para_to_reg(__u8 type, __u8 mode, __u8 format, __u8 seq)
 	    }
 	    else
 	    {
-	        DE_WRN("not supported scaler input pixel format:%d in Scaler_sw_para_to_reg\n",format);
+	        DE_INF("not supported scaler input pixel format:%d in Scaler_sw_para_to_reg\n",format);
 	    }
     }
     else if(type == 1)//scaler input mode
@@ -85,7 +85,7 @@ __s32  Scaler_sw_para_to_reg(__u8 type, __u8 mode, __u8 format, __u8 seq)
 	    }
 	    else
 	    {
-	        DE_WRN("not supported scaler input mode:%d in Scaler_sw_para_to_reg\n",mode);
+	        DE_INF("not supported scaler input mode:%d in Scaler_sw_para_to_reg\n",mode);
 	    }
     }
     else if(type == 2)//scaler input pixel sequence
@@ -162,7 +162,7 @@ __s32  Scaler_sw_para_to_reg(__u8 type, __u8 mode, __u8 format, __u8 seq)
 	    }
 	    else
 	    {
-	        DE_WRN("not supported scaler input pixel sequence:%d in Scaler_sw_para_to_reg\n",seq);
+	        DE_INF("not supported scaler input pixel sequence:%d in Scaler_sw_para_to_reg\n",seq);
 	    }
 	    
     }
@@ -194,10 +194,10 @@ __s32  Scaler_sw_para_to_reg(__u8 type, __u8 mode, __u8 format, __u8 seq)
 	    }
 	    else
 	    {
-	        DE_WRN("not supported scaler output value:%d in Scaler_sw_para_to_reg\n", format);
+	        DE_INF("not supported scaler output value:%d in Scaler_sw_para_to_reg\n", format);
 	    }
     }
-    DE_WRN("not supported type:%d in Scaler_sw_para_to_reg\n", type);
+    DE_INF("not supported type:%d in Scaler_sw_para_to_reg\n", type);
     return DIS_FAIL;
 }
 
@@ -225,7 +225,7 @@ __s32 Scaler_3d_sw_para_to_reg(__u32 type, __u32 mode, __bool b_out_interlace)
             return DE_SCAL_3DIN_LI;
 
         default:
-            DE_WRN("not supported 3d in mode:%d in Scaler_3d_sw_para_to_reg\n", mode);
+            DE_INF("not supported 3d in mode:%d in Scaler_3d_sw_para_to_reg\n", mode);
             return DIS_FAIL;
         }
     }
@@ -276,7 +276,7 @@ __s32 Scaler_3d_sw_para_to_reg(__u32 type, __u32 mode, __bool b_out_interlace)
             return DE_SCAL_3DOUT_HDMI_FA;
 
         default:
-            DE_WRN("not supported 3d output mode:%d in Scaler_3d_sw_para_to_reg\n", mode);
+            DE_INF("not supported 3d output mode:%d in Scaler_3d_sw_para_to_reg\n", mode);
             return DIS_FAIL;
         }
     }
@@ -776,6 +776,11 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
 	in_type.fmt= Scaler_sw_para_to_reg(0,scaler->in_fb.mode, scaler->in_fb.format, scaler->in_fb.seq);
 	in_type.mod= Scaler_sw_para_to_reg(1,scaler->in_fb.mode, scaler->in_fb.format, scaler->in_fb.seq);
 	in_type.ps= Scaler_sw_para_to_reg(2,scaler->in_fb.mode, scaler->in_fb.format, (__u8)scaler->in_fb.seq);
+    if(((__s32)in_type.fmt == DIS_FAIL) || ((__s32)in_type.mod== DIS_FAIL) || ((__s32)in_type.ps == DIS_FAIL))
+    {
+        DE_WRN("not supported scaler input pixel format: mode=%d,fmt=%d,ps=%d\n", scaler->in_fb.mode, scaler->in_fb.format, scaler->in_fb.seq);
+    }
+
 	in_type.byte_seq = 0;
 	in_type.sample_method = 0;
 	
@@ -850,7 +855,12 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
 
         inmode = Scaler_3d_sw_para_to_reg(0, scaler->in_fb.trd_mode, 0);
         outmode = Scaler_3d_sw_para_to_reg(1, scaler->out_trd_mode, gdisp.screen[screen_index].b_out_interlace);
-        
+
+        if(((__s32)inmode == DIS_FAIL) || ((__s32)outmode == DIS_FAIL))
+        {
+            DE_WRN("input 3d para invalid in Scaler_Set_Para,trd_mode:%d,out_trd_mode:%d\n", scaler->in_fb.trd_mode, scaler->out_trd_mode);
+        }
+
         DE_SCAL_Get_3D_In_Single_Size(inmode, &in_size, &in_size);
         if(scaler->b_trd_out)
         {

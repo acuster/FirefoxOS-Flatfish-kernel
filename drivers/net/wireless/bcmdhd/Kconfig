@@ -1,33 +1,24 @@
 config BCMDHD
-	tristate "Broadcom 40181/40183 wireless cards support"
+	tristate "Broadcom 4329/30 wireless cards support"
 	depends on MMC
 	default n
 	---help---
 	  This module adds support for wireless adapters based on
-	  Broadcom 40181/40183 chipset.
-
-	  This driver uses the kernel's wireless extensions subsystem.
-
-	  If you choose to build a module, it'll be called dhd. Say M if
-	  unsure.
+	  Broadcom 4329/30 chipset.
 
 config BCMDHD_FW_PATH
 	depends on BCMDHD
 	string "Firmware path"
-	default "/system/vendor/modules/fw_bcm.bin"
+	default "/system/vendor/modules/fw_bcmxxxx.bin"
 	---help---
-	  bcm40181 bcm40183 Path to the firmware file.
-	  /system/vendor/modules/fw_bcm40181a2.bin
-	  /system/vendor/modules/fw_bcm40183b2.bin
+	  Path to the firmware file.
 
 config BCMDHD_NVRAM_PATH
 	depends on BCMDHD
-	string "NVRAM path"	
-	default "/system/vendor/modules/bcm_nvram.txt"
+	string "NVRAM path"
+	default "/system/vendor/modules/nvram_apxxxx.txt"
 	---help---
-	   bcm40181 bcm40183 Path to the calibration file.
-	   /system/vendor/modules/bcm40181_nvram.txt
-	   /system/vendor/modules/bcm40183_nvram.txt
+	  Path to the calibration file.
 
 config BCMDHD_WEXT
 	bool "Enable WEXT support"
@@ -37,9 +28,18 @@ config BCMDHD_WEXT
 	help
 	  Enables WEXT support
 
-config DHD_USE_SCHED_SCAN
-	bool "Use CFG80211 sched scan"
-	depends on BCMDHD && CFG80211
+choice
+    depends on BCMDHD
+    prompt "Interrupt type"
+config BCMDHD_OOB
+	depends on BCMDHD
+	bool "Out-of-Band Interrupt"
+	---help---
+		Interrupt through WL_HOST_WAKE.
+config BCMDHD_SDIO_IRQ
+	depends on  BCMDHD
+	bool "In-Band Interrupt"
 	default y
 	---help---
-	  Use CFG80211 sched scan
+		Interrupt through SDIO DAT[1]
+endchoice

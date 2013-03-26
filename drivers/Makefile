@@ -128,6 +128,8 @@ obj-y				+= clk/
 obj-$(CONFIG_HWSPINLOCK)	+= hwspinlock/
 obj-$(CONFIG_NFC)		+= nfc/
 obj-$(CONFIG_IOMMU_SUPPORT)	+= iommu/
+#MTK 4in1 combo module:wifi&bt&gsp&fm
+obj-$(CONFIG_MTK_COMBO) += mtk_wcn_combo/
 
 # Virtualization drivers
 obj-$(CONFIG_VIRT_DRIVERS)	+= virt/
@@ -141,3 +143,5 @@ obj-$(CONFIG_GSENSOR)	+= gsensor/
 # obj-y				+= test/
 
 obj-y				+= gpu/
+
+obj-$(CONFIG_GATOR_PERF) += gator/

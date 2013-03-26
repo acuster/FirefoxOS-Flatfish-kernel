@@ -642,7 +642,7 @@ phy_ConfigMACWithHeaderFile(
 			rtw_IOL_append_WB_cmd(xmit_frame, ptrArray[i], (u8)ptrArray[i+1]);
 		}
 
-		return rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000);
+		return rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000,0);
 	}
 #else
 	for(i = 0 ;i < ArrayLength;i=i+2){ // Add by tynli for 2 column
@@ -974,7 +974,7 @@ phy_ConfigBBWithHeaderFile(
 				//RT_TRACE(COMP_INIT, DBG_TRACE, ("The Rtl819XPHY_REGArray_Table[0] is %lx Rtl819XPHY_REGArray[1] is %lx \n",Rtl819XPHY_REGArray_Table[i], Rtl819XPHY_REGArray_Table[i+1]));
 			}
 		
-			ret = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000);
+			ret = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000,0);
 		}
 		#else
 		for(i=0;i<PHY_REGArrayLen;i=i+2)
@@ -1025,7 +1025,7 @@ phy_ConfigBBWithHeaderFile(
 				//RT_TRACE(COMP_INIT, DBG_TRACE, ("The Rtl819XAGCTAB_Array_Table[0] is %lx Rtl819XPHY_REGArray[1] is %lx \n",Rtl819XAGCTAB_Array_Table[i], Rtl819XAGCTAB_Array_Table[i+1]));
 			}
 		
-			ret = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000);
+			ret = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000,0);
 		}
 		#else
 		for(i=0;i<AGCTAB_ArrayLen;i=i+2)
@@ -1886,7 +1886,7 @@ rtl8723a_PHY_ConfigRFWithHeaderFile(
 						rtw_IOL_append_WD_cmd(xmit_frame, pPhyReg->rf3wireOffset, DataAndAddr);
 					}
 				}
-				rtStatus = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000);
+				rtStatus = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000,0);
 			}
 			#else
 			for(i = 0;i<RadioA_ArrayLen; i=i+2)
@@ -1953,7 +1953,7 @@ rtl8723a_PHY_ConfigRFWithHeaderFile(
 						rtw_IOL_append_WD_cmd(xmit_frame, pPhyReg->rf3wireOffset, DataAndAddr);
 					}
 				}
-				rtStatus = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000);
+				rtStatus = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000,0);
 			}
 			#else
 			for(i = 0;i<RadioB_ArrayLen; i=i+2)
@@ -2785,6 +2785,11 @@ static void _PHY_SwChnl8192C(PADAPTER Adapter, u8 channel)
 	u8 eRFPath;
 	u32 param1, param2;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
+
+	if ( Adapter->bNotifyChannelChange )
+	{
+		DBG_871X( "[%s] ch = %d\n", __FUNCTION__, channel );
+	}
 
 	//s1. pre common command - CmdID_SetTxPowerLevel
 	PHY_SetTxPowerLevel8192C(Adapter, channel);

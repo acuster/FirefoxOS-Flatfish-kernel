@@ -237,7 +237,7 @@ odm_SignalScaleMapping_92CSeries(
 #endif
 
 #if ((DEV_BUS_TYPE == RT_USB_INTERFACE) ||(DEV_BUS_TYPE == RT_SDIO_INTERFACE))
-	if((pDM_Odm->SupportInterface  == ODM_ITRF_USB) || (pDM_Odm->SupportInterface  == ODM_ITRF_SDIO))
+	if((pDM_Odm->SupportInterface  == ODM_ITRF_USB) || (pDM_Odm->SupportInterface  == ODM_ITRF_SDIO) )
 	{
 		if(CurrSig >= 51 && CurrSig <= 100)
 		{
@@ -821,7 +821,7 @@ odm_Process_RSSIForDM(
 		}
 		else if((pDM_Odm->AntDivType == CG_TRX_HW_ANTDIV)||(pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV))
 		{
-			if(pPktinfo->bPacketToSelf)
+			if(pPktinfo->bPacketToSelf || pPktinfo->bPacketBeacon)
 			{
 				antsel_tr_mux = (pDM_FatTable->antsel_rx_keep_2<<2) |(pDM_FatTable->antsel_rx_keep_1 <<1) |pDM_FatTable->antsel_rx_keep_0;
 				//ODM_RT_TRACE(pDM_Odm,ODM_COMP_ANT_DIV, ODM_DBG_LOUD,("antsel_tr_mux=3'b%d%d%d\n",
@@ -1081,8 +1081,7 @@ ODM_ConfigRFWithHeaderFile(
 	{
 		if(eRFPath == ODM_RF_PATH_A)
 			READ_AND_CONFIG_MP(8723A,_RadioA_1T_);
-		else if(eRFPath == ODM_RF_PATH_B)
-			READ_AND_CONFIG_MP(8723A,_RadioB_1T_);
+	
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, (" ===> ODM_ConfigRFWithHeaderFile() Radio_A:Rtl8723RadioA_1TArray\n"));
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD, (" ===> ODM_ConfigRFWithHeaderFile() Radio_B:Rtl8723RadioB_1TArray\n"));
 	}
@@ -1163,6 +1162,7 @@ ODM_ConfigMACWithHeaderFile(
 	IN 	PDM_ODM_T	pDM_Odm
 	)
 {
+	u1Byte result = HAL_STATUS_SUCCESS;
 #if (RTL8723A_SUPPORT == 1)
 	if (pDM_Odm->SupportICType == ODM_RTL8723A)
 	{
@@ -1172,10 +1172,11 @@ ODM_ConfigMACWithHeaderFile(
 #if (RTL8188E_SUPPORT == 1)  
 	if (pDM_Odm->SupportICType == ODM_RTL8188E)
 	{
-		READ_AND_CONFIG(8188E,_MAC_REG_);
+		result = READ_AND_CONFIG(8188E,_MAC_REG_);
 	}
 #endif
-	return HAL_STATUS_SUCCESS;    
+	 
+	return result;    
 } 
 
 

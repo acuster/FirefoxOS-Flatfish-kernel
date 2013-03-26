@@ -469,12 +469,12 @@ if (Adapter->registrypriv.mp_mode == 1)
 	}
 #endif
 
-#ifdef CONFIG_P2P
+#ifdef CONFIG_P2P_PS
 	// Fw is under p2p powersaving mode, driver should stop dynamic mechanism.
 	// modifed by thomas. 2011.06.11.
-	if(Adapter->wdinfo.p2p_ps_enable)
+	if(Adapter->wdinfo.p2p_ps_mode)
 		bFwPSAwake = _FALSE;
-#endif //CONFIG_P2P
+#endif //CONFIG_P2P_PS
 
 
 	if( (hw_init_completed == _TRUE)
@@ -537,6 +537,11 @@ _record_initrate:
 			if(check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE)
 				bLinked = _TRUE;
 		}
+		
+#ifdef CONFIG_CONCURRENT_MODE
+		if(check_buddy_fw_link(Adapter))
+			bLinked = _TRUE;
+#endif //CONFIG_CONCURRENT_MODE
 
 		ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_LINK, bLinked);				
 		ODM_DMWatchdog(&pHalData->odmpriv);

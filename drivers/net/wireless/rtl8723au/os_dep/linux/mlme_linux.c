@@ -96,6 +96,7 @@ void _dynamic_check_timer_handlder (void *FunctionContext)
 	_adapter *adapter = (_adapter *)FunctionContext;
 
 #if (MP_DRIVER == 1)	
+if (adapter->registrypriv.mp_mode == 1)
 	return;
 #endif
 	rtw_dynamic_check_timer_handlder(adapter);
@@ -130,7 +131,10 @@ void rtw_init_mlme_timer(_adapter *padapter)
 	_init_workitem(&(pmlmepriv->Linkup_workitem), Linkup_workitem_callback, padapter);
 	_init_workitem(&(pmlmepriv->Linkdown_workitem), Linkdown_workitem_callback, padapter);
 #endif
-
+#if defined(CONFIG_CHECK_BT_HANG) && defined(CONFIG_BT_COEXIST)
+	if (padapter->HalFunc.hal_init_checkbthang_workqueue)
+		padapter->HalFunc.hal_init_checkbthang_workqueue(padapter);
+#endif	
 }
 
 extern void rtw_indicate_wx_assoc_event(_adapter *padapter);
@@ -219,7 +223,6 @@ void rtw_reset_securitypriv( _adapter *adapter )
 
 		psec_priv->ndisauthtype = Ndis802_11AuthModeOpen;
 		psec_priv->ndisencryptstatus = Ndis802_11WEPDisabled;
-		psec_priv->wps_phase = _FALSE;
 		//}
 	}
 }
@@ -233,10 +236,10 @@ _func_enter_;
 	netif_carrier_off(adapter->pnetdev); // Do it first for tx broadcast pkt after disconnection issue!
 
 #ifdef CONFIG_IOCTL_CFG80211
-	rtw_cfg80211_indicate_disconnect(adapter); 	
+	rtw_cfg80211_indicate_disconnect(adapter);
 #endif //CONFIG_IOCTL_CFG80211
 
-	rtw_indicate_wx_disassoc_event(adapter);	
+	rtw_indicate_wx_disassoc_event(adapter);
 
 #ifdef RTK_DMP_PLATFORM
 	_set_workitem(&adapter->mlmepriv.Linkdown_workitem);
@@ -285,7 +288,9 @@ _func_enter_;
 		
 		wrqu.data.length = (wrqu.data.length<IW_CUSTOM_MAX) ? wrqu.data.length:IW_CUSTOM_MAX;
 		
+#ifndef CONFIG_IOCTL_CFG80211
 		wireless_send_event(adapter->pnetdev,IWEVCUSTOM,&wrqu,buff);
+#endif
 
 		if(buff)
 		    rtw_mfree(buff, IW_CUSTOM_MAX);
@@ -370,7 +375,9 @@ void rtw_indicate_sta_assoc_event(_adapter *padapter, struct sta_info *psta)
 
 	DBG_871X("+rtw_indicate_sta_assoc_event\n");
 	
+#ifndef CONFIG_IOCTL_CFG80211
 	wireless_send_event(padapter->pnetdev, IWEVREGISTERED, &wrqu, NULL);
+#endif
 
 }
 
@@ -395,7 +402,9 @@ void rtw_indicate_sta_disassoc_event(_adapter *padapter, struct sta_info *psta)
 
 	DBG_871X("+rtw_indicate_sta_disassoc_event\n");
 	
+#ifndef CONFIG_IOCTL_CFG80211
 	wireless_send_event(padapter->pnetdev, IWEVEXPIRED, &wrqu, NULL);
+#endif
 	
 }
 

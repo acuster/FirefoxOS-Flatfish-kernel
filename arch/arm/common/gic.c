@@ -737,6 +737,18 @@ void __cpuinit gic_secondary_init(unsigned int gic_nr)
 	gic_cpu_init(&gic_data[gic_nr]);
 }
 
+void gic_cpu_exit(unsigned int gic_nr)
+{
+    struct gic_chip_data *gic;
+	void __iomem *base;
+
+	BUG_ON(gic_nr >= MAX_GIC_NR);
+
+    gic = &gic_data[gic_nr];
+	base = gic_data_cpu_base(gic);
+	writel_relaxed(0, base + GIC_CPU_CTRL);
+}
+
 #ifdef CONFIG_SMP
 void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 {

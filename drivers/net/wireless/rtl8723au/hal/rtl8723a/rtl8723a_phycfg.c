@@ -642,7 +642,7 @@ phy_ConfigMACWithHeaderFile(
 			rtw_IOL_append_WB_cmd(xmit_frame, ptrArray[i], (u8)ptrArray[i+1]);
 		}
 
-		return rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000);
+		return rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000,0);
 	}
 #else
 	for(i = 0 ;i < ArrayLength;i=i+2){ // Add by tynli for 2 column
@@ -677,7 +677,6 @@ s32 PHY_MACConfig8723A(PADAPTER Adapter)
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	s8			*pszMACRegFile;
 	s8			sz8723MACRegFile[] = RTL8723_PHY_MACREG;
-	BOOLEAN		isNormal = IS_NORMAL_CHIP(pHalData->VersionID);
 	BOOLEAN		is92C = IS_92C_SERIAL(pHalData->VersionID);
 
 
@@ -703,7 +702,7 @@ s32 PHY_MACConfig8723A(PADAPTER Adapter)
 #ifdef CONFIG_PCI_HCI
 	//this switching setting cause some 8192cu hw have redownload fw fail issue
 	//improve 2-stream TX EVM by Jenyu
-	if(isNormal && is92C)
+	if(is92C)
 		rtw_write8(Adapter, REG_SPS0_CTRL+3,0x71);
 #endif
 
@@ -975,7 +974,7 @@ phy_ConfigBBWithHeaderFile(
 				//RT_TRACE(COMP_INIT, DBG_TRACE, ("The Rtl819XPHY_REGArray_Table[0] is %lx Rtl819XPHY_REGArray[1] is %lx \n",Rtl819XPHY_REGArray_Table[i], Rtl819XPHY_REGArray_Table[i+1]));
 			}
 		
-			ret = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000);
+			ret = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000,0);
 		}
 		#else
 		for(i=0;i<PHY_REGArrayLen;i=i+2)
@@ -1026,7 +1025,7 @@ phy_ConfigBBWithHeaderFile(
 				//RT_TRACE(COMP_INIT, DBG_TRACE, ("The Rtl819XAGCTAB_Array_Table[0] is %lx Rtl819XPHY_REGArray[1] is %lx \n",Rtl819XAGCTAB_Array_Table[i], Rtl819XAGCTAB_Array_Table[i+1]));
 			}
 		
-			ret = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000);
+			ret = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000,0);
 		}
 		#else
 		for(i=0;i<AGCTAB_ArrayLen;i=i+2)
@@ -1539,6 +1538,8 @@ phy_BB8723a_Config_ParaFile(
 	}
 
 #if MP_DRIVER == 1
+	if (Adapter->registrypriv.mp_mode == 1)
+	{
 	//
 	// 1.1 Read PHY_REG_MP.TXT BB INIT!!
 	// We will seperate as 88C / 92C according to chip version
@@ -1554,6 +1555,7 @@ phy_BB8723a_Config_ParaFile(
 	if(rtStatus != _SUCCESS){
 //		RT_TRACE(COMP_INIT, DBG_SERIOUS, ("phy_BB8192S_Config_ParaFile():Write BB Reg MP Fail!!"));
 		goto phy_BB8190_Config_ParaFile_Fail;
+	}
 	}
 #endif	// #if (MP_DRIVER == 1)
 
@@ -1620,7 +1622,7 @@ PHY_BBConfig8723A(
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	u32	RegVal;
 	u8	TmpU1B=0;
-	u8	value8;
+	u8	value8,CrystalCap;
 
 	phy_InitBBRFRegisterDefinition(Adapter);
 
@@ -1671,22 +1673,11 @@ PHY_BBConfig8723A(
 #endif
 
 		// 2009/10/21 by SD1 Jong. Modified by tynli. Not in Documented in V8.1.
-		if(!IS_NORMAL_CHIP(pHalData->VersionID))
-		{
 #ifdef CONFIG_USB_HCI
-			rtw_write8(Adapter, REG_LDOHCI12_CTRL, 0x1f);
-#else
-			rtw_write8(Adapter, REG_LDOHCI12_CTRL, 0x1b);
+		//To Fix MAC loopback mode fail. Suggested by SD4 Johnny. 2010.03.23.
+		rtw_write8(Adapter, REG_LDOHCI12_CTRL, 0x0f);
+		rtw_write8(Adapter, 0x15, 0xe9);
 #endif
-		}
-		else
-		{
-#ifdef CONFIG_USB_HCI
-			//To Fix MAC loopback mode fail. Suggested by SD4 Johnny. 2010.03.23.
-			rtw_write8(Adapter, REG_LDOHCI12_CTRL, 0x0f);
-			rtw_write8(Adapter, 0x15, 0xe9);
-#endif
-		}
 
 		rtw_write8(Adapter, REG_AFE_XTAL_CTRL+1, 0x80);
 
@@ -1711,51 +1702,15 @@ PHY_BBConfig8723A(
 		&&(pHalData->BoardType == BOARD_USB_High_PA))
 			rtw_write8(Adapter, 0xc72, 0x50);
 #endif
-
-	// <tynli_note> For fix 8723 WL_TRSW bug. Suggested by Scott. 2011.01.24.
-	if(IS_HARDWARE_TYPE_8723A(Adapter))
+//only for B-cut
+	if(IS_HARDWARE_TYPE_8723A(Adapter) && pHalData->EEPROMVersion >= 0x01)
 	{
-		if(!IS_NORMAL_CHIP(pHalData->VersionID))
-		{
-			// 1. 0x40[2] = 1
-			value8 = rtw_read8(Adapter, REG_GPIO_MUXCFG);
-			rtw_write8(Adapter, REG_GPIO_MUXCFG, (value8|BIT2));
-
-			// 2. 0x804[14] = 0 // BB disable TRSW control, enable SW control
-			PHY_SetBBReg(Adapter, rFPGA0_TxInfo, BIT14, 0x0);
-
-			// 3. 0x870[6:5] = 2'b11
-			PHY_SetBBReg(Adapter, rFPGA0_XAB_RFInterfaceSW, (BIT5|BIT6), 0x3);
-
-			// 4. 0x860[6:5] = 2'b00 // BB SW control TRSW pin output level
-			PHY_SetBBReg(Adapter, rFPGA0_XA_RFInterfaceOE, (BIT5|BIT6), 0x0);
-		}
+		CrystalCap = pHalData->CrystalCap & 0x3F;
+		PHY_SetBBReg(Adapter, REG_MAC_PHY_CTRL, 0xFFF000, (CrystalCap | (CrystalCap << 6)));	
 	}
-#if 0
-	// Check BB/RF confiuration setting.
-	// We only need to configure RF which is turned on.
-	PathMap = (u1Byte)(PHY_QueryBBReg(Adapter, rFPGA0_TxInfo, 0xf) |
-				PHY_QueryBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf));
-	pHalData->RF_PathMap = PathMap;
-	for(index = 0; index<4; index++)
-	{
-		if((PathMap>>index)&0x1)
-			rf_num++;
-	}
-
-	if((GET_RF_TYPE(Adapter) ==RF_1T1R && rf_num!=1) ||
-		(GET_RF_TYPE(Adapter)==RF_1T2R && rf_num!=2) ||
-		(GET_RF_TYPE(Adapter)==RF_2T2R && rf_num!=2) ||
-		(GET_RF_TYPE(Adapter)==RF_2T2R_GREEN && rf_num!=2) ||
-		(GET_RF_TYPE(Adapter)==RF_2T4R && rf_num!=4))
-	{
-		RT_TRACE(
-			COMP_INIT,
-			DBG_LOUD,
-			("PHY_BBConfig8192C: RF_Type(%x) does not match RF_Num(%x)!!\n", pHalData->RF_Type, rf_num));
-	}
-#endif
-
+	
+	if(IS_HARDWARE_TYPE_8723AE(Adapter))
+		PHY_SetBBReg(Adapter, REG_LDOA15_CTRL, bMaskDWord, 0x01572505);			
 	return rtStatus;
 }
 
@@ -1931,7 +1886,7 @@ rtl8723a_PHY_ConfigRFWithHeaderFile(
 						rtw_IOL_append_WD_cmd(xmit_frame, pPhyReg->rf3wireOffset, DataAndAddr);
 					}
 				}
-				rtStatus = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000);
+				rtStatus = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000,0);
 			}
 			#else
 			for(i = 0;i<RadioA_ArrayLen; i=i+2)
@@ -1998,7 +1953,7 @@ rtl8723a_PHY_ConfigRFWithHeaderFile(
 						rtw_IOL_append_WD_cmd(xmit_frame, pPhyReg->rf3wireOffset, DataAndAddr);
 					}
 				}
-				rtStatus = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000);
+				rtStatus = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000,0);
 			}
 			#else
 			for(i = 0;i<RadioB_ArrayLen; i=i+2)
@@ -2438,11 +2393,12 @@ PHY_SetTxPowerLevel8192C(
 {
 	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(Adapter);
 	u8	cckPowerLevel[2], ofdmPowerLevel[2];	// [0]:RF-A, [1]:RF-B
-
+/*
 #if(MP_DRIVER == 1)
+	if (Adapter->registrypriv.mp_mode == 1)
 	return;
 #endif
-
+*/
 	if(pHalData->bTXPowerDataReadFromEEPORM == _FALSE)
 		return;
 
@@ -2820,8 +2776,7 @@ PHY_SetBWMode8192C(
 		//pHalData->SetBWModeInProgress= FALSE;
 		pHalData->CurrentChannelBW = tmpBW;
 	}
-	ODM_CmnInfoUpdate(&pHalData->odmpriv,ODM_CMNINFO_BW, pHalData->CurrentChannelBW );
-	ODM_CmnInfoUpdate(&pHalData->odmpriv,ODM_CMNINFO_SEC_CHNL_OFFSET,pHalData->nCur40MhzPrimeSC );
+	
 }
 
 
@@ -2830,6 +2785,11 @@ static void _PHY_SwChnl8192C(PADAPTER Adapter, u8 channel)
 	u8 eRFPath;
 	u32 param1, param2;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
+
+	if ( Adapter->bNotifyChannelChange )
+	{
+		DBG_871X( "[%s] ch = %d\n", __FUNCTION__, channel );
+	}
 
 	//s1. pre common command - CmdID_SetTxPowerLevel
 	PHY_SetTxPowerLevel8192C(Adapter, channel);

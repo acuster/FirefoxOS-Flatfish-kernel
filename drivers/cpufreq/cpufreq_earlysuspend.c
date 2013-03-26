@@ -18,7 +18,9 @@ static int online_backup = 0;
 extern int cpufreq_fantasys_cpu_lock(int num_core);
 extern int cpufreq_fantasys_cpu_unlock(int num_core);
 extern atomic_t g_hotplug_lock;
+extern atomic_t g_max_power_flag;
 static int online_backup_fantasys = 0;
+static int backup_max_power_flag = 0;
 #endif
 
 /*
@@ -43,6 +45,8 @@ static void cpu_down_work(struct work_struct *work)
                 msleep(50);
             }
         } else if (online_backup_fantasys == 0){
+            backup_max_power_flag = atomic_read(&g_max_power_flag);
+            printk("max_power_flag=%d\n", backup_max_power_flag);
             cpufreq_fantasys_cpu_lock(1);
             while (num_online_cpus() != 1) {
                 msleep(50);
@@ -102,17 +106,20 @@ static void cpu_up_work(struct work_struct *work)
                 msleep(50);
             }
         } else if (online_backup_fantasys == 0){
+            printk("max_power_flag=%d\n", backup_max_power_flag);
             cpufreq_fantasys_cpu_unlock(1);
+            if (backup_max_power_flag == 1) {
+                nr_up = nr_cpu_ids - num_online_cpus();
+                for_each_cpu_not(cpu, cpu_online_mask) {
+                    if (cpu == 0)
+                        continue;
 
-            #if 1
-            /* on all possible cpus firstly */
-            cpufreq_fantasys_cpu_lock(num_possible_cpus());
-            while (num_online_cpus() != num_possible_cpus()) {
-                msleep(50);
+                    if (nr_up-- == 0)
+                        break;
+
+                    cpu_up(cpu);
+                }
             }
-            cpufreq_fantasys_cpu_unlock(num_possible_cpus());
-            #endif
-
         } else {
             printk("ERROR online_backup_fantasys is %d\n", online_backup_fantasys);
         }

@@ -64,11 +64,13 @@
 
 	// Fw Array
 	#define Rtl8723_FwImageArray				Rtl8723SFwImgArray
-	#define Rtl8723_FwUMCBCutImageArray			Rtl8723SFwUMCBCutImgArray
+	#define Rtl8723_FwUMCBCutImageArrayWithBT		Rtl8723SFwUMCBCutImgArrayWithBT
+	#define Rtl8723_FwUMCBCutImageArrayWithoutBT	Rtl8723SFwUMCBCutImgArrayWithoutBT
 
 	#define Rtl8723_ImgArrayLength				Rtl8723SImgArrayLength
-	#define Rtl8723_UMCBCutImgArrayLength		Rtl8723SUMCBCutImgArrayLength
-
+	#define Rtl8723_UMCBCutImgArrayWithBTLength		Rtl8723SUMCBCutImgArrayWithBTLength
+	#define Rtl8723_UMCBCutImgArrayWithoutBTLength	Rtl8723SUMCBCutImgArrayWithoutBTLength
+	
 	#define Rtl8723_PHY_REG_Array_PG 			Rtl8723SPHY_REG_Array_PG
 	#define Rtl8723_PHY_REG_Array_PGLength		Rtl8723SPHY_REG_Array_PGLength
 #if MP_DRIVER == 1
@@ -127,10 +129,12 @@
 
 	// Fw Array
 	#define Rtl8723_FwImageArray				Rtl8723UFwImgArray
-	#define Rtl8723_FwUMCBCutImageArray		Rtl8723UFwUMCBCutImgArray
+	#define Rtl8723_FwUMCBCutImageArrayWithBT		Rtl8723UFwUMCBCutImgArrayWithBT
+	#define Rtl8723_FwUMCBCutImageArrayWithoutBT	Rtl8723UFwUMCBCutImgArrayWithoutBT
 
 	#define Rtl8723_ImgArrayLength				Rtl8723UImgArrayLength
-	#define Rtl8723_UMCBCutImgArrayLength		Rtl8723UUMCBCutImgArrayLength
+	#define Rtl8723_UMCBCutImgArrayWithBTLength		Rtl8723UUMCBCutImgArrayWithBTLength
+	#define Rtl8723_UMCBCutImgArrayWithoutBTLength	Rtl8723UUMCBCutImgArrayWithoutBTLength
 
 	#define Rtl8723_PHY_REG_Array_PG 			Rtl8723UPHY_REG_Array_PG
 	#define Rtl8723_PHY_REG_Array_PGLength		Rtl8723UPHY_REG_Array_PGLength
@@ -827,5 +831,15 @@ void rtl8723a_InitBeaconMaxError(PADAPTER padapter, u8 InfraMode);
 void rtl8723a_clone_haldata(_adapter *dst_adapter, _adapter *src_adapter);
 void rtl8723a_start_thread(_adapter *padapter);
 void rtl8723a_stop_thread(_adapter *padapter);
+
+s32 c2h_id_filter_ccx_8723a(u8 id);
+
+
+#if defined(CONFIG_CHECK_BT_HANG) && defined(CONFIG_BT_COEXIST)
+void rtl8723a_init_checkbthang_workqueue(_adapter * padapter);
+void rtl8723a_free_checkbthang_workqueue(_adapter * padapter);
+void rtl8723a_cancel_checkbthang_workqueue(_adapter * padapter);
+void rtl8723a_hal_check_bt_hang(_adapter * padapter);
+#endif
 #endif
 

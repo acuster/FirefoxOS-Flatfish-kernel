@@ -18,5 +18,8 @@
  #define RESUME1_START			(0x7000)
  #define BEFORE_LATE_RESUME		(0x8000)
  #define LATE_RESUME_START		(0x9000)
+ #define LATE_RESUME_END		(0xA000)
+ #define BOOT_SECOND_START		(0xB000)
+ #define UP_CPU_START			(0xC000)
 
 #endif /*_PM_ERR_CODE_H*/

@@ -2,7 +2,7 @@
  * sound\soc\sun6i\pcm\sun6i-pcm.c
  * (C) Copyright 2010-2016
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
- * chenpailin <chenpailin@Reuuimllatech.com>
+ * huangxin <huangxin@Reuuimllatech.com>
  *
  * some simple description for this code
  *
@@ -38,26 +38,30 @@
 #include "sun6i-pcmdma.h"
 #include "sun6i-pcm.h"
 
-/*=============mode selection====================*/
-/*#define I2S_COMMUNICATION*/
-#define PCM_COMMUNICATION
-/*-----------------------------------------------*/
-static unsigned long over_sample_rate = 512; //256;		/*128fs/192fs/256fs/384fs/512fs/768fs*/
-static unsigned long sample_resolution = 16;		/*16bits/20bits/24bits*/
-static unsigned long word_select_size = 32;			/*16bits/20bits/24bits/32bits*/
-static unsigned long pcm_sync_period = 64;			/*16/32/64/128/256*/
-static unsigned long msb_lsb_first = 0;				/*0: msb first; 1: lsb first*/
-static unsigned long slot_index = 0;				/*slot index: 0: the 1st slot - 3: the 4th slot*/
-static unsigned long slot_width = 16;				/*8 bit width / 16 bit width*/
-static unsigned long frame_width = 1;				/*0: long frame = 2 clock width;  1: short frame*/
-static unsigned long tx_data_mode = 0;				/*0: 16bit linear PCM; 1: 8bit linear PCM; 2: 8bit u-law; 3: 8bit a-law*/
-static unsigned long rx_data_mode = 0;				/*0: 16bit linear PCM; 1: 8bit linear PCM; 2: 8bit u-law; 3: 8bit a-law*/
-/*===============================================*/
+struct sun6i_pcm_info sun6i_pcm;
 
 static int regsave[8];
-static int pcm_used = 0;
+static int pcm_used 			= 0;
+static int pcm_select 			= 0;
+static int over_sample_rate 	= 0;
+static int sample_resolution	= 0;
+static int word_select_size 	= 0;
+static int pcm_sync_period 		= 0;
+static int msb_lsb_first 		= 0;
+static int slot_index 			= 0;
+static int slot_width 			= 0;
+static int frame_width 			= 0;
+static int tx_data_mode 		= 0;
+static int rx_data_mode 		= 0;
+static int sign_extend 			= 0;
+
+static struct clk *pcm_apbclk 		= NULL;
+static struct clk *pcm_pll2clk 		= NULL;
+static struct clk *pcm_pllx8 		= NULL;
+static struct clk *pcm_moduleclk	= NULL;
+
 static struct sun6i_dma_params sun6i_pcm_pcm_stereo_out = {
-	.name		= "pcm_play",	
+	.name		= "pcm_play",
 	.dma_addr	= SUN6I_PCMBASE + SUN6I_PCMTXFIFO,/*send data address	*/
 };
 
@@ -65,12 +69,6 @@ static struct sun6i_dma_params sun6i_pcm_pcm_stereo_in = {
 	.name   	= "pcm_capture",
 	.dma_addr	=SUN6I_PCMBASE + SUN6I_PCMRXFIFO,/*accept data address	*/
 };
-
-struct sun6i_pcm_info sun6i_pcm;
-static struct clk *pcm_apbclk 		= NULL;
-static struct clk *pcm_pll2clk 		= NULL;
-static struct clk *pcm_pllx8 		= NULL;
-static struct clk *pcm_moduleclk	= NULL;
 
 static void sun6i_snd_txctrl_pcm(struct snd_pcm_substream *substream, int on)
 {
@@ -112,12 +110,6 @@ static void sun6i_snd_txctrl_pcm(struct snd_pcm_substream *substream, int on)
 		reg_val = readl(sun6i_pcm.regs + SUN6I_PCMINT);
 		reg_val |= SUN6I_PCMINT_TXDRQEN;
 		writel(reg_val, sun6i_pcm.regs + SUN6I_PCMINT);
-		
-		//Global Enable Digital Audio Interface
-		reg_val = readl(sun6i_pcm.regs + SUN6I_PCMCTL);
-		reg_val |= SUN6I_PCMCTL_GEN;
-		writel(reg_val, sun6i_pcm.regs + SUN6I_PCMCTL);
-
 	} else {
 		/* PCM TX DISABLE */
 		reg_val = readl(sun6i_pcm.regs + SUN6I_PCMCTL);
@@ -128,11 +120,6 @@ static void sun6i_snd_txctrl_pcm(struct snd_pcm_substream *substream, int on)
 		reg_val = readl(sun6i_pcm.regs + SUN6I_PCMINT);
 		reg_val &= ~SUN6I_PCMINT_TXDRQEN;
 		writel(reg_val, sun6i_pcm.regs + SUN6I_PCMINT);
-			
-		//Global disable Digital Audio Interface
-		reg_val = readl(sun6i_pcm.regs + SUN6I_PCMCTL);
-		reg_val &= ~SUN6I_PCMCTL_GEN;
-		writel(reg_val, sun6i_pcm.regs + SUN6I_PCMCTL);
 	}		
 }
 
@@ -166,38 +153,22 @@ static void sun6i_snd_rxctrl_pcm(struct snd_pcm_substream *substream, int on)
 		reg_val = readl(sun6i_pcm.regs + SUN6I_PCMCTL);
 		reg_val |= SUN6I_PCMCTL_RXEN;
 		writel(reg_val, sun6i_pcm.regs + SUN6I_PCMCTL);
-			
+
 		/* enable DMA DRQ mode for record */
 		reg_val = readl(sun6i_pcm.regs + SUN6I_PCMINT);
 		reg_val |= SUN6I_PCMINT_RXDRQEN;
 		writel(reg_val, sun6i_pcm.regs + SUN6I_PCMINT);
-			
-		//Global Enable Digital Audio Interface
-		reg_val = readl(sun6i_pcm.regs + SUN6I_PCMCTL);
-		reg_val |= SUN6I_PCMCTL_GEN;
-		writel(reg_val, sun6i_pcm.regs + SUN6I_PCMCTL);
-			
 	} else {
 		/* PCM RX DISABLE */
 		reg_val = readl(sun6i_pcm.regs + SUN6I_PCMCTL);
 		reg_val &= ~SUN6I_PCMCTL_RXEN;
 		writel(reg_val, sun6i_pcm.regs + SUN6I_PCMCTL);
-			
+
 		/* DISBALE dma DRQ mode */
 		reg_val = readl(sun6i_pcm.regs + SUN6I_PCMINT);
 		reg_val &= ~SUN6I_PCMINT_RXDRQEN;
 		writel(reg_val, sun6i_pcm.regs + SUN6I_PCMINT);
-				
-		//Global disable Digital Audio Interface
-		reg_val = readl(sun6i_pcm.regs + SUN6I_PCMCTL);
-		reg_val &= ~SUN6I_PCMCTL_GEN;
-		writel(reg_val, sun6i_pcm.regs + SUN6I_PCMCTL);
 	}		
-}
-
-static inline int sun6i_snd_is_clkmaster(void)
-{
-	return ((readl(sun6i_pcm.regs + SUN6I_PCMCTL) & SUN6I_PCMCTL_MS) ? 0 : 1);
 }
 
 static int sun6i_pcm_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
@@ -207,10 +178,10 @@ static int sun6i_pcm_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 
 	/*SDO ON*/
 	reg_val = readl(sun6i_pcm.regs + SUN6I_PCMCTL);
-	reg_val |= (SUN6I_PCMCTL_SDO0EN); 
-#ifdef PCM_COMMUNICATION
-	reg_val |= SUN6I_PCMCTL_PCM;
-#endif
+	reg_val |= (SUN6I_PCMCTL_SDO0EN);
+	if (pcm_select) {
+		reg_val |= SUN6I_PCMCTL_PCM;
+	}
 	writel(reg_val, sun6i_pcm.regs + SUN6I_PCMCTL);
 
 	/* master or slave selection */
@@ -226,7 +197,7 @@ static int sun6i_pcm_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 			return -EINVAL;
 	}
 	writel(reg_val, sun6i_pcm.regs + SUN6I_PCMCTL);
-	
+
 	/* pcm or pcm mode selection */
 	reg_val = readl(sun6i_pcm.regs + SUN6I_PCMCTL);
 	reg_val1 = readl(sun6i_pcm.regs + SUN6I_PCMFAT0);
@@ -257,7 +228,7 @@ static int sun6i_pcm_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	}
 	writel(reg_val, sun6i_pcm.regs + SUN6I_PCMCTL);
 	writel(reg_val1, sun6i_pcm.regs + SUN6I_PCMFAT0);
-	
+
 	/* DAI signal inversions */
 	reg_val1 = readl(sun6i_pcm.regs + SUN6I_PCMFAT0);
 	switch(fmt & SND_SOC_DAIFMT_INV_MASK){
@@ -286,6 +257,7 @@ static int sun6i_pcm_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	reg_val |= SUN6I_PCMFCTL_RXTL(0x1f);				/*RX FIFO trigger level*/
 	reg_val |= SUN6I_PCMFCTL_TXTL(0x40);				/*TX FIFO empty trigger level*/
 	writel(reg_val, sun6i_pcm.regs + SUN6I_PCMFCTL);
+
 	return 0;
 }
 
@@ -310,6 +282,7 @@ static int sun6i_pcm_trigger(struct snd_pcm_substream *substream,
                               int cmd, struct snd_soc_dai *dai)
 {
 	int ret = 0;
+	u32 reg_val;
 
 	switch (cmd) {
 		case SNDRV_PCM_TRIGGER_START:
@@ -320,6 +293,10 @@ static int sun6i_pcm_trigger(struct snd_pcm_substream *substream,
 			} else {
 				sun6i_snd_txctrl_pcm(substream, 1);
 			}
+			/*Global Enable Digital Audio Interface*/
+			reg_val = readl(sun6i_pcm.regs + SUN6I_PCMCTL);
+			reg_val |= SUN6I_PCMCTL_GEN;
+			writel(reg_val, sun6i_pcm.regs + SUN6I_PCMCTL);
 			break;
 		case SNDRV_PCM_TRIGGER_STOP:
 		case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -327,8 +304,12 @@ static int sun6i_pcm_trigger(struct snd_pcm_substream *substream,
 			if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 				sun6i_snd_rxctrl_pcm(substream, 0);
 			} else {
-			  sun6i_snd_txctrl_pcm(substream, 0);
+			  	sun6i_snd_txctrl_pcm(substream, 0);
 			}
+			/*Global disable Digital Audio Interface*/
+			reg_val = readl(sun6i_pcm.regs + SUN6I_PCMCTL);
+			reg_val &= ~SUN6I_PCMCTL_GEN;
+			writel(reg_val, sun6i_pcm.regs + SUN6I_PCMCTL);
 			break;
 		default:
 			ret = -EINVAL;
@@ -339,14 +320,20 @@ static int sun6i_pcm_trigger(struct snd_pcm_substream *substream,
 }
 
 static int sun6i_pcm_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id, 
-                                 unsigned int freq, int dir)
+                                 unsigned int freq, int i2s_pcm_select)
 {
 	if (clk_set_rate(pcm_pll2clk, freq)) {
 		printk("try to set the pcm_pll2clk rate failed!\n");
 	}
+	if (i2s_pcm_select != 0) {
+		pcm_select = 0;
+	} else {
+		pcm_select = 1;
+	}
 
 	return 0;
 }
+
 static int sun6i_pcm_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int div)
 {
 	u32 reg_val;
@@ -354,168 +341,162 @@ static int sun6i_pcm_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int div
 	u32 mclk;
 	u32 mclk_div = 0;
 	u32 bclk_div = 0;
-	u32 wss;
 
 	fs = div;
 	mclk = over_sample_rate;
-	
-#ifdef I2S_COMMUNICATION
-	wss = word_select_size;
-#endif
 
-#ifdef I2S_COMMUNICATION
-	/*mclk div caculate*/
-	switch(fs)
-	{
-		case 8000:
+	if (!pcm_select) {
+		/*mclk div caculate*/
+		switch(fs)
 		{
-			switch(mclk)
+			case 8000:
 			{
-				case 128:	mclk_div = 24;
-							break;
-				case 192:	mclk_div = 16;
-							break;
-				case 256:	mclk_div = 12;
-							break;
-				case 384:	mclk_div = 8;
-							break;
-				case 512:	mclk_div = 6;
-							break;
-				case 768:	mclk_div = 4;
-							break;
+				switch(mclk)
+				{
+					case 128:	mclk_div = 24;
+								break;
+					case 192:	mclk_div = 16;
+								break;
+					case 256:	mclk_div = 12;
+								break;
+					case 384:	mclk_div = 8;
+								break;
+					case 512:	mclk_div = 6;
+								break;
+					case 768:	mclk_div = 4;
+								break;
+				}
+				break;
 			}
-			break;
-		}
-		
-		case 16000:
-		{
-			switch(mclk)
-			{
-				case 128:	mclk_div = 12;
-							break;
-				case 192:	mclk_div = 8;
-							break;
-				case 256:	mclk_div = 6;
-							break;
-				case 384:	mclk_div = 4;
-							break;
-				case 768:	mclk_div = 2;
-							break;
-			}
-			break;
-		}
-		
-		case 32000:
-		{
-			switch(mclk)
-			{
-				case 128:	mclk_div = 6;
-							break;
-				case 192:	mclk_div = 4;
-							break;
-				case 384:	mclk_div = 2;
-							break;
-				case 768:	mclk_div = 1;
-							break;
-			}
-			break;
-		}
 
-		case 64000:
-		{
-			switch(mclk)
+			case 16000:
 			{
-				case 192:	mclk_div = 2;
-							break;
-				case 384:	mclk_div = 1;
-							break;
+				switch(mclk)
+				{
+					case 128:	mclk_div = 12;
+								break;
+					case 192:	mclk_div = 8;
+								break;
+					case 256:	mclk_div = 6;
+								break;
+					case 384:	mclk_div = 4;
+								break;
+					case 768:	mclk_div = 2;
+								break;
+				}
+				break;
 			}
-			break;
-		}
+			
+			case 32000:
+			{
+				switch(mclk)
+				{
+					case 128:	mclk_div = 6;
+								break;
+					case 192:	mclk_div = 4;
+								break;
+					case 384:	mclk_div = 2;
+								break;
+					case 768:	mclk_div = 1;
+								break;
+				}
+				break;
+			}
+	
+			case 64000:
+			{
+				switch(mclk)
+				{
+					case 192:	mclk_div = 2;
+								break;
+					case 384:	mclk_div = 1;
+								break;
+				}
+				break;
+			}
+			
+			case 128000:
+			{
+				switch(mclk)
+				{
+					case 192:	mclk_div = 1;
+								break;
+				}
+				break;
+			}
 		
-		case 128000:
-		{
-			switch(mclk)
+			case 11025:
+			case 12000:
 			{
-				case 192:	mclk_div = 1;
-							break;
+				switch(mclk)
+				{
+					case 128:	mclk_div = 16;
+								break;
+					case 256:	mclk_div = 8;
+								break;
+					case 512:	mclk_div = 4;
+								break;
+				}
+				break;
 			}
-			break;
-		}
-	
-		case 11025:
-		case 12000:
-		{
-			switch(mclk)
+		
+			case 22050:
+			case 24000:
 			{
-				case 128:	mclk_div = 16;
-							break;
-				case 256:	mclk_div = 8;
-							break;
-				case 512:	mclk_div = 4;
-							break;
+				switch(mclk)
+				{
+					case 128:	mclk_div = 8;
+								break;
+					case 256:	mclk_div = 4;
+								break;
+					case 512:	mclk_div = 2;
+								break;
+				}
+				break;
 			}
-			break;
-		}
-	
-		case 22050:
-		case 24000:
-		{
-			switch(mclk)
+		
+			case 44100:
+			case 48000:
 			{
-				case 128:	mclk_div = 8;
-							break;
-				case 256:	mclk_div = 4;
-							break;
-				case 512:	mclk_div = 2;
-							break;
+				switch(mclk)
+				{
+					case 128:	mclk_div = 4;
+								break;
+					case 256:	mclk_div = 2;
+								break;
+					case 512:	mclk_div = 1;
+								break;
+				}
+				break;
 			}
-			break;
-		}
-	
-		case 44100:
-		case 48000:
-		{
-			switch(mclk)
+				
+			case 88200:
+			case 96000:
 			{
-				case 128:	mclk_div = 4;
-							break;
-				case 256:	mclk_div = 2;
-							break;
-				case 512:	mclk_div = 1;
-							break;
+				switch(mclk)
+				{
+					case 128:	mclk_div = 2;
+								break;
+					case 256:	mclk_div = 1;
+								break;
+				}
+				break;
 			}
-			break;
-		}
-			
-		case 88200:
-		case 96000:
-		{
-			switch(mclk)
+				
+			case 176400:
+			case 192000:
 			{
-				case 128:	mclk_div = 2;
-							break;
-				case 256:	mclk_div = 1;
-							break;
+				mclk_div = 1;
+				break;
 			}
-			break;
+		
 		}
-			
-		case 176400:
-		case 192000:
-		{
-			mclk_div = 1;
-			break;
-		}
-	
+		/*bclk div caculate*/
+		bclk_div = mclk/(2*word_select_size);
+	} else {
+		mclk_div = 4;
+		bclk_div = 12;
 	}
-	
-	/*bclk div caculate*/
-	bclk_div = mclk/(2*wss);
-#else
-	mclk_div = 4;
-	bclk_div = 12;
-#endif
 
 	/*calculate MCLK Divide Ratio*/
 	switch(mclk_div)
@@ -626,14 +607,27 @@ static int sun6i_pcm_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int div
 	else if (sun6i_pcm.pcm_sync_period == 32)
 		reg_val |= 0x1<<12;
 	writel(reg_val, sun6i_pcm.regs + SUN6I_PCMFAT1);
-	
+
+PCM_DBG("%s, line:%d, slot_index:%d\n", __func__, __LINE__, slot_index);
+PCM_DBG("%s, line:%d, slot_width:%d\n", __func__, __LINE__, slot_width);
+PCM_DBG("%s, line:%d, pcm_select:%d\n", __func__, __LINE__, pcm_select);
+PCM_DBG("%s, line:%d, frame_width:%d\n", __func__, __LINE__, frame_width);
+PCM_DBG("%s, line:%d, tx_data_mode:%d\n", __func__, __LINE__, tx_data_mode);
+PCM_DBG("%s, line:%d, rx_data_mode:%d\n", __func__, __LINE__, rx_data_mode);
+PCM_DBG("%s, line:%d, msb_lsb_first:%d\n", __func__, __LINE__, msb_lsb_first);
+PCM_DBG("%s, line:%d, pcm_sync_period:%d\n", __func__, __LINE__, pcm_sync_period);
+PCM_DBG("%s, line:%d, word_select_size:%d\n", __func__, __LINE__, word_select_size);
+PCM_DBG("%s, line:%d, over_sample_rate:%d\n", __func__, __LINE__, over_sample_rate);
+PCM_DBG("%s, line:%d, sample_resolution:%d\n", __func__, __LINE__, sample_resolution);
+
 	return 0;
 }
 
 static int sun6i_pcm_dai_probe(struct snd_soc_dai *dai)
-{			
+{
 	return 0;
 }
+
 static int sun6i_pcm_dai_remove(struct snd_soc_dai *dai)
 {
 	return 0;
@@ -689,6 +683,7 @@ static int sun6i_pcm_suspend(struct snd_soc_dai *cpu_dai)
 	}
 	return 0;
 }
+
 static int sun6i_pcm_resume(struct snd_soc_dai *cpu_dai)
 {
 	u32 reg_val;
@@ -745,9 +740,11 @@ static struct snd_soc_dai_driver sun6i_pcm_dai = {
 
 static int __devinit sun6i_pcm_dev_probe(struct platform_device *pdev)
 {
-	int reg_val = 0;
 	int ret;
-	
+	int reg_val = 0;
+	script_item_u val;
+	script_item_value_type_e  type;
+
 	sun6i_pcm.regs = ioremap(SUN6I_PCMBASE, 0x100);
 	if (sun6i_pcm.regs == NULL)
 		return -ENXIO;
@@ -802,7 +799,73 @@ static int __devinit sun6i_pcm_dev_probe(struct platform_device *pdev)
 	reg_val = readl(sun6i_pcm.regs + SUN6I_PCMCTL);
 	reg_val |= SUN6I_PCMCTL_GEN;
 	writel(reg_val, sun6i_pcm.regs + SUN6I_PCMCTL);
-	
+
+	type = script_get_item("pcm_para", "over_sample_rate", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[PCM] over_sample_rate type err!\n");
+    }
+	over_sample_rate = val.val;
+
+	type = script_get_item("pcm_para", "sample_resolution", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[PCM] sample_resolution type err!\n");
+    }
+	sample_resolution = val.val;
+
+	type = script_get_item("pcm_para", "word_select_size", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[PCM] word_select_size type err!\n");
+    }
+	word_select_size = val.val;
+
+	type = script_get_item("pcm_para", "pcm_sync_period", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[PCM] pcm_sync_period type err!\n");
+    }
+	pcm_sync_period = val.val;
+
+	type = script_get_item("pcm_para", "msb_lsb_first", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[PCM] msb_lsb_first type err!\n");
+    }
+	msb_lsb_first = val.val;
+
+	type = script_get_item("pcm_para", "sign_extend", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[PCM] sign_extend type err!\n");
+    }
+	sign_extend = val.val;
+
+	type = script_get_item("pcm_para", "slot_index", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[PCM] slot_index type err!\n");
+    }
+	slot_index = val.val;
+
+	type = script_get_item("pcm_para", "slot_width", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[PCM] slot_width type err!\n");
+    }
+	slot_width = val.val;
+
+	type = script_get_item("pcm_para", "frame_width", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[PCM] frame_width type err!\n");
+    }
+	frame_width = val.val;
+
+	type = script_get_item("pcm_para", "tx_data_mode", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[PCM] tx_data_mode type err!\n");
+    }
+	tx_data_mode = val.val;
+
+	type = script_get_item("pcm_para", "rx_data_mode", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[PCM] rx_data_mode type err!\n");
+    }
+	rx_data_mode = val.val;
+
 	ret = snd_soc_register_dai(&pdev->dev, &sun6i_pcm_dai);	
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register DAI\n");
@@ -877,8 +940,14 @@ static int __init sun6i_pcm_init(void)
 	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
         printk("[PCM] type err!\n");
     }
-
 	pcm_used = val.val;
+	
+	type = script_get_item("pcm_para", "pcm_select", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[PCM] pcm_select type err!\n");
+    }
+	pcm_select = val.val;
+	
 	if (pcm_used) {
 		/* get gpio list */
 		cnt = script_get_pio_list("pcm_para", &list);

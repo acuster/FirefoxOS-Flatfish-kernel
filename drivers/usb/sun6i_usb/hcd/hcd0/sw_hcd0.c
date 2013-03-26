@@ -312,10 +312,11 @@ static __s32 pin_init(sw_hcd_io_t *sw_hcd_io)
     		sw_hcd_io->drv_vbus_valid = 0;
     	}else{
         	/* set config, ouput */
-        	sw_gpio_setcfg(sw_hcd_io->drv_vbus_gpio_set.gpio.gpio, 1);
+        	//sw_gpio_setcfg(sw_hcd_io->drv_vbus_gpio_set.gpio.gpio, 1);
 
         	/* reserved is pull down */
-        	sw_gpio_setpull(sw_hcd_io->drv_vbus_gpio_set.gpio.gpio, 2);
+        	//sw_gpio_setpull(sw_hcd_io->drv_vbus_gpio_set.gpio.gpio, 2);
+			gpio_direction_output(sw_hcd_io->drv_vbus_gpio_set.gpio.gpio, 0);
     	}
 	}
 
@@ -1485,8 +1486,8 @@ int sw_usb_host0_enable(void)
 	sw_hcd_restore_context(sw_hcd);
 	sw_hcd_start(sw_hcd);
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
-
-
+    /* port power on */
+	sw_hcd_set_vbus(sw_hcd, 1);
 
 	DMSG_INFO_HCD0("sw_usb_host0_enable end\n");
 #endif
@@ -1542,9 +1543,9 @@ int sw_usb_host0_disable(void)
 	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd_soft_disconnect(sw_hcd);
 	sw_hcd_port_suspend_ex(sw_hcd);
-	sw_hcd_set_vbus(sw_hcd, 0);
 	sw_hcd_stop(sw_hcd);
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
+	sw_hcd_set_vbus(sw_hcd, 0);
 
 	/* release usb irq */
 	if (sw_hcd->nIrq >= 0) {
@@ -2018,9 +2019,9 @@ int sw_usb_disable_hcd0(void)
 	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd_port_suspend_ex(sw_hcd);
 	sw_hcd_stop(sw_hcd);
-	sw_hcd_set_vbus(sw_hcd, 0);
 	sw_hcd_save_context(sw_hcd);
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
+	sw_hcd_set_vbus(sw_hcd, 0);
 
 	close_usb_clock(sw_hcd->sw_hcd_io);
 
@@ -2109,6 +2110,8 @@ int sw_usb_enable_hcd0(void)
 	sw_hcd_restore_context(sw_hcd);
 	sw_hcd_start(sw_hcd);
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
+    /* port power on */
+	sw_hcd_set_vbus(sw_hcd, 1);
 
 	DMSG_INFO("sw_usb_enable_hcd0 end\n");
 #endif
@@ -2157,9 +2160,9 @@ static int sw_hcd_suspend(struct device *dev)
 	sw_hcd->suspend = 1;
 	sw_hcd_port_suspend_ex(sw_hcd);
 	sw_hcd_stop(sw_hcd);
-	sw_hcd_set_vbus(sw_hcd, 0);
 	sw_hcd_save_context(sw_hcd);
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
+	sw_hcd_set_vbus(sw_hcd, 0);
 
 	close_usb_clock(sw_hcd->sw_hcd_io);
 
@@ -2211,6 +2214,8 @@ static int sw_hcd_resume(struct device *dev)
 	sw_hcd_start(sw_hcd);
 	sw_hcd->suspend = 0;
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
+    /* port power on */
+	sw_hcd_set_vbus(sw_hcd, 1);
 
 	DMSG_INFO_HCD0("sw_hcd_resume_early end\n");
 

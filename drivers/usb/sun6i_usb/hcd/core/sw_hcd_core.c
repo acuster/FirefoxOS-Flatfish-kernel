@@ -294,10 +294,6 @@ void sw_hcd_start(struct sw_hcd *sw_hcd)
 
 	/* assume ID pin is hard-wired to ground */
 	sw_hcd_platform_enable(sw_hcd);
-
-	/* port power on */
-	sw_hcd_set_vbus(sw_hcd, 1);
-
     return;
 }
 EXPORT_SYMBOL(sw_hcd_start);
@@ -758,7 +754,7 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
         USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_LOW);
 
         sw_hcd_set_vbus(sw_hcd, 0);
-
+	
         /* delay */
         mdelay(100);
 

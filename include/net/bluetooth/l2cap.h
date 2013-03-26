@@ -595,16 +595,8 @@ enum {
 	FLAG_EFS_ENABLE,
 };
 
-static inline void l2cap_chan_hold(struct l2cap_chan *c)
-{
-	atomic_inc(&c->refcnt);
-}
-
-static inline void l2cap_chan_put(struct l2cap_chan *c)
-{
-	if (atomic_dec_and_test(&c->refcnt))
-		kfree(c);
-}
+void l2cap_chan_hold(struct l2cap_chan *c);
+void l2cap_chan_put(struct l2cap_chan *c);
 
 static inline void l2cap_set_timer(struct l2cap_chan *chan,
 					struct delayed_work *work, long timeout)

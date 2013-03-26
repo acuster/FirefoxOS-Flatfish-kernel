@@ -152,9 +152,9 @@ __s32 DE_SCAL_Config_Src(__u8 sel, __scal_buf_addr_t *addr, __scal_src_size_t *s
 
         if(type->fmt == DE_SCAL_INYUV420)
         {
-            scal_dev[sel]->linestrd0.dwval = image_w0;
-            scal_dev[sel]->linestrd1.dwval = ((image_w1+15)>>4)<<4;
-            scal_dev[sel]->linestrd2.dwval = ((image_w1+15)>>4)<<4;
+            scal_dev[sel]->linestrd0.dwval = ((image_w0+15)>>4)<<4;
+            scal_dev[sel]->linestrd1.dwval = ((image_w1+7)>>3)<<3;
+            scal_dev[sel]->linestrd2.dwval = ((image_w1+7)>>3)<<3;
         }
         de_scal_ch0_offset = image_w0 * y_off0 + x_off0;
         de_scal_ch1_offset = image_w1 * y_off1 + x_off1;
@@ -581,8 +581,8 @@ __s32 DE_SCAL_Set_Scaling_Factor(__u8 sel, __scal_scan_mod_t *in_scan, __scal_sr
 	
     //step factor
     ch0_hstep = (in_w0<<16)/out_w0;
-    ch0_vstep = ((in_h0>>in_scan->field)<<16)/( out_h0 );
-    
+    ch0_vstep = (out_scan->field)? ((in_h0<<16)/(out_h0)) : (((in_h0>>in_scan->field)<<16)/( out_h0 ));
+
 	scal_dev[sel]->ch0_horzfact.dwval = ch0_hstep;
     scal_dev[sel]->ch0_vertfact.dwval = ch0_vstep<<(out_scan->field);
     scal_dev[sel]->ch1_horzfact.dwval = (w_shift>0) ? (ch0_hstep>>w_shift) : ch0_hstep<<(0-w_shift);
@@ -821,6 +821,7 @@ __s32 DE_SCAL_Set_Scaling_Coef(__u8 sel, __scal_scan_mod_t *in_scan, __scal_src_
     return 0;
 }
 
+#if 0
 //*********************************************************************************************
 // function       : DE_SCAL_Set_Scaling_Coef_for_video(__u8 sel, __scal_scan_mod_t *in_scan, __scal_src_size_t *in_size,
 //                                             __scal_src_type_t *in_type, __scal_scan_mod_t *out_scan, 
@@ -1035,7 +1036,7 @@ __s32 DE_SCAL_Set_Scaling_Coef_for_video(__u8 sel, __scal_scan_mod_t *in_scan, _
 
     return 0;
 }
-
+#endif
 
 //*********************************************************************************************
 // function       : DE_SCAL_Set_CSC_Coef(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode, __u8 incs, __u8 outcs, __u32  in_br_swap, __u32 out_br_swap)
@@ -1818,9 +1819,9 @@ __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode
 	__s32 sinv, cosv;   //sin_tab: 7 bit fractional
 
 	bright = bright*64/100;
-	bright = saturaion*64/100;
-	bright = contrast*64/100;
-	bright = hue*64/100;
+	saturaion = saturaion*64/100;
+	contrast = contrast*64/100;
+	hue = hue*64/100;
 
 	sinv = image_enhance_tab[8*16 + (hue&0x3f)];
 	cosv = image_enhance_tab[8*16 + 8*8 + (hue&0x3f)];

@@ -3,10 +3,14 @@
 __s32 			hdmi_state	=	HDMI_State_Idle;
 __bool          video_enable = 0;
 __s32 			video_mode  = 	HDMI720P_50;
+__s32       cts_enable  = 0;
 HDMI_AUDIO_INFO audio_info;
 __u8			EDID_Buf[1024];
 __u8 			Device_Support_VIC[512];
-__s32           HPD = 0;
+__u8      isHDMI = 0;
+__u8      YCbCr444_Support = 0;
+__u32     rgb_only = 0;
+__s32     HPD = 0;
 __u32           hdmi_print = 0;
 
 
@@ -54,6 +58,16 @@ __s32 hdmi_core_initial(void)
 	return 0;
 }
 
+//hdmi_core_close: cp from sun4i, any problem?
+__s32 hdmi_core_close()
+{
+    HDMI_WUINT32(0x200,0x00000000);         //close drv/pll
+    HDMI_WUINT32(0x204,0x00000000);
+    HDMI_WUINT32(0x208,0x00000000);
+    HDMI_WUINT32(0x004,0x00000000);			//close hdmi controller
+    __inf("reg:  200:0x%08x,  204:0x%08x,  208:0x%08x,  004:0x%08x\n",HDMI_RUINT32(0x200), HDMI_RUINT32(0x204), HDMI_RUINT32(0x208), HDMI_RUINT32(0x004));
+    return 0;
+}
 __s32 main_Hpd_Check(void)
 {
 	__s32 i,times_0 = 0,times_1 = 0;
@@ -332,8 +346,17 @@ __s32 video_config(__s32 vic)
     HDMI_WUINT8 (0x081,0x02);
     HDMI_WUINT8 (0x082,0x0d);
     HDMI_WUINT8 (0x083,0x00);
-    HDMI_WUINT8 (0x084,0x50);
-    if( video_timing[vic_tab].PCLK < 74250000)				//SD format
+    if(cts_enable &&(!YCbCr444_Support))
+    {
+        HDMI_WUINT8 (0x084,0x10);								//RGB444
+        __inf("HDMI RGB444 output mode\n");
+    }
+    else
+    {
+        HDMI_WUINT8 (0x084,0x50);									//YCbCr444
+        __inf("HDMI YCbCr444 output mode\n");
+    }
+    if( video_timing[vic_tab].PCLK < 74250000)	//SD format
     {
     	HDMI_WUINT8 (0x085,0x58);							//4:3 601
     }else													//HD format
@@ -413,7 +436,15 @@ __s32 video_config(__s32 vic)
       
     HDMI_WUINT32(0x300,0x08000000);			// set input sync enable
     
-    HDMI_WUINT8 (0x013,0xc0);				//hdmi mode  
+    if( (cts_enable == 0) || isHDMI)
+    {
+        __inf("hdmi mode:  cts_enable=%d, isHDMI=%d\n", cts_enable,isHDMI);
+        HDMI_WUINT8 (0x013,0xc0);				//hdmi mode
+    }else
+    {
+        __inf("dvi mode:   cts_enable=%d, isHDMI=%d\n", cts_enable,isHDMI);
+        HDMI_WUINT8 (0x013,0x80);				//dvi mode
+    }
     HDMI_WUINT32(0x004,0x80000000);			//start hdmi controller	    
     //////////////////////    
     //hdmi pll setting

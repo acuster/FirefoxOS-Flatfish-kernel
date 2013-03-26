@@ -89,6 +89,31 @@ __s32 Hdmi_hal_set_audio_para(hdmi_audio_t * audio_para)
     return 0;
 }
 
+__s32 Hdmi_hal_cts_enable(__u32 mode)
+{
+	if(mode)
+	{
+		cts_enable = 1;
+	}
+	else
+	{
+		cts_enable = 0;
+	}
+
+    return 0;
+}
+
+__s32 Hdmi_hal_dvi_support(void)
+{
+	if( (!isHDMI) && (cts_enable ==1) )
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
 
 __s32 Hdmi_hal_mode_support(__u32 mode)
 {
@@ -104,6 +129,14 @@ __s32 Hdmi_hal_mode_support(__u32 mode)
 	    }
 	    return Device_Support_VIC[mode];
 	}
+}
+//0:rgb, 1:yuv
+__s32 Hmdi_hal_get_input_csc(void)
+{
+    if(cts_enable &&(!YCbCr444_Support))
+        return 0;
+    else
+        return 1;
 }
 
 __s32 Hdmi_hal_get_HPD(void)
@@ -152,3 +185,16 @@ __s32 Hdmi_hal_exit(void)
     return 0;
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+__s32 Hdmi_hal_suspend(void)
+{
+    hdmi_core_close();
+    return 0;
+
+}
+__s32 Hdmi_hal_resume(void)
+{
+	hdmi_core_initial();
+
+    return 0;
+
+}

@@ -94,22 +94,73 @@ static ssize_t disp_reg_dump_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	int err;
-    unsigned long val;
-    
-	err = strict_strtoul(buf, 10, &val);
-	if (err) {
-		printk("Invalid size\n");
-		return err;
-	}
+	if (count < 1)
+        return -EINVAL;
 
-    if((val>17))
+    if(strnicmp(buf, "be0", 3) == 0)
     {
-        printk("Invalid value, <18 is expected!\n");
+        BSP_disp_print_reg(1, DISP_REG_IMAGE0);
+    }else if(strnicmp(buf, "be1", 3) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_IMAGE1);
+    }else if(strnicmp(buf, "fe0", 3) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_SCALER0);
+    }else if(strnicmp(buf, "fe1", 3) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_SCALER1);
+    }else if(strnicmp(buf, "lcd0", 4) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_LCDC0);
+    }else if(strnicmp(buf, "lcd1", 4) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_LCDC1);
+    }else if(strnicmp(buf, "tve0", 4) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_TVEC0);
+    }else if(strnicmp(buf, "tve1", 4) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_TVEC1);
+    }else if(strnicmp(buf, "deu0", 4) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_DEU0);
+    }else if(strnicmp(buf, "deu1", 4) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_DEU1);
+    }else if(strnicmp(buf, "cmu0", 4) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_CMU0);
+    }else if(strnicmp(buf, "cmu1", 4) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_CMU1);
+    }else if(strnicmp(buf, "drc0", 4) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_DRC0);
+    }else if(strnicmp(buf, "drc1", 4) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_DRC1);
+    }else if(strnicmp(buf, "dsi", 3) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_DSI);
+    }else if(strnicmp(buf, "dphy", 8) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_DSI_DPHY);
+    }else if(strnicmp(buf, "hdmi", 4) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_HDMI);
+    }else if(strnicmp(buf, "ccmu", 4) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_CCMU);
+    }else if(strnicmp(buf, "pioc", 4) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_PIOC);
+    }else if(strnicmp(buf, "pwm", 3) == 0)
+    {
+        BSP_disp_print_reg(1, DISP_REG_PWM);
     }else
     {
-        BSP_disp_print_reg(1, (unsigned int)val);
-	}
+        printk("Invalid para!\n");
+    }
     
 	return count;
 }
@@ -232,16 +283,16 @@ static ssize_t disp_layer_para_show(struct device *dev,
     }
     else
     {
-        return sprintf(buf, "=== screen%d layer%d para ====\nmode: %d\nfb.size=<%dx%d>\nfb.fmt=<%d, %d, %d>\ntrd_src=<%d, %d> trd_out=<%d, %d>\npipe:%d\tprio: %d\nalpha: <%d, %d>\tcolor_key_en: %d\nsrc_window:<%d,%d,%d,%d>\nscreen_window:<%d,%d,%d,%d>\npre_multiply=%d\n======= screen%d layer%d para ====\n", 
-        sel, HANDTOID(hid),layer_para.mode, layer_para.fb.size.width, 
-        layer_para.fb.size.height, layer_para.fb.mode, layer_para.fb.format, 
+        return sprintf(buf, "=== screen%d layer%d para ====\nmode: %d\naddr=<%x,%x,%x>\nfb.size=<%dx%d>\nfb.fmt=<%d, %d, %d>\ntrd_src=<%d, %d> trd_out=<%d, %d>\npipe:%d\tprio: %d\nalpha: <%d, %d>\tcolor_key_en: %d\nsrc_window:<%d,%d,%d,%d>\nscreen_window:<%d,%d,%d,%d>\npre_multiply=%d\n======= screen%d layer%d para ====\n", 
+        sel, HANDTOID(hid),layer_para.mode, layer_para.fb.addr[0], layer_para.fb.addr[1], layer_para.fb.addr[2],
+        layer_para.fb.size.width, layer_para.fb.size.height, layer_para.fb.mode, layer_para.fb.format, 
         layer_para.fb.seq, layer_para.fb.b_trd_src,  layer_para.fb.trd_mode, 
         layer_para.b_trd_out, layer_para.out_trd_mode, layer_para.pipe, 
         layer_para.prio, layer_para.alpha_en, layer_para.alpha_val, 
         layer_para.ck_enable, layer_para.src_win.x, layer_para.src_win.y, 
         layer_para.src_win.width, layer_para.src_win.height, layer_para.scn_win.x, layer_para.scn_win.y, 
         layer_para.scn_win.width, layer_para.scn_win.height,layer_para.fb.pre_multiply, sel, HANDTOID(hid));
-    }    
+    }
 }
 
 static ssize_t disp_layer_para_store(struct device *dev,
@@ -414,6 +465,40 @@ static DEVICE_ATTR(lcd_bright_curve_en, S_IRUGO|S_IWUSR|S_IWGRP,
 		disp_lcd_bright_curve_en_show, disp_lcd_bright_curve_en_store);
 
 
+static ssize_t disp_lcd_src_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "screen%d lcd src=%d\n", sel, BSP_disp_lcd_get_src(sel));
+}
+
+static ssize_t disp_lcd_src_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int err;
+    unsigned long val;
+
+	err = strict_strtoul(buf, 10, &val);
+	if (err) {
+		printk("Invalid size\n");
+		return err;
+	}
+
+    if(val > 6)
+    {
+        printk("Invalid value, <=6 is expected!\n");
+    }else
+    {
+        BSP_disp_lcd_set_src(sel, val);
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(lcd_src, S_IRUGO|S_IWUSR|S_IWGRP,
+		disp_lcd_src_show, disp_lcd_src_store);
+
+
 static ssize_t disp_fps_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -425,7 +510,24 @@ static ssize_t disp_fps_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {   
-	return count;
+	int err;
+    unsigned long val;
+
+	err = strict_strtoul(buf, 10, &val);
+	if (err) {
+		printk("Invalid size\n");
+		return err;
+	}
+
+    if(val > 75)
+    {
+        printk("Invalid value, <=75 is expected!\n");
+    }else
+    {
+        BSP_disp_lcd_set_fps(sel, val);
+	}
+
+    return count;
 }
 
 static DEVICE_ATTR(fps, S_IRUGO|S_IWUSR|S_IWGRP,
@@ -495,6 +597,91 @@ static ssize_t disp_hdmi_hpd_store(struct device *dev,
 static DEVICE_ATTR(hdmi_hpd, S_IRUGO|S_IWUSR|S_IWGRP,
 		disp_hdmi_hpd_show, disp_hdmi_hpd_store);
 
+
+static ssize_t disp_hdmi_cts_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "cts %s\n", BSP_disp_hdmi_get_cts_enable()? "on":"off");
+}
+
+static ssize_t disp_hdmi_cts_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	if (count < 1)
+        return -EINVAL;
+
+    if (strnicmp(buf, "on", 2) == 0 || strnicmp(buf, "1", 1) == 0)
+    {
+        BSP_disp_hdmi_cts_enable(1);
+	}
+    else if (strnicmp(buf, "off", 3) == 0 || strnicmp(buf, "0", 1) == 0)
+	{
+        BSP_disp_hdmi_cts_enable(0);
+    }
+    else
+    {
+        return -EINVAL;
+    }
+
+	return count;
+}
+
+static DEVICE_ATTR(hdmi_cts, S_IRUGO|S_IWUSR|S_IWGRP,
+		disp_hdmi_cts_show, disp_hdmi_cts_store);
+
+
+static ssize_t disp_hdmi_test_mode_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "screen%d hdmi_test_mode=%d\n", sel, BSP_disp_hdmi_get_test_mode(sel));
+}
+
+static ssize_t disp_hdmi_test_mode_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	if (count < 1)
+        return -EINVAL;
+
+    if (strnicmp(buf, "720p50hz", 8) == 0)
+    {
+        BSP_disp_hdmi_set_test_mode(sel, DISP_TV_MOD_720P_50HZ);
+	}
+    else if (strnicmp(buf, "720p60hz", 8) == 0)
+    {
+        BSP_disp_hdmi_set_test_mode(sel, DISP_TV_MOD_720P_60HZ);
+	}
+    else if (strnicmp(buf, "1080p50hz", 9) == 0)
+    {
+        BSP_disp_hdmi_set_test_mode(sel, DISP_TV_MOD_1080P_50HZ);
+	}
+    else if (strnicmp(buf, "1080p60hz", 9) == 0)
+    {
+        BSP_disp_hdmi_set_test_mode(sel, DISP_TV_MOD_1080P_60HZ);
+	}
+    else if (strnicmp(buf, "1080p24hz", 9) == 0)
+    {
+        BSP_disp_hdmi_set_test_mode(sel, DISP_TV_MOD_1080P_24HZ);
+	}
+    else if (strnicmp(buf, "576p", 4) == 0)
+    {
+        BSP_disp_hdmi_set_test_mode(sel, DISP_TV_MOD_576P);
+	}
+    else if (strnicmp(buf, "480p", 4) == 0)
+    {
+        BSP_disp_hdmi_set_test_mode(sel, DISP_TV_MOD_480P);
+	}
+    else
+    {
+        return -EINVAL;
+    }
+
+	return count;
+}
+
+static DEVICE_ATTR(hdmi_test_mode, S_IRUGO|S_IWUSR|S_IWGRP,
+		disp_hdmi_test_mode_show, disp_hdmi_test_mode_store);
 
 
 #define ____SEPARATOR_VSYNC_EVENT____
@@ -1491,6 +1678,9 @@ static struct attribute *disp_attributes[] = {
     &dev_attr_fps.attr,
     &dev_attr_video_info.attr,
     &dev_attr_video_fps.attr,
+    &dev_attr_lcd_src.attr,
+    &dev_attr_hdmi_cts.attr,
+    &dev_attr_hdmi_test_mode.attr,
 	NULL
 };
 

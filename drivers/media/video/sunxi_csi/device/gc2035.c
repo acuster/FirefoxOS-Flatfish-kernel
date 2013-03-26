@@ -803,9 +803,14 @@ static struct regval_list sensor_default_regs[] = {
 {{0x97},{0x02}},
 {{0x98},{0x80}},
 {{0xc8},{0x14}},
-{{0xf7},{0x0D}},
+{{0xf7},{0x0f}},
+{{0xff},{0xff}},
 {{0xf8},{0x83}},
+{{0xff},{0xff}},
 {{0xfa},{0x00}},//pll=4
+{{0xff},{0xff}},
+{{0xf7},{0x0d}},
+{{0xff},{0xff}},
 
 {{0x05},{0x00}},
 {{0x06},{0xc4}},
@@ -1447,7 +1452,7 @@ static int sensor_write(struct v4l2_subdev *sd, unsigned char *reg,
 		ret = 0;
 	}
 	else if (ret < 0) {
-		csi_dev_err("sensor_write error!\n");
+		csi_dev_err("sensor_write 0x%x=0x%x error!\n", data[0], data[1]);
 	}
 	return ret;
 }
@@ -1466,8 +1471,8 @@ static int sensor_write_array(struct v4l2_subdev *sd, struct regval_list *vals ,
 	
 	for(i = 0; i < size ; i++)
 	{
-		if(vals->reg_num[0] == 0xff) {
-			mdelay(vals->value[0]);
+		if(vals->reg_num[0] == 0xff && vals->reg_num[1] == 0xff) {
+			mdelay(10);
 		}	else {
 		ret = sensor_write(sd, vals->reg_num, vals->value);
 		if (ret < 0)
@@ -1540,10 +1545,10 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 //			csi_gpio_write(sd,&dev->reset_io,CSI_RST_OFF);
 //			mdelay(10);
 			//standby on io
-//			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_ON);
-//			mdelay(10);
-//			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_OFF);
-//			mdelay(10);
+			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_ON);
+			mdelay(10);
+			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_OFF);
+			mdelay(10);
 			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_ON);
 			mdelay(10);
 			//inactive mclk after stadby in
@@ -1592,6 +1597,7 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			if(dev->dvdd) {
 				regulator_enable(dev->dvdd);
 			}
+			mdelay(100);
 			//standby off io
 			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_OFF);
 			mdelay(10);

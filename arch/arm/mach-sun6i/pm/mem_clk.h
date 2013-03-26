@@ -30,6 +30,12 @@ struct clk_div_t {
 	__u32	ahb_apb_div;	/* ahb1/apb1 clock divide ratio */
 };
 
+struct clk_misc_t {
+	__u32	pll1_bias;
+	__u32	pll6_bias;
+	__u32	pll1_tun;
+};
+
 struct pll_factor_t {
     __u8    FactorN;
     __u8    FactorK;
@@ -47,6 +53,8 @@ __s32 mem_clk_getdiv(struct clk_div_t  *clk_div);
 __s32 mem_clk_set_pll_factor(struct pll_factor_t *pll_factor);
 __s32 mem_clk_get_pll_factor(struct pll_factor_t *pll_factor);
 
+__s32 mem_clk_get_misc(struct clk_misc_t *clk_misc);
+__s32 mem_clk_set_misc(struct clk_misc_t *clk_misc);
 
 #endif  //__MEM_CLK_H__
 

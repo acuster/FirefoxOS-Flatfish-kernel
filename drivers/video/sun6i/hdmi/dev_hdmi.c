@@ -59,6 +59,39 @@ static ssize_t hdmi_debug_store(struct device *dev,
 static DEVICE_ATTR(debug, S_IRUGO|S_IWUSR|S_IWGRP,
 		hdmi_debug_show, hdmi_debug_store);
 
+static ssize_t hdmi_rgb_only_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "rgb_only=%s\n", rgb_only?"on" : "off");
+}
+
+static ssize_t hdmi_rgb_only_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	if (count < 1)
+        return -EINVAL;
+
+    if (strnicmp(buf, "on", 2) == 0 || strnicmp(buf, "1", 1) == 0)
+    {
+        rgb_only = 1;
+	}
+    else if (strnicmp(buf, "off", 3) == 0 || strnicmp(buf, "0", 1) == 0)
+	{
+        rgb_only = 0;
+    }
+    else
+    {
+        return -EINVAL;
+    }
+
+	return count;
+}
+
+static DEVICE_ATTR(rgb_only, S_IRUGO|S_IWUSR|S_IWGRP,
+		hdmi_rgb_only_show, hdmi_rgb_only_store);
+
+
 __s32 hdmi_hpd_state(__u32 state);
 static ssize_t hdmi_state_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -182,6 +215,7 @@ static const struct file_operations hdmi_fops = {
 
 static struct attribute *hdmi_attributes[] = {
     &dev_attr_debug.attr,
+    &dev_attr_rgb_only.attr,
     &dev_attr_state.attr,
     NULL
 };

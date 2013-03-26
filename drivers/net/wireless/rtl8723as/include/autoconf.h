@@ -40,6 +40,10 @@
 /*
  * Functions Config
  */
+#define CONFIG_XMIT_ACK
+#ifdef CONFIG_XMIT_ACK
+	#define CONFIG_ACTIVE_KEEP_ALIVE_CHECK
+#endif
 #define CONFIG_80211N_HT
 #define CONFIG_RECV_REORDERING_CTRL
 
@@ -71,6 +75,8 @@
 		#define CONFIG_P2P_REMOVE_GROUP_INFO
 	#endif
 	//#define CONFIG_DBG_P2P
+
+	#define CONFIG_P2P_PS
 	//#define CONFIG_P2P_IPS
 #endif
 
@@ -78,16 +84,16 @@
 //#define CONFIG_TDLS
 #ifdef CONFIG_TDLS
 //	#ifndef CONFIG_WFD
-//		#define CONFIG_WFD	1
+//		#define CONFIG_WFD	
 //	#endif
-//	#define CONFIG_TDLS_AUTOSETUP			1
-//	#define CONFIG_TDLS_AUTOCHECKALIVE		1
+//	#define CONFIG_TDLS_AUTOSETUP			
+//	#define CONFIG_TDLS_AUTOCHECKALIVE		
 #endif
 
 #define CONFIG_LAYER2_ROAMING
 #define CONFIG_LAYER2_ROAMING_RESUME
 
-//#define CONFIG_80211D
+#define CONFIG_80211D
 
 
 /*
@@ -135,9 +141,9 @@
 #endif
 
 
-#define CONFIG_CONCURRENT_MODE 1
+#define CONFIG_CONCURRENT_MODE 
 #ifdef CONFIG_CONCURRENT_MODE
-	#define CONFIG_TSF_RESET_OFFLOAD 1			// For 2 PORT TSF SYNC.
+	#define CONFIG_TSF_RESET_OFFLOAD 			// For 2 PORT TSF SYNC.
 	//#define CONFIG_HWPORT_SWAP				//Port0->Sec , Port1 -> Pri
 #endif	// CONFIG_CONCURRENT_MODE
 

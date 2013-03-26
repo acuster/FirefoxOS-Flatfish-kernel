@@ -34,6 +34,10 @@
 #include <rtl8723a_led.h>
 #include <sdio_ops.h>
 
+#ifdef CONFIG_EFUSE_CONFIG_FILE
+#include <linux/fs.h>
+#include <asm/uaccess.h>
+#endif
 
 /*
  * Description:
@@ -155,7 +159,7 @@ static void _InitQueueReservedPage(PADAPTER padapter)
 static void _InitTxBufferBoundary(PADAPTER padapter)
 {
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
+	//HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 
 	//u16	txdmactrl;
 	u8	txpktbuf_bndy;
@@ -164,8 +168,7 @@ static void _InitTxBufferBoundary(PADAPTER padapter)
 		txpktbuf_bndy = TX_PAGE_BOUNDARY;
 	} else {
 		//for WMM
-		txpktbuf_bndy = ( IS_81XXC_TEST_CHIP( pHalData->VersionID)) ? \
-						WMM_TEST_TX_PAGE_BOUNDARY : WMM_NORMAL_TX_PAGE_BOUNDARY;
+		txpktbuf_bndy = WMM_NORMAL_TX_PAGE_BOUNDARY;
 	}
 
 	rtw_write8(padapter, REG_TXPKTBUF_BCNQ_BDNY, txpktbuf_bndy);
@@ -336,54 +339,9 @@ _InitNormalChipQueuePriority(
 
 }
 
-static VOID
-_InitTestChipQueuePriority(
-	IN	PADAPTER Adapter
-	)
-{
-	u8	hq_sele ;
-	HAL_DATA_TYPE	*pHalData	= GET_HAL_DATA(Adapter);
-	struct registry_priv *pregistrypriv = &Adapter->registrypriv;
-
-
-	if(IS_HARDWARE_TYPE_8723AS(Adapter))
-		return;
-
-	switch(pHalData->OutEpNumber)
-	{
-		case 2:	// (TX_SELE_HQ|TX_SELE_LQ)
-			if(!pregistrypriv->wifi_spec)//typical setting
-				hq_sele =  HQSEL_VOQ | HQSEL_VIQ | HQSEL_MGTQ | HQSEL_HIQ ;
-			else	//for WMM
-				hq_sele = HQSEL_VOQ | HQSEL_BEQ | HQSEL_MGTQ | HQSEL_HIQ ;
-			break;
-		case 1:
-			if(TX_SELE_LQ == pHalData->OutEpQueueSel ){//map all endpoint to Low queue
-				 hq_sele = 0;
-			}
-			else if(TX_SELE_HQ == pHalData->OutEpQueueSel){//map all endpoint to High queue
-				hq_sele =  HQSEL_VOQ | HQSEL_VIQ | HQSEL_BEQ | HQSEL_BKQ | HQSEL_MGTQ | HQSEL_HIQ ;
-			}
-			break;
-		default:
-			//RT_ASSERT(FALSE,("Shall not reach here!\n"));
-			break;
-	}
-	rtw_write8(Adapter, (REG_TRXDMA_CTRL+1), hq_sele);
-}
-
 static void _InitQueuePriority(PADAPTER padapter)
 {
-	HAL_DATA_TYPE	*pHalData	= GET_HAL_DATA(padapter);
-
-	if(IS_81XXC_TEST_CHIP(pHalData->VersionID))
-	{
-		_InitTestChipQueuePriority(padapter);
-	}
-	else
-	{
-		_InitNormalChipQueuePriority(padapter);
-	}
+	_InitNormalChipQueuePriority(padapter);
 }
 
 static void _InitPageBoundary(PADAPTER padapter)
@@ -409,15 +367,6 @@ static void _InitTransferPageSize(PADAPTER padapter)
 void _InitDriverInfoSize(PADAPTER padapter, u8 drvInfoSize)
 {
 	rtw_write8(padapter, REG_RX_DRVINFO_SZ, drvInfoSize);
-}
-
-void _InitID(PADAPTER padapter)
-{
-	u32 i;
-	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
-
-	for (i = 0; i < 6; i++)
-		rtw_write8(padapter, REG_MACID + i, pEEPROM->mac_addr[i]);
 }
 
 void _InitNetworkType(PADAPTER padapter)
@@ -551,7 +500,9 @@ static void HalRxAggr8723ASdio(PADAPTER padapter)
 	else
 	{
 		valueDMATimeout = 0x06;
-		valueDMAPageCount = 0x0F;
+		//valueDMAPageCount = 0x0F;
+		valueDMAPageCount = 0x24;
+		
 	}
 
 	rtw_write8(padapter, REG_RXDMA_AGG_PG_TH+1, valueDMATimeout);
@@ -922,7 +873,6 @@ static void _InitPABias(PADAPTER padapter)
 {
 	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(padapter);
 	u8			pa_setting;
-	BOOLEAN		isNormal = IS_NORMAL_CHIP(pHalData->VersionID);
 	BOOLEAN		is92C = IS_92C_SERIAL(pHalData->VersionID);
 
 	//FIXED PA current issue
@@ -940,7 +890,7 @@ static void _InitPABias(PADAPTER padapter)
 		//RT_TRACE(COMP_INIT, DBG_LOUD, ("PA BIAS path A\n"));
 	}
 
-	if(!(pa_setting & BIT1) && isNormal && is92C)
+	if(!(pa_setting & BIT1) && is92C)
 	{
 		PHY_SetRFReg(padapter, RF_PATH_B, 0x15, 0x0FFFFF, 0x0F406);
 		PHY_SetRFReg(padapter, RF_PATH_B, 0x15, 0x0FFFFF, 0x4F406);
@@ -1055,27 +1005,6 @@ static u32 rtl8723as_hal_init(PADAPTER padapter)
 		return _FAIL;
 	}
 
-	_InitQueueReservedPage(padapter);
-	_InitTxBufferBoundary(padapter);
-	_InitQueuePriority(padapter);
-	_InitPageBoundary(padapter);
-	_InitTransferPageSize(padapter);
-
-	// Get Rx PHY status in order to report RSSI and others.
-	_InitDriverInfoSize(padapter, DRVINFO_SZ);
-	_InitID(padapter);
-	_InitNetworkType(padapter);
-	_InitWMACSetting(padapter);
-	_InitAdaptiveCtrl(padapter);
-	_InitEDCA(padapter);
-	_InitRateFallback(padapter);
-	_InitRetryFunction(padapter);
-	_initSdioAggregationSetting(padapter);
-	_InitOperationMode(padapter);
-	rtl8723a_InitBeaconParameters(padapter);
-	rtl8723a_InitBeaconMaxError(padapter, _TRUE);
-	_InitInterrupt(padapter);
-
 #if 0
 	if(pHTInfo->bRDGEnable){
 		_InitRDGSetting(Adapter);
@@ -1100,10 +1029,15 @@ static u32 rtl8723as_hal_init(PADAPTER padapter)
 		rtw_write8(padapter, REG_EARLY_MODE_CONTROL, 0);
 
 #if (MP_DRIVER == 1)
-	_InitRxSetting(padapter);
+	if (padapter->registrypriv.mp_mode == 1)
+	{
+		_InitRxSetting(padapter);
 	//RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("%s: Don't Download Firmware!!\n", __FUNCTION__));
 	//padapter->bFWReady = _FALSE;
-#else
+	}
+	else
+#endif
+	{
 	ret = rtl8723a_FirmwareDownload(padapter);
 	if (ret != _SUCCESS) {
 		RT_TRACE(_module_hci_hal_init_c_, _drv_err_, ("%s: Download Firmware failed!!\n", __FUNCTION__));
@@ -1115,7 +1049,7 @@ static u32 rtl8723as_hal_init(PADAPTER padapter)
 		padapter->bFWReady = _TRUE;
 		pHalData->fw_ractrl = _TRUE;
 	}
-#endif
+	}
 
 	rtl8723a_InitializeFirmwareVars(padapter);
 
@@ -1144,7 +1078,6 @@ static u32 rtl8723as_hal_init(PADAPTER padapter)
 		return ret;
 	}
 #endif
-
 	//
 	//d. Initialize BB related configurations.
 	//
@@ -1155,6 +1088,72 @@ static u32 rtl8723as_hal_init(PADAPTER padapter)
 		return ret;
 	}
 #endif
+	// If RF is on, we need to init RF. Otherwise, skip the procedure.
+	// We need to follow SU method to change the RF cfg.txt. Default disable RF TX/RX mode.
+	//if(pHalData->eRFPowerState == eRfOn)
+	{
+#if (HAL_RF_ENABLE == 1)
+		ret = PHY_RFConfig8723A(padapter);
+
+		if(ret != _SUCCESS){
+//			RT_TRACE(COMP_INIT, DBG_LOUD, ("Initializepadapter8192CSdio(): Fail to configure RF!!\n"));
+			return ret;
+		}
+
+	if (IS_81xxC_VENDOR_UMC_A_CUT(pHalData->VersionID) && !IS_92C_SERIAL(pHalData->VersionID))
+	{
+		PHY_SetRFReg(padapter, RF_PATH_A, RF_RX_G1, bMaskDWord, 0x30255);
+		PHY_SetRFReg(padapter, RF_PATH_A, RF_RX_G2, bMaskDWord, 0x50a00);
+	}
+
+#endif
+	}
+	//
+	// Joseph Note: Keep RfRegChnlVal for later use.
+	//
+	pHalData->RfRegChnlVal[0] = PHY_QueryRFReg(padapter, (RF_RADIO_PATH_E)0, RF_CHNLBW, bRFRegOffsetMask);
+	pHalData->RfRegChnlVal[1] = PHY_QueryRFReg(padapter, (RF_RADIO_PATH_E)1, RF_CHNLBW, bRFRegOffsetMask);
+
+	if (!pHalData->bMACFuncEnable) {	
+		_InitQueueReservedPage(padapter);
+		_InitTxBufferBoundary(padapter);
+	}
+	_InitQueuePriority(padapter);
+	_InitPageBoundary(padapter);
+	_InitTransferPageSize(padapter);
+
+	// Get Rx PHY status in order to report RSSI and others.
+	_InitDriverInfoSize(padapter, DRVINFO_SZ);
+	hal_init_macaddr(padapter);
+	_InitNetworkType(padapter);
+	_InitWMACSetting(padapter);
+	_InitAdaptiveCtrl(padapter);
+	_InitEDCA(padapter);
+	_InitRateFallback(padapter);
+	_InitRetryFunction(padapter);
+	_initSdioAggregationSetting(padapter);
+	_InitOperationMode(padapter);
+	rtl8723a_InitBeaconParameters(padapter);
+	rtl8723a_InitBeaconMaxError(padapter, _TRUE);
+	_InitInterrupt(padapter);
+
+#if defined(CONFIG_CONCURRENT_MODE) || defined(CONFIG_TX_MCAST2UNI)
+
+#ifdef CONFIG_CHECK_AC_LIFETIME
+	// Enable lifetime check for the four ACs
+	rtw_write8(padapter, REG_LIFETIME_EN, 0x0F);
+#endif	// CONFIG_CHECK_AC_LIFETIME
+
+#ifdef CONFIG_TX_MCAST2UNI
+	rtw_write16(padapter, REG_PKT_VO_VI_LIFE_TIME, 0x0400);	// unit: 256us. 256ms
+	rtw_write16(padapter, REG_PKT_BE_BK_LIFE_TIME, 0x0400);	// unit: 256us. 256ms
+#else	// CONFIG_TX_MCAST2UNI
+	rtw_write16(padapter, REG_PKT_VO_VI_LIFE_TIME, 0x3000);	// unit: 256us. 3s
+	rtw_write16(padapter, REG_PKT_BE_BK_LIFE_TIME, 0x3000);	// unit: 256us. 3s
+#endif	// CONFIG_TX_MCAST2UNI
+#endif	// CONFIG_CONCURRENT_MODE || CONFIG_TX_MCAST2UNI
+
+
 
 	// The FW command register update must after MAC and FW init ready.
 #if 0
@@ -1177,27 +1176,6 @@ static u32 rtl8723as_hal_init(PADAPTER padapter)
 		RT_TRACE(COMP_INIT, DBG_LOUD, ("padapter->bFWReady == FALSE\n"));
 	}
 #endif
-
-	// If RF is on, we need to init RF. Otherwise, skip the procedure.
-	// We need to follow SU method to change the RF cfg.txt. Default disable RF TX/RX mode.
-	//if(pHalData->eRFPowerState == eRfOn)
-	{
-#if (HAL_RF_ENABLE == 1)
-		ret = PHY_RFConfig8723A(padapter);
-
-		if(ret != _SUCCESS){
-//			RT_TRACE(COMP_INIT, DBG_LOUD, ("Initializepadapter8192CSdio(): Fail to configure RF!!\n"));
-			return ret;
-		}
-
-	if (IS_81xxC_VENDOR_UMC_A_CUT(pHalData->VersionID) && !IS_92C_SERIAL(pHalData->VersionID))
-	{
-		PHY_SetRFReg(padapter, RF_PATH_A, RF_RX_G1, bMaskDWord, 0x30255);
-		PHY_SetRFReg(padapter, RF_PATH_A, RF_RX_G2, bMaskDWord, 0x50a00);
-	}
-
-#endif
-	}
 
 	_BBTurnOnBlock(padapter);
 #if 0
@@ -1274,9 +1252,14 @@ static u32 rtl8723as_hal_init(PADAPTER padapter)
 #endif
 #endif
 #if (MP_DRIVER == 1)
-	padapter->mppriv.channel = pHalData->CurrentChannel;
-	MPT_InitializeAdapter(padapter, padapter->mppriv.channel);
-#else // MP_DRIVER != 1
+	if (padapter->registrypriv.mp_mode == 1)
+	{
+		padapter->mppriv.channel = pHalData->CurrentChannel;
+		MPT_InitializeAdapter(padapter, padapter->mppriv.channel);
+	}
+	else
+#endif //#if (MP_DRIVER == 1)
+	{
 	// 2010/08/26 MH Merge from 8192CE.
 	if (pwrctrlpriv->rf_pwrstate == rf_on)
 	{
@@ -1299,7 +1282,8 @@ static u32 rtl8723as_hal_init(PADAPTER padapter)
 		rtl8723a_SingleDualAntennaDetection(padapter);
 #endif
 	}
-#endif // MP_DRIVER != 1
+	}
+
 #if 0
 	//if(pHalData->eRFPowerState == eRfOn)
 	{
@@ -1344,6 +1328,12 @@ static u32 rtl8723as_hal_init(PADAPTER padapter)
 
 //	pHalData->PreRpwmVal = SdioLocalCmd52Read1Byte(padapter, SDIO_REG_HRPWM1) & 0x80;
 
+#ifdef CONFIG_XMIT_ACK
+	//ack for xmit mgmt frames.
+	rtw_write32(padapter, REG_FWHW_TXQ_CTRL, rtw_read32(padapter, REG_FWHW_TXQ_CTRL)|BIT(12));
+#endif //CONFIG_XMIT_ACK
+
+
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("-%s\n", __FUNCTION__));
 
 	return _SUCCESS;
@@ -1386,7 +1376,7 @@ static void PowerDownRTL8723ASdio(PADAPTER padapter)
 		if (retry == 1000) break;
 	} while (1);
 	if (retry == 1000)
-		printk(KERN_ERR "%s: can't wait REG_APS_FSMCO BIT9 to 0! (0x%02x)\n", __func__, v8);
+		DBG_8192C(KERN_ERR "%s: can't wait REG_APS_FSMCO BIT9 to 0! (0x%02x)\n", __func__, v8);
 	
 	v8 = rtw_read8(padapter, REG_APS_FSMCO+2);
 	v8 &= ~BIT(0);
@@ -1419,7 +1409,7 @@ static void LPSRadioOffRTL8723ASdio(PADAPTER padapter)
 		if (retry == 1000) break;
 	} while (1);
 	if (retry == 1000)
-		printk(KERN_ERR "%s: polling 0x5F8 to 0 fail! (0x%08x)\n", __func__, v32);
+		DBG_8192C(KERN_ERR "%s: polling 0x5F8 to 0 fail! (0x%08x)\n", __func__, v32);
 
 	// 2. 0x02[1:0] = 2b'10	// Reset BB TRX
 	u1bTmp = rtw_read8(padapter, REG_SYS_FUNC_EN);
@@ -1462,7 +1452,7 @@ static void CardDisableRTL8723ASdio(PADAPTER padapter)
 	// Run LPS WL RFOFF flow
 	ret = HalPwrSeqCmdParsing(padapter, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK, rtl8723A_enter_lps_flow);
 	if (ret == _FALSE) {
-		printk(KERN_ERR "%s: run RF OFF flow fail!\n", __func__);
+		DBG_8192C(KERN_ERR "%s: run RF OFF flow fail!\n", __func__);
 	}
 
 	//	==== Reset digital sequence   ======
@@ -1487,7 +1477,7 @@ static void CardDisableRTL8723ASdio(PADAPTER padapter)
 	rtw_hal_set_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
 	ret = HalPwrSeqCmdParsing(padapter, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK, rtl8723A_card_disable_flow);
 	if (ret == _FALSE) {
-		printk(KERN_ERR "%s: run CARD DISABLE flow fail!\n", __func__);
+		DBG_8192C(KERN_ERR "%s: run CARD DISABLE flow fail!\n", __func__);
 	}
 
 	// Reset MCU IO Wrapper, added by Roger, 2011.08.30
@@ -1506,7 +1496,8 @@ static void CardDisableRTL8723ASdio(PADAPTER padapter)
 static u32 rtl8723as_hal_deinit(PADAPTER padapter)
 {
 #ifdef CONFIG_MP_INCLUDED
-	MPT_DeInitAdapter(padapter);
+	if (padapter->registrypriv.mp_mode == 1)
+		MPT_DeInitAdapter(padapter);
 #endif
 
 #ifdef CONFIG_BT_COEXIST
@@ -1553,207 +1544,36 @@ static void rtl8723as_init_default_value(PADAPTER padapter)
 	// interface related variable
 	pHalData->SdioRxFIFOCnt = 0;
 }
-#if 0
-static VOID
-_ConfigTestChipOutEP(
-	IN	PADAPTER	pAdapter,
-	IN	u1Byte		NumOutPipe
-	)
-{
-	u1Byte			value8,txqsele;
-	HAL_DATA_TYPE	*pHalData	= GET_HAL_DATA(pAdapter);
-
-	pHalData->OutEpQueueSel = 0;
-	pHalData->OutEpNumber	= 0;
-
-	value8 = PlatformEFIORead1Byte(pAdapter, REG_TEST_SIE_OPTIONAL);
-	value8 = (value8 & USB_TEST_EP_MASK) >> USB_TEST_EP_SHIFT;
-
-	switch(value8)
-	{
-		case 0:		// 2 bulk OUT, 1 bulk IN
-		case 3:
-			pHalData->OutEpQueueSel = TX_SELE_HQ | TX_SELE_LQ;
-			pHalData->OutEpNumber	= 2;
-			RT_TRACE(COMP_INIT,  DBG_LOUD, ("EP Config: 2 bulk OUT, 1 bulk IN\n"));
-			break;
-		case 1:		// 1 bulk IN/OUT => map all endpoint to Low queue
-		case 2:		// 1 bulk IN, 1 bulk OUT => map all endpoint to High queue
-			txqsele = PlatformEFIORead1Byte(pAdapter, REG_TEST_USB_TXQS);
-			if(txqsele & 0x0F){//map all endpoint to High queue
-				pHalData->OutEpQueueSel  = TX_SELE_HQ;
-			}
-			else if(txqsele&0xF0){//map all endpoint to Low queue
-				pHalData->OutEpQueueSel  =  TX_SELE_LQ;
-			}
-			pHalData->OutEpNumber	= 1;
-			RT_TRACE(COMP_INIT,  DBG_LOUD, ("%s\n", ((1 == value8) ? "1 bulk IN/OUT" : "1 bulk IN, 1 bulk OUT")));
-			break;
-		default:
-			break;
-	}
-
-	// TODO: Error recovery for this case
-	RT_ASSERT((NumOutPipe == pHalData->OutEpNumber), ("Out EP number isn't match! %ld(Descriptor) != %ld (SIE reg)\n", (u4Byte)NumOutPipe, (u4Byte)pHalData->OutEpNumber));
-}
-
-static VOID
-_ConfigNormalChipOutEP(
-	IN	PADAPTER	pAdapter,
-	IN	u1Byte		NumOutPipe
-	)
-{
-	u1Byte			value8;
-	HAL_DATA_TYPE	*pHalData	= GET_HAL_DATA(pAdapter);
-
-	pHalData->OutEpQueueSel = 0;
-	pHalData->OutEpNumber	= 0;
-
-	pHalData->OutEpQueueSel = TX_SELE_HQ|TX_SELE_NQ|TX_SELE_LQ;
-	pHalData->OutEpNumber = NumOutPipe;
-
-	// TODO: Error recovery for this case
-	RT_ASSERT((NumOutPipe == pHalData->OutEpNumber), ("Out EP number isn't match! %ld(Descriptor) != %ld (SIE reg)\n", (u4Byte)NumOutPipe, (u4Byte)pHalData->OutEpNumber));
-
-}
-static VOID _ThreeOutEpMapping(
-	IN	HAL_DATA_TYPE	*pHalData,
-	IN	BOOLEAN	 		bWIFICfg
-	)
-{
-	if (bWIFICfg)
-	{
-		// for WMM
-		u8	Queue2Pipe[] =
-		//	BK, 	BE, 	VI, 	VO, 	BCN,	CMD,MGT,HIGH,HCCA
-		{  	1, 	2, 	1, 	0, 	0, 	0, 	0, 	0, 		0	};
-
-		QUEUE_INDEX_LIST	Pipe2Queue[] = {
-						{{VO_QUEUE, HCCA_QUEUE, BEACON_QUEUE, HIGH_QUEUE, MGNT_QUEUE}, 5},	// 0 :HIQ
-						{{BK_QUEUE, VI_QUEUE}, 2},											// 1 :MIQ
-						{{BE_QUEUE}, 1} 														// 2 :LOQ
-						};
-		_UpdateMappingStruct(
-						pHalData,
-						Pipe2Queue,
-						sizeof(Pipe2Queue),
-						Queue2Pipe,
-						sizeof(Queue2Pipe)
-						);
-	}
-	else
-	{
-		//typical setting
-		u8	Queue2Pipe[] =
-		//	BK, 	BE, 	VI, 	VO, 	BCN,	CMD,MGT,HIGH,HCCA
-		{  	2, 	2, 	1, 	0, 	0, 		0, 	 0, 	   0, 		0	};
-
-		QUEUE_INDEX_LIST	Pipe2Queue[] = {
-						{{VO_QUEUE, HCCA_QUEUE, BEACON_QUEUE, HIGH_QUEUE, MGNT_QUEUE}, 5},	// 0 :HIQ
-						{{VI_QUEUE}, 1} ,										// 1 :MIQ
-						{{BE_QUEUE, BK_QUEUE}, 2}							// 2 :LOQ
-						};
-		_UpdateMappingStruct(
-						pHalData,
-						Pipe2Queue,
-						sizeof(Pipe2Queue),
-						Queue2Pipe,
-						sizeof(Queue2Pipe)
-						);
-	}
-}
-
-static BOOLEAN
-_MappingOutEP(
-	IN	PADAPTER	padapter,
-	IN	u1Byte		NumOutPipe,
-	IN	BOOLEAN		IsTestChip
-	)
-{
-	HAL_DATA_TYPE *pHalData;
-	struct registry_priv *pregistrypriv;
-	u8 bWIFICfg;
-	BOOLEAN result = _TRUE;
-
-
-	pHalData = GET_HAL_DATA(padapter);
-	pregistrypriv = &padapter->registrypriv;
-	bWIFICfg = pregistrypriv->wifi_spec;
-
-	switch (NumOutPipe)
-	{
-		case 3:
-			_ThreeOutEpMapping(pHalData, bWIFICfg);
-			break;
-
-		default:
-			RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
-					("Incorrect the number of SDIO TxQueue!!\n"));
-			result = _FALSE;
-			break;
-	}
-
-	return result;
-}
-
-static BOOLEAN
-HalSdioSetQueueMapping8192CSdio(
-	IN	PADAPTER	padapter,
-	IN	u1Byte		NumIn,
-	IN	u1Byte		NumOut
-	)
-{
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	BOOLEAN			result		= FALSE;
-	BOOLEAN			is81xxCTest = FALSE;
-
-
-//	pHalData->VersionID	= ReadChipVersion(padapter);
-	is81xxCTest = IS_81XXC_TEST_CHIP(pHalData->VersionID);
-
-	if(is81xxCTest)
-		_ConfigTestChipOutEP(padapter, NumOut);
-	else
-		_ConfigNormalChipOutEP(padapter, NumOut);
-
-	result = _MappingOutEP(padapter, NumOut, is81xxCTest);
-
-	return TRUE;
-}
-#endif
 
 static void rtl8723as_interface_configure(PADAPTER padapter)
 {
-	PHAL_DATA_TYPE pHalData;
-	struct registry_priv *pregistrypriv;
-	u8 bWIFICfg;
+	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(padapter);
+	struct dvobj_priv		*pdvobjpriv = adapter_to_dvobj(padapter);
+	struct registry_priv	*pregistrypriv = &padapter->registrypriv;
+	BOOLEAN		bWiFiConfig	= pregistrypriv->wifi_spec;
 
 
-	pHalData = GET_HAL_DATA(padapter);
-	pregistrypriv = &padapter->registrypriv;
-	bWIFICfg = pregistrypriv->wifi_spec;
+	pdvobjpriv->RtOutPipe[0] = WLAN_TX_HIQ_DEVICE_ID;
+	pdvobjpriv->RtOutPipe[1] = WLAN_TX_MIQ_DEVICE_ID;
+	pdvobjpriv->RtOutPipe[2] = WLAN_TX_LOQ_DEVICE_ID;
 
-	pHalData->OutEpQueueSel = TX_SELE_HQ|TX_SELE_NQ|TX_SELE_LQ;
 	pHalData->OutEpNumber = SDIO_MAX_TX_QUEUE;
 
-	if (bWIFICfg)
-	{
-		// for WMM
-		u8	Queue2Pipe[] =
-		//	BK, 	BE, 	VI, 	VO, 	BCN,	CMD,MGT,HIGH,HCCA
-		{  	1, 	2, 	1, 	0, 	0, 	0, 	0, 	0, 		0	};
-
-		_rtw_memcpy(pHalData->Queue2EPNum, Queue2Pipe, 9);
+	switch(pHalData->OutEpNumber){
+		case 3:
+			pHalData->OutEpQueueSel=TX_SELE_HQ| TX_SELE_LQ|TX_SELE_NQ;
+			break;
+		case 2:
+			pHalData->OutEpQueueSel=TX_SELE_HQ| TX_SELE_NQ;
+			break;
+		case 1:
+			pHalData->OutEpQueueSel=TX_SELE_HQ;
+			break;
+		default:				
+			break;
 	}
-	else
-	{
-		//typical setting
-		u8	Queue2Pipe[] =
-		//	BK, 	BE, 	VI, 	VO, 	BCN,	CMD,MGT,HIGH,HCCA
-		{  	2, 	2, 	1, 	0, 	0, 		0, 	 0, 	   0, 		0	};
 
-		_rtw_memcpy(pHalData->Queue2EPNum, Queue2Pipe, 9);
-	}
+	Hal_MappingOutPipe(padapter, pHalData->OutEpNumber);
 }
 
 //
@@ -1770,7 +1590,7 @@ _EfuseCellSel(
 	IN	PADAPTER	padapter
 	)
 {
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
+	//HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 
 	u32			value32;
 
@@ -1920,6 +1740,118 @@ Hal_CustomizeByCustomerID_8723AS(
 #endif
 }
 
+#ifdef CONFIG_EFUSE_CONFIG_FILE
+static u32 Hal_readPGDataFromConfigFile(
+	PADAPTER	padapter)
+{
+	u32 i;
+	struct file *fp;
+	mm_segment_t fs;
+	u8 temp[3];
+	loff_t pos = 0;
+	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
+	u8	*PROMContent = pEEPROM->efuse_eeprom_data;
+
+
+	temp[2] = 0; // add end of string '\0'
+
+	fp = filp_open("/system/etc/wifi/wifi_efuse.map", O_RDWR,  0644);
+	if (IS_ERR(fp)) {
+		pEEPROM->bloadfile_fail_flag = _TRUE;
+		DBG_871X("Error, Efuse configure file doesn't exist.\n");
+		return _FAIL;
+	}
+
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	DBG_871X("Efuse configure file:\n");
+	for (i=0; i<HWSET_MAX_SIZE_88E; i++) {
+		vfs_read(fp, temp, 2, &pos);
+		PROMContent[i] = simple_strtoul(temp, NULL, 16 );
+		pos += 1; // Filter the space character
+		DBG_871X("%02X \n", PROMContent[i]);
+	}
+	DBG_871X("\n");
+	set_fs(fs);
+
+	filp_close(fp, NULL);
+	pEEPROM->bloadfile_fail_flag = _FALSE;
+	return _SUCCESS;
+}
+
+static void
+Hal_ReadMACAddrFromFile_8723AS(
+	PADAPTER		padapter
+	)
+{
+	u32 i;
+	struct file *fp;
+	mm_segment_t fs;
+	u8 source_addr[18];
+	loff_t pos = 0;
+	u32	curtime = rtw_get_current_time();
+	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
+	u8 *head, *end;
+
+	u8 null_mac_addr[ETH_ALEN] = {0, 0, 0,0, 0, 0};
+	u8 multi_mac_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
+	_rtw_memset(source_addr, 0, 18);
+	_rtw_memset(pEEPROM->mac_addr, 0, ETH_ALEN);
+
+	fp = filp_open("/data/wifimac.txt", O_RDWR,  0644);
+	if (IS_ERR(fp)) {
+		pEEPROM->bloadmac_fail_flag = _TRUE;
+		DBG_871X("Error, wifi mac address file doesn't exist.\n");
+	} else {
+		fs = get_fs();
+		set_fs(KERNEL_DS);
+
+		DBG_871X("wifi mac address:\n");
+		vfs_read(fp, source_addr, 18, &pos);
+		source_addr[17] = ':';
+
+		head = end = source_addr;
+		for (i=0; i<ETH_ALEN; i++) {
+			while (end && (*end != ':') )
+				end++;
+
+			if (end && (*end == ':') )
+				*end = '\0';
+
+			pEEPROM->mac_addr[i] = simple_strtoul(head, NULL, 16 );
+
+			if (end) {
+				end++;
+				head = end;
+			}
+			DBG_871X("%02x \n", pEEPROM->mac_addr[i]);
+		}
+		DBG_871X("\n");
+		set_fs(fs);
+		pEEPROM->bloadmac_fail_flag = _FALSE;
+		filp_close(fp, NULL);
+	}
+
+	if ( (_rtw_memcmp(pEEPROM->mac_addr, null_mac_addr, ETH_ALEN)) ||
+		(_rtw_memcmp(pEEPROM->mac_addr, multi_mac_addr, ETH_ALEN)) ) {
+		pEEPROM->mac_addr[0] = 0x00;
+		pEEPROM->mac_addr[1] = 0xe0;
+		pEEPROM->mac_addr[2] = 0x4c;
+		pEEPROM->mac_addr[3] = (u8)(curtime & 0xff) ;
+		pEEPROM->mac_addr[4] = (u8)((curtime>>8) & 0xff) ;
+		pEEPROM->mac_addr[5] = (u8)((curtime>>16) & 0xff) ;
+	}
+
+	DBG_871X("Hal_ReadMACAddrFromFile_8723AS: Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
+		  pEEPROM->mac_addr[0], pEEPROM->mac_addr[1],
+		  pEEPROM->mac_addr[2], pEEPROM->mac_addr[3],
+		  pEEPROM->mac_addr[4], pEEPROM->mac_addr[5]);
+}
+#endif
+
+
 static VOID
 readAdapterInfo(
 	IN PADAPTER			padapter
@@ -1935,9 +1867,17 @@ readAdapterInfo(
 	// This part read and parse the eeprom/efuse content
 	//
 	Hal_InitPGData(padapter, hwinfo);
+#ifdef CONFIG_EFUSE_CONFIG_FILE
+	Hal_readPGDataFromConfigFile(padapter, hwinfo);
+#endif
+
 	Hal_EfuseParseIDCode(padapter, hwinfo);
 	Hal_EfuseParsePIDVID_8723AS(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
+
 	Hal_EfuseParseMACAddr_8723AS(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
+#ifdef CONFIG_EFUSE_CONFIG_FILE
+	Hal_ReadMACAddrFromFile_8723AS(padapter);
+#endif
 	Hal_EfuseParseTxPowerInfo_8723A(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
 	Hal_EfuseParseBTCoexistInfo_8723A(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
 	Hal_EfuseParseEEPROMVer(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
@@ -1947,6 +1887,7 @@ readAdapterInfo(
 	Hal_EfuseParseRateIndicationOption(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
 	Hal_EfuseParseBoardType_8723AS(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
 	Hal_EfuseParseXtal_8723A(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
+	Hal_EfuseParseThermalMeter_8723A(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
 
 	//
 	// The following part initialize some vars by PG info.
@@ -1987,7 +1928,7 @@ _InitOtherVariable(
 	IN PADAPTER 		Adapter
 	)
 {
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
+	//HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 
 
 	//if(Adapter->bInHctTest){
@@ -2045,7 +1986,7 @@ static void ReadAdapterInfo8723AS(PADAPTER padapter)
  */
 void SetHwReg8723AS(PADAPTER padapter, u8 variable, u8 *val)
 {
-	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(padapter);
+	//PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(padapter);
 
 _func_enter_;
 
@@ -2069,7 +2010,7 @@ _func_exit_;
  */
 void GetHwReg8723AS(PADAPTER padapter, u8 variable, u8 *val)
 {
-	PHAL_DATA_TYPE pHalData = GET_HAL_DATA(padapter);
+	//PHAL_DATA_TYPE pHalData = GET_HAL_DATA(padapter);
 
 _func_enter_;
 
@@ -2121,6 +2062,13 @@ GetHalDefVar8723ASDIO(
 		case HW_VAR_MAX_RX_AMPDU_FACTOR:
 			*(( u32*)pValue) = MAX_AMPDU_FACTOR_64K;
 			break;	
+		case HW_DEF_ODM_DBG_FLAG:
+			{
+				u8Byte	DebugComponents = *((u32*)pValue);	
+				PDM_ODM_T	pDM_Odm = &(pHalData->odmpriv);
+				printk("pDM_Odm->DebugComponents = 0x%llx \n",pDM_Odm->DebugComponents );			
+			}
+			break;
 		default:
 			//RT_TRACE(COMP_INIT, DBG_WARNING, ("GetHalDefVar8723ASDIO(): Unkown variable: %d!\n", eVariable));
 			bResult = _FAIL;
@@ -2188,6 +2136,24 @@ SetHalDefVar8723ASDIO(
 				}			
 			}
 			break;
+		case HW_DEF_FA_CNT_DUMP:
+			{
+				u8 bRSSIDump = *((u8*)pValue);	
+				PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
+				if(bRSSIDump)
+					pDM_Odm->DebugComponents	=	ODM_COMP_DIG|ODM_COMP_FA_CNT	;					
+				else
+					pDM_Odm->DebugComponents	= 0;					
+				
+			}
+			break;
+		case HW_DEF_ODM_DBG_FLAG:
+			{
+				u8Byte	DebugComponents = *((u8Byte*)pValue);	
+				PDM_ODM_T	pDM_Odm = &(pHalData->odmpriv);
+				pDM_Odm->DebugComponents = DebugComponents;			
+			}
+			break;
 		default:
 			//RT_TRACE(COMP_INIT, DBG_TRACE, ("SetHalDefVar819xUsb(): Unkown variable: %d!\n", eVariable));
 			bResult = _FAIL;
@@ -2211,7 +2177,10 @@ void UpdateHalRAMask8192CUsb(PADAPTER padapter, u32 mac_id, u8 rssi_level)
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	WLAN_BSSID_EX 		*cur_network = &(pmlmeinfo->network);
-
+#ifdef CONFIG_CONCURRENT_MODE
+	if(rtw_buddy_adapter_up(padapter) && padapter->adapter_type > PRIMARY_ADAPTER)	
+		pHalData = GET_HAL_DATA(padapter->pbuddy_adapter);				
+#endif //CONFIG_CONCURRENT_MODE
 
 	if (mac_id >= NUM_STA) //CAM_SIZE
 	{
@@ -2227,6 +2196,9 @@ void UpdateHalRAMask8192CUsb(PADAPTER padapter, u32 mac_id, u8 rssi_level)
 	switch (mac_id)
 	{
 		case 0:// for infra mode
+#ifdef CONFIG_CONCURRENT_MODE
+		case 2:// first station uses macid=0, second station uses macid=2
+#endif
 			supportRateNum = rtw_get_rateset_len(cur_network->SupportedRates);
 			networkType = judge_network_type(padapter, cur_network->SupportedRates, supportRateNum) & 0xf;
 			//pmlmeext->cur_wireless_mode = networkType;
@@ -2270,8 +2242,8 @@ void UpdateHalRAMask8192CUsb(PADAPTER padapter, u32 mac_id, u8 rssi_level)
 	rate_bitmap = 0x0fffffff;	
 #ifdef	CONFIG_ODM_REFRESH_RAMASK
 	{				
-		rate_bitmap = ODM_Get_Rate_Bitmap(&pHalData->odmpriv,mask,rssi_level);
-		printk("%s => mac_id:%d, networkType:0x%02x, mask:0x%08x\n\t ==> rssi_level:%d, rate_bitmap:0x%08x\n",
+		rate_bitmap = ODM_Get_Rate_Bitmap(&pHalData->odmpriv,mac_id,mask,rssi_level);
+		DBG_8192C("%s => mac_id:%d, networkType:0x%02x, mask:0x%08x\n\t ==> rssi_level:%d, rate_bitmap:0x%08x\n",
 			__FUNCTION__,mac_id,networkType,mask,rssi_level,rate_bitmap);
 	}
 #endif

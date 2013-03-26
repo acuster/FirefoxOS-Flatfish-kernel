@@ -152,8 +152,6 @@ static s32 sw_mci_init_host(struct sunxi_mmc_host* smc_host)
 	mci_writel(smc_host, REG_GCTRL, rval);
 
 	smc_host->voltage = SDC_WOLTAGE_OFF;
-	if (smc_host->pdata->isiodev)
-		smc_host->io_flag = 1;
 	return 0;
 }
 
@@ -1097,7 +1095,6 @@ static void sw_mci_hold_io(struct sunxi_mmc_host* smc_host)
 		}
 	}
 	SMC_DBG(smc_host, "mmc %d suspend pins\n", smc_host->pdev->id);
-	smc_host->suspend = 1;
 
 	return;
 }
@@ -1493,9 +1490,11 @@ static void sw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	u32 byte_cnt = 0;
 	int ret;
 
-	if (sw_mci_card_present(mmc) == 0 || smc_host->ferror || !smc_host->power_on) {
-		SMC_DBG(smc_host, "no medium present, ferr %d, pwd %d\n",
-			    smc_host->ferror, smc_host->power_on);
+	if (sw_mci_card_present(mmc) == 0 || smc_host->ferror
+			|| smc_host->suspend || !smc_host->power_on) {
+		SMC_DBG(smc_host, "no medium present, ferr %d, suspend %d pwd %d\n",
+			    smc_host->ferror, smc_host->suspend, smc_host->power_on);
+		mrq->cmd->error = -ENOMEDIUM;
 		mrq->cmd->error = -ENOMEDIUM;
 		mmc_request_done(mmc, mrq);
 		return;
@@ -1750,7 +1749,6 @@ void sw_mci_rescan_card(unsigned id, unsigned insert)
 	BUG_ON(id > 3);
 	BUG_ON(sw_host[id] == NULL);
 	smc_host = sw_host[id];
-
 	smc_host->present = insert ? 1 : 0;
 	mmc_detect_change(smc_host->mmc, 0);
 	return;
@@ -2125,6 +2123,7 @@ static int __devinit sw_mci_probe(struct platform_device *pdev)
 	smc_host->pdev	= pdev;
 	smc_host->pdata	= pdev->dev.platform_data;
 	smc_host->cd_mode = smc_host->pdata->cdmode;
+	smc_host->io_flag = smc_host->pdata->isiodev ? 1 : 0;
 	smc_host->debuglevel = CONFIG_MMC_PRE_DBGLVL_SUNXI;
 
 	spin_lock_init(&smc_host->lock);
@@ -2177,6 +2176,8 @@ static int __devinit sw_mci_probe(struct platform_device *pdev)
 	mmc->max_req_size	= mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size	= mmc->max_req_size;
 	mmc->max_segs	    	= 128;
+	if (smc_host->io_flag)
+		mmc->pm_flags = MMC_PM_IGNORE_PM_NOTIFY;
 
 	ret = mmc_add_host(mmc);
 	if (ret) {
@@ -2267,8 +2268,15 @@ static int sw_mci_suspend(struct device *dev)
 	int ret = 0;
 
 	if (mmc) {
+		struct sunxi_mmc_host *smc_host = mmc_priv(mmc);
 		ret = mmc_suspend_host(mmc);
-
+		smc_host->suspend = ret ? 0 : 1;
+		if (!ret && mmc_card_keep_power(mmc)) {
+			sw_mci_regs_save(smc_host);
+			/* gate clock for lower power */
+			clk_disable(smc_host->hclk);
+			clk_disable(smc_host->mclk);
+		}
 		SMC_MSG(NULL, "smc %d suspend\n", pdev->id);
 	}
 
@@ -2283,9 +2291,18 @@ static int sw_mci_resume(struct device *dev)
 
 	if (mmc) {
 		struct sunxi_mmc_host *smc_host = mmc_priv(mmc);
+		smc_host->suspend = 0;
+		if (mmc_card_keep_power(mmc)) {
+			/* enable clock for resotre */
+			clk_enable(smc_host->mclk);
+			clk_enable(smc_host->hclk);
+			sw_mci_regs_restore(smc_host);
+			sw_mci_update_clk(smc_host);
+		}
 		if (smc_host->cd_mode == CARD_DETECT_BY_GPIO_IRQ)
 			sw_mci_cd_cb((unsigned long)smc_host);
 		ret = mmc_resume_host(mmc);
+		smc_host->suspend = ret ? 1 : 0;
 		SMC_MSG(NULL, "smc %d resume\n", pdev->id);
 	}
 

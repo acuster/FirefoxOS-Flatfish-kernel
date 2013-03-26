@@ -76,12 +76,14 @@ __s32 disp_vint_checkin(__u32 sel)
     return 0;
 }
 
+__s32 disp_lcd_set_fps(__u32 sel);
 void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
 {    
     __u32 cur_line = 0, start_delay = 0;
     __u32 i = 0;
 
     disp_vint_checkin(sel);
+    disp_lcd_set_fps(sel);
     
 	Video_Operation_In_Vblanking(sel, tcon_index);
 
@@ -95,11 +97,6 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
 		    return ;
         }
 	}
-
-    if(gdisp.screen[sel].LCD_CPUIF_ISR)
-    {
-    	(*gdisp.screen[sel].LCD_CPUIF_ISR)();
-    }
 
     if(gdisp.screen[sel].cache_flag == FALSE && gdisp.screen[sel].cfg_cnt == 0)
     {

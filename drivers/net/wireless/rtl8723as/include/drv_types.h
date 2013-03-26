@@ -203,7 +203,7 @@ struct registry_priv
 #endif
 
 #ifdef CONFIG_IOL
-	bool force_iol; //enable iol without other concern
+	u8 fw_iol; //enable iol without other concern
 #endif
 
 #ifdef CONFIG_DUALMAC_CONCURRENT
@@ -243,11 +243,23 @@ struct registry_priv
 #define INTF_DATA GSPI_DATA
 #endif
 
+#define GET_PRIMARY_ADAPTER(padapter) (((_adapter *)padapter)->dvobj->if1)
+
 struct dvobj_priv
 {
-	_adapter *if1;
-	_adapter *if2;
+	_adapter *if1; //PRIMARY_ADAPTER
+	_adapter *if2; //SECONDARY_ADAPTER
 
+	//for local/global synchronization
+	_mutex hw_init_mutex;
+	_mutex h2c_fwcmd_mutex;
+	_mutex setch_mutex;
+	_mutex setbw_mutex;
+
+	unsigned char	oper_channel; //saved channel info when call set_channel_bw
+	unsigned char	oper_bwmode;
+	unsigned char	oper_ch_offset;//PRIME_CHNL_OFFSET
+	
 	//For 92D, DMDP have 2 interface.
 	u8	InterfaceNumber;
 	u8	NumInterfaces;
@@ -398,22 +410,6 @@ enum _ADAPTER_TYPE {
 	MAX_ADAPTER,
 };
 
-#ifdef CONFIG_CONCURRENT_MODE
-struct co_data_priv{
-
-	//george@20120518
-	//current operating channel/bw/ch_offset
-	//save the correct ch/bw/ch_offset whatever the inputted values are
-	//when calling set_channel_bwmode() at concurrent mode
-	//for debug check or reporting to layer app (such as wpa_supplicant for nl80211)
-	u8 co_ch;
-	u8 co_bw;
-	u8 co_ch_offset;
-	u8 rsvd;
-
-};
-#endif //CONFIG_CONCURRENT_MODE
-
 typedef enum _DRIVER_STATE{
 	DRIVER_NORMAL = 0,
 	DRIVER_DISAPPEAR = 1,
@@ -472,7 +468,11 @@ struct _ADAPTER{
 	struct	pwrctrl_priv	pwrctrlpriv;
 	struct 	eeprom_priv eeprompriv;
 	struct	led_priv	ledpriv;
-
+#if defined(CONFIG_CHECK_BT_HANG) && defined(CONFIG_BT_COEXIST)	
+	//Check BT status for BT Hung.
+	struct workqueue_struct *priv_checkbt_wq;
+	struct delayed_work checkbt_work;
+#endif	
 #ifdef CONFIG_MP_INCLUDED
        struct	mp_priv	mppriv;
 #endif
@@ -584,24 +584,24 @@ struct _ADAPTER{
 	u8 bReadPortCancel;
 	u8 bWritePortCancel;
 	u8 bRxRSSIDisplay;
+	//	Added by Albert 2012/10/26
+	//	The driver will show up the desired channel number when this flag is 1.
+	u8 bNotifyChannelChange;
+#ifdef CONFIG_P2P
+	//	Added by Albert 2012/12/06
+	//	The driver will show the current P2P status when the upper application reads it.
+	u8 bShowGetP2PState;
+#endif
 #ifdef CONFIG_AUTOSUSPEND
 	u8	bDisableAutosuspend;
 #endif
 
 	_adapter *pbuddy_adapter;
 
-	_mutex *hw_init_mutex;
 #if defined(CONFIG_CONCURRENT_MODE) || defined(CONFIG_DUALMAC_CONCURRENT)
 	u8 isprimary; //is primary adapter or not
 	u8 adapter_type;
 	u8 iface_type; //interface port type
-
-	//for global synchronization
-	_mutex *ph2c_fwcmd_mutex;
-	_mutex *psetch_mutex;
-	_mutex *psetbw_mutex;
-
-	struct co_data_priv *pcodatapriv;//data buffer shared among interfaces
 #endif
 
 #ifdef CONFIG_DUALMAC_CONCURRENT

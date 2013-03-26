@@ -34,10 +34,10 @@
 #define HP_THERMAL_NUM		8
 
 #ifdef CONFIG_PCI_HCI
-#define MAX_AGGR_NUM	0x0A0A
+#define MAX_AGGR_NUM	0x0B
 #else
-#define MAX_AGGR_NUM	0x0909
-#endif
+#define MAX_AGGR_NUM	0x07
+#endif // CONFIG_PCI_HCI
 
 
 /*--------------------------Define Parameters-------------------------------*/
@@ -83,10 +83,11 @@ typedef enum _RF_RADIO_PATH{
 
 #define	RF_PATH_MAX		2
 #define 	MAX_RF_PATH		RF_PATH_MAX
-#define 	MAX_TX_COUNT				4 //path numbers
+#define	MAX_TX_COUNT_88E			1
+#define 	MAX_TX_COUNT				MAX_TX_COUNT_88E  // 4 //path numbers
 
 #define CHANNEL_MAX_NUMBER		14	// 14 is the max channel number
-#define MAX_CHNL_GROUP_24G		6	// ch1~2, ch3~5, ch6~8,ch9~11,ch12~13,CH 14 total three groups
+#define MAX_CHNL_GROUP_24G		6	// ch1~2, ch3~5, ch6~8,ch9~11,ch12~13,CH 14 total six groups
 #define CHANNEL_GROUP_MAX_88E    	6
 
 typedef enum _WIRELESS_MODE {

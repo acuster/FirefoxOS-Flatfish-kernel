@@ -1977,5 +1977,9 @@ ODM_SingleDualAntennaDetection(
 
 #endif	// #if((DM_ODM_SUPPORT_TYPE==ODM_MP)||(DM_ODM_SUPPORT_TYPE==ODM_CE))
 
+#if (DM_ODM_SUPPORT_TYPE == ODM_CE)
+void odm_dtc(PDM_ODM_T pDM_Odm);
+#endif /* #if (DM_ODM_SUPPORT_TYPE == ODM_CE) */
+
 #endif
 

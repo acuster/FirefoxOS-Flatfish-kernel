@@ -2,7 +2,7 @@
  * sound\soc\sun6i\pcm\sun6i-pcm.h
  * (C) Copyright 2010-2016
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
- * chenpailin <chenpailin@Reuuimllatech.com>
+ * huangxin <huangxin@Reuuimllatech.com>
  *
  * some simple description for this code
  *
@@ -20,7 +20,7 @@
 /* REGISTER definition */
 
 /* PCM REGISTER */
-#define SUN6I_PCMBASE 		(0x01C22400)
+#define SUN6I_PCMBASE 							(0x01C22400)
 
 #define SUN6I_PCMCTL 	  						(0x00)
 	#define SUN6I_PCMCTL_SDO0EN					(1<<8) 
@@ -167,9 +167,6 @@
 #define SUN6I_PCMCLKD_BCLK_MASK   0x070
 #define SUN6I_PCMCLKD_BCLK_OFFS   4
 #define SUN6I_PCMCLKD_MCLKEN_OFFS 7
-
-unsigned int sun6i_pcm_get_clockrate(void);
-extern struct sun6i_pcm_info sun6i_pcm;
 
 struct sun6i_pcm_info {
 	void __iomem   *regs;    /* PCM BASE */

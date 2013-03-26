@@ -15,6 +15,12 @@
 *
 *                                   欧孚 EM55
 *
+*
+* 注: 1、此描述为模组的内部引脚变化.
+*     2、方案中要注意和模组连接时是否存在三极管.如果存在三极管，代码中的操作
+*        顺序应该和模组的引脚操作顺序相反.
+*
+*
 * 模组内部默认状态:
 * vbat  : 低
 * power : 高
@@ -70,6 +76,7 @@
 #include <mach/gpio.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
+#include <linux/regulator/consumer.h>
 
 #include "sw_module.h"
 
@@ -97,8 +104,9 @@ void em55_reset(struct sw_modem *modem)
     modem_dbg("reset %s modem\n", modem->name);
 
 	modem_reset(modem, 0);
-    sw_module_mdelay(60);
+    sw_module_mdelay(100);
 	modem_reset(modem, 1);
+	sw_module_mdelay(10);
 
     return;
 }
@@ -116,9 +124,9 @@ static void em55_sleep(struct sw_modem *modem, u32 sleep)
     modem_dbg("%s modem %s\n", modem->name, (sleep ? "sleep" : "wakeup"));
 
     if(sleep){
-        modem_sleep(modem, 0);
-    }else{
         modem_sleep(modem, 1);
+    }else{
+        modem_sleep(modem, 0);
     }
 
     return;
@@ -135,73 +143,48 @@ static void em55_rf_disable(struct sw_modem *modem, u32 disable)
 
 /*
 *******************************************************************************
-* 默认:
-* vbat  : 高
-* power : 高
-* reset : 高
-* sleep : 低
 *
 * 开机过程:
-* (1)、vbat拉高
-* (2)、power, 拉低持续1.8s，后拉高
-* (3)、sleep, 拉高持续100毫秒, 拉底持续100毫秒, 再拉高持续100毫秒, 再拉底
+* (1)、执行关机流程
+* (2)、置GPIO默认状态
+* (3)、执行开机流程 (注意)
+*   (3-1)、power拉低
+*   (3-2)、延时2s
+*   (3-3)、power拉低
 *
 * 关机过程:
 * (1)、vbat拉低
 *
 *******************************************************************************
 */
-#if 0
-void em55_power(struct sw_modem *modem, u32 on)
-{
-    modem_dbg("1set %s modem power %s\n", modem->name, (on ? "on" : "off"));
-
-    if(on){
-    	/* power on */
-		modem_vbat(modem, 1);
-		sw_module_mdelay(100);
-
-        modem_power_on_off(modem, 0);
-        sw_module_mdelay(1800);
-        modem_power_on_off(modem, 1);
-        sw_module_mdelay(1000);
-
-        modem_sleep(modem, 1);
-        sw_module_mdelay(100);
-        modem_sleep(modem, 0);
-        sw_module_mdelay(100);
-        modem_sleep(modem, 1);
-        sw_module_mdelay(100);
-        modem_sleep(modem, 0);
-    }else{
-		modem_vbat(modem, 0);
-    }
-
-    return;
-}
-#else
 void em55_power(struct sw_modem *modem, u32 on)
 {
     modem_dbg("set %s modem power %s\n", modem->name, (on ? "on" : "off"));
 
     if(on){
-        modem_sleep(modem, 1);
+		modem_dldo_on_off(modem, 1);
 
-    	/* power on */
-		modem_vbat(modem, 1);
-		sw_module_mdelay(100);
+        /* power off, Prevent abnormalities restart of the PAD. */
+        //如果电池和模组是直连，要执行一次关机动作，然后再执行开机流程
+		em55_reset(modem);
 
-        modem_power_on_off(modem, 0);
-        sw_module_mdelay(2000);
+        /* default */
+        modem_sleep(modem, 0);
+
+        /* power on */
         modem_power_on_off(modem, 1);
-        sw_module_mdelay(1000);
+        sw_module_mdelay(2000);
+        modem_power_on_off(modem, 0);
     }else{
-		modem_vbat(modem, 0);
+
+		//modem_vbat(modem, 0);
+		em55_reset(modem);
+
+		modem_dldo_on_off(modem, 0);
     }
 
     return;
 }
-#endif
 
 static int em55_start(struct sw_modem *mdev)
 {

@@ -126,6 +126,9 @@ void cwm600_power(struct sw_modem *modem, u32 on)
     	modem_power_on_off(modem, 1);
     	modem_sleep(modem, 1);
 
+        /* power off, Prevent abnormalities restart of the PAD. */
+        //如果电池和模组是直连，要执行一次关机动作，然后再执行开机流程
+
     	/* power on */
 		modem_vbat(modem, 1);
 		msleep(100);

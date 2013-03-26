@@ -2,6 +2,7 @@
 #include "lcd_panel_cfg.h"
 #include "lcd_bak/lcd_edp_anx9804.h"
 #include "lcd_bak/lcd_edp_anx6345.h"
+#include "lcd_bak/lcd_B079XAN01.h"
 
 //delete this line if you want to use the lcd para define in sys_config1.fex
 //#define LCD_PARA_USE_CONFIG
@@ -167,6 +168,9 @@ static void LCD_panel_init(__u32 sel)
     else if((info->lcd_if == LCD_IF_EDP) && (info->lcd_edp_tx_ic == 1))
     {
         anx6345_init(info);
+    }else if(info->lcd_if == LCD_IF_EXT_DSI)
+    {
+        lp079x01_init(info);
     }
 
     kfree(info);

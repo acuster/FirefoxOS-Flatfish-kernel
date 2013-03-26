@@ -71,6 +71,7 @@ static int rtl8723as_module_power(int onoff)
 			ret = regulator_disable(wifi_ldo);
 			if (ret < 0) {
 				rtl8723as_msg("regulator_disable fail, return %d.\n", ret);
+			regulator_put(wifi_ldo);
 				return ret;
 			}
 			axp_power_on = false;
@@ -235,7 +236,7 @@ void rtl8723as_gpio_init(void)
 	rtl8723as_bt_on = 0;
 	rtk_suspend 	= 0;
 	ops->gpio_ctrl	= rtl8723as_gpio_ctrl;
-	ops->power 		= rtl8723as_power;
+	ops->power 	= rtl8723as_power;
 	ops->standby	= rtl8723as_standby;
 	
 	// force to disable wifi power in system booting,

@@ -64,7 +64,7 @@ build_nand_lib()
 	echo "build nand library ${NAND_ROOT}/lib"
 	if [ -d ${NAND_ROOT}/lib ]; then
 		echo "build nand library now"
-	make -C modules/nand/lib clean	2>/dev/null	
+	make -C modules/nand/lib clean	2>/dev/null
 	make -C modules/nand/lib lib install
 	else
 		echo "build nand with existing library"
@@ -107,6 +107,12 @@ build_kernel()
 	fi
 
 	cp rootfs/rootfs.cpio.gz .
+
+    #try to remove csi drivers
+    rm -rf ${LICHEE_KDIR}/drivers/media/video/sunxi_csi/device/*.ko
+    rm -rf ${LICHEE_KDIR}/drivers/media/video/sunxi_csi/device/*.o
+    rm -rf ${LICHEE_KDIR}/drivers/media/video/sunxi-vfe/device/*.ko
+    rm -rf ${LICHEE_KDIR}/drivers/media/video/sunxi-vfe/device/*.o
 
 	build_standby
 	build_mdfs

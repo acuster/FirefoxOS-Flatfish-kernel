@@ -20,6 +20,7 @@
  */
 
 #include "ar100_i.h"
+#include <mach/sys_config.h>
 
 /* local functions */
 static int     ar100_wait_ready(unsigned int timeout);
@@ -190,6 +191,8 @@ int ar100_init(void)
 {
 	int binary_len;
 	int ret;
+	script_item_u script_val;
+	script_item_value_type_e type;
 	
 	AR100_INF("ar100 initialize\n");
 	
@@ -199,8 +202,17 @@ int ar100_init(void)
 	 */
 	sw_gpio_setcfg(GPIOL(0), 3);	/* p2wi sck */
 	sw_gpio_setcfg(GPIOL(1), 3);	/* p2wi sda */
-	sw_gpio_setcfg(GPIOL(2), 2);	/* uart tx */
-	sw_gpio_setcfg(GPIOL(3), 2);	/* uart rx */
+	
+	type = script_get_item("cpus_config_paras", "cpus_uart_debug_used", &script_val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+		AR100_WRN("ar100 uart debug config type err!");
+		script_val.val = 1;
+	}
+	if (script_val.val) {
+		sw_gpio_setcfg(GPIOL(2), 2);	/* uart tx */
+		sw_gpio_setcfg(GPIOL(3), 2);	/* uart rx */
+	}
+	AR100_INF("ar100 uart debug config [%s] [%s] : %d\n", "cpus_config_paras", "cpus_uart_debug_used", script_val.val);
 	
 	AR100_INF("sram_a2 vaddr(%x)\n", (unsigned int)ar100_sram_a2_vbase);
 	

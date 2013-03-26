@@ -88,6 +88,7 @@ struct aw_mem_para{
 	__u32 suspend_delay_ms;
 	__u32 saved_runtime_context_svc[RUNTIME_CONTEXT_SIZE];
 	struct clk_div_t clk_div;
+	struct clk_misc_t clk_misc;	//miscellaneous para.
 	struct pll_factor_t pll_factor;
 	struct mmu_state saved_mmu_state;
 	struct saved_context saved_cpu_context;

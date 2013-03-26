@@ -71,7 +71,10 @@ __s32 audio_config(void);
 extern __u32 hdmi_pll;//0:video pll 0; 1:video pll 1
 extern __u32 hdmi_clk;
 
+extern __s32      cts_enable;
 
+extern __u8  			isHDMI;
+extern __u8  			YCbCr444_Support;
 void DDC_Init(void);
 void send_ini_sequence(void);
 __s32 DDC_Read(char cmd,char pointer,char offset,int nbyte,char * pbuf);

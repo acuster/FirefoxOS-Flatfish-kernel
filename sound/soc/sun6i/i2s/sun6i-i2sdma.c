@@ -2,7 +2,7 @@
  * sound\soc\sun6i\i2s\sun6i-i2sdma.c
  * (C) Copyright 2010-2016
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
- * chenpailin <chenpailin@Reuuimllatech.com>
+ * huangxin <huangxin@Reuuimllatech.com>
  *
  * some simple description for this code
  *
@@ -46,7 +46,7 @@ static const struct snd_pcm_hardware sun6i_pcm_play_hardware = {
 	.channels_min		= 1,
 	.channels_max		= 2,
 	.buffer_bytes_max	= 128*1024,    /* value must be (2^n)Kbyte size */
-	.period_bytes_min	= 1024*4,
+	.period_bytes_min	= 1024,
 	.period_bytes_max	= 1024*16,
 	.periods_min		= 2,
 	.periods_max		= 8,
@@ -64,7 +64,7 @@ static const struct snd_pcm_hardware sun6i_pcm_capture_hardware = {
 	.channels_min		= 1,
 	.channels_max		= 2,
 	.buffer_bytes_max	= 128*1024,    /* value must be (2^n)Kbyte size */
-	.period_bytes_min	= 1024*4,
+	.period_bytes_min	= 1024,
 	.period_bytes_max	= 1024*16,
 	.periods_min		= 2,
 	.periods_max		= 8,
@@ -115,6 +115,7 @@ static void sun6i_pcm_enqueue(struct snd_pcm_substream *substream)
 		play_pos = play_prtd->dma_pos;
 		play_len = play_prtd->dma_period;
 		play_limit = play_prtd->dma_limit;
+
 		while (play_prtd->dma_loaded < play_limit) {
 			if ((play_pos + play_len) > play_prtd->dma_end) {
 				play_len  = play_prtd->dma_end - play_pos;
@@ -139,6 +140,7 @@ static void sun6i_pcm_enqueue(struct snd_pcm_substream *substream)
 		capture_pos = capture_prtd->dma_pos;
 		capture_len = capture_prtd->dma_period;
 		capture_limit = capture_prtd->dma_limit;
+
 		while (capture_prtd->dma_loaded < capture_limit) {
 			if ((capture_pos + capture_len) > capture_prtd->dma_end) {
 				capture_len  = capture_prtd->dma_end - capture_pos;
@@ -166,7 +168,7 @@ static u32 sun6i_audio_capture_buffdone(dm_hdl_t dma_hdl, void *parg,
 	struct sun6i_capture_runtime_data *capture_prtd = NULL;
 	struct snd_pcm_substream *substream = NULL;
 
-	if ((result == DMA_CB_ABORT) || (parg == NULL)) {	
+	if ((result == DMA_CB_ABORT) || (parg == NULL)) {
 		return 0;
 	}
 
@@ -181,7 +183,7 @@ static u32 sun6i_audio_capture_buffdone(dm_hdl_t dma_hdl, void *parg,
 		capture_prtd->dma_loaded--;
 		sun6i_pcm_enqueue(substream);
 	}
-	spin_unlock(&capture_prtd->lock);	
+	spin_unlock(&capture_prtd->lock);
 	return 0;
 }
 
@@ -265,7 +267,6 @@ static int sun6i_pcm_hw_params(struct snd_pcm_substream *substream,
 		play_prtd->dma_pos = play_prtd->dma_start;
 		play_prtd->dma_end = play_prtd->dma_start + play_totbytes;
 		spin_unlock_irq(&play_prtd->lock);
-    
     } else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
     	capture_runtime = substream->runtime;
     	capture_prtd = capture_runtime ->private_data;
@@ -310,7 +311,6 @@ static int sun6i_pcm_hw_params(struct snd_pcm_substream *substream,
 		capture_prtd->dma_pos = capture_prtd->dma_start;
 		capture_prtd->dma_end = capture_prtd->dma_start + capture_totbytes;
 		spin_unlock_irq(&capture_prtd->lock);
-		
     } else {
     	return -EINVAL;
     }
@@ -495,7 +495,7 @@ static int sun6i_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 			if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_START, NULL)) {
 			printk("%s err, dma start err\n", __FUNCTION__);
 			return -EINVAL;
-			}	
+			}
 			break;
 		case SNDRV_PCM_TRIGGER_SUSPEND:
 		case SNDRV_PCM_TRIGGER_STOP:
@@ -507,7 +507,6 @@ static int sun6i_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 			printk("%s err, dma stop err\n", __FUNCTION__);
 			return -EINVAL;
 			}
-			
 			break;
 		default:
 			ret = -EINVAL;
@@ -790,7 +789,7 @@ static void __exit sun6i_soc_platform_i2s_exit(void)
 }
 module_exit(sun6i_soc_platform_i2s_exit);
 
-MODULE_AUTHOR("chenpailin");
+MODULE_AUTHOR("huangxin");
 MODULE_DESCRIPTION("SUN6I I2S DMA module");
 MODULE_LICENSE("GPL");
 

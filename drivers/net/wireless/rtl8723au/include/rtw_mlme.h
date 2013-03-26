@@ -22,6 +22,7 @@
 
 #include <drv_conf.h>
 #include <osdep_service.h>
+#include <mlme_osdep.h>
 #include <drv_types.h>
 #include <wlan_bssdef.h>
 
@@ -47,39 +48,48 @@
 #define	SCANQUEUE_LIFETIME 20 // unit:sec
 #endif
 
-#define 	WIFI_NULL_STATE		0x00000000
-#define	WIFI_ASOC_STATE		0x00000001		// Under Linked state...
-#define 	WIFI_REASOC_STATE	       0x00000002
-#define	WIFI_SLEEP_STATE	       0x00000004
-#define	WIFI_STATION_STATE	0x00000008
+#define 	WIFI_NULL_STATE			0x00000000
+
+#define	WIFI_ASOC_STATE			0x00000001		// Under Linked state...
+#define 	WIFI_REASOC_STATE	       	0x00000002
+#define	WIFI_SLEEP_STATE			0x00000004
+#define	WIFI_STATION_STATE		0x00000008
+
 #define	WIFI_AP_STATE				0x00000010
 #define	WIFI_ADHOC_STATE			0x00000020
 #define   WIFI_ADHOC_MASTER_STATE 0x00000040
 #define   WIFI_UNDER_LINKING		0x00000080
-//#define WIFI_UNDER_CMD			0x00000200
+
+#define	WIFI_UNDER_WPS			0x00000100
+//#define	WIFI_UNDER_CMD			0x00000200
+//#define	WIFI_UNDER_P2P			0x00000400
+#define	WIFI_STA_ALIVE_CHK_STATE	0x00000400
+#define	WIFI_SITE_MONITOR			0x00000800		//to indicate the station is under site surveying
+
+#ifdef WDS
+#define	WIFI_WDS					0x00001000
+#define	WIFI_WDS_RX_BEACON		0x00002000		// already rx WDS AP beacon
+#endif
+#ifdef AUTO_CONFIG
+#define	WIFI_AUTOCONF				0x00004000
+#define	WIFI_AUTOCONF_IND		0x00008000
+#endif
+
+/*
 // ========== P2P Section Start ===============
 #define	WIFI_P2P_LISTEN_STATE		0x00010000
 #define	WIFI_P2P_GROUP_FORMATION_STATE		0x00020000
 // ========== P2P Section End ===============
-#define WIFI_SITE_MONITOR		0x00000800		//to indicate the station is under site surveying
-
-#ifdef WDS
-#define	WIFI_WDS				0x00001000
-#define	WIFI_WDS_RX_BEACON	0x00002000		// already rx WDS AP beacon
-#endif
-#ifdef AUTO_CONFIG
-#define	WIFI_AUTOCONF			0x00004000
-#define	WIFI_AUTOCONF_IND	0x00008000
-#endif
+*/
 
 //#ifdef UNDER_MPTEST
-#define	WIFI_MP_STATE						0x00010000
-#define	WIFI_MP_CTX_BACKGROUND			0x00020000	// in continous tx background
-#define	WIFI_MP_CTX_ST					0x00040000	// in continous tx with single-tone
+#define	WIFI_MP_STATE							0x00010000
+#define	WIFI_MP_CTX_BACKGROUND				0x00020000	// in continous tx background
+#define	WIFI_MP_CTX_ST						0x00040000	// in continous tx with single-tone
 #define	WIFI_MP_CTX_BACKGROUND_PENDING	0x00080000	// pending in continous tx background due to out of skb
-#define	WIFI_MP_CTX_CCK_HW				0x00100000	// in continous tx
-#define	WIFI_MP_CTX_CCK_CS				0x00200000	// in continous tx with carrier suppression
-#define   WIFI_MP_LPBK_STATE				0x00400000
+#define	WIFI_MP_CTX_CCK_HW					0x00100000	// in continous tx
+#define	WIFI_MP_CTX_CCK_CS					0x00200000	// in continous tx with carrier suppression
+#define   WIFI_MP_LPBK_STATE					0x00400000
 //#endif
 
 //#define _FW_UNDER_CMD		WIFI_UNDER_CMD
@@ -87,11 +97,13 @@
 #define _FW_LINKED			WIFI_ASOC_STATE
 #define _FW_UNDER_SURVEY	WIFI_SITE_MONITOR
 
+
 enum dot11AuthAlgrthmNum {
  dot11AuthAlgrthm_Open = 0,
  dot11AuthAlgrthm_Shared,
  dot11AuthAlgrthm_8021X,
  dot11AuthAlgrthm_Auto,
+ dot11AuthAlgrthm_WAPI,
  dot11AuthAlgrthm_MaxNum
 };
 
@@ -102,6 +114,14 @@ typedef enum _RT_SCAN_TYPE
 	SCAN_ACTIVE,
 	SCAN_MIX,
 }RT_SCAN_TYPE, *PRT_SCAN_TYPE;
+
+enum SCAN_RESULT_TYPE
+{
+	SCAN_RESULT_P2P_ONLY = 0,		//	Will return all the P2P devices.
+	SCAN_RESULT_ALL = 1,			//	Will return all the scanned device, include AP.
+	SCAN_RESULT_WFD_TYPE = 2		//	Will just return the correct WFD device.
+									//	If this device is Miracast sink device, it will just return all the Miracast source devices.
+};
 
 /*
 
@@ -166,18 +186,24 @@ struct tx_invite_resp_info{
 #ifdef CONFIG_WFD
 
 struct wifi_display_info{
-	u16					rtsp_ctrlport;		//	TCP port number at which the this WFD device listens for RTSP messages
-	u16					peer_rtsp_ctrlport;	//	TCP port number at which the peer WFD device listens for RTSP messages
-											//	This filed should be filled when receiving the gropu negotiation request
+	u16							wfd_enable;			//	Eanble/Disable the WFD function.
+	u16							rtsp_ctrlport;		//	TCP port number at which the this WFD device listens for RTSP messages
+	u16							peer_rtsp_ctrlport;	//	TCP port number at which the peer WFD device listens for RTSP messages
+													//	This filed should be filled when receiving the gropu negotiation request
 
-	u8					wfd_session_avail;	//	WFD session is available or not for the peer wfd device.
-											//	This variable will be set when sending the provisioning discovery request to peer WFD device.
-											//	And this variable will be reset when it is read by using the iwpriv p2p_get wfd_sa command.
-	u8					ip_address[4];
-	u8					peer_ip_address[4];
-	u8					wfd_pc;				//	WFD preferred connection
-											//	0 -> Prefer to use the P2P for WFD connection on peer side.
-											//	1 -> Prefer to use the TDLS for WFD connection on peer side.
+	u8							peer_session_avail;	//	WFD session is available or not for the peer wfd device.
+													//	This variable will be set when sending the provisioning discovery request to peer WFD device.
+													//	And this variable will be reset when it is read by using the iwpriv p2p_get wfd_sa command.
+	u8							ip_address[4];
+	u8							peer_ip_address[4];
+	u8							wfd_pc;				//	WFD preferred connection
+													//	0 -> Prefer to use the P2P for WFD connection on peer side.
+													//	1 -> Prefer to use the TDLS for WFD connection on peer side.
+											
+	u8							wfd_device_type;	//	WFD Device Type
+													//	0 -> WFD Source Device
+													//	1 -> WFD Primary Sink Device
+	enum	SCAN_RESULT_TYPE	scan_result_type;	//	Used when P2P is enable. This parameter will impact the scan result.
 };
 #endif //CONFIG_WFD
 
@@ -207,6 +233,11 @@ struct group_id_info{
 	u8					ssid[ WLAN_SSID_MAXLEN ];	//	The SSID of this P2P group
 };
 
+struct scan_limit_info{
+	u8					scan_op_ch_only;			//	When this flag is set, the driver should just scan the operation channel
+	u8					operation_ch[2];				//	Store the operation channel of invitation request frame
+};
+
 #ifdef CONFIG_IOCTL_CFG80211
 struct cfg80211_wifidirect_info{
 	_timer					remain_on_ch_timer;
@@ -215,7 +246,7 @@ struct cfg80211_wifidirect_info{
 	enum nl80211_channel_type	remain_on_ch_type;
 	u64						remain_on_ch_cookie;
 	struct net_device 			*remain_on_ch_dev;
-	
+	bool is_ro_ch;
 };
 #endif //CONFIG_IOCTL_CFG80211
 
@@ -226,6 +257,8 @@ struct wifidirect_info{
 	
 	//	Used to do the scanning. After confirming the peer is availalble, the driver transmits the P2P frame to peer.
 	_timer					pre_tx_scan_timer;
+	_timer					reset_ch_sitesurvey;
+	_timer					reset_ch_sitesurvey2;	//	Just for resetting the scan limit function by using p2p nego
 #ifdef CONFIG_CONCURRENT_MODE
 	//	Used to switch the channel between legacy AP and listen state.
 	_timer					ap_p2p_switch_timer;
@@ -237,8 +270,10 @@ struct wifidirect_info{
 	struct tx_invite_resp_info	inviteresp_info;
 	struct tx_nego_req_info	nego_req_info;
 	struct group_id_info		groupid_info;	//	Store the group id information when doing the group negotiation handshake.
+	struct scan_limit_info		rx_invitereq_info;	//	Used for get the limit scan channel from the Invitation procedure
+	struct scan_limit_info		p2p_info;		//	Used for get the limit scan channel from the P2P negotiation handshake
 #ifdef CONFIG_WFD
-	struct wifi_display_info		wfd_info;
+	struct wifi_display_info		*wfd_info;
 #endif	
 	enum P2P_ROLE			role;
 	enum P2P_STATE			pre_p2p_state;
@@ -295,8 +330,9 @@ struct wifidirect_info{
 	u16						ext_listen_interval;	//	The interval to be available with legacy AP (ms)
 	u16						ext_listen_period;	//	The time period to be available for P2P listen state (ms)
 #endif
-	u8						p2p_ps_enable;
-	enum P2P_PS				p2p_ps; // indicate p2p ps state
+#ifdef CONFIG_P2P_PS
+	enum P2P_PS_MODE		p2p_ps_mode; // indicate p2p ps mode
+	enum P2P_PS_STATE		p2p_ps_state; // indicate p2p ps state
 	u8						noa_index; // Identifies and instance of Notice of Absence timing.
 	u8						ctwindow; // Client traffic window. A period of time in TU after TBTT.
 	u8						opp_ps; // opportunistic power save.
@@ -305,6 +341,7 @@ struct wifidirect_info{
 	u32						noa_duration[P2P_MAX_NOA_NUM]; // Max duration for owner, preferred or min acceptable duration for client.
 	u32						noa_interval[P2P_MAX_NOA_NUM]; // Length of interval for owner, preferred or max acceptable interval of client.
 	u32						noa_start_time[P2P_MAX_NOA_NUM]; // schedule expressed in terms of the lower 4 bytes of the TSF timer.
+#endif // CONFIG_P2P_PS
 };
 
 struct tdls_ss_record{	//signal strength record
@@ -331,7 +368,7 @@ struct tdls_info{
 	u8					dev_discovered;		//WFD_TDLS: for sigma test
 	u8					enable;
 #ifdef CONFIG_WFD
-	struct wifi_display_info		wfd_info;
+	struct wifi_display_info		*wfd_info;
 #endif		
 };
 
@@ -347,6 +384,7 @@ struct mlme_priv {
 
 	u8	*nic_hdl;
 
+	u8	not_indic_disco;
 	_list		*pscanned;
 	_queue	free_bss_pool;
 	_queue	scanned_queue;
@@ -434,15 +472,20 @@ struct mlme_priv {
 	u16 ht_op_mode;
 #endif /* CONFIG_80211N_HT */	
 
+	u8 *assoc_req;
+	u32 assoc_req_len;
+	u8 *assoc_rsp;
+	u32 assoc_rsp_len;
+
 	u8 *wps_beacon_ie;	
 	//u8 *wps_probe_req_ie;
 	u8 *wps_probe_resp_ie;
-	u8 *wps_assoc_resp_ie; // for CONFIG_IOCTL_CFG80211, this IE could include p2p ie
+	u8 *wps_assoc_resp_ie; // for CONFIG_IOCTL_CFG80211, this IE could include p2p ie / wfd ie
 
 	u32 wps_beacon_ie_len;
 	//u32 wps_probe_req_ie_len;
 	u32 wps_probe_resp_ie_len;
-	u32 wps_assoc_resp_ie_len;
+	u32 wps_assoc_resp_ie_len; // for CONFIG_IOCTL_CFG80211, this IE len could include p2p ie / wfd ie
 	
 	u8 *p2p_beacon_ie;
 	u8 *p2p_probe_req_ie;
@@ -474,6 +517,22 @@ struct mlme_priv {
 	
 #endif //#if defined (CONFIG_AP_MODE) && defined (CONFIG_NATIVEAP_MLME)
 
+#if defined(CONFIG_WFD) && defined(CONFIG_IOCTL_CFG80211)
+	
+	u8 *wfd_beacon_ie;
+	u8 *wfd_probe_req_ie;
+	u8 *wfd_probe_resp_ie;	
+	u8 *wfd_go_probe_resp_ie; //for GO	
+	u8 *wfd_assoc_req_ie;
+
+	u32 wfd_beacon_ie_len;
+	u32 wfd_probe_req_ie_len;
+	u32 wfd_probe_resp_ie_len;
+	u32 wfd_go_probe_resp_ie_len; //for GO
+	u32 wfd_assoc_req_ie_len;
+
+#endif
+
 #ifdef RTK_DMP_PLATFORM
 	// DMP kobject_hotplug function  signal need in passive level
 	_workitem	Linkup_workitem;
@@ -487,11 +546,17 @@ struct mlme_priv {
 	ATOMIC_T	rx_probe_rsp; // 1:receive probe respone from RDS source.
 	u8	*l2sdTaBuffer;
 	u8	channel_idx;
+	u8	group_cnt;	//In WiDi 3.5, they specified another scan algo. for WFD/RDS co-existed
+	u8	sa_ext[L2SDTA_SERVICE_VE_LEN];
 #endif // CONFIG_INTEL_WIDI
 
 #ifdef CONFIG_CONCURRENT_MODE
 	u8	scanning_via_buddy_intf;
 #endif
+
+#ifdef CONFIG_FTP_PROTECT
+	u8	ftp_lock_flag;
+#endif //CONFIG_FTP_PROTECT
 };
 
 #ifdef CONFIG_AP_MODE
@@ -635,6 +700,7 @@ __inline static void up_scanned_network(struct mlme_priv *pmlmepriv)
 #ifdef CONFIG_CONCURRENT_MODE
 sint rtw_buddy_adapter_up(_adapter *padapter);
 sint check_buddy_fwstate(_adapter *padapter, sint state);
+sint check_buddy_fw_link(_adapter *padapter);
 #endif //CONFIG_CONCURRENT_MODE
 
 __inline static void down_scanned_network(struct mlme_priv *pmlmepriv)
@@ -666,6 +732,7 @@ extern void rtw_free_assoc_resources(_adapter* adapter, int lock_scanned_queue);
 extern void rtw_indicate_disconnect(_adapter* adapter);
 extern void rtw_indicate_connect(_adapter* adapter);
 void rtw_indicate_scan_done( _adapter *padapter, bool aborted);
+void rtw_scan_abort(_adapter *adapter);
 
 extern int rtw_restruct_sec_ie(_adapter *adapter,u8 *in_ie,u8 *out_ie,uint in_len);
 extern int rtw_restruct_wmm_ie(_adapter *adapter, u8 *in_ie, u8 *out_ie, uint in_len, uint initial_out_len);
@@ -680,8 +747,15 @@ extern void rtw_scan_timeout_handler(_adapter *adapter);
 
 extern void rtw_dynamic_check_timer_handlder(_adapter *adapter);
 #ifdef CONFIG_SET_SCAN_DENY_TIMER
-extern void rtw_set_scan_deny_timer_hdl(_adapter *adapter);
-void rtw_set_scan_deny(struct mlme_priv *mlmepriv, u32 ms);
+bool rtw_is_scan_deny(_adapter *adapter);
+void rtw_clear_scan_deny(_adapter *adapter);
+void rtw_set_scan_deny_timer_hdl(_adapter *adapter);
+void rtw_set_scan_deny(_adapter *adapter, u32 ms);
+#else
+#define rtw_is_scan_deny(adapter) _FALSE
+#define rtw_clear_scan_deny(adapter) do {} while (0)
+#define rtw_set_scan_deny_timer_hdl(adapter) do {} while (0)
+#define rtw_set_scan_deny(adapter, ms) do {} while (0)
 #endif
 
 
@@ -723,13 +797,21 @@ void rtw_issue_addbareq_cmd(_adapter *padapter, struct xmit_frame *pxmitframe);
 #endif
 
 int rtw_is_same_ibss(_adapter *adapter, struct wlan_network *pnetwork);
+int is_same_network(WLAN_BSSID_EX *src, WLAN_BSSID_EX *dst);
 
 #ifdef CONFIG_LAYER2_ROAMING
-void rtw_roaming(_adapter *padapter, struct wlan_network *tgt_network);
-void _rtw_roaming(_adapter *padapter, struct wlan_network *tgt_network);
+void _rtw_roaming(_adapter *adapter, struct wlan_network *tgt_network);
+void rtw_roaming(_adapter *adapter, struct wlan_network *tgt_network);
+void rtw_set_roaming(_adapter *adapter, u8 to_roaming);
+u8 rtw_to_roaming(_adapter *adapter);
+#else
+#define _rtw_roaming(adapter, tgt_network) do {} while(0)
+#define rtw_roaming(adapter, tgt_network) do {} while(0)
+#define rtw_set_roaming(adapter, to_roaming) do {} while(0)
+#define rtw_to_roaming(adapter) 0
 #endif
 
-
+void rtw_stassoc_hw_rpt(_adapter *adapter,struct sta_info *psta);
 #ifdef CONFIG_INTEL_PROXIM
 void rtw_proxim_enable(_adapter *padapter);
 void rtw_proxim_disable(_adapter *padapter);

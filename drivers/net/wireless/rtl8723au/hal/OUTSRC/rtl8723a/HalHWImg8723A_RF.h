@@ -31,14 +31,6 @@ ODM_ReadAndConfig_RadioA_1T_8723A(
 	IN   PDM_ODM_T  pDM_Odm
 );
 
-/******************************************************************************
-*                           RadioB_1T.TXT
-******************************************************************************/
-
-void
-ODM_ReadAndConfig_RadioB_1T_8723A(
-	IN   PDM_ODM_T  pDM_Odm
-);
 
 #endif
 #endif // end of HWIMG_SUPPORT

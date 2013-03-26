@@ -125,4 +125,6 @@ int ar100_message_loopback(void);
 int ar100_standby_talk(struct super_standby_para *para, ar100_cb_t cb, void *cb_arg);
 int ar100_cpux_talkstandby_ready_notify(void);
 
+void ar100_fake_power_off(void);
+
 #endif	/* __ASM_ARCH_A100_H */

@@ -70,10 +70,6 @@ void enable_aw_cpu(int cpu)
     pwr_reg = readl(IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_GENCTL);
     pwr_reg &= ~(1<<cpu);
     writel(pwr_reg, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_GENCTL);
-    /* DBGPWRDUP hold low */
-    pwr_reg = readl(IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_DBGCTL1);
-    pwr_reg &= ~(1<<cpu);
-    writel(pwr_reg, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_DBGCTL1);
 
     /* step2: release power clamp */
     //write bit3, bit4 to 0
@@ -96,10 +92,6 @@ void enable_aw_cpu(int cpu)
     /* step4: de-assert core reset */
     writel(3, IO_ADDRESS(AW_R_CPUCFG_BASE) + CPUX_RESET_CTL(cpu));
 
-    /* step5: assert DBGPWRDUP signal */
-    pwr_reg = readl(IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_DBGCTL1);
-    pwr_reg |= (1<<cpu);
-    writel(pwr_reg, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_DBGCTL1);
 }
 
 void __init smp_init_cpus(void)

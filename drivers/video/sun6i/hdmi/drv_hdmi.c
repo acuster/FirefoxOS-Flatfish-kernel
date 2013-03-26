@@ -229,7 +229,24 @@ __s32 Hdmi_set_pll(__u32 pll, __u32 clk)
     return 0;
 }
 
-__s32 Hdmi_run_thread(void *parg)
+__s32 Hdmi_dvi_enable(__u32 mode)
+{
+	return Hdmi_hal_cts_enable(mode);//Hdmi_hal_dvi_enable(mode);
+}
+
+__s32 Hdmi_dvi_support(void)
+{
+    return Hdmi_hal_dvi_support();
+}
+
+__s32 Hdmi_get_input_csc(void)
+{
+    return Hmdi_hal_get_input_csc();
+}
+
+
+
+int Hdmi_run_thread(void *parg)
 {
 	while (1)
 	{
@@ -257,10 +274,36 @@ __s32 Hdmi_run_thread(void *parg)
 	return 0;
 }
 
+__s32 Hdmi_suspend(void)
+{
+    if(hdmi_used)
+    {
+        b_hdmi_suspend = 1;
+        pr_info("[HDMI]hdmi suspend\n");
+    }
+	Hdmi_hal_suspend();
+
+    return 0;
+}
+
+__s32 Hdmi_resume(void)
+{
+    if(hdmi_used)
+    {
+        b_hdmi_suspend = 0;
+        Hdmi_hal_init();
+        pr_info("[HDMI]hdmi resume\n");
+    }
+	Hdmi_hal_resume();
+
+    return  0;
+}
+
 static struct switch_dev hdmi_switch_dev = {     
     .name = "hdmi",  
 };
 
+extern __s32 disp_set_hdmi_hpd(__u32 hpd);
 void hdmi_report_hpd_work(struct work_struct *work)
 {
 	char buf[16];
@@ -271,12 +314,14 @@ void hdmi_report_hpd_work(struct work_struct *work)
         //snprintf(buf, sizeof(buf), "HDMI_PLUGIN");
         //switch_set_state(&hdmi_switch_dev, 1);
         __inf("switch_set_state 1\n");
+        disp_set_hdmi_hpd(1);
     }
     else
     {
         //snprintf(buf, sizeof(buf), "HDMI_PLUGOUT");
         switch_set_state(&hdmi_switch_dev, 0);
         __inf("switch_set_state 0\n");
+        disp_set_hdmi_hpd(0);
     }
     
 	envp[0] = buf;
@@ -356,6 +401,9 @@ __s32 Hdmi_init(void)
             disp_func.hdmi_mode_support = Hdmi_mode_support;
             disp_func.hdmi_get_HPD_status = Hdmi_get_HPD_status;
             disp_func.hdmi_set_pll = Hdmi_set_pll;
+            disp_func.hdmi_dvi_enable= Hdmi_dvi_enable;
+            disp_func.hdmi_dvi_support= Hdmi_dvi_support;
+            disp_func.hdmi_get_input_csc = Hdmi_get_input_csc;
             disp_func.hdmi_suspend = Hdmi_suspend;
             disp_func.hdmi_resume = Hdmi_resume;
             disp_set_hdmi_func(&disp_func);
@@ -389,27 +437,6 @@ __s32 Hdmi_exit(void)
 	return 0;
 }
 
-__s32 Hdmi_suspend(void)
-{
-    if(hdmi_used)
-    {
-        b_hdmi_suspend = 1;
-        pr_info("[HDMI]hdmi suspend\n");
-    }
 
-    return 0;
-}
-
-__s32 Hdmi_resume(void)
-{
-    if(hdmi_used)
-    {
-        b_hdmi_suspend = 0;
-        Hdmi_hal_init();
-        pr_info("[HDMI]hdmi resume\n");
-    }
-
-    return  0;
-}
 
 

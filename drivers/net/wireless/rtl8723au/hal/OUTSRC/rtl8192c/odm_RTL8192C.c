@@ -1638,7 +1638,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_92C(
 		if(delta_IQK > 1)
 #else
 		if(delta_IQK > 3)
-#endif			
+#endif
 		{
 			pHalData->ThermalValue_IQK = ThermalValue;
 			PHY_IQCalibrate_8192C(Adapter, FALSE);

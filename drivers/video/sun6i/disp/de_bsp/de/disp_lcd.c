@@ -424,12 +424,23 @@ __s32 LCD_parse_panel_para(__u32 sel, __panel_para_t * info)
         info->lcd_edp_tx_lane= value;
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_io_phase", &value, 1);
+    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_edp_colordepth", &value, 1);
     if(ret == 0)
     {
-        info->lcd_io_phase = value;
+        info->lcd_edp_colordepth = value;
     }
 
+    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_hv_clk_phase", &value, 1);
+    if(ret == 0)
+    {
+        info->lcd_hv_clk_phase = value;
+    }
+
+	ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_hv_sync_polarity", &value, 1);
+    if(ret == 0)
+    {
+        info->lcd_hv_sync_polarity = value;
+    }
     ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_gamma_en", &value, 1);
     if(ret == 0)
     {
@@ -963,6 +974,73 @@ __s32 LCD_BL_EN(__u32 sel, __bool b_en)
     return 0;
 }
 
+//voltage(7~33): 0.1v,   e.g. 1 voltage = 0.1v
+__s32 LCD_POWER_ELDO3_EN(__u32 sel, __bool b_en, __u32 voltage)
+{
+    __u8 data;
+    __u32 ret;
+    __u8 addr;
+
+    voltage = (voltage < 7)? 7 :voltage;
+    voltage = (voltage > 33)?33:voltage;
+    data = voltage - 7;
+    addr = 0x1b;
+    ret = ar100_axp_write_reg(&addr, &data, 1);
+    if(ret != 0)
+    {
+        DE_WRN("set eldo3 to %d.%dv fail\n", voltage/10, voltage%10);
+    }
+    addr = 0x12;
+    ret = ar100_axp_read_reg(&addr, &data, 1);
+    if(ret != 0)
+    {
+        DE_WRN("axp read reg fail\n");
+    }
+    addr = 0x12;
+    data = (b_en)? (data | 0x04):(data & 0xfb);
+    ar100_axp_write_reg(&addr, &data, 1);
+    if(ret != 0)
+    {
+        DE_WRN("%s eldo3 fail\n", (b_en)? "enable":"disable");
+    }
+
+    return 0;
+}
+
+//voltage(7~33): 0.1v,   e.g. 1 voltage = 0.1v
+__s32 LCD_POWER_DLDO1_EN(__u32 sel, __bool b_en, __u32 voltage)
+{
+    __u8 data;
+    __u32 ret;
+    __u8 addr;
+
+    voltage = (voltage < 7)? 7 :voltage;
+    voltage = (voltage > 33)?33:voltage;
+    data = voltage - 7;
+    addr = 0x15;
+    ret = ar100_axp_write_reg(&addr, &data, 1);
+    if(ret != 0)
+    {
+        DE_WRN("set dldo1 to %d.%dv fail\n", voltage/10, voltage%10);
+    }
+    addr = 0x12;
+    ret = ar100_axp_read_reg(&addr, &data, 1);
+    if(ret != 0)
+    {
+        DE_WRN("axp read reg fail\n");
+    }
+    addr = 0x12;
+    data = (b_en)? (data | 0x08):(data & 0xf7);
+    ar100_axp_write_reg(&addr, &data, 1);
+    if(ret != 0)
+    {
+        DE_WRN("%s dldo1 fail\n", (b_en)? "enable":"disable");
+    }
+
+    return 0;
+}
+
+
 __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
 {
     disp_gpio_set_t  gpio_info[1];
@@ -972,6 +1050,11 @@ __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
 	{
 		if(gdisp.screen[sel].lcd_cfg.lcd_power_used)
         {
+            if(gpanel_info[sel].lcd_if == LCD_IF_EXT_DSI)
+	        {
+	            LCD_POWER_ELDO3_EN(sel, 1, 12);
+	        }
+
             memcpy(gpio_info, &(gdisp.screen[sel].lcd_cfg.lcd_power), sizeof(disp_gpio_set_t));
 		        
 	        if(!b_en)
@@ -1010,6 +1093,54 @@ __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
 					DE_WRN("enable eldo3 fail\n");	
 				}
 	        }
+            else if((gpanel_info[sel].lcd_if == LCD_IF_EDP) && (gpanel_info[sel].lcd_edp_tx_ic == 1))
+	        {
+				__u8 data;
+				__u32 ret;
+				__u8 addr;
+
+				addr = 0x15;
+				data = 0x12;
+				ret = ar100_axp_write_reg(&addr, &data, 1); //set dldo1 to 2.5v
+				if(ret != 0)
+				{
+					DE_WRN("set dldo1 to 2.5v fail\n");
+				}
+				addr = 0x12;
+				ret = ar100_axp_read_reg(&addr, &data, 1);
+				if(ret != 0)
+				{
+					DE_WRN("axp read reg fail\n");
+				}
+				addr = 0x12;
+				data |= 0x08;
+				ar100_axp_write_reg(&addr, &data, 1); //enable dldo1
+				if(ret != 0)
+				{
+					DE_WRN("enable dldo1 fail\n");
+				}
+
+                addr = 0x1b;
+				data = 0x05;
+				ret = ar100_axp_write_reg(&addr, &data, 1); //set eldo3 to 1.2v
+				if(ret != 0)
+				{
+					DE_WRN("set eldo3 to 1.2v fail\n");
+				}
+				addr = 0x12;
+				ret = ar100_axp_read_reg(&addr, &data, 1);
+				if(ret != 0)
+				{
+					DE_WRN("axp read reg fail\n");
+				}
+				addr = 0x12;
+				data |= 0x04;
+				ar100_axp_write_reg(&addr, &data, 1); //enable eldo3
+				if(ret != 0)
+				{
+					DE_WRN("enable eldo3 fail\n");
+				}
+	        }
             msleep(50);
         }
         Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_LCD, 1);
@@ -1031,14 +1162,46 @@ __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
     			ret = ar100_axp_read_reg(&addr, &data, 1);
     			if(ret != 0)
     			{
-    				DE_WRN("axp read reg fail\n");	
+                    DE_WRN("axp read reg fail\n");
     			}
     			data &= 0xfb;
     			ar100_axp_write_reg(&addr, &data, 1); //enable eldo3
     			if(ret != 0)
     			{
-    				DE_WRN("disable eldo3 fail\n");	
+                    DE_WRN("disable eldo3 fail\n");
     			}
+           }
+           else if((gpanel_info[sel].lcd_if == LCD_IF_EDP) && (gpanel_info[sel].lcd_edp_tx_ic == 1))
+           {
+                __u8 data;
+                __u32 ret;
+                __u8 addr;
+
+                addr = 0x12;
+                ret = ar100_axp_read_reg(&addr, &data, 1);
+                if(ret != 0)
+                {
+                    DE_WRN("axp read reg fail\n");
+                }
+                data &= 0xfb;
+                ar100_axp_write_reg(&addr, &data, 1); //disable eldo3
+                if(ret != 0)
+                {
+                    DE_WRN("disable eldo3 fail\n");
+                }
+
+                addr = 0x12;
+                ret = ar100_axp_read_reg(&addr, &data, 1);
+                if(ret != 0)
+                {
+                    DE_WRN("axp read reg fail\n");
+                }
+                data &= 0xf7;
+                ar100_axp_write_reg(&addr, &data, 1); //disable dldo1
+                if(ret != 0)
+                {
+                    DE_WRN("disable dldo1 fail\n");
+                }
            }
 
     		udelay(200);
@@ -1050,13 +1213,16 @@ __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
             }
             hdl = OSAL_GPIO_Request(gpio_info, 1);
             OSAL_GPIO_Release(hdl, 2);
+
+            if(gpanel_info[sel].lcd_if == LCD_IF_EXT_DSI)
+	        {
+	            LCD_POWER_ELDO3_EN(sel, 0, 7);
+	        }
         }
 	}
 
     return 0;
 }
-
-
 
 __s32 LCD_GPIO_request(__u32 sel, __u32 io_index)
 {
@@ -1120,7 +1286,15 @@ __s32 LCD_GPIO_exit(__u32 sel)
     {
         if(gdisp.screen[sel].gpio_hdl[i])
         {
-            OSAL_GPIO_Release(gdisp.screen[sel].gpio_hdl[i], 2);
+            disp_gpio_set_t  gpio_info[1];
+
+			OSAL_GPIO_Release(gdisp.screen[sel].gpio_hdl[i], 2);
+            
+            memcpy(gpio_info, &(gdisp.screen[sel].lcd_cfg.lcd_gpio[i]), sizeof(disp_gpio_set_t));
+			gpio_info->mul_sel = 7;
+            gdisp.screen[sel].gpio_hdl[i] = OSAL_GPIO_Request(gpio_info, 1);
+			OSAL_GPIO_Release(gdisp.screen[sel].gpio_hdl[i], 2);
+			gdisp.screen[sel].gpio_hdl[i] = 0;
         }
     }
     
@@ -1139,7 +1313,15 @@ __s32 Disp_lcdc_pin_cfg(__u32 sel, __disp_output_type_t out_type, __u32 bon)
         __hdle lcd_pin_hdl;
         int  i;
 
-        for(i=0; i<28; i++)
+        if(bon)
+		{
+			LCD_GPIO_init(sel);
+    	}
+		else
+		{
+			LCD_GPIO_exit(sel);
+		}
+		for(i=0; i<28; i++)
         {
             if(gdisp.screen[sel].lcd_cfg.lcd_io_used[i])
             {
@@ -1226,7 +1408,7 @@ __s32 Disp_lcdc_event_proc(void *parg)
     {
    	   LCD_vbi_event_proc(sel, 0);
 			
-		if(dsi_inst_busy(sel))
+		if(dsi_inst_busy(sel) || tcon0_tri_busy(sel))
 		{
 			if(cntr>=1)
 			{
@@ -1244,6 +1426,11 @@ __s32 Disp_lcdc_event_proc(void *parg)
 		
 		if(cntr==0)
 		{
+		    if(gdisp.screen[sel].LCD_CPUIF_ISR)
+		    {
+    			(*gdisp.screen[sel].LCD_CPUIF_ISR)();
+				LCD_delay_us(2);
+			}
 			if(gpanel_info[sel].lcd_if == LCD_IF_DSI)
 				dsi_tri_start(sel);
 		   	tcon0_tri_start(sel);
@@ -1341,7 +1528,6 @@ __s32 Disp_lcdc_init(__u32 sel)
             }
             pwm_set_para(gdisp.screen[sel].lcd_cfg.lcd_pwm_ch, &pwm_info);
         }
-        LCD_GPIO_init(sel);
     }
     return DIS_SUCCESS;
 }
@@ -1365,8 +1551,6 @@ __s32 Disp_lcdc_exit(__u32 sel)
     tcon_exit(sel);
 
     lcdc_clk_exit(sel);
-
-    LCD_GPIO_exit(sel);
 
     return DIS_SUCCESS;
 }
@@ -1793,7 +1977,8 @@ __s32 BSP_disp_lcd_open_before(__u32 sel)
     {
         dsi_cfg(sel, (__panel_para_t*)&gpanel_info[sel]);
     }
-    BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_LCD, BSP_disp_drc_get_input_csc(sel));
+    gdisp.screen[sel].output_csc_type = DISP_OUT_CSC_TYPE_LCD;
+	BSP_disp_set_output_csc(sel, gdisp.screen[sel].output_csc_type, BSP_disp_drc_get_input_csc(sel));
     DE_BE_set_display_size(sel, gpanel_info[sel].lcd_x, gpanel_info[sel].lcd_y);
     DE_BE_Output_Select(sel, sel);
 
@@ -2009,6 +2194,12 @@ __s32 BSP_disp_lcd_set_src(__u32 sel, __disp_lcdc_src_t src)
     return DIS_SUCCESS;
 }
 
+__s32 BSP_disp_lcd_get_src(__u32 sel)
+{
+    return tcon0_src_get(sel);
+}
+
+
 __s32 BSP_disp_lcd_user_defined_func(__u32 sel, __u32 para1, __u32 para2, __u32 para3)
 {
     return lcd_panel_fun[sel].lcd_user_defined_func(sel, para1, para2, para3);
@@ -2192,12 +2383,50 @@ __s32 BSP_disp_restore_lcdc_reg(__u32 sel)
     {
         __pwm_info_t pwm_info;
 
-        pwm_get_para(gdisp.screen[sel].lcd_cfg.lcd_pwm_ch, &pwm_info);
+        if(gdisp.screen[sel].lcd_cfg.lcd_pwm_used)
+        {
+            pwm_get_para(gdisp.screen[sel].lcd_cfg.lcd_pwm_ch, &pwm_info);
 
-        pwm_info.enable = 0;
-        pwm_set_para(gdisp.screen[sel].lcd_cfg.lcd_pwm_ch, &pwm_info);
+            pwm_info.enable = 0;
+            pwm_set_para(gdisp.screen[sel].lcd_cfg.lcd_pwm_ch, &pwm_info);
+        }
     }
 
+    return 0;
+}
+//fps: 1~75
+__s32 BSP_disp_lcd_set_fps(__u32 sel, __u32 fps)
+{
+    if(BSP_disp_lcd_used(sel))
+    {
+        fps = (fps>75)? 75:fps;
+        fps = (fps == 0)? 60:fps;
+        gdisp.screen[sel].lcd_fps_cfg = fps;
+        gdisp.screen[sel].lcd_fps_cfg_request = 1;
+    }
+
+    return 0;
+}
+
+__s32 disp_lcd_set_fps(__u32 sel)
+{
+    __u32 lcd_dclk_freq_cfg;
+
+    if((BSP_disp_get_output_type(sel) == DISP_OUTPUT_TYPE_LCD) && (gdisp.screen[sel].lcd_fps_cfg_request == 1))
+    {
+        lcd_dclk_freq_cfg = gdisp.screen[sel].lcd_fps_cfg * gpanel_info[sel].lcd_ht * gpanel_info[sel].lcd_vt / 1000000;
+
+        if(lcd_dclk_freq_cfg != gpanel_info[sel].lcd_dclk_freq)
+        {
+            gpanel_info[sel].lcd_dclk_freq = (lcd_dclk_freq_cfg>gpanel_info[sel].lcd_dclk_freq)? (gpanel_info[sel].lcd_dclk_freq+1):(gpanel_info[sel].lcd_dclk_freq-1);
+            if(gpanel_info[sel].lcd_dclk_freq < 18)
+            {
+                DE_WRN("__disp_lcd_set_fps, dclk freq(%d Mhz) is too small\n", gpanel_info[sel].lcd_dclk_freq);
+                gpanel_info[sel].lcd_dclk_freq = 18;
+            }
+            disp_clk_cfg(sel, DISP_OUTPUT_TYPE_LCD, DIS_NULL);
+        }
+    }
     return 0;
 }
 
@@ -2228,6 +2457,9 @@ EXPORT_SYMBOL(pwm_get_para);
 EXPORT_SYMBOL(pwm_set_duty_ns);
 EXPORT_SYMBOL(pwm_enable);
 EXPORT_SYMBOL(lcd_get_panel_para);
+EXPORT_SYMBOL(LCD_POWER_ELDO3_EN);
+EXPORT_SYMBOL(LCD_POWER_DLDO1_EN);
+
 
 #endif
 

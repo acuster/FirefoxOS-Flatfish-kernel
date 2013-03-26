@@ -74,7 +74,7 @@ __s32 BSP_disp_init(__disp_bsp_init_para * para)
     iep_init(1);
 
     disp_video_init();
-    
+
     return DIS_SUCCESS;
 }
 
@@ -237,7 +237,7 @@ __s32 BSP_disp_print_reg(__bool b_force_on, __u32 id)
             break;
         case DISP_REG_DEU1:
             base = gdisp.init_para.base_deu1;
-            size = 0x460;
+            size = 0x60;
             sprintf(str, "deu1:\n");
             break;
         case DISP_REG_CMU0:
@@ -252,12 +252,12 @@ __s32 BSP_disp_print_reg(__bool b_force_on, __u32 id)
             break;
         case DISP_REG_DRC0:
             base = gdisp.init_para.base_drc0;
-            size = 0x300;
+            size = 0x200;
             sprintf(str, "drc0:\n");
             break;
         case DISP_REG_DRC1:
             base = gdisp.init_para.base_drc1;
-            size = 0x300;
+            size = 0x200;
             sprintf(str, "drc1:\n");
             break;
 
@@ -266,7 +266,18 @@ __s32 BSP_disp_print_reg(__bool b_force_on, __u32 id)
             size = 0xf0;
             sprintf(str, "dsi:\n");
             break;
-            
+
+        case DISP_REG_DSI_DPHY:
+            base = gdisp.init_para.base_dsi0+1000;
+            size = 0xf4;
+            sprintf(str, "dsi_dphy:\n");
+            break;
+
+        case DISP_REG_HDMI:
+            base = gdisp.init_para.base_hdmi;
+            size = 0x580;
+            sprintf(str, "hdmi:\n");
+            break;
         default:
             return DIS_FAIL;
     }

@@ -2,7 +2,7 @@
  * sound\soc\sun6i\i2s\sndi2s.c
  * (C) Copyright 2010-2016
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
- * chenpailin <chenpailin@Reuuimllatech.com>
+ * huangxin <huangxin@Reuuimllatech.com>
  *
  * some simple description for this code
  *
@@ -148,6 +148,7 @@ static int __devexit sndi2s_codec_remove(struct platform_device *pdev)
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }
+
 /*data relating*/
 static struct platform_device sndi2s_codec_device = {
 	.name = "sun6i-i2s-codec",

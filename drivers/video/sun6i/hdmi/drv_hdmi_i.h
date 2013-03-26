@@ -36,6 +36,7 @@
 #include <linux/ktime.h>
 
 extern __u32 hdmi_print;
+extern __u32 rgb_only;
 #if 1
 #define OSAL_PRINTF(msg...) do{printk(KERN_WARNING "[HDMI] ");printk(msg);}while(0)
 #define __inf(msg...)       do{if(hdmi_print){printk(KERN_WARNING "[HDMI] ");printk(msg);}}while(0)

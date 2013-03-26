@@ -396,6 +396,8 @@ static int aw_early_suspend(void)
 	mem_clk_getdiv(&mem_para_info.clk_div);
 	/*backup pll ratio*/
 	mem_clk_get_pll_factor(&mem_para_info.pll_factor);
+	/*backup ccu misc*/
+	mem_clk_get_misc(&mem_para_info.clk_misc);
 #endif
 
 	//backup mmu
@@ -941,6 +943,7 @@ static void __exit aw_pm_exit(void)
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 module_param_named(suspend_freq, suspend_freq, int, S_IRUGO | S_IWUSR | S_IWGRP);
 module_param_named(suspend_delay_ms, suspend_delay_ms, int, S_IRUGO | S_IWUSR | S_IWGRP);
+module_param_named(standby_mode, standby_mode, int, S_IRUGO | S_IWUSR | S_IWGRP);
 module_init(aw_pm_init);
 module_exit(aw_pm_exit);
 

@@ -1,4 +1,3 @@
-
 /*
  * drivers\staging\android\switch\switch_headset.c
  * (C) Copyright 2010-2016
@@ -24,6 +23,7 @@
 #include <linux/input.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
+#include <linux/input.h>
 #include <linux/workqueue.h>
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -31,7 +31,9 @@
 #include <mach/sys_config.h>
 #include <mach/system.h>
 #include <mach/gpio.h>
+
 #undef SWITCH_DBG
+
 #if (0)
     #define SWITCH_DBG(format,args...)  printk("[SWITCH] "format,##args)    
 #else
@@ -39,10 +41,10 @@
 #endif
 
 #define VIR_CODEC_BASSADDRESS      (0xf1c22c00)
-#define SUN6I_PA_CTRL			   (0x24)		//new func
+#define SUN6I_PA_CTRL			   (0x24)
 #define SUN6I_MIC_CTRL			   (0x28)
-#define SUN6I_HMIC_CTL 	           (0x50)		//new func
-#define SUN6I_HMIC_DATA	           (0x54)		//new func
+#define SUN6I_HMIC_CTL 	           (0x50)
+#define SUN6I_HMIC_DATA	           (0x54)
 
 /*0x24*/
 #define HPCOM_CTL				  (29)
@@ -86,13 +88,18 @@
 #define HMIC_ADC_DATA				(0)
 
 #define FUNCTION_NAME "h2w"
-#define TIMER_CIRCLE 50
 
 #define hmic_rdreg(reg)	    readl((hmic_base+(reg)))
 #define hmic_wrreg(reg,val)  writel((val),(hmic_base+(reg)))
 
 static int gpio_earphone_switch = 0;
 static void __iomem *hmic_base;
+static int headphone_direct_used = 0;
+/*1=headphone in slot, else 0*/
+static int headphone_state = 0;
+
+/* key define */
+#define KEY_HEADSETHOOK         226
 
 struct gpio_switch_data {
 	struct switch_dev sdev;
@@ -101,7 +108,10 @@ struct gpio_switch_data {
 	int pre_state;
 
 	struct work_struct work;
+	struct semaphore sem;
 	struct timer_list timer;
+
+	struct input_dev *key;
 };
 
 /**
@@ -134,84 +144,91 @@ int hmic_wr_control(u32 reg, u32 mask, u32 shift, u32 val)
 	return 0;
 }
 
+static void earphone_switch_timer_poll(unsigned long data)
+{
+	int tmp = 0;
+	struct gpio_switch_data	*switch_data =(struct gpio_switch_data *)data;
+	
+	tmp = hmic_rdreg(SUN6I_HMIC_DATA);
+	SWITCH_DBG("%s,line:%d,tmp:%x\n", __func__, __LINE__, tmp);
+	tmp &= 0x1f;
+	if (tmp >= 0xb) {
+		SWITCH_DBG("%s,line:%d,tmp:%x\n", __func__, __LINE__, tmp);
+		/*hook down*/
+		input_report_key(switch_data->key, KEY_HEADSETHOOK, 1);
+		input_sync(switch_data->key);
+	} else {
+		SWITCH_DBG("%s,line:%d,tmp:%x\n", __func__, __LINE__, tmp);
+		/*hook up*/
+		input_report_key(switch_data->key, KEY_HEADSETHOOK, 0);
+		input_sync(switch_data->key);
+	}
+	mod_timer(&switch_data->timer, jiffies +  HZ/8);
+}
+
 static void earphone_switch_work(struct work_struct *work)
 {
-	struct gpio_switch_data	*data =
+	struct gpio_switch_data	*switch_data =
 		container_of(work, struct gpio_switch_data, work);
 
-	SWITCH_DBG("%s,line:%d, data->state:%d\n", __func__, __LINE__, data->state);
-	switch_set_state(&data->sdev, data->state);
+	SWITCH_DBG("%s,line:%d, data->state:%d\n", __func__, __LINE__, switch_data->state);
+	down(&switch_data->sem);
+	switch_set_state(&switch_data->sdev, switch_data->state);
+	up(&switch_data->sem);
 }
 
 static irqreturn_t audio_hmic_irq(int irq, void *dev_id)
 {
 	int tmp = 0;
-	script_item_u val;
-	int headphone_direct_used = 0;
-	script_item_value_type_e  type;
 	struct gpio_switch_data *switch_data = (struct gpio_switch_data *)dev_id;
 
-	type = script_get_item("audio_para", "headphone_direct_used", &val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        printk("[audiocodec] type err!\n");
-    }
-	headphone_direct_used = val.val;
-	
 	if (switch_data == NULL) {
 		return IRQ_NONE;
 	}
-	SWITCH_DBG("%s,line:%d\n", __func__, __LINE__);
+
+	hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_KEY_DOWN_IRQ_PEND, 0x1);
+	hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_EARPHONE_IN_IRQ_PEND, 0x1);
+	hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_KEY_UP_IRQ_PEND, 0x1);
+	hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_KEY_DOWN_IRQ_PEND, 0x1);
+	hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_DATA_IRQ_PEND, 0x1);
+
 	tmp = hmic_rdreg(SUN6I_HMIC_DATA);
-	/*bit19 is 1 means the earphone plug in*/
-	tmp &= (0x1<<19);
+	tmp &= 0x1f;
+
+	if (((&switch_data->timer) != NULL)) {
+		del_timer(&switch_data->timer);
+	}
+
 	if (tmp) {
 		/* if the 17 bit assert 1, it means the three sections earphone has plun in
 		 * if the 17 bit assert 0, it means the four sections earphone has plun in
 		 */
-		tmp = hmic_rdreg(SUN6I_HMIC_DATA);
-		tmp &=(0x1f<<0);
 		SWITCH_DBG("%s,line:%d,tmp:%x\n", __func__, __LINE__, tmp);
 		if (!headphone_direct_used) {
 			if (tmp >= 0xb) {/*0xc is from hardware debug, means the three section earphone*/
 				SWITCH_DBG("headphone three HP,HMIC_DAT= %d\n",(tmp&0x1f));
 				switch_data->state = 2;
 				/*clean the pending bit*/
-				hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_KEY_DOWN_IRQ_PEND, 0x1);
-				hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_EARPHONE_IN_IRQ_PEND, 0x1);
-				hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_KEY_UP_IRQ_PEND, 0x1);
-				hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_KEY_DOWN_IRQ_PEND, 0x1);
-				hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_DATA_IRQ_PEND, 0x1);
 			} else {/*the earphone is four section earphone*/
 				SWITCH_DBG("headphone four HP,HMIC_DAT= %d\n",(tmp&0x1f));
-				switch_data->state = 1;
-				hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_EARPHONE_IN_IRQ_PEND, 0x1);
-	
-				tmp = hmic_rdreg(SUN6I_HMIC_DATA);
-				tmp &= (0x1f<<0);
-				if (tmp <= 1) {/*debug from hardware(hookkey press)*/
-					SWITCH_DBG("headphone four HP,hookkey press\n");
-					switch_data->state = 3;
-				}
+				switch_data->state = 1;	
+				/*use for hook key checkout*/
+				init_timer(&switch_data->timer);
+				switch_data->timer.function = earphone_switch_timer_poll;
+				switch_data->timer.data = (unsigned long)switch_data;
+				mod_timer(&switch_data->timer, jiffies +  HZ/4 );
 			}
 		} else {
 			if (tmp >= 0x1) {
 				SWITCH_DBG("headphone three or four HP,HMIC_DAT= %d\n",(tmp&0x1f));
 				switch_data->state = 2;
-				/*clean the pending bit*/
-				hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_KEY_DOWN_IRQ_PEND, 0x1);
-				hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_EARPHONE_IN_IRQ_PEND, 0x1);
-				hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_KEY_UP_IRQ_PEND, 0x1);
-				hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_KEY_DOWN_IRQ_PEND, 0x1);
-				hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_DATA_IRQ_PEND, 0x1);
 			}
 		}
-	}
-
-	tmp = hmic_rdreg(SUN6I_HMIC_DATA);
-	if (tmp & (0x1<<20)) {
+	    headphone_state = 1;
+	} else if (tmp == 0) {
 		SWITCH_DBG("%s,line:%d,tmp:%x\n", __func__, __LINE__, (tmp&0x1f));
 		/*if the irq is hmic earphone pull out, when the irq coming, clean the pending bit*/
-		hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_EARPHONE_OUT_IRQ_PEND, 0x1);
+		headphone_state = 0;
 		switch_data->state = 0;
 	}
 
@@ -223,7 +240,7 @@ static ssize_t switch_gpio_print_state(struct switch_dev *sdev, char *buf)
 {
 	struct gpio_switch_data	*switch_data =
 		container_of(sdev, struct gpio_switch_data, sdev);
-	
+
 	return sprintf(buf, "%d\n", switch_data->state);
 }
 
@@ -240,28 +257,27 @@ static int gpio_switch_probe(struct platform_device *pdev)
 	struct gpio_switch_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_switch_data *switch_data;
 	int ret = 0;
-	
+	script_item_u val;
+	script_item_value_type_e  type;
+
 	if (!pdata) {
 		return -EBUSY;
 	}
 
-	hmic_base = (void __iomem *)VIR_CODEC_BASSADDRESS;
-	hmic_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASEN, 0x1);
-	hmic_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASADCEN, 0x1);
-	hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_M, 0xf);/*0xf should be get from hw_debug 28*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_N, 0xf);/*0xf should be get from hw_debug 24*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_OUT_IRQ_EN, 0x1); /*20*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_IN_IRQ_EN, 0x1); /*19*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x3, HMIC_DS_SAMP, 0x1); /*14*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH2_KEY, 0x8);/*0xf should be get from hw_debug 8*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH1_EARPHONE, 0x1);/*0x1 should be get from hw_debug 0*/
+	type = script_get_item("audio_para", "headphone_direct_used", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+		printk("[audiocodec] type err!\n");
+	}
+	headphone_direct_used = val.val;
 
-/*
-	for key debug	
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_DATA_IRQ_EN, 0x1);
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_KEY_DOWN_IRQ_EN, 0x1);
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_KEY_UP_IRQ_EN, 0x1);
-*/
+	hmic_base = (void __iomem *)VIR_CODEC_BASSADDRESS;
+	hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_M, 0xf);						/*0xf should be get from hw_debug 28*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_N, 0x1);						/*0xf should be get from hw_debug 24 0xf*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_OUT_IRQ_EN, 0x1); 	/*20*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_IN_IRQ_EN, 0x1); 	/*19*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0x3, HMIC_DS_SAMP, 0x1); 				/*14 */
+	hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH2_KEY, 0x8);				/*0xf should be get from hw_debug 8*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH1_EARPHONE, 0x1);			/*0x1 should be get from hw_debug 0*/
 
 	switch_data = kzalloc(sizeof(struct gpio_switch_data), GFP_KERNEL);
 	if (!switch_data) {
@@ -269,31 +285,70 @@ static int gpio_switch_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	switch_data->sdev.state = 0;
-	switch_data->pre_state = -1;
-	switch_data->sdev.name = pdata->name;
-	switch_data->pio_hdle = gpio_earphone_switch;
-	switch_data->sdev.print_name = print_headset_name;
-	switch_data->sdev.print_state = switch_gpio_print_state;
+	platform_set_drvdata(pdev, (void *)switch_data);
+
+	switch_data->sdev.state 		= 0;
+	switch_data->pre_state 			= -1;
+	switch_data->sdev.name 			= pdata->name;
+	switch_data->pio_hdle 			= gpio_earphone_switch;
+	switch_data->sdev.print_name 	= print_headset_name;
+	switch_data->sdev.print_state 	= switch_gpio_print_state;
 	INIT_WORK(&switch_data->work, earphone_switch_work);
 
-    ret = switch_dev_register(&switch_data->sdev);
+ 	/* create input device */
+    switch_data->key = input_allocate_device();
+    if (!switch_data->key) {
+        printk(KERN_ERR "gpio_switch_probe: not enough memory for input device\n");
+        ret = -ENOMEM;
+        goto err_input_allocate_device;
+    }
+
+    switch_data->key->name          = "headset";
+    switch_data->key->phys          = "headset/input0";
+    switch_data->key->id.bustype    = BUS_HOST;
+    switch_data->key->id.vendor     = 0x0001;
+    switch_data->key->id.product    = 0xffff;
+    switch_data->key->id.version    = 0x0100;
+
+    switch_data->key->evbit[0] = BIT_MASK(EV_KEY);
+
+    set_bit(KEY_HEADSETHOOK, switch_data->key->keybit);
+
+    ret = input_register_device(switch_data->key);
+    if (ret) {
+        printk(KERN_ERR "gpio_switch_probe: input_register_device failed\n");
+        goto err_input_register_device;
+    }
+
+	headphone_state = 0;
+	sema_init(&switch_data->sem, 1);
+
+	ret = switch_dev_register(&switch_data->sdev);
 	if (ret < 0) {
 		goto err_switch_dev_register;
 	}
 
 	ret = request_irq(AW_IRQ_CODEC, audio_hmic_irq, 0, "audio_hmic_irq", switch_data);
-    if (ret < 0) {
-        printk("request irq err\n");
-        return -EINVAL;
-    }
+	if (ret < 0) {
+		printk("request irq err\n");
+		return -EINVAL;
+	}
 	return 0;
 
+err_input_register_device:
+    if(switch_data->key){
+        input_free_device(switch_data->key);
+    }
+
+err_input_allocate_device:
+    switch_dev_unregister(&switch_data->sdev);
+
 err_switch_dev_register:
-		kfree(switch_data);
+	kfree(switch_data);
 
 	return ret;
 }
+
 static int switch_suspend(struct platform_device *pdev,pm_message_t state)
 {
 	return 0;
@@ -301,15 +356,29 @@ static int switch_suspend(struct platform_device *pdev,pm_message_t state)
 
 static int switch_resume(struct platform_device *pdev)
 {
-	hmic_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASEN, 0x1);
-	hmic_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASADCEN, 0x1);
-	hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_M, 0xf);/*0xf should be get from hw_debug 28*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_N, 0xf);/*0xf should be get from hw_debug 24*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_OUT_IRQ_EN, 0x1); /*20*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_IN_IRQ_EN, 0x1); /*19*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x3, HMIC_DS_SAMP, 0x1); /*14*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH2_KEY, 0x8);/*0xf should be get from hw_debug 8*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH1_EARPHONE, 0x1);/*0x1 should be get from hw_debug 0*/
+	struct gpio_switch_data *switch_data;
+	int tmp = 0;
+	hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_M, 0xf);						/*0xf should be get from hw_debug 28*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_N, 0x1);						/*0xf should be get from hw_debug 24*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_OUT_IRQ_EN, 0x1); 	/*20*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_IN_IRQ_EN, 0x1); 	/*19*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0x3, HMIC_DS_SAMP, 0x1); 				/*14*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH2_KEY, 0x8);				/*0xf should be get from hw_debug 8*/
+	hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH1_EARPHONE, 0x1);			/*0x1 should be get from hw_debug 0*/
+	
+	switch_data = (struct gpio_switch_data *)platform_get_drvdata(pdev);
+	if (switch_data != NULL) {
+		tmp = hmic_rdreg(SUN6I_HMIC_DATA);
+		SWITCH_DBG("%s,line:%d,tmp:%x\n", __func__, __LINE__, tmp);
+		if ( (tmp & (0x1<<20)) || (headphone_state ==1 && tmp == 0) )  {
+			SWITCH_DBG("%s,line:%d,tmp:%x\n", __func__, __LINE__, (tmp&0x1f));
+			/*if the irq is hmic earphone pull out, when the irq coming, clean the pending bit*/
+			hmic_wr_control(SUN6I_HMIC_DATA, 0x1, HMIC_EARPHONE_OUT_IRQ_PEND, 0x1);
+			switch_data->state = 0;
+			headphone_state = 0;
+			schedule_work(&switch_data->work);
+		}
+	}
 
 	return 0;
 }
@@ -318,8 +387,15 @@ static int __devexit gpio_switch_remove(struct platform_device *pdev)
 {
 	struct gpio_switch_data *switch_data = platform_get_drvdata(pdev);
 
-    switch_dev_unregister(&switch_data->sdev);    
+    if (switch_data->key) {
+        input_unregister_device(switch_data->key);
+        input_free_device(switch_data->key);
+    }
+
+    switch_dev_unregister(&switch_data->sdev);
+
 	kfree(switch_data);	
+
 	return 0;
 }
 

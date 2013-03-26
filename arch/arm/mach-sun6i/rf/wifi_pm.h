@@ -22,12 +22,13 @@ struct wifi_pm_ops {
 #endif
 };
 
-void bcm40181_gpio_init(void);
-void bcm40183_gpio_init(void);
+void ap6xxx_gpio_init(void);
 void rtl8723as_gpio_init(void);
 void rtl8189es_gpio_init(void);
 void rtl8192cu_gpio_init(void);
 void rtl8188eu_gpio_init(void);
+void mtk6620_gpio_init(void);
+void rtl8723au_gpio_init(void);
 
 extern struct wifi_pm_ops wifi_select_pm_ops;
 extern void sw_mci_rescan_card(unsigned id, unsigned insert);

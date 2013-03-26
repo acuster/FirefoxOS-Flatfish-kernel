@@ -611,6 +611,7 @@ __s32 IEP_Drc_Enable(__u32 sel, __u32 en)
 	if(en==1)
 	{
 		g_iep_status[sel] |= DRC_REQUIRED;
+        g_iep_status[sel] &= DRC_NEED_CLOSED_MASK;
 	}
 	else
 	{

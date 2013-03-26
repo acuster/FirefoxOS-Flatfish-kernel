@@ -15,7 +15,7 @@ static __inline int wifi_pm_get_mod_type(void) {return 0;}
 static __inline int wifi_pm_gpio_ctrl(char* name, int level) {return -1;}
 #endif
 
-static const char bt_name[] = "bcm40183";
+static const char bt_name[] = "ap6210";
 static struct rfkill *sw_rfkill;
 static script_item_u val;
 
@@ -27,13 +27,11 @@ static int rfkill_set_power(void *data, bool blocked)
     
     switch (mod_sel)
     {
-        case 2: /* bcm40183 */
+        case 2: /* ap6210 */
             if (!blocked) {
-                wifi_pm_gpio_ctrl("bcm40183_bt_regon", 1);
-                wifi_pm_gpio_ctrl("bcm40183_bt_rst", 1);
+                wifi_pm_gpio_ctrl("ap6xxx_bt_regon", 1);
             } else {
-                wifi_pm_gpio_ctrl("bcm40183_bt_rst", 0);
-                wifi_pm_gpio_ctrl("bcm40183_bt_regon", 0);
+                wifi_pm_gpio_ctrl("ap6xxx_bt_regon", 0);
             }
             break;
         case 3: /* realtek rtl8723as */
@@ -42,6 +40,9 @@ static int rfkill_set_power(void *data, bool blocked)
             } else {
                 wifi_pm_gpio_ctrl("rtk_rtl8723as_bt_dis", 0);
             }
+            break;
+        case 7: /* mtk6620 */
+            RF_MSG("[init] just record bt module select %d !!\n",mod_sel);
             break;            
         default:
             RF_MSG("no bt module matched !!\n");

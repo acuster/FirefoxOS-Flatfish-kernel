@@ -27,23 +27,26 @@ CheckCondition(
     const u4Byte  Hex
     )
 {
-    u4Byte board = Hex & 0xFF;
-    u4Byte interface4Byte = Hex & 0xFF00;
-    u4Byte platform = Hex & 0xFF0000;
+    u4Byte _board     = (Hex & 0x000000FF);
+    u4Byte _interface = (Hex & 0x0000FF00) >> 8;
+    u4Byte _platform  = (Hex & 0x00FF0000) >> 16;
     u4Byte cond = Condition;
 
-    cond = Condition & 0xFF;
-    if ( (board & cond) == 0 && cond != 0x1F)
+    if ( Condition == 0xCDCDCDCD )
+        return TRUE;
+
+    cond = Condition & 0x000000FF;
+    if ( (_board == cond) && cond != 0x00)
         return FALSE;
 
-    cond = Condition & 0xFF00;
+    cond = Condition & 0x0000FF00;
     cond = cond >> 8;
-    if ( (interface4Byte & cond) == 0 && cond != 0x07)
+    if ( (_interface & cond) == 0 && cond != 0x07)
         return FALSE;
 
-    cond = Condition & 0xFF0000;
+    cond = Condition & 0x00FF0000;
     cond = cond >> 16;
-    if ( (platform & cond) == 0 && cond != 0x0F)
+    if ( (_platform & cond) == 0 && cond != 0x0F)
         return FALSE;
     return TRUE;
 }
@@ -128,8 +131,8 @@ u4Byte Array_MAC_REG_8723A[] = {
 		0x609, 0x0000002A,
 		0x652, 0x00000020,
 		0x63C, 0x0000000A,
-		0x63D, 0x0000000E,
-		0x63E, 0x0000000A,
+		0x63D, 0x0000000A,
+		0x63E, 0x0000000E,
 		0x63F, 0x0000000E,
 		0x66E, 0x00000005,
 		0x700, 0x00000021,
@@ -148,17 +151,21 @@ ODM_ReadAndConfig_MAC_REG_8723A(
  	IN   PDM_ODM_T  pDM_Odm
  	)
 {
+	#define READ_NEXT_PAIR(v1, v2, i) do { i += 2; v1 = Array[i]; v2 = Array[i+1]; } while(0)
+
 	u4Byte     hex         = 0;
 	u4Byte     i           = 0;
+	u2Byte     count       = 0;
+	pu4Byte    ptr_array   = NULL;
 	u1Byte     platform    = pDM_Odm->SupportPlatform;
-	u1Byte     interface1Byte   = pDM_Odm->SupportInterface;
+	u1Byte     interfaceValue   = pDM_Odm->SupportInterface;
 	u1Byte     board       = pDM_Odm->BoardType;  
 	u4Byte     ArrayLen    = sizeof(Array_MAC_REG_8723A)/sizeof(u4Byte);
 	pu4Byte    Array       = Array_MAC_REG_8723A;
 
 
 	hex += board;
-	hex += interface1Byte << 8;
+	hex += interfaceValue << 8;
 	hex += platform << 16;
 	hex += 0xFF000000;
 	for (i = 0; i < ArrayLen; i += 2 )
@@ -176,22 +183,37 @@ ODM_ReadAndConfig_MAC_REG_8723A(
 		{ // This line is the start line of branch.
 		    if ( !CheckCondition(Array[i], hex) )
 		    { // Discard the following (offset, data) pairs.
-		        i += 2;
-		        v1 = Array[i];
-		        v2 = Array[i+1];
+		        READ_NEXT_PAIR(v1, v2, i);
 		        while (v2 != 0xDEAD && 
-	                   v2 != 0xCDEF && 
-	                   v2 != 0xCDCD)
+		               v2 != 0xCDEF && 
+		               v2 != 0xCDCD && i < ArrayLen -2)
 		        {
-		            i += 2;
-		            v1 = Array[i];
-		            v2 = Array[i+1];
+		            READ_NEXT_PAIR(v1, v2, i);
 		        }
+		        i -= 2; // prevent from for-loop += 2
 		    }
-		}
+		    else // Configure matched pairs and skip to end of if-else.
+		    {
+		        READ_NEXT_PAIR(v1, v2, i);
+		        while (v2 != 0xDEAD && 
+		               v2 != 0xCDEF && 
+		               v2 != 0xCDCD && i < ArrayLen -2)
+		        {
+	 				odm_ConfigMAC_8723A(pDM_Odm, v1, (u1Byte)v2);
+		            READ_NEXT_PAIR(v1, v2, i);
+		        }
+
+		        while (v2 != 0xDEAD && i < ArrayLen -2)
+		        {
+		            READ_NEXT_PAIR(v1, v2, i);
+		        }
+		        
+		    }
+		}	
 	}
 
 }
+
 
 #endif // end of HWIMG_SUPPORT
 

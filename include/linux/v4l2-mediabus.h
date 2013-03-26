@@ -7,7 +7,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#ifdef CONFIG_VIDEO_SUNXI_VFE
+#include "v4l2-mediabus_new.h"
+#else
 #ifndef __LINUX_V4L2_MEDIABUS_H
 #define __LINUX_V4L2_MEDIABUS_H
 
@@ -136,4 +138,5 @@ struct v4l2_mbus_framefmt {
 	__u32			reserved[7];
 };
 
+#endif
 #endif

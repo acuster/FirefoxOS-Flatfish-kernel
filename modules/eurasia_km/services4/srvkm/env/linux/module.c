@@ -178,7 +178,7 @@ EXPORT_SYMBOL(gpsIONClient);
 #endif /* defined(CONFIG_ION_OMAP) */
 
 /* PRQA S 3207 2 */ /* ignore 'not used' warning */
-EXPORT_SYMBOL_GPL(PVRGetDisplayClassJTable);
+EXPORT_SYMBOL(PVRGetDisplayClassJTable);
 EXPORT_SYMBOL(PVRGetBufferClassJTable);
 
 #if defined(PVR_LDM_DEVICE_CLASS) && !defined(SUPPORT_DRI_DRM)
@@ -295,7 +295,7 @@ static LDM_DRV powervr_driver = {
 
 LDM_DEV *gpsPVRLDMDev;
 
-#if defined(PVR_LDM_PLATFORM_MODULE) && \
+#if defined(MODULE) && defined(PVR_LDM_PLATFORM_MODULE) && \
 	!defined(PVR_USE_PRE_REGISTERED_PLATFORM_DEV)
 static void PVRSRVDeviceRelease(struct device unref__ *pDevice)
 {
@@ -313,7 +313,7 @@ static struct platform_device powervr_device = {
 /*!
 ******************************************************************************
 
-  @Function		PVRSRVDriverProbe
+ @Function		PVRSRVDriverProbe
 
  @Description
 
@@ -345,7 +345,6 @@ static int __devinit PVRSRVDriverProbe(LDM_DEV *pDevice, const struct pci_device
 	 * Note: some systems use this to enable HW that SysAcquireData
 	 * will depend on, therefore it must be called first.
 	 */
-	 
 	if (PerDeviceSysInitialise((IMG_PVOID)pDevice) != PVRSRV_OK)
 	{
 		return -EINVAL;
@@ -495,7 +494,7 @@ PVR_MOD_STATIC void PVRSRVDriverShutdown(LDM_DEV *pDevice)
 		 * processes trying to use the driver after it has been
 		 * shutdown.
 		 */
-		LinuxLockMutex(&gPVRSRVLock);
+		LinuxLockMutexNested(&gPVRSRVLock, PVRSRV_LOCK_CLASS_BRIDGE);
 
 		(void) PVRSRVSetPowerStateKM(PVRSRV_SYS_POWER_STATE_D3);
 	}
@@ -556,7 +555,7 @@ PVR_MOD_STATIC int PVRSRVDriverSuspend(LDM_DEV *pDevice, pm_message_t state)
 
 	if (!bDriverIsSuspended && !bDriverIsShutdown)
 	{
-		LinuxLockMutex(&gPVRSRVLock);
+		LinuxLockMutexNested(&gPVRSRVLock, PVRSRV_LOCK_CLASS_BRIDGE);
 
 		if (PVRSRVSetPowerStateKM(PVRSRV_SYS_POWER_STATE_D3) == PVRSRV_OK)
 		{
@@ -747,7 +746,7 @@ static int PVRSRVOpen(struct inode unref__ * pInode, struct file *pFile)
 	PVRSRV_ENV_PER_PROCESS_DATA *psEnvPerProc;
 #endif
 
-	LinuxLockMutex(&gPVRSRVLock);
+	LinuxLockMutexNested(&gPVRSRVLock, PVRSRV_LOCK_CLASS_BRIDGE);
 
 	ui32PID = OSGetCurrentProcessIDKM();
 
@@ -818,7 +817,7 @@ static int PVRSRVRelease(struct inode unref__ * pInode, struct file *pFile)
 	PVRSRV_FILE_PRIVATE_DATA *psPrivateData;
 	int err = 0;
 
-	LinuxLockMutex(&gPVRSRVLock);
+	LinuxLockMutexNested(&gPVRSRVLock, PVRSRV_LOCK_CLASS_BRIDGE);
 
 #if defined(SUPPORT_DRI_DRM)
 	psPrivateData = (PVRSRV_FILE_PRIVATE_DATA *)pvPrivData;
@@ -986,7 +985,7 @@ static int __init PVRCore_Init(void)
 		goto init_failed;
 	}
 
-#if !defined(PVR_USE_PRE_REGISTERED_PLATFORM_DEV)
+#if defined(MODULE) && !defined(PVR_USE_PRE_REGISTERED_PLATFORM_DEV)
 	if ((error = platform_device_register(&powervr_device)) != 0)
 	{
 		platform_driver_unregister(&powervr_driver);
@@ -1007,7 +1006,7 @@ static int __init PVRCore_Init(void)
 	}
 #endif /* PVR_LDM_PCI_MODULE */
 #endif /* defined(PVR_LDM_MODULE) */
-	
+
 #if !defined(PVR_LDM_MODULE)
 	/*
 	 * Drivers using LDM, will call SysInitialise in the probe/attach code
@@ -1084,7 +1083,7 @@ sys_deinit:
 #endif
 
 #if defined (PVR_LDM_PLATFORM_MODULE)
-#if !defined(PVR_USE_PRE_REGISTERED_PLATFORM_DEV)
+#if defined(MODULE) && !defined(PVR_USE_PRE_REGISTERED_PLATFORM_DEV)
 	platform_device_unregister(&powervr_device);
 #endif
 	platform_driver_unregister(&powervr_driver);
@@ -1182,7 +1181,7 @@ static void __exit PVRCore_Cleanup(void)
 #endif
 
 #if defined (PVR_LDM_PLATFORM_MODULE)
-#if !defined(PVR_USE_PRE_REGISTERED_PLATFORM_DEV)
+#if defined(MODULE) && !defined(PVR_USE_PRE_REGISTERED_PLATFORM_DEV)
 	platform_device_unregister(&powervr_device);
 #endif
 	platform_driver_unregister(&powervr_driver);

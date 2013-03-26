@@ -2,7 +2,7 @@
  * sound\soc\sun6i\pcm\sun6i-pcmdma.h
  * (C) Copyright 2010-2016
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
- * chenpailin <chenpailin@Reuuimllatech.com>
+ * huangxin <huangxin@Reuuimllatech.com>
  *
  * some simple description for this code
  *
@@ -13,9 +13,15 @@
  *
  */
 
-
 #ifndef SUN6I_PCMDMA_H_
 #define SUN6I_PCMDMA_H_
+
+#undef PCM_DBG
+#if (0)
+    #define PCM_DBG(format,args...)  printk("[SWITCH] "format,##args)    
+#else
+    #define PCM_DBG(...)    
+#endif
 
 struct sun6i_dma_params {
 	char *name;		

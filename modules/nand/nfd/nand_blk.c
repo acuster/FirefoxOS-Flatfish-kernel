@@ -1763,6 +1763,9 @@ int cal_partoff_within_disk(char *name,struct inode *i)
 static int __init init_blklayer(void)
 {
 	int ret;
+	script_item_u   good_block_ratio_flag;
+	script_item_value_type_e  type;
+	
 #ifdef __LINUX_NAND_SUPPORT_INT__	
 	unsigned long irqflags_ch0, irqflags_ch1;
 #endif
@@ -1813,6 +1816,30 @@ static int __init init_blklayer(void)
 	ret = SCN_AnalyzeNandSystem();
 	if (ret < 0)
 		return ret;
+		
+#if 1
+
+	/* »ñÈ¡card_lineÖµ */
+	type = script_get_item("nand0_para", "good_block_ratio", &good_block_ratio_flag);
+	
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != type)
+		printk("nand type err!\n");
+	else
+	{
+		printk("[NAND]nand get good block ratio  %d\n", good_block_ratio_flag.val);
+    
+		if((good_block_ratio_flag.val >= 800)&&(good_block_ratio_flag.val <= 960))
+		{
+			printk("nand good block ratio value is valid \n");
+			NAND_SetValidBlkRatio(good_block_ratio_flag.val);
+		}
+		else
+			printk("nand good block ratio value is invalid \n");
+			
+	}		
+	
+#endif	
+		
 	
 	ret = PHY_ChangeMode(1);
 	if (ret < 0)

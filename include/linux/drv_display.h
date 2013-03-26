@@ -298,6 +298,14 @@ typedef enum
     DISP_ENHANCE_MODE_SCENERY   = 0xa,
 }__disp_enhance_mode_t;
 
+typedef enum
+{
+    DISP_OUT_CSC_TYPE_LCD        = 0,
+    DISP_OUT_CSC_TYPE_TV         = 1,
+    DISP_OUT_CSC_TYPE_HDMI_YUV   = 2,
+    DISP_OUT_CSC_TYPE_VGA        = 3,
+    DISP_OUT_CSC_TYPE_HDMI_RGB   = 4,
+}__disp_out_csc_type_t;
 
 typedef enum//only for debug!!!
 {
@@ -319,6 +327,8 @@ typedef enum//only for debug!!!
     DISP_REG_DRC0 = 15,
     DISP_REG_DRC1 = 16,
     DISP_REG_DSI = 17,
+    DISP_REG_DSI_DPHY = 18,
+    DISP_REG_HDMI = 19,
 }__disp_reg_index_t;
 
 
@@ -330,6 +340,7 @@ typedef enum
     LCD_IF_LVDS			= 3,
     LCD_IF_DSI			= 4,
     LCD_IF_EDP          = 5,
+    LCD_IF_EXT_DSI      = 6,
 }__lcd_if_t;
 
 typedef enum
@@ -529,6 +540,9 @@ typedef struct
     __s32 (*hdmi_mode_support)(__disp_tv_mode_t mode);
     __s32 (*hdmi_get_HPD_status)(void);
     __s32 (*hdmi_set_pll)(__u32 pll, __u32 clk);
+    __s32 (*hdmi_dvi_enable)(__u32 mode);
+    __s32 (*hdmi_dvi_support)(void);
+    __s32 (*hdmi_get_input_csc)(void);
     __s32 (*hdmi_suspend)(void);
     __s32 (*hdmi_resume)(void);
 }__disp_hdmi_func;
@@ -570,7 +584,7 @@ typedef struct
 	__lcd_hv_syuv_fdly_t	lcd_hv_syuv_fdly;
 
 	__lcd_lvds_if_t   		lcd_lvds_if;
-	__lcd_lvds_colordepth_t	lcd_lvds_colordepth; //color depth
+	__lcd_lvds_colordepth_t	lcd_lvds_colordepth; //color depth, 0:8bit; 1:6bit
 	__lcd_lvds_mode_t   	lcd_lvds_mode;
 	__u32   				lcd_lvds_io_polarity;
 
@@ -590,8 +604,7 @@ typedef struct
     __u32                  lcd_edp_tx_ic;   //0:anx9804;  1:anx6345
     __u32                  lcd_edp_tx_rate; //1(1.62G); 2(2.7G); 3(5.4G)
     __u32                  lcd_edp_tx_lane; //  1/2/4lane
-
-
+    __u32                  lcd_edp_colordepth; //color depth, 0:8bit; 1:6bit
 
 	__u32   lcd_dclk_freq;
 	__u32   lcd_x; //horizontal resolution
@@ -612,7 +625,8 @@ typedef struct
 	__u32   lcd_vspw;
 	__u32   lcd_hspw;
 
-	__u32   lcd_io_phase;
+	__u32   lcd_hv_clk_phase;
+    __u32   lcd_hv_sync_polarity;
 
 	__u32   lcd_frm;
 	__u32   lcd_gamma_en;
@@ -891,6 +905,7 @@ typedef enum tag_DISP_CMD
     DISP_CMD_LCD_USER_DEFINED_FUNC = 0x14d,
     DISP_CMD_LCD_BACKLIGHT_ON  = 0x14e,
     DISP_CMD_LCD_BACKLIGHT_OFF  = 0x14f,
+    DISP_CMD_LCD_SET_FPS  = 0x150,
 
 //----tv----
     DISP_CMD_TV_ON = 0x180,

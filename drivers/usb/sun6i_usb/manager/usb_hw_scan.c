@@ -52,6 +52,7 @@
 
 static struct usb_scan_info g_usb_scan_info;
 extern int axp_usb_det(void);
+int device_insmod_delay = 0;
 void (*__usb_hw_scan) (struct usb_scan_info *);
 
 #ifndef  SW_USB_FPGA
@@ -304,7 +305,7 @@ static void do_vbus0_id0(struct usb_scan_info *info)
 	enum usb_role role = USB_ROLE_NULL;
 
 	role = get_usb_role();
-	info->device_insmod_delay = 0;
+	device_insmod_delay = 0;
 
 	switch(role){
 		case USB_ROLE_NULL:
@@ -358,7 +359,7 @@ static void do_vbus0_id1(struct usb_scan_info *info)
 	enum usb_role role = USB_ROLE_NULL;
 
 	role = get_usb_role();
-	info->device_insmod_delay = 0;
+	device_insmod_delay = 0;
 	info->host_insmod_delay   = 0;
 
 	switch(role){
@@ -404,7 +405,7 @@ static void do_vbus1_id0(struct usb_scan_info *info)
 	enum usb_role role = USB_ROLE_NULL;
 
 	role = get_usb_role();
-	info->device_insmod_delay = 0;
+	device_insmod_delay = 0;
 
 	switch(role){
 		case USB_ROLE_NULL:
@@ -463,12 +464,12 @@ static void do_vbus1_id1(struct usb_scan_info *info)
 #ifndef  SW_USB_FPGA
 			if(get_dp_dm_status(info) == 0x00){
     			/* delay for vbus is stably */
-    			if(info->device_insmod_delay < USB_SCAN_INSMOD_DEVICE_DRIVER_DELAY){
-    				info->device_insmod_delay++;
+    			if(device_insmod_delay < USB_SCAN_INSMOD_DEVICE_DRIVER_DELAY){
+    				device_insmod_delay++;
     				break;
     			}
 
-    			info->device_insmod_delay = 0;
+    			device_insmod_delay = 0;
 			    hw_insmod_usb_device();
 			}
 #else
@@ -661,6 +662,7 @@ __s32 usb_hw_scan_init(struct usb_cfg *cfg)
 	__s32 ret = 0;
 
 	memset(scan_info, 0, sizeof(struct usb_scan_info));
+	device_insmod_delay = 0;
 	scan_info->cfg 					= cfg;
 	scan_info->id_old_state 		= USB_DEVICE_MODE;
 	scan_info->det_vbus_old_state 	= USB_DET_VBUS_INVALID;
@@ -717,7 +719,8 @@ __s32 usb_hw_scan_init(struct usb_cfg *cfg)
 						}
 
 						/* set config, input */
-						sw_gpio_setcfg(port_info->id.gpio_set.gpio.gpio, 0);
+						//sw_gpio_setcfg(port_info->id.gpio_set.gpio.gpio, 0);
+						gpio_direction_input(port_info->id.gpio_set.gpio.gpio);
 
 						/* reserved is pull up */
 						if(need_pull_pio){
@@ -736,7 +739,8 @@ __s32 usb_hw_scan_init(struct usb_cfg *cfg)
 						}
 
 						/* set config, input */
-						sw_gpio_setcfg(port_info->det_vbus.gpio_set.gpio.gpio, 0);
+						//sw_gpio_setcfg(port_info->det_vbus.gpio_set.gpio.gpio, 0);
+						gpio_direction_input(port_info->det_vbus.gpio_set.gpio.gpio);
 
 						/* reserved is disable */
 						if(need_pull_pio){

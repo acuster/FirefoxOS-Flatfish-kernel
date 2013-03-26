@@ -79,18 +79,10 @@ s32 FillH2CCmd(PADAPTER padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer)
 
 _func_enter_;
 
-#ifdef CONFIG_CONCURRENT_MODE
-
-	if(padapter->adapter_type > PRIMARY_ADAPTER)
-	{
-		padapter = padapter->pbuddy_adapter;
-	}
-	
+	padapter = GET_PRIMARY_ADAPTER(padapter);		
 	pHalData = GET_HAL_DATA(padapter);
 
-	_enter_critical_mutex(padapter->ph2c_fwcmd_mutex, NULL);
-	
-#endif
+	_enter_critical_mutex(&(adapter_to_dvobj(padapter)->h2c_fwcmd_mutex), NULL);
 
 	if (!pCmdBuffer) {
 		goto exit;
@@ -144,9 +136,7 @@ _func_enter_;
 
 exit:
 
-#ifdef CONFIG_CONCURRENT_MODE
-	_exit_critical_mutex(padapter->ph2c_fwcmd_mutex, NULL);	
-#endif
+	_exit_critical_mutex(&(adapter_to_dvobj(padapter)->h2c_fwcmd_mutex), NULL);	
 
 _func_exit_;
 
@@ -955,17 +945,7 @@ void rtl8723a_set_BTCoex_AP_mode_FwRsvdPkt_cmd(PADAPTER padapter)
 }
 #endif
 
-#ifdef CONFIG_P2P
-void rtl8192c_set_p2p_ctw_period_cmd(_adapter* padapter, u8 ctwindow)
-{
-	struct P2P_PS_CTWPeriod_t p2p_ps_ctw;
-
-	p2p_ps_ctw.CTWPeriod = ctwindow;
-
-	FillH2CCmd(padapter, P2P_PS_CTW_CMD_EID, 1, (u8 *)(&p2p_ps_ctw));
-
-}
-
+#ifdef CONFIG_P2P_PS
 void rtl8192c_set_p2p_ps_offload_cmd(_adapter* padapter, u8 p2p_ps_state)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
@@ -973,8 +953,6 @@ void rtl8192c_set_p2p_ps_offload_cmd(_adapter* padapter, u8 p2p_ps_state)
 	struct wifidirect_info	*pwdinfo = &( padapter->wdinfo );
 	struct P2P_PS_Offload_t	*p2p_ps_offload = &pHalData->p2p_ps_offload;
 	u8	i;
-	u16	ctwindow;
-	u32	start_time, tsf_low;
 
 _func_enter_;
 
@@ -990,49 +968,31 @@ _func_enter_;
 			if( pwdinfo->ctwindow > 0 )
 			{
 				p2p_ps_offload->CTWindow_En = 1;
-				ctwindow = pwdinfo->ctwindow;
-				if(IS_HARDWARE_TYPE_8723A(padapter))
-				{
-					//rtw_write16(padapter, REG_ATIMWND, ctwindow);
-				}
-				else
-				{
-					rtl8192c_set_p2p_ctw_period_cmd(padapter, ctwindow);
-				}
+				rtw_write8(padapter, REG_P2P_CTWIN, pwdinfo->ctwindow);
 			}
 
 			// hw only support 2 set of NoA
 			for( i=0 ; i<pwdinfo->noa_num ; i++)
 			{
 				// To control the register setting for which NOA
-				rtw_write8(padapter, 0x5CF, (i << 4));
+				rtw_write8(padapter, REG_NOA_DESC_SEL, (i << 4));
 				if(i == 0)
 					p2p_ps_offload->NoA0_En = 1;
 				else
 					p2p_ps_offload->NoA1_En = 1;
 
 				// config P2P NoA Descriptor Register
-				rtw_write32(padapter, 0x5E0, pwdinfo->noa_duration[i]);
+				//DBG_8192C("%s(): noa_duration = %x\n",__FUNCTION__,pwdinfo->noa_duration[i]);
+				rtw_write32(padapter, REG_NOA_DESC_DURATION, pwdinfo->noa_duration[i]);
 
-				rtw_write32(padapter, 0x5E4, pwdinfo->noa_interval[i]);
+				//DBG_8192C("%s(): noa_interval = %x\n",__FUNCTION__,pwdinfo->noa_interval[i]);
+				rtw_write32(padapter, REG_NOA_DESC_INTERVAL, pwdinfo->noa_interval[i]);
 
-				//Get Current TSF value
-				tsf_low = rtw_read32(padapter, REG_TSFTR);
+				//DBG_8192C("%s(): start_time = %x\n",__FUNCTION__,pwdinfo->noa_start_time[i]);
+				rtw_write32(padapter, REG_NOA_DESC_START, pwdinfo->noa_start_time[i]);
 
-				start_time = pwdinfo->noa_start_time[i];
-				if(pwdinfo->noa_count[i] != 1)
-				{
-					while( start_time <= (tsf_low+(50*1024) ) )
-					{
-						start_time += pwdinfo->noa_interval[i];
-						if(pwdinfo->noa_count[i] != 255)
-							pwdinfo->noa_count[i]--;
-					}
-				}
-				//DBG_8192C("%s(): start_time = %x\n",__FUNCTION__,start_time);
-				rtw_write32(padapter, 0x5E8, start_time);
-
-				rtw_write8(padapter, 0x5EC, pwdinfo->noa_count[i]);
+				//DBG_8192C("%s(): noa_count = %x\n",__FUNCTION__,pwdinfo->noa_count[i]);
+				rtw_write8(padapter, REG_NOA_DESC_COUNT, pwdinfo->noa_count[i]);
 			}
 
 			if( (pwdinfo->opp_ps == 1) || (pwdinfo->noa_num > 0) )
@@ -1062,7 +1022,7 @@ _func_enter_;
 		case P2P_PS_SCAN_DONE:
 			DBG_8192C("P2P_PS_SCAN_DONE \n");
 			p2p_ps_offload->discovery = 0;
-			pwdinfo->p2p_ps = P2P_PS_ENABLE;
+			pwdinfo->p2p_ps_state = P2P_PS_ENABLE;
 			break;
 		default:
 			break;
@@ -1073,11 +1033,14 @@ _func_enter_;
 _func_exit_;
 
 }
-#endif //CONFIG_P2P
+#endif //CONFIG_P2P_PS
 
 #ifdef CONFIG_IOL
 #include <rtw_iol.h>
-int rtl8192c_IOL_exec_cmds_sync(ADAPTER *adapter, struct xmit_frame *xmit_frame, u32 max_wating_ms)
+#ifdef CONFIG_USB_HCI
+#include <usb_ops.h>
+#endif
+int rtl8192c_IOL_exec_cmds_sync(ADAPTER *adapter, struct xmit_frame *xmit_frame, u32 max_wating_ms, u32 bndy_cnt)
 {
 	IO_OFFLOAD_LOC	IoOffloadLoc;
 	u32 start_time = rtw_get_current_time();
@@ -1087,6 +1050,17 @@ int rtl8192c_IOL_exec_cmds_sync(ADAPTER *adapter, struct xmit_frame *xmit_frame,
 
 	if (rtw_IOL_append_END_cmd(xmit_frame) != _SUCCESS)
 		goto exit;
+#ifdef CONFIG_USB_HCI
+	{
+		struct pkt_attrib	*pattrib = &xmit_frame->attrib;		
+		if(rtw_usb_bulk_size_boundary(adapter,TXDESC_SIZE+pattrib->last_txcmdsz))
+		{
+			if (rtw_IOL_append_END_cmd(xmit_frame) != _SUCCESS)
+				goto exit;
+		}			
+	}
+#endif //CONFIG_USB_HCI	
+
 	
 	dump_mgntframe_and_wait(adapter, xmit_frame, max_wating_ms);
 

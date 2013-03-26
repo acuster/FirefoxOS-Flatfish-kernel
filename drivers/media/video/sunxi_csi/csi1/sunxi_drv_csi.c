@@ -2336,7 +2336,7 @@ reg_sd:
 	  csi_print("power on and standy on camera %d!\n",input_num);
 	  csi_clk_out_set(dev);
 	  v4l2_subdev_call(dev->ccm_cfg[input_num]->sd,core, s_power, CSI_SUBDEV_PWR_ON);
-	  ret=v4l2_subdev_call(dev->ccm_cfg[input_num]->sd,core, ioctl, CSI_SUBDEV_CMD_DETECT,0);
+	  ret=0;//v4l2_subdev_call(dev->ccm_cfg[input_num]->sd,core, ioctl, CSI_SUBDEV_CMD_DETECT,0);
     if(ret)
     {
       v4l2_subdev_call(dev->ccm_cfg[input_num]->sd,core, s_power, CSI_SUBDEV_PWR_OFF);

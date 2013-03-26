@@ -68,7 +68,6 @@ VOID rtl8192c_PHY_LCCalibrate(IN	PADAPTER	pAdapter);
 // AP calibrate
 //
 VOID rtl8192c_PHY_APCalibrate(IN	PADAPTER	pAdapter, IN 	char		delta);
-VOID rtl8192c_PHY_DigitalPredistortion(IN	PADAPTER	pAdapter);
 
 VOID rtl8192c_odm_CheckTXPowerTracking(IN PADAPTER Adapter);
 

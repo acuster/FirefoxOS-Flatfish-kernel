@@ -306,11 +306,28 @@ struct l2cap_chan *l2cap_chan_create(struct sock *sk)
 
 void l2cap_chan_destroy(struct l2cap_chan *chan)
 {
+	BT_DBG("chan %p", chan);
+
 	write_lock(&chan_list_lock);
 	list_del(&chan->global_l);
 	write_unlock(&chan_list_lock);
 
-	l2cap_chan_put(chan);
+	kfree(chan);
+}
+
+void l2cap_chan_hold(struct l2cap_chan *c)
+{
+    BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->refcnt));
+
+    atomic_inc(&c->refcnt);
+}
+
+void l2cap_chan_put(struct l2cap_chan *c)
+{
+    BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->refcnt));
+
+    if (atomic_dec_and_test(&c->refcnt))
+        l2cap_chan_destroy(c);
 }
 
 static void l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)

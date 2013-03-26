@@ -37,6 +37,9 @@
 #include <mach/system.h>
 #include <mach/platform.h>
 #include <mach/irqs.h>
+#if(CONFIG_CPU_HAS_PMU)
+#include <asm/pmu.h>
+#endif
 
 
 /* uart */
@@ -96,11 +99,29 @@ struct platform_device sw_pdev_nand =
 	.id = -1,
 };
 
+#if(CONFIG_CPU_HAS_PMU)
+/* cpu performance support */
+static struct resource sun6i_pmu_resource = {
+    .start  = AW_IRQ_PMU0,
+    .end    = AW_IRQ_PMU3,
+    .flags  = IORESOURCE_IRQ,
+};
+
+static struct platform_device sun6i_pmu_device = {
+    .name   = "arm-pmu",
+    .id     = ARM_PMU_DEVICE_CPU,
+    .num_resources = 1,
+    .resource = &sun6i_pmu_resource,
+};
+#endif
 
 static struct platform_device *sw_pdevs[] __initdata = {
 	&debug_uart,
 	&sw_dmac_device,
 	&sw_pdev_nand,
+    #if(CONFIG_CPU_HAS_PMU)
+    &sun6i_pmu_device,
+    #endif
 };
 
 void sw_pdev_init(void)

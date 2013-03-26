@@ -42,6 +42,7 @@
 #include <mach/gpio.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
+#include <linux/regulator/consumer.h>
 
 #include "sw_module.h"
 
@@ -51,23 +52,10 @@
 //
 //-----------------------------------------------------------------------------
 
-#if 0
-void sw_module_mdelay(u32 time)
-{
-    spinlock_t lock;
-	unsigned long flags = 0;
-
-	spin_lock_init(&lock);
-	spin_lock_irqsave(&lock, flags);
-	mdelay(time);
-	spin_unlock_irqrestore(&lock, flags);
-}
-#else
 void sw_module_mdelay(u32 time)
 {
 	mdelay(time);
 }
-#endif
 EXPORT_SYMBOL(sw_module_mdelay);
 
 s32 modem_get_config(struct sw_modem *modem)
@@ -109,6 +97,7 @@ s32 modem_get_config(struct sw_modem *modem)
         modem_dbg("%s modem support\n", modem->name);
     }else{
         modem_err("ERR: get bb_name failed\n");
+        modem->name[0] = 0;
     }
 
     /* bb_vbat */
@@ -163,6 +152,33 @@ s32 modem_get_config(struct sw_modem *modem)
     }else{
         modem_err("ERR: get bb_wake failed\n");
         modem->bb_wake.valid  = 0;
+    }
+
+	/* bb_dldo */
+    type = script_get_item("3g_para", "bb_dldo", &item_temp);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_STR){
+        strcpy(modem->dldo_name, item_temp.str);
+        modem_dbg("%s modem support\n", modem->dldo_name);
+    }else{
+        modem_err("ERR: get dldo_name failed\n");
+    }
+
+    /* bb_dldo_min_uV */
+    type = script_get_item("3g_para", "bb_dldo_min_uV", &item_temp);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+        modem->dldo_min_uV = item_temp.val;
+    }else{
+        modem_err("ERR: get bb_dldo_min_uV failed\n");
+        modem->dldo_min_uV = 0;
+    }
+
+    /* bb_dldo_max_uV */
+    type = script_get_item("3g_para", "bb_dldo_max_uV", &item_temp);
+    if(type == SCIRPT_ITEM_VALUE_TYPE_INT){
+        modem->dldo_max_uV = item_temp.val;
+    }else{
+        modem_err("ERR: get bb_dldo_max_uV failed\n");
+        modem->dldo_max_uV = 0;
     }
 
     return 0;
@@ -329,6 +345,47 @@ void modem_sleep(struct sw_modem *modem, u32 value)
     return;
 }
 EXPORT_SYMBOL(modem_sleep);
+
+void modem_dldo_on_off(struct sw_modem *modem, u32 on)
+{
+	struct regulator *ldo = NULL;
+	int ret = 0;
+
+    if(modem->dldo_name[0] == 0 || modem->dldo_min_uV == 0 || modem->dldo_max_uV == 0){
+        modem_err("err: dldo parameter is invalid. dldo_name=%s, dldo_min_uV=%d, dldo_max_uV=%d.\n",
+                  modem->dldo_name, modem->dldo_min_uV, modem->dldo_max_uV);
+        return;
+    }
+
+    /* set ldo */
+	ldo = regulator_get(NULL, modem->dldo_name);
+	if (!ldo) {
+		modem_err("get power regulator failed.\n");
+		return;
+	}
+
+	if(on){
+		regulator_set_voltage(ldo, modem->dldo_min_uV, modem->dldo_max_uV);
+		ret = regulator_enable(ldo);
+		if(ret < 0){
+			modem_err("regulator_enable failed.\n");
+			regulator_put(ldo);
+			return;
+		}
+	}else{
+		ret = regulator_disable(ldo);
+		if(ret < 0){
+			modem_err("regulator_disable failed.\n");
+			regulator_put(ldo);
+			return;
+		}
+	}
+
+	regulator_put(ldo);
+
+	return;
+}
+EXPORT_SYMBOL(modem_dldo_on_off);
 
 void modem_power_on_off(struct sw_modem *modem, u32 value)
 {

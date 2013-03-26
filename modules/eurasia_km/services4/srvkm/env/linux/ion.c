@@ -69,7 +69,7 @@ void PVRSRVExportFDToIONHandles(int fd, struct ion_client **client,
 	struct file *psFile;
 
 	/* Take the bridge mutex so the handle won't be freed underneath us */
-	LinuxLockMutex(&gPVRSRVLock);
+	LinuxLockMutexNested(&gPVRSRVLock, PVRSRV_LOCK_CLASS_BRIDGE);
 
 	psFile = fget(fd);
 	if(!psFile)
@@ -140,8 +140,7 @@ struct ion_device *psIonDev;
 extern struct ion_heap *ion_heap_create(struct ion_platform_heap *);
 extern void ion_heap_destroy(struct ion_heap *);
 
-static struct ion_platform_data generic_config =
-{
+static struct ion_platform_data generic_config = {
 	.nr = 3,
 	.heaps = {
 		{

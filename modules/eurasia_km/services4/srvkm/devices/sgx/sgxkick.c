@@ -645,6 +645,25 @@ PVRSRV_ERROR SGXDoKickKM(IMG_HANDLE hDevHandle, SGX_CCB_KICK *psCCBKick)
 				MAKEUNIQUETAG(psCCBMemInfo));
 		}
 
+		if (psCCBKick->hTA3DSyncInfo != IMG_NULL)
+		{
+			psSyncInfo = (PVRSRV_KERNEL_SYNC_INFO *)psCCBKick->hTA3DSyncInfo;
+
+			PDUMPCOMMENT("Modify TA/3D dependency WOpPendingVal\r\n");
+
+			PDUMPMEM(&psSyncInfo->psSyncData->ui32LastOpDumpVal,
+					psCCBMemInfo,
+					psCCBKick->ui32CCBDumpWOff + offsetof(SGXMKIF_CMDTA_SHARED, sTA3DDependency.ui32WriteOpsPendingVal),
+					sizeof(IMG_UINT32),
+					0,
+					MAKEUNIQUETAG(psCCBMemInfo));
+			
+			if (psCCBKick->bTADependency)
+			{
+				psSyncInfo->psSyncData->ui32LastOpDumpVal++;
+			}
+		}
+
 		if (psCCBKick->hTASyncInfo != IMG_NULL)
 		{
 			psSyncInfo = (PVRSRV_KERNEL_SYNC_INFO *)psCCBKick->hTASyncInfo;
@@ -756,6 +775,24 @@ PVRSRV_ERROR SGXDoKickKM(IMG_HANDLE hDevHandle, SGX_CCB_KICK *psCCBKick)
 			psSyncInfo->psSyncData->ui32ReadOpsPending--;
 		}
 #endif/* SUPPORT_SGX_GENERALISED_SYNCOBJECTS */
+
+		if (psCCBKick->hTA3DSyncInfo)
+		{
+			psSyncInfo = (PVRSRV_KERNEL_SYNC_INFO *)psCCBKick->hTA3DSyncInfo;
+			psSyncInfo->psSyncData->ui32ReadOpsPending--;
+		}
+	
+		if (psCCBKick->hTASyncInfo)
+		{
+			psSyncInfo = (PVRSRV_KERNEL_SYNC_INFO *)psCCBKick->hTASyncInfo;
+			psSyncInfo->psSyncData->ui32ReadOpsPending--;
+		}
+	
+		if (psCCBKick->h3DSyncInfo)
+		{
+			psSyncInfo = (PVRSRV_KERNEL_SYNC_INFO *)psCCBKick->h3DSyncInfo;
+			psSyncInfo->psSyncData->ui32ReadOpsPending--;
+		}
 
 		PVR_TTRACE(PVRSRV_TRACE_GROUP_KICK, PVRSRV_TRACE_CLASS_FUNCTION_EXIT,
 				KICK_TOKEN_DOKICK);

@@ -32,9 +32,10 @@
 #define _TKIP_WTMIC_		0x3
 #define _AES_				0x4
 #define _WEP104_			0x5
-#define _WEP_WPA_MIXED_	0x06  // WEP + WPA
-#define _SMS4_				0x07
+#define _WEP_WPA_MIXED_	0x07  // WEP + WPA
+#define _SMS4_				0x06
 
+#define is_wep_enc(alg) (((alg) == _WEP40_) || ((alg) == _WEP104_))
 
 #define _WPA_IE_ID_	0xdd
 #define _WPA2_IE_ID_	0x30
@@ -42,6 +43,16 @@
 #define SHA256_MAC_LEN 32
 #define AES_BLOCK_SIZE 16
 #define AES_PRIV_SIZE (4 * 44)
+
+typedef enum {
+	ENCRYP_PROTOCOL_OPENSYS,   //open system
+	ENCRYP_PROTOCOL_WEP,       //WEP
+	ENCRYP_PROTOCOL_WPA,       //WPA
+	ENCRYP_PROTOCOL_WPA2,      //WPA2
+	ENCRYP_PROTOCOL_WAPI,      //WAPI: Not support in this version
+	ENCRYP_PROTOCOL_MAX
+}ENCRYP_PROTOCOL_E;
+
 
 #ifndef Ndis802_11AuthModeWPA2
 #define Ndis802_11AuthModeWPA2 (Ndis802_11AuthModeWPANone + 1)
@@ -130,7 +141,6 @@ struct security_priv
 	unsigned int wpa2_pairwise_cipher;	
 #endif
 
-	u8 wps_phase;//for wps
 	u8 wps_ie[MAX_WPS_IE_LEN];//added in assoc req
 	int wps_ie_len;
 	
@@ -183,6 +193,7 @@ struct security_priv
 	//u32				PMKIDCount;						// Added by Annie, 2006-10-13.
 	//u8				szCapability[256];				// For WPA2-PSK using zero-config, by Annie, 2005-09-20.
 
+	u8 bWepDefaultKeyIdxSet;
 };
 
 struct sha256_state {
@@ -206,6 +217,9 @@ do{\
 			else\
 				encry_algo =(u8) psta->dot118021XPrivacy;\
 			break;\
+	     case dot11AuthAlgrthm_WAPI:\
+		     encry_algo = (u8)psecuritypriv->dot11PrivacyAlgrthm;\
+		     break;\
 	}\
 }while(0)
 
@@ -226,6 +240,10 @@ do{\
 		case _AES_:\
 			iv_len = 8;\
 			icv_len = 8;\
+			break;\
+		case _SMS4_:\
+			iv_len = 18;\
+			icv_len = 16;\
 			break;\
 		default:\
 			iv_len = 0;\

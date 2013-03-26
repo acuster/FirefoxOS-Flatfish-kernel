@@ -116,7 +116,7 @@ void change_runtime_env(__u32 mmu_flag)
 	}else if(2 == reg_val || 3 == reg_val){
 		//get pll_factor
 		reg_val = *(volatile int *)(cmu_reg + 0x00);
-		factor_n = 0x1f & (reg_val >> 8); 	//the range is 0-31
+		factor_n = (0x1f & (reg_val >> 8)) + 1; 	//the range is 1-32
 		factor_k = (0x3 & (reg_val >> 4)) + 1; 	//the range is 1-4
 		factor_m = (0x3 & (reg_val >> 0)) + 1; 	//the range is 1-4
 		

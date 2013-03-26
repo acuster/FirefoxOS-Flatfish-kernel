@@ -1187,11 +1187,25 @@ config VIDEO_SUN6I_CEDAR
 if VIDEO_SUN6I_CEDAR
 source "drivers/media/video/sun6i/Kconfig"
 endif
+
+choice
+	prompt "choose the version of csi driver"
+	default VIDEO_SUNXI_VFE
+	help
+		
 menuconfig VIDEO_CSI_SUNXI
-	bool "CSI and MIPI CSI Driver Config for SUNXI"
+	tristate "old version of csi driver"
 	default m
 	depends on VIDEO_DEV && VIDEO_V4L2
-
+	
+menuconfig VIDEO_SUNXI_VFE
+	tristate "new version of csi or mipi csi driver"
+	default m
+endchoice
+	
 if VIDEO_CSI_SUNXI
 source "drivers/media/video/sunxi_csi/Kconfig"
+endif
+if VIDEO_SUNXI_VFE
+source "drivers/media/video/sunxi-vfe/Kconfig"
 endif

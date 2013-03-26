@@ -14,10 +14,10 @@
  */
 #ifndef SUN6I_SPDMA_H_
 #define SUN6I_SPDMA_H_
- 
+
 struct sun6i_dma_params {
-	char *name;		
-	dma_addr_t dma_addr;	
+	char *name;
+	dma_addr_t dma_addr;
 };
 
 #endif

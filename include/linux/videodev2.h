@@ -53,6 +53,9 @@
  *              Hans Verkuil <hverkuil@xs4all.nl>
  *		et al.
  */
+#ifdef CONFIG_VIDEO_SUNXI_VFE
+#include "videodev2_new.h"
+#else
 #ifndef __LINUX_VIDEODEV2_H
 #define __LINUX_VIDEODEV2_H
 
@@ -2362,3 +2365,4 @@ struct v4l2_create_buffers {
 #define BASE_VIDIOC_PRIVATE	192		/* 192-255 are private */
 
 #endif /* __LINUX_VIDEODEV2_H */
+#endif

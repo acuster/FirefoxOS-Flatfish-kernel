@@ -29,78 +29,92 @@
 #define RTL871X_MODULE_NAME "8723AS-VAU"
 #define DRV_NAME "rtl8723as-vau"
 
-#define CONFIG_RTL8723A 1
-#define CONFIG_USB_HCI	1
-#define PLATFORM_LINUX	1
+#define CONFIG_RTL8723A 
+#define CONFIG_USB_HCI	
+#define PLATFORM_LINUX	
 
-#define CONFIG_EMBEDDED_FWIMG	1
-
-#define CONFIG_DEBUG 1
-
+#define CONFIG_EMBEDDED_FWIMG	
+//#define CONFIG_FILE_FWIMG
 
 /*
  * Functions Config
  */
-#define CONFIG_80211N_HT	1
-#define CONFIG_RECV_REORDERING_CTRL	1
+
+#define CONFIG_XMIT_ACK
+#ifdef CONFIG_XMIT_ACK
+	#define CONFIG_ACTIVE_KEEP_ALIVE_CHECK
+#endif
+#define CONFIG_80211N_HT	
+#define CONFIG_RECV_REORDERING_CTRL	
 
 
-#define SUPPORT_HW_RFOFF_DETECTED	1
+#define SUPPORT_HW_RFOFF_DETECTED	
 
-#define CONFIG_IOCTL_CFG80211 1
-#ifdef CONFIG_PLATFORM_ARM_SUN4I
+//#define CONFIG_IOCTL_CFG80211 
+#ifdef CONFIG_PLATFORM_ARM_SUNxI
 	#ifndef CONFIG_IOCTL_CFG80211 
-		#define CONFIG_IOCTL_CFG80211 1
+		#define CONFIG_IOCTL_CFG80211 
+	#endif
+#endif
+
+#ifdef CONFIG_PLATFORM_ARM_SUN6I
+	#ifndef CONFIG_IOCTL_CFG80211 
+		#define CONFIG_IOCTL_CFG80211
 	#endif
 #endif
 
 #ifdef CONFIG_IOCTL_CFG80211
+	#define RTW_USE_CFG80211_STA_EVENT /* Opne this for Android 4.1's wpa_supplicant */
 	#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
-	//#define CONFIG_DEBUG_CFG80211 1
+	//#define CONFIG_DEBUG_CFG80211 
+	#define CONFIG_SET_SCAN_DENY_TIMER
 #endif
 
-#define CONFIG_AP_MODE	1
+#define CONFIG_AP_MODE	
 #ifdef CONFIG_AP_MODE
-	#define CONFIG_NATIVEAP_MLME 1
+	#define CONFIG_NATIVEAP_MLME 
 	#ifndef CONFIG_NATIVEAP_MLME
-		#define CONFIG_HOSTAPD_MLME	1
+		#define CONFIG_HOSTAPD_MLME	
 	#endif			
-	//#define CONFIG_FIND_BEST_CHANNEL	1
-	//#define CONFIG_NO_WIRELESS_HANDLERS	1
+	//#define CONFIG_FIND_BEST_CHANNEL	
+	//#define CONFIG_NO_WIRELESS_HANDLERS	
 #endif
 
-#define CONFIG_P2P	1
+#define CONFIG_P2P	
 #ifdef CONFIG_P2P
 	//Added by Albert 20110812
 	//The CONFIG_WFD is for supporting the Wi-Fi display
-	//#define CONFIG_WFD	1
-
-	//Unmarked if there is low p2p scanned ratio; Kurt
-	//#define CONFIG_P2P_AGAINST_NOISE	1
+	#define CONFIG_WFD
 	
-	#define CONFIG_P2P_REMOVE_GROUP_INFO
+	#ifndef CONFIG_WIFI_TEST
+		#define CONFIG_P2P_REMOVE_GROUP_INFO
+	#endif
 	//#define CONFIG_DBG_P2P
+
+	#define CONFIG_P2P_PS
+	//#define CONFIG_P2P_IPS
 #endif
 
 //	Added by Kurt 20110511
-//#define CONFIG_TDLS	1
+//#define CONFIG_TDLS	
 #ifdef CONFIG_TDLS
 //	#ifndef CONFIG_WFD
-//		#define CONFIG_WFD	1
+//		#define CONFIG_WFD	
 //	#endif
-//	#define CONFIG_TDLS_AUTOSETUP			1
-//	#define CONFIG_TDLS_AUTOCHECKALIVE		1
+//	#define CONFIG_TDLS_AUTOSETUP			
+//	#define CONFIG_TDLS_AUTOCHECKALIVE		
 #endif
 
 #define CONFIG_LAYER2_ROAMING
 #define CONFIG_LAYER2_ROAMING_RESUME
 
-//#define CONFIG_CONCURRENT_MODE 1
+#define CONFIG_CONCURRENT_MODE 1
 #ifdef CONFIG_CONCURRENT_MODE
-	#define CONFIG_TSF_RESET_OFFLOAD 1			// For 2 PORT TSF SYNC.
+	#define CONFIG_TSF_RESET_OFFLOAD 			// For 2 PORT TSF SYNC.
+	//#define CONFIG_HWPORT_SWAP				//Port0->Sec , Port1 -> Pri
 #endif	// CONFIG_CONCURRENT_MODE
 
-#define CONFIG_SKB_COPY	1//for amsdu
+#define CONFIG_SKB_COPY	//for amsdu
 
 //#define CONFIG_LED
 
@@ -110,6 +124,15 @@
 //#define CONFIG_SET_SCAN_DENY_TIMER
 #define CONFIG_LONG_DELAY_ISSUE
 #define CONFIG_NEW_SIGNAL_STAT_PROCESS
+#define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable,  */
+
+
+
+//#define CONFIG_ANTENNA_DIVERSITY
+#ifdef CONFIG_ANTENNA_DIVERSITY
+#define CONFIG_SW_ANTENNA_DIVERSITY	 
+//#define CONFIG_HW_ANTENNA_DIVERSITY	
+#endif
 
 
 /*
@@ -119,21 +142,18 @@
 #ifdef CONFIG_MP_INCLUDED
 	#define MP_DRIVER		1
 	#define CONFIG_MP_IWPRIV_SUPPORT 1
+	#define CONFIG_USB_INTERRUPT_IN_PIPE 1
 	// disable unnecessary functions for MP
-	#undef CONFIG_POWER_SAVING
-	#undef CONFIG_BT_COEXIST
-	#undef CONFIG_ANTENNA_DIVERSITY
-	#undef SUPPORT_HW_RFOFF_DETECTED
+	//#undef CONFIG_POWER_SAVING
+	//#undef CONFIG_BT_COEXIST
+	//#undef CONFIG_ANTENNA_DIVERSITY
+	//#undef SUPPORT_HW_RFOFF_DETECTED
 #else // #ifdef CONFIG_MP_INCLUDED
 	#define MP_DRIVER		0
 	#undef CONFIG_MP_IWPRIV_SUPPORT 
-	#define CONFIG_LPS		1
+	//#define CONFIG_LPS		1
 #endif // #ifdef CONFIG_MP_INCLUDED
 
-#ifdef CONFIG_ANTENNA_DIVERSITY
-#define CONFIG_SW_ANTENNA_DIVERSITY	 
-//#define CONFIG_HW_ANTENNA_DIVERSITY	
-#endif
 
 
 #ifdef CONFIG_LED
@@ -145,46 +165,52 @@
 
 #ifdef CONFIG_POWER_SAVING
 
-#define CONFIG_IPS		1
-#define CONFIG_LPS		1
-//#define CONFIG_LPS_LCLK		1
+#define CONFIG_IPS		
+#define CONFIG_LPS		
+//#define CONFIG_LPS_LCLK		
 #endif // #ifdef CONFIG_POWER_SAVING
 
 #ifdef CONFIG_LPS_LCLK
 #define CONFIG_XMIT_THREAD_MODE
 #endif
 
-//#define CONFIG_BR_EXT	1	// Enable NAT2.5 support for STA mode interface with a L2 Bridge
+//#define CONFIG_BR_EXT		// Enable NAT2.5 support for STA mode interface with a L2 Bridge
 #ifdef CONFIG_BR_EXT
 #define CONFIG_BR_EXT_BRNAME	"br0"
 #endif	// CONFIG_BR_EXT
 
-//#define CONFIG_TX_MCAST2UNI	1	// Support IP multicast->unicast
+//#define CONFIG_TX_MCAST2UNI		// Support IP multicast->unicast
 
 
 #if defined(CONFIG_BT_COEXIST) || defined(CONFIG_POWER_SAVING)
 #ifndef CONFIG_USB_INTERRUPT_IN_PIPE
-#define CONFIG_USB_INTERRUPT_IN_PIPE 1
+#define CONFIG_USB_INTERRUPT_IN_PIPE 
 #endif
 #endif
 
 /*
  * Interface  Related Config
  */
-//#define CONFIG_USB_INTERRUPT_IN_PIPE	1
+//#define CONFIG_USB_INTERRUPT_IN_PIPE	
 
 
-#define CONFIG_PREALLOC_RECV_SKB	1
-//#define CONFIG_REDUCE_USB_TX_INT	1	// Trade-off: Improve performance, but may cause TX URBs blocked by USB Host/Bus driver on few platforms.
-//#define CONFIG_EASY_REPLACEMENT	1
+#define CONFIG_PREALLOC_RECV_SKB	
+//#define CONFIG_REDUCE_USB_TX_INT		// Trade-off: Improve performance, but may cause TX URBs blocked by USB Host/Bus driver on few platforms.
+//#define CONFIG_EASY_REPLACEMENT	
 
 /* 
  * CONFIG_USE_USB_BUFFER_ALLOC_XX uses Linux USB Buffer alloc API and is for Linux platform only now!
  */
-//#define CONFIG_USE_USB_BUFFER_ALLOC_TX 1	// Trade-off: For TX path, improve stability on some platforms, but may cause performance degrade on other platforms.
-//#define CONFIG_USE_USB_BUFFER_ALLOC_RX 1	// For RX path
+//#define CONFIG_USE_USB_BUFFER_ALLOC_TX 	// Trade-off: For TX path, improve stability on some platforms, but may cause performance degrade on other platforms.
+//#define CONFIG_USE_USB_BUFFER_ALLOC_RX 	// For RX path
 
-#ifdef CONFIG_PLATFORM_ARM_SUN4I
+#ifdef CONFIG_PLATFORM_ARM_SUNxI
+	#ifndef 	CONFIG_USE_USB_BUFFER_ALLOC_TX 
+		#define CONFIG_USE_USB_BUFFER_ALLOC_TX
+	#endif
+#endif
+
+#ifdef CONFIG_PLATFORM_ARM_SUN6I
 	#ifndef 	CONFIG_USE_USB_BUFFER_ALLOC_TX 
 		#define CONFIG_USE_USB_BUFFER_ALLOC_TX
 	#endif
@@ -200,7 +226,7 @@
 #define CONFIG_USB_VENDOR_REQ_MUTEX
 #define CONFIG_VENDOR_REQ_RETRY
 
-//#define CONFIG_USB_SUPPORT_ASYNC_VDN_REQ 1
+//#define CONFIG_USB_SUPPORT_ASYNC_VDN_REQ 
 
 
 /*
@@ -223,7 +249,7 @@
 
 #define RTL8192CU_ASIC_VERIFICATION	0	// For ASIC verification.
 
-#define RTL8192CU_ADHOC_WORKAROUND_SETTING	1
+#define RTL8192CU_ADHOC_WORKAROUND_SETTING	
 
 #define DISABLE_BB_RF	0
 
@@ -256,7 +282,7 @@
 #endif
 
 #ifdef CONFIG_PLATFORM_TI_DM365
-#define CONFIG_USE_USB_BUFFER_ALLOC_RX 1
+#define CONFIG_USE_USB_BUFFER_ALLOC_RX 
 #endif
 /*
  * Outsource  Related Config
@@ -287,15 +313,21 @@
 #define POWER_TRAINING_ACTIVE			0
 //#endif
 
+#define CONFIG_80211D
+
 /*
- * Debug  Related Config
+ * Debug Related Config
  */
-//#define CONFIG_DEBUG_RTL871X
-
 #define DBG	1
-#define CONFIG_DEBUG_RTL819X
 
-#define CONFIG_PROC_DEBUG	1
+//#define CONFIG_DEBUG /* DBG_871X, etc... */
+//#define CONFIG_DEBUG_RTL871X /* RT_TRACE, RT_PRINT_DATA, _func_enter_, _func_exit_ */
+
+//#define CONFIG_PROC_DEBUG
+
+//#define DBG_CONFIG_ERROR_DETECT
+//#define DBG_CONFIG_ERROR_RESET
+
 //#define DBG_IO
 //#define DBG_DELAY_OS
 //#define DBG_MEM_ALLOC
@@ -315,6 +347,8 @@
 
 //#define DBG_MEMORY_LEAK	1
 
-//#define DBG_CONFIG_ERROR_DETECT
-//#define DBG_CONFIG_ERROR_RESET
+//TX use 1 urb
+//#define CONFIG_SINGLE_XMIT_BUF
+//RX use 1 urb
+//#define CONFIG_SINGLE_RECV_BUF
 

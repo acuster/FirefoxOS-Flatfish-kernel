@@ -29,7 +29,8 @@
 
 #define CHECK_BT_EXIST_FROM_REG
 #define DIS_PS_RX_BCN
-
+//#define BTCOEX_DECREASE_WIFI_POWER
+//#define BTCOEX_CMCC_TEST
 
 #ifdef CONFIG_BT_COEXIST
 #ifdef PLATFORM_LINUX
@@ -39,7 +40,7 @@ u32 BTCoexDbgLevel = _bt_dbg_off_;
 #define RTPRINT(_Comp, _Level, Fmt)\
 do {\
 	if((BTCoexDbgLevel ==_bt_dbg_on_)) {\
-		printk("%s", DRIVER_PREFIX);\
+/*		printk("%s", DRIVER_PREFIX);*/\
 		printk Fmt;\
 	}\
 }while(0)
@@ -83,7 +84,7 @@ if((BTCoexDbgLevel ==_bt_dbg_on_) ){\
 			if (!PRINTABLE(buffer[__i]))	buffer[__i] = '?';	\
 		}								\
 		buffer[length] = '\0';						\
-		printk("Rtl819x: ");						\
+/*		printk("Rtl819x: ");*/						\
 		printk(_TitleString);						\
 		printk(": %d, <%s>\n", _Len, buffer);				\
 	}\
@@ -206,6 +207,11 @@ u8 BT_IsLegalChannel(PADAPTER padapter, u8 channel)
 		}
 	}
 	return 0;
+}
+
+void BT_SignalCompensation(PADAPTER padapter, u8 *rssi_wifi, u8 *rssi_bt)
+{
+	BTDM_SignalCompensation(padapter, rssi_wifi, rssi_bt);
 }
 
 void BT_WifiScanNotify(PADAPTER padapter, u8 scanType)
@@ -7456,7 +7462,7 @@ u8 BTHCI_HsConnectionEstablished(PADAPTER padapter)
 		}
 	}
 
-	RTPRINT(FIOCTL, IOCTL_STATE, (" BTHCI_HsConnectionEstablished(), connection exist = %d\n", bBtConnectionExist));
+//	RTPRINT(FIOCTL, IOCTL_STATE, (" BTHCI_HsConnectionEstablished(), connection exist = %d\n", bBtConnectionExist));
 
 	return bBtConnectionExist;
 }
@@ -8092,7 +8098,7 @@ void btdm_1AntSetPSMode(PADAPTER padapter, u8 enable, u8 smartps, u8 mode)
 	struct pwrctrl_priv *pwrctrl;
 
 
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], PS %s option=%d\n", enable==_TRUE?"ENABLE":"DISABLE", mode));
+	RTPRINT(FBT, BT_TRACE, ("[BTCoex], Current LPS(%s, %d), smartps=%d\n", enable==_TRUE?"ON":"OFF", mode, smartps));
 
 	pwrctrl = &padapter->pwrctrlpriv;
 
@@ -8149,7 +8155,7 @@ btdm_1AntPsTdma(
 	PBTDM_8723A_1ANT	pBtdm8723 = &pHalData->bt_coexist.halCoex8723.btdm1Ant;
 
 
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], turn %s PS TDMA, type=%d\n", (bTurnOn? "ON":"OFF"), type));
+//	RTPRINT(FBT, BT_TRACE, ("[BTCoex], TDMA(%s, %d)\n", (bTurnOn? "ON":"OFF"), type));
 	pBtdm8723->bCurPsTdmaOn = bTurnOn;
 	pBtdm8723->curPsTdma = type;
 	if (bTurnOn)
@@ -8161,14 +8167,14 @@ btdm_1AntPsTdma(
 				if (btdm_Is1AntPsTdmaStateChange(padapter))
 				{
 					// wide duration for WiFi
-					BTDM_SetFw3a(padapter, 0x53, 0x1a, 0x1a, 0x0, 0x50);
+					BTDM_SetFw3a(padapter, 0xd3, 0x1a, 0x1a, 0x0, 0x58);
 				}
 				break;
 			case 2:	// ACL high-retry type - 1
 				if (btdm_Is1AntPsTdmaStateChange(padapter))
 				{
 					// normal duration for WiFi
-					BTDM_SetFw3a(padapter, 0x53, 0x12, 0x12, 0x0, 0x50);
+					BTDM_SetFw3a(padapter, 0xd3, 0x12, 0x12, 0x0, 0x58);
 				}
 				break;
 			case 3:	// for WiFi connected-busy & BT SCO busy
@@ -8182,14 +8188,14 @@ btdm_1AntPsTdma(
 				if (btdm_Is1AntPsTdmaStateChange(padapter))
 				{
 					//protect 3 beacons in 3-beacon period & no Tx pause at BT slot
-					BTDM_SetFw3a(padapter, 0x93, 0x15, 0x03, 0x10, 0x0);
+					BTDM_SetFw3a(padapter, 0x93, 0x15, 0x03, 0x14, 0x0);
 				}
 				break;
 			case 5:	// for WiFi connected-busy & BT is Non-Connected-Idle
 				if (btdm_Is1AntPsTdmaStateChange(padapter))
 				{
 					// SCO mode, Ant fixed at WiFi, WLAN_Act toggle
-					BTDM_SetFw3a(padapter, 0xa9, 0x15, 0x03, 0x31, 0x00); //SCO mode, Ant fixed at WiFi, WLAN_Act toggle.
+					BTDM_SetFw3a(padapter, 0x61, 0x15, 0x03, 0x31, 0x00);
 				}
 				break;
 			case 6:	// for WiFi is connect idle & BT is not SCO
@@ -8215,7 +8221,7 @@ btdm_1AntPsTdma(
 				if (btdm_Is1AntPsTdmaStateChange(padapter))
 				{
 					// narrow duration for WiFi
-					BTDM_SetFw3a(padapter, 0x53, 0xa, 0xa, 0x0, 0x50); //narrow duration for WiFi 
+					BTDM_SetFw3a(padapter, 0xd3, 0xa, 0xa, 0x0, 0x58); //narrow duration for WiFi
 				}
 				break;
 			case 10: // for WiFi connect idle & BT ACL busy or WiFi Connected-Busy & BT is Inquiry
@@ -8228,14 +8234,14 @@ btdm_1AntPsTdma(
 				if (btdm_Is1AntPsTdmaStateChange(padapter))
 				{
 					// narrow duration for WiFi
-					BTDM_SetFw3a(padapter, 0x13, 0x05, 0x05, 0x0, 0x0);
+					BTDM_SetFw3a(padapter, 0xd3, 0x05, 0x05, 0x00, 0x58);
 				}
 				break;
 			case 12: // for WiFi Connected-Busy & BT is Connected-Idle
 				if (btdm_Is1AntPsTdmaStateChange(padapter))
 				{
 					// Allow High-Pri BT
-					BTDM_SetFw3a(padapter, 0xa9, 0x0a, 0x03, 0x31, 0x00); //Allow High-Pri BT
+					BTDM_SetFw3a(padapter, 0xeb, 0x0a, 0x03, 0x31, 0x18);
 				}
 				break;
 			case 15: // for WiFi connected-Idle vs BT-idle, BT-connectedIdle
@@ -8280,25 +8286,81 @@ btdm_1AntPsTdma(
 			case 23: // WiFi busy & BT SCO busy  Level-1
 				if (btdm_Is1AntPsTdmaStateChange(padapter))
 				{
-					 BTDM_SetFw3a(padapter, 0xe3, 0x25, 0x03, 0x31, 0x18);
+					 BTDM_SetFw3a(padapter, 0xa3, 0x25, 0x03, 0x31, 0x98);
 				}
 				break;
 			case 24: // WiFi busy & BT SCO busy Level-2
 				if (btdm_Is1AntPsTdmaStateChange(padapter))
 				{
-					BTDM_SetFw3a(padapter, 0xe3, 0x15, 0x03, 0x31, 0x18);
+					BTDM_SetFw3a(padapter, 0xa3, 0x15, 0x03, 0x31, 0x98);
 				}
 				break;
 			case 25: // WiFi busy & BT SCO busy  Level-3a
 				if (btdm_Is1AntPsTdmaStateChange(padapter))
 				{
-					BTDM_SetFw3a(padapter, 0xe3, 0x0a, 0x03, 0x31, 0x18);
+					BTDM_SetFw3a(padapter, 0xa3, 0x0a, 0x03, 0x31, 0x98);
 				}
 				break;
 			case 26: // WiFi busy & BT SCO busy  Level-3b
 				if (btdm_Is1AntPsTdmaStateChange(padapter))
 				{
-					BTDM_SetFw3a(padapter, 0xe3, 0x0a, 0x03, 0x31, 0x18);
+					BTDM_SetFw3a(padapter, 0xa3, 0x0a, 0x03, 0x31, 0x98);
+				}
+				break;
+			case 27: // WiFi DHCP/Site Survey & BT SCO busy
+				if (btdm_Is1AntPsTdmaStateChange(padapter))
+				{
+					BTDM_SetFw3a(padapter, 0xa3, 0x25, 0x03, 0x31, 0x98);
+				}
+				break;
+			case 28: // WiFi DHCP/Site Survey & BT idle
+				if (btdm_Is1AntPsTdmaStateChange(padapter))
+				{
+					BTDM_SetFw3a(padapter, 0x69, 0x25, 0x03, 0x31, 0x00);
+				}
+				break;
+			case 29: // WiFi DHCP/Site Survey & BT ACL busy
+				if (btdm_Is1AntPsTdmaStateChange(padapter))
+				{
+					BTDM_SetFw3a(padapter, 0xab, 0x1a, 0x1a, 0x01, 0x18);
+					rtw_write32(padapter, 0x6c0, 0x5afa5afa);
+					rtw_write32(padapter, 0x6c4, 0x5afa5afa);
+				}
+				break;
+			case 30: // WiFi idle & BT Inquiry
+				if (btdm_Is1AntPsTdmaStateChange(padapter))
+				{
+					BTDM_SetFw3a(padapter, 0x93, 0x15, 0x03, 0x14, 0x00);
+				}
+				break;
+			case 31:  // BT HID
+				if (btdm_Is1AntPsTdmaStateChange(padapter))
+				{
+					BTDM_SetFw3a(padapter, 0xd3, 0x1a, 0x1a, 0x00, 0x58);
+				}
+				break;
+			case 32:  // BT SCO & Inquiry
+				if (btdm_Is1AntPsTdmaStateChange(padapter))
+				{
+					BTDM_SetFw3a(padapter, 0xab, 0x25, 0x03, 0x31, 0x98);
+				}
+				break;
+			case 33:  // BT SCO & WiFi site survey
+				if (btdm_Is1AntPsTdmaStateChange(padapter))
+				{
+					BTDM_SetFw3a(padapter, 0xa3, 0x25, 0x03, 0x30, 0x98);
+				}
+				break;
+			case 34:  // BT HID & WiFi site survey
+				if (btdm_Is1AntPsTdmaStateChange(padapter))
+				{
+					BTDM_SetFw3a(padapter, 0xd3, 0x1a, 0x1a, 0x00, 0x18);
+				}
+				break;
+			case 35:  // BT HID & WiFi Connecting
+				if (btdm_Is1AntPsTdmaStateChange(padapter))
+				{
+					BTDM_SetFw3a(padapter, 0xe3, 0x1a, 0x1a, 0x00, 0x18);
 				}
 				break;
 		}
@@ -8320,7 +8382,7 @@ btdm_1AntPsTdma(
 				if (btdm_Is1AntPsTdmaStateChange(padapter))
 				{
 					// Antenna control by PTA, 0x870 = 0x310
-					BTDM_SetFw3a(padapter, 0x0, 0x0, 0x0, 0x0, 0x0);
+					BTDM_SetFw3a(padapter, 0x0, 0x0, 0x0, 0x8, 0x0);
 				}
 				rtw_write16(padapter, 0x860, 0x210); // Switch Antenna to BT
 				RTPRINT(FBT, BT_TRACE, ("[BTCoex], 0x860=0x210, Switch Antenna to BT\n"));
@@ -8329,7 +8391,7 @@ btdm_1AntPsTdma(
 				if (btdm_Is1AntPsTdmaStateChange(padapter))
 				{
 					// Antenna control by PTA, 0x870 = 0x310
-					BTDM_SetFw3a(padapter, 0x0, 0x0, 0x0, 0x0, 0x0);
+					BTDM_SetFw3a(padapter, 0x0, 0x0, 0x0, 0x8, 0x0);
 				}
 				rtw_write16(padapter, 0x860, 0x110); // Switch Antenna to WiFi
 				RTPRINT(FBT, BT_TRACE, ("[BTCoex], 0x860=0x110, Switch Antenna to WiFi\n"));
@@ -8337,10 +8399,8 @@ btdm_1AntPsTdma(
 		}
 	}
 
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPrePsTdmaOn = %d, bCurPsTdmaOn = %d!!\n",
-		pBtdm8723->bPrePsTdmaOn, pBtdm8723->bCurPsTdmaOn));
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], prePsTdma = %d, curPsTdma = %d!!\n",
-		pBtdm8723->prePsTdma, pBtdm8723->curPsTdma));
+	RTPRINT(FBT, BT_TRACE, ("[BTCoex], Current TDMA(%s, %d)\n",
+		pBtdm8723->bCurPsTdmaOn?"ON":"OFF", pBtdm8723->curPsTdma));
 
 	// update pre state
 	pBtdm8723->bPrePsTdmaOn = pBtdm8723->bCurPsTdmaOn;
@@ -8368,9 +8428,9 @@ void _btdm_1AntSetPSTDMA(PADAPTER padapter, u8 bPSEn, u8 smartps, u8 psOption, u
 #endif
 
 	RTPRINT(FBT, BT_TRACE,
-			("[BTCoex], PS %s Option=%d, TDMA %s type=%d\n",
-			 bPSEn==_TRUE?"ENABLE":"DISABLE", psOption,
-			 bTDMAOn==_TRUE?"ENABLE":"DISABLE", tdmaType));
+			("[BTCoex], Set LPS(%s, %d) TDMA(%s, %d)\n",
+			 bPSEn==_TRUE?"ON":"OFF", psOption,
+			 bTDMAOn==_TRUE?"ON":"OFF", tdmaType));
 
 	pwrctrl = &padapter->pwrctrlpriv;
 	pHalData = GET_HAL_DATA(padapter);
@@ -8431,7 +8491,8 @@ void _btdm_1AntSetPSTDMA(PADAPTER padapter, u8 bPSEn, u8 smartps, u8 psOption, u
 			{
 				if ((BT_IsBtDisabled(padapter) == _TRUE) ||
 					(pHalData->bt_coexist.halCoex8723.c2hBtInfo == BT_INFO_STATE_NO_CONNECTION) ||
-					(pHalData->bt_coexist.halCoex8723.c2hBtInfo == BT_INFO_STATE_CONNECT_IDLE))
+					(pHalData->bt_coexist.halCoex8723.c2hBtInfo == BT_INFO_STATE_CONNECT_IDLE)
+				|| (tdmaType == 29))
 					btdm_1AntPsTdma(padapter, _FALSE, 9);
 				else
 					btdm_1AntPsTdma(padapter, _FALSE, 0);
@@ -8457,7 +8518,7 @@ void btdm_1AntWifiParaAdjust(PADAPTER padapter, u8 bEnable)
 
 	if (bEnable)
 	{
-		RTPRINT(FBT, BT_TRACE, ("[BTCoex], wifi para adjust enable!!\n"));
+//		RTPRINT(FBT, BT_TRACE, ("[BTCoex], wifi para adjust enable!!\n"));
 		pBtdm8723->curWifiPara = 1;
 		if (pBtdm8723->preWifiPara != pBtdm8723->curWifiPara)
 		{
@@ -8466,7 +8527,7 @@ void btdm_1AntWifiParaAdjust(PADAPTER padapter, u8 bEnable)
 	}
 	else
 	{
-		RTPRINT(FBT, BT_TRACE, ("[BTCoex], wifi para adjust disable!!\n"));
+//		RTPRINT(FBT, BT_TRACE, ("[BTCoex], wifi para adjust disable!!\n"));
 		pBtdm8723->curWifiPara = 2;
 		if (pBtdm8723->preWifiPara != pBtdm8723->curWifiPara)
 		{
@@ -8474,9 +8535,9 @@ void btdm_1AntWifiParaAdjust(PADAPTER padapter, u8 bEnable)
 		}
 	}
 
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], preWifiPara = %d, curWifiPara = %d!!\n",
-		pBtdm8723->preWifiPara, pBtdm8723->curWifiPara));
-	pBtdm8723->preWifiPara = pBtdm8723->curWifiPara;
+//	RTPRINT(FBT, BT_TRACE, ("[BTCoex], preWifiPara = %d, curWifiPara = %d!!\n",
+//		pBtdm8723->preWifiPara, pBtdm8723->curWifiPara));
+//	pBtdm8723->preWifiPara = pBtdm8723->curWifiPara;
 }
 
 void btdm_1AntPtaParaReload(PADAPTER padapter)
@@ -8607,7 +8668,7 @@ void btdm_1AntTdmaDurationAdjustForACL(PADAPTER padapter)
 	PBTDM_8723A_1ANT	pBtdm8723 = &pHalData->bt_coexist.halCoex8723.btdm1Ant;
 
 
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], %s\n", __FUNCTION__));
+//	RTPRINT(FBT, BT_TRACE, ("[BTCoex], %s\n", __FUNCTION__));
 	if (pBtdm8723->psTdmaGlobalCnt != pBtdm8723->psTdmaMonitorCnt)
 	{
 		pBtdm8723->psTdmaMonitorCnt = 0;
@@ -8615,8 +8676,8 @@ void btdm_1AntTdmaDurationAdjustForACL(PADAPTER padapter)
 	}
 	if (pBtdm8723->psTdmaMonitorCnt == 0)
 	{
-		RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjACL, first time execute!!\n"));
-		btdm_1AntSetPSTDMA(padapter, _TRUE, 1, _TRUE, 2);
+//		RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjACL, first time execute!!\n"));
+		btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, 2);
 		pBtdm8723->psTdmaDuAdjType = 2;
 	}
 	else
@@ -8629,10 +8690,10 @@ void btdm_1AntTdmaDurationAdjustForACL(PADAPTER padapter)
 			(pBtdm8723->curPsTdma != 9) &&
 			(pBtdm8723->curPsTdma != 11))
 		{
-			RTPRINT(FBT, BT_TRACE, ("[BTCoex], tdma adjust type can only be 1/2/9/11 !!!\n"));
-			RTPRINT(FBT, BT_TRACE, ("[BTCoex], the latest adjust type = %d\n", pBtdm8723->psTdmaDuAdjType));
+//			RTPRINT(FBT, BT_TRACE, ("[BTCoex], tdma adjust type can only be 1/2/9/11 !!!\n"));
+//			RTPRINT(FBT, BT_TRACE, ("[BTCoex], the latest adjust type = %d\n", pBtdm8723->psTdmaDuAdjType));
 
-			btdm_1AntSetPSTDMA(padapter, _TRUE, 1, _TRUE, pBtdm8723->psTdmaDuAdjType);
+			btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, pBtdm8723->psTdmaDuAdjType);
 		}
 		else
 		{
@@ -8641,68 +8702,67 @@ void btdm_1AntTdmaDurationAdjustForACL(PADAPTER padapter)
 			judge = btdm_1AntTdmaJudgement(padapter, pHalData->bt_coexist.halCoex8723.btRetryCnt);
 			if (judge == -1)
 			{
-				RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjACL, Upgrade WiFi duration\n"));
+//				RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjACL, Upgrade WiFi duration\n"));
 				if (pBtdm8723->curPsTdma == 1)
 				{
 					// Decrease WiFi duration for high BT retry
 					if(pHalData->bt_coexist.halCoex8723.btInfoExt){
 						pBtdm8723->psTdmaDuAdjType = 9;
-						RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjACL,  limit to type9 \n"));
+//						RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjACL,  limit to type9 \n"));
 					}
 					else
 						pBtdm8723->psTdmaDuAdjType = 2;
-					btdm_1AntSetPSTDMA(padapter, _TRUE, 1, _TRUE, pBtdm8723->psTdmaDuAdjType);
+					btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, pBtdm8723->psTdmaDuAdjType);
 
 				}
 				else if (pBtdm8723->curPsTdma == 2)
 				{
-					btdm_1AntSetPSTDMA(padapter, _TRUE, 1, _TRUE, 9);
+					btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, 9);
 					pBtdm8723->psTdmaDuAdjType = 9;
 				}
 				else if (pBtdm8723->curPsTdma == 9)
 				{
-					btdm_1AntSetPSTDMA(padapter, _TRUE, 1, _TRUE, 11);
+					btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, 11);
 					pBtdm8723->psTdmaDuAdjType = 11;
 				}
 			}
 			else if (judge == 1)
 			{
-				RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjACL, Downgrade WiFi duration!!\n"));
+//				RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjACL, Downgrade WiFi duration!!\n"));
 
 				if (pBtdm8723->curPsTdma == 11)
 				{
-					btdm_1AntSetPSTDMA(padapter, _TRUE, 1, _TRUE, 9);
+					btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, 9);
 					pBtdm8723->psTdmaDuAdjType = 9;
 				}
 				else if (pBtdm8723->curPsTdma == 9)
 				{
 					if (pHalData->bt_coexist.halCoex8723.btInfoExt){
 						pBtdm8723->psTdmaDuAdjType = 9;
-						RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjACL,  limit to type9 \n"));
+//						RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjACL,  limit to type9 \n"));
 					}
 					else
 						pBtdm8723->psTdmaDuAdjType = 2;
-					btdm_1AntSetPSTDMA(padapter, _TRUE, 1, _TRUE, pBtdm8723->psTdmaDuAdjType);
-					
+					btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, pBtdm8723->psTdmaDuAdjType);
 				}
 				else if (pBtdm8723->curPsTdma == 2)
 				{
 					if (pHalData->bt_coexist.halCoex8723.btInfoExt){
 						pBtdm8723->psTdmaDuAdjType = 9;
-						RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjACL,  limit to type9 \n"));
+//						RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjACL,  limit to type9 \n"));
 					}
 					else
 						pBtdm8723->psTdmaDuAdjType = 1;
-					btdm_1AntSetPSTDMA(padapter, _TRUE, 1, _TRUE, pBtdm8723->psTdmaDuAdjType);
+					btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, pBtdm8723->psTdmaDuAdjType);
 				}
 			}
 			else
 			{
-				RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjACL, no need to change\n"));
+//				RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjACL, no need to change\n"));
 			}
 		}
 
-		RTPRINT(FBT, BT_TRACE, ("[BTCoex], current PS TDMA is %s, type=%d\n",
+		RTPRINT(FBT, BT_TRACE, ("[BTCoex], ACL current TDMA(%s, %d)\n",
 			(pBtdm8723->bCurPsTdmaOn? "ON":"OFF"), pBtdm8723->curPsTdma));
 	}
 
@@ -8786,39 +8846,7 @@ void btdm_1AntTdmaDurationAdjustForSCO(PADAPTER padapter)
 		}
 	}
 
-	switch (pBtdm8723->curPsTdma)
-	{
-		case 1: // WiFi 52ms
-			RSSI_WiFi_Now += 11; // 22*0.48
-			break;
-		case 2: // WiFi 36ms
-			RSSI_WiFi_Now += 14; // 22*0.64
-			break;
-		case 9: // WiFi 20ms
-			RSSI_WiFi_Now += 18; // 22*0.80
-			break;
-		case 11: // WiFi 10ms
-			RSSI_WiFi_Now += 20; // 22*0.90
-			break;
-		case 4: // WiFi 21ms
-			RSSI_WiFi_Now += 17; // 22*0.79
-			break;
-		case 16: // WiFi 24ms
-			RSSI_WiFi_Now += 18; // 22*0.76
-			break;
-		case 18: // WiFi 37ms
-			RSSI_WiFi_Now += 14; // 22*0.64
-			break;
-		case 23: //Level-1, Antenna switch to BT at all time
-		case 24: //Level-2
-		case 25: //Level-3a
-		case 26: //Level-3b
-			RSSI_WiFi_Now += 22;
-			RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjSCO, RSSI_WiFi_Now+22=%d\n", RSSI_WiFi_Now));
-			break;
-		default:
-			break;
-	}
+	BTDM_1AntSignalCompensation(padapter, &RSSI_WiFi_Now, &RSSI_BT_Now);
 
 	if (!BTDM_IsWifiBusy(padapter)) // WiFi LPS
 	{
@@ -8862,9 +8890,6 @@ void btdm_1AntTdmaDurationAdjustForSCO(PADAPTER padapter)
 		}
 	}
 
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntTdmaAdjSCO, Type=%d, RSSI_WiFi=%d, RSSI_BT=%d\n",
-			Type, RSSI_WiFi_Now, RSSI_BT_Now));
-
 _exit_1AntTdmaDurationAdjustForSCO:
 
 	pBtdm8723->RSSI_WiFi_Last = RSSI_WiFi_Now;
@@ -8872,6 +8897,9 @@ _exit_1AntTdmaDurationAdjustForSCO:
 
 	if (Type != pBtdm8723->curPsTdma)
 		btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _TRUE, Type);
+
+	RTPRINT(FBT, BT_TRACE, ("[BTCoex], SCO current TDMA(ON, %d), RSSI_WiFi=%d, RSSI_BT=%d\n",
+			Type, RSSI_WiFi_Now, RSSI_BT_Now));
 
 	pBtdm8723->psTdmaDuAdjTypeForSCO = Type;
 
@@ -8887,7 +8915,7 @@ void btdm_1AntCoexProcessForWifiConnect(PADAPTER padapter)
 	u8 BtState;
 
 
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntCoexProcessForWifiConnect!!\n"));
+//	RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntCoexProcessForWifiConnect!!\n"));
 
 	pmlmepriv = &padapter->mlmepriv;
 	pHalData = GET_HAL_DATA(padapter);
@@ -8898,22 +8926,24 @@ void btdm_1AntCoexProcessForWifiConnect(PADAPTER padapter)
 	RTPRINT(FBT, BT_TRACE, ("[BTCoex], WiFi is %s\n", BTDM_IsWifiBusy(padapter)?"Busy":"IDLE"));
 	RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT is %s\n", BtStateString[BtState]));
 
-	padapter->pwrctrlpriv.btcoex_rfon=_FALSE;
+	padapter->pwrctrlpriv.btcoex_rfon = _FALSE;
+
 	if ((!BTDM_IsWifiBusy(padapter)) &&(check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) != _TRUE)&&
 		((BtState == BT_INFO_STATE_NO_CONNECTION) || (BtState == BT_INFO_STATE_CONNECT_IDLE)))
 	{
 		switch (BtState)
 		{
 			case BT_INFO_STATE_NO_CONNECTION:
-				_btdm_1AntSetPSTDMA(padapter, _TRUE, 2, 0x2a, _FALSE, 9);
+				_btdm_1AntSetPSTDMA(padapter, _TRUE, 2, 0x26, _FALSE, 9);
 				break;
 			case BT_INFO_STATE_CONNECT_IDLE:
-				_btdm_1AntSetPSTDMA(padapter, _TRUE, 2, 0x2a, _FALSE, 0);
+				_btdm_1AntSetPSTDMA(padapter, _TRUE, 2, 0x26, _FALSE, 0);
 				break;
 		}
 	}
 	else
 	{
+#ifdef BTCOEX_DECREASE_WIFI_POWER
 		u8 val8;
 
 		val8 = rtw_read8(padapter, 0x883);
@@ -8931,6 +8961,7 @@ void btdm_1AntCoexProcessForWifiConnect(PADAPTER padapter)
 			val8 |= 0xC0; // 0x880[31:27] = 11000;
 		}
 		rtw_write8(padapter, 0x883, val8);
+#endif // BTCOEX_DECREASE_WIFI_POWER
 
 		switch (BtState)
 		{
@@ -8942,57 +8973,56 @@ void btdm_1AntCoexProcessForWifiConnect(PADAPTER padapter)
 				// WiFi is Busy
 				btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _TRUE, 12);
 				break;
+			case BT_INFO_STATE_ACL_INQ_OR_PAG:
+				RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT PROFILE is BT_INFO_STATE_ACL_INQ_OR_PAG\n"));
 			case BT_INFO_STATE_INQ_OR_PAG:
-				if (BTDM_IsWifiBusy(padapter) == _TRUE)
-				{
-					btdm_1AntSetPSTDMA(padapter, _TRUE, 1, _TRUE, 10);
-				}
-				else
-				{
-					btdm_1AntSetPSTDMA(padapter, _TRUE, 3, _FALSE, 9);
-				}
+				padapter->pwrctrlpriv.btcoex_rfon = _TRUE;
+				btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, 30);
 				break;
 			case BT_INFO_STATE_SCO_ONLY_BUSY:
 			case BT_INFO_STATE_ACL_SCO_BUSY:
-				btdm_1AntTdmaDurationAdjustForSCO(padapter);
+				if (_TRUE == pBtCoex->bC2hBtInquiryPage)
+					btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _TRUE, 32);
+				else
+				{
+#ifdef BTCOEX_CMCC_TEST
+					btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _TRUE, 23);
+#else // !BTCOEX_CMCC_TEST
+					btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _FALSE, 8);
+					rtw_write32(padapter, 0x6c0, 0x5afa5afa);
+					rtw_write32(padapter, 0x6c4, 0x5afa5afa);
+#endif // !BTCOEX_CMCC_TEST
+				}
 				break;
 			case BT_INFO_STATE_ACL_ONLY_BUSY:
+				padapter->pwrctrlpriv.btcoex_rfon = _TRUE;
 				if (pBtCoex->c2hBtProfile == BT_INFO_HID)
 				{
 					RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT PROFILE is HID\n"));
-					btdm_1AntTdmaDurationAdjustForSCO(padapter);
+					btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, 31);
 				}
 				else if (pBtCoex->c2hBtProfile == BT_INFO_FTP)
 				{
 					RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT PROFILE is FTP\n"));
-					padapter->pwrctrlpriv.btcoex_rfon=_TRUE;
-					btdm_1AntSetPSTDMA(padapter, _TRUE, 1, _TRUE, 1);
+					btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, 1);
 				}
 				else if (pBtCoex->c2hBtProfile == (BT_INFO_A2DP|BT_INFO_FTP))
 				{
 					RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT PROFILE is A2DP_FTP\n"));
-					padapter->pwrctrlpriv.btcoex_rfon=_TRUE;
-					btdm_1AntSetPSTDMA(padapter, _TRUE, 1, _TRUE, 11);
+					btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, 11);
 				}
 				else
 				{
 					if (pBtCoex->c2hBtProfile == BT_INFO_A2DP)
 					{
 						RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT PROFILE is A2DP\n"));
-						padapter->pwrctrlpriv.btcoex_rfon=_TRUE;
 					}
 					else
 					{
 						RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT PROFILE is UNKNOWN(0x%02X)! Use A2DP Profile\n", pBtCoex->c2hBtProfile));
-						padapter->pwrctrlpriv.btcoex_rfon=_TRUE;
 					}
 					btdm_1AntTdmaDurationAdjustForACL(padapter);
 				}
-				break;
-			case BT_INFO_STATE_ACL_INQ_OR_PAG:
-				RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT PROFILE is BT_INFO_STATE_ACL_INQ_OR_PAG\n"));
-				padapter->pwrctrlpriv.btcoex_rfon=_TRUE;
-				btdm_1AntSetPSTDMA(padapter,  _TRUE, 1, _TRUE, 16);
 				break;
 		}
 	}
@@ -9008,8 +9038,7 @@ void btdm_1AntBTStateChangeHandler(PADAPTER padapter, BT_STATE_1ANT oldState, BT
 
 	RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT state change, %s => %s\n", BtStateString[oldState], BtStateString[newState]));
 
-	if ((oldState <= BT_INFO_STATE_NO_CONNECTION) &&
-		(newState > BT_INFO_STATE_NO_CONNECTION))
+	if (newState > BT_INFO_STATE_NO_CONNECTION)
 	{
 		btdm_SetFwIgnoreWlanAct(padapter, _FALSE);
 	}
@@ -9028,26 +9057,26 @@ void btdm_1AntBTStateChangeHandler(PADAPTER padapter, BT_STATE_1ANT oldState, BT
 		pHalData->bt_coexist.halCoex8723.btdm1Ant.psTdmaMonitorCntForSCO = 0;
 	}
 
-	// Active 2Ant mechanism for SCO
-	if ((oldState == BT_INFO_STATE_SCO_ONLY_BUSY) ||
-		(oldState == BT_INFO_STATE_ACL_SCO_BUSY))
+	// Active 2Ant mechanism when BT Connected
+	if ((oldState == BT_INFO_STATE_DISABLED) ||
+		(oldState == BT_INFO_STATE_NO_CONNECTION))
 	{
-		if ((newState != BT_INFO_STATE_SCO_ONLY_BUSY) &&
-			(newState != BT_INFO_STATE_ACL_SCO_BUSY))
-		{
-			BTDM_SetSwRfRxLpfCorner(padapter, BT_RF_RX_LPF_CORNER_RESUME);
-			BTDM_AGCTable(padapter, BT_AGCTABLE_OFF);
-			BTDM_BBBackOffLevel(padapter, BT_BB_BACKOFF_OFF);
-		}
-	}
-	else
-	{
-		if ((newState == BT_INFO_STATE_SCO_ONLY_BUSY) ||
-			(newState == BT_INFO_STATE_ACL_SCO_BUSY))
+		if ((newState != BT_INFO_STATE_DISABLED) &&
+			(newState != BT_INFO_STATE_NO_CONNECTION))
 		{
 			BTDM_SetSwRfRxLpfCorner(padapter, BT_RF_RX_LPF_CORNER_SHRINK);
 			BTDM_AGCTable(padapter, BT_AGCTABLE_ON);
 			BTDM_BBBackOffLevel(padapter, BT_BB_BACKOFF_ON);
+		}
+	}
+	else
+	{
+		if ((newState == BT_INFO_STATE_DISABLED) ||
+			(newState == BT_INFO_STATE_NO_CONNECTION))
+		{
+			BTDM_SetSwRfRxLpfCorner(padapter, BT_RF_RX_LPF_CORNER_RESUME);
+			BTDM_AGCTable(padapter, BT_AGCTABLE_OFF);
+			BTDM_BBBackOffLevel(padapter, BT_BB_BACKOFF_OFF);
 		}
 	}
 }
@@ -9063,7 +9092,7 @@ void btdm_1AntBtCoexistHandler(PADAPTER padapter)
 	pHalData = GET_HAL_DATA(padapter);
 	pBtCoex8723 = &pHalData->bt_coexist.halCoex8723;
 	pBtdm8723 = &pBtCoex8723->btdm1Ant;
-	padapter->pwrctrlpriv.btcoex_rfon=_FALSE;
+	padapter->pwrctrlpriv.btcoex_rfon = _FALSE;
 	if (BT_IsBtDisabled(padapter) == _TRUE)
 	{
 		RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT is disabled\n"));
@@ -9115,6 +9144,69 @@ void btdm_1AntBtCoexistHandler(PADAPTER padapter)
 	pBtCoex8723->prec2hBtInfo = pBtCoex8723->c2hBtInfo;
 }
 
+void BTDM_1AntSignalCompensation(PADAPTER padapter, u8 *rssi_wifi, u8 *rssi_bt)
+{
+	PHAL_DATA_TYPE pHalData;
+	PBTDM_8723A_1ANT pBtdm8723;
+	u8 RSSI_WiFi_Cmpnstn, RSSI_BT_Cmpnstn;
+
+
+//	RTPRINT(FBT, BT_TRACE, ("[BTCoex], %s\n", __FUNCTION__));
+	pHalData = GET_HAL_DATA(padapter);
+	pBtdm8723 = &pHalData->bt_coexist.halCoex8723.btdm1Ant;
+	RSSI_WiFi_Cmpnstn = 0;
+	RSSI_BT_Cmpnstn = 0;
+
+	switch (pBtdm8723->curPsTdma)
+	{
+		case 1: // WiFi 52ms
+			RSSI_WiFi_Cmpnstn = 11; // 22*0.48
+			break;
+		case 2: // WiFi 36ms
+			RSSI_WiFi_Cmpnstn = 14; // 22*0.64
+			break;
+		case 9: // WiFi 20ms
+			RSSI_WiFi_Cmpnstn = 18; // 22*0.80
+			break;
+		case 11: // WiFi 10ms
+			RSSI_WiFi_Cmpnstn = 20; // 22*0.90
+			break;
+		case 4: // WiFi 21ms
+			RSSI_WiFi_Cmpnstn = 17; // 22*0.79
+			break;
+		case 16: // WiFi 24ms
+			RSSI_WiFi_Cmpnstn = 18; // 22*0.76
+			break;
+		case 18: // WiFi 37ms
+			RSSI_WiFi_Cmpnstn = 14; // 22*0.64
+			break;
+		case 23: //Level-1, Antenna switch to BT at all time
+		case 24: //Level-2, Antenna switch to BT at all time
+		case 25: //Level-3a, Antenna switch to BT at all time
+		case 26: //Level-3b, Antenna switch to BT at all time
+		case 27: //Level-3b, Antenna switch to BT at all time
+		case 33: //BT SCO & WiFi site survey
+			RSSI_WiFi_Cmpnstn = 22;
+			break;
+		default:
+			break;
+	}
+
+	if (rssi_wifi && RSSI_WiFi_Cmpnstn)
+	{
+		RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntSgnlCmpnstn, case %d, WiFiCmpnstn=%d(%d => %d)\n",
+				pBtdm8723->curPsTdma, RSSI_WiFi_Cmpnstn, *rssi_wifi, *rssi_wifi+RSSI_WiFi_Cmpnstn));
+		*rssi_wifi += RSSI_WiFi_Cmpnstn;
+	}
+
+	if (rssi_bt && RSSI_BT_Cmpnstn)
+	{
+		RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1AntSgnlCmpnstn, case %d, BTCmpnstn=%d(%d => %d)\n",
+				pBtdm8723->curPsTdma, RSSI_BT_Cmpnstn, *rssi_bt, *rssi_bt+RSSI_BT_Cmpnstn));
+		*rssi_bt += RSSI_BT_Cmpnstn;
+	}
+}
+
 void
 BTDM_1AntSetWifiRssiThresh(
 	PADAPTER	padapter,
@@ -9130,8 +9222,14 @@ BTDM_1AntSetWifiRssiThresh(
 
 void BTDM_1AntParaInit(PADAPTER padapter)
 {
-	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(padapter);
-	PBTDM_8723A_1ANT	pBtdm8723 = &pHalData->bt_coexist.halCoex8723.btdm1Ant;
+	PHAL_DATA_TYPE pHalData;
+	PBT_COEXIST_8723A pBtCoex;
+	PBTDM_8723A_1ANT pBtdm8723;
+
+
+	pHalData = GET_HAL_DATA(padapter);
+	pBtCoex = &pHalData->bt_coexist.halCoex8723;
+	pBtdm8723 = &pBtCoex->btdm1Ant;
 
 	// Enable counter statistics
 	rtw_write8(padapter, 0x76e, 0x4);
@@ -9140,6 +9238,14 @@ void BTDM_1AntParaInit(PADAPTER padapter)
 	pBtdm8723->wifiRssiThresh = 48;
 
 	pBtdm8723->bWiFiHalt = _FALSE;
+
+	if ((pBtCoex->c2hBtInfo != BT_INFO_STATE_DISABLED) &&
+		(pBtCoex->c2hBtInfo != BT_INFO_STATE_NO_CONNECTION))
+	{
+		BTDM_SetSwRfRxLpfCorner(padapter, BT_RF_RX_LPF_CORNER_SHRINK);
+		BTDM_AGCTable(padapter, BT_AGCTABLE_ON);
+		BTDM_BBBackOffLevel(padapter, BT_BB_BACKOFF_ON);
+	}
 }
 
 void BTDM_1AntForHalt(PADAPTER padapter)
@@ -9176,12 +9282,38 @@ void BTDM_1AntWifiAssociateNotify(PADAPTER padapter, u8 type)
 		rtl8723a_CheckAntenna_Selection(padapter);
 		if (BT_IsBtDisabled(padapter) == _TRUE)
 		{
-			btdm_1AntPsTdma(padapter, _FALSE, 9);
+			btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _FALSE, 9);
 		}
 		else
 		{
+			PBT_COEXIST_8723A pBtCoex;
+			u8 BtState;
+
+			pBtCoex = &pHalData->bt_coexist.halCoex8723;
+			BtState = pBtCoex->c2hBtInfo;
+
 			btdm_1AntTSFSwitch(padapter, _TRUE);
-			btdm_1AntPsTdma(padapter, _TRUE, 8);	// extend wifi slot
+
+			if ((BtState == BT_INFO_STATE_NO_CONNECTION) ||
+				 (BtState == BT_INFO_STATE_CONNECT_IDLE))
+			{
+				btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _TRUE, 28);
+			}
+			else if ((BtState == BT_INFO_STATE_SCO_ONLY_BUSY) ||
+					(BtState == BT_INFO_STATE_ACL_SCO_BUSY))
+			{
+				btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _FALSE, 8);
+				rtw_write32(padapter, 0x6c0, 0x5a5a5a5a);
+				rtw_write32(padapter, 0x6c4, 0x5a5a5a5a);
+			}
+			else if ((BtState == BT_INFO_STATE_ACL_ONLY_BUSY) ||
+				 	(BtState == BT_INFO_STATE_ACL_INQ_OR_PAG))
+			{
+				if (pBtCoex->c2hBtProfile == BT_INFO_HID)
+					btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _TRUE, 35);
+				else
+					btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _TRUE, 29);
+			}
 		}
 	}
 	else
@@ -9201,22 +9333,49 @@ void BTDM_1AntWifiAssociateNotify(PADAPTER padapter, u8 type)
 
 void BTDM_1AntMediaStatusNotify(PADAPTER padapter, RT_MEDIA_STATUS mstatus)
 {
-	RTPRINT(FBT, BT_TRACE, ("\n[BTCoex], wifi status change to %s(%s)\n",
-			mstatus==RT_MEDIA_CONNECT?"connect":"disconnect",
-			BTDM_IsWifiConnectionExist(padapter)==_TRUE?"connect":"disconnect"));
+	RTPRINT(FBT, BT_TRACE, ("\n\n[BTCoex]******************************\n"));
+	RTPRINT(FBT, BT_TRACE, ("[BTCoex], MediaStatus, WiFi %s !!\n",
+			mstatus==RT_MEDIA_CONNECT?"CONNECT":"DISCONNECT"));
+	RTPRINT(FBT, BT_TRACE, ("[BTCoex]******************************\n"));
 
-	btdm_1AntBtCoexistHandler(padapter);
+	if (RT_MEDIA_CONNECT == mstatus)
+	{
+		padapter->pwrctrlpriv.DelayLPSLastTimeStamp = rtw_get_current_time();
+		BTDM_1AntForDhcp(padapter);
+	}
+	else
+	{
+		//DBG_871X("%s rtl8723a_DeinitAntenna_Selection\n",__func__);
+		rtl8723a_DeinitAntenna_Selection(padapter);
+		btdm_1AntBtCoexistHandler(padapter);
+	}
 }
 
 void BTDM_1AntForDhcp(PADAPTER padapter)
 {
 	PHAL_DATA_TYPE pHalData;
 	u8 u1tmp;
+	u8 BtState;
+	PBT_COEXIST_8723A pBtCoex;
+	PBTDM_8723A_1ANT pBtdm8723;
 
-
-	RTPRINT(FBT, BT_TRACE, ("\n[BTCoex], 1Ant for DHCP\n"));
 
 	pHalData = GET_HAL_DATA(padapter);
+	pBtCoex = &pHalData->bt_coexist.halCoex8723;
+	BtState = pBtCoex->c2hBtInfo;
+	pBtdm8723 = &pBtCoex->btdm1Ant;
+
+	RTPRINT(FBT, BT_TRACE, ("\n[BTCoex], 1Ant for DHCP\n"));
+	RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1Ant for DHCP, WiFi is %s\n", BTDM_IsWifiBusy(padapter)?"Busy":"IDLE"));
+	RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1Ant for DHCP, %s\n", BtStateString[BtState]));
+
+#if 1
+
+	BTDM_1AntWifiAssociateNotify(padapter, _TRUE);
+
+#else
+
+//	rtl8723a_set_lowpwr_lps_cmd(padapter, _FALSE);
 
 	if (BT_IsBtDisabled(padapter) == _TRUE)
 	{
@@ -9225,85 +9384,65 @@ void BTDM_1AntForDhcp(PADAPTER padapter)
 	}
 	else
 	{
-		u8 BtState;
-		PBTDM_8723A_1ANT pBtdm8723;
-
-		BtState = pHalData->bt_coexist.halCoex8723.c2hBtInfo;
-		pBtdm8723 = &pHalData->bt_coexist.halCoex8723.btdm1Ant;
-
-		if (BtState == BT_INFO_STATE_SCO_ONLY_BUSY ||
-			BtState == BT_INFO_STATE_ACL_SCO_BUSY)
+		if ((BtState == BT_INFO_STATE_SCO_ONLY_BUSY) ||
+			(BtState == BT_INFO_STATE_ACL_SCO_BUSY))
 		{
-			if (pBtdm8723->curPsTdma != 23)
-				btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _TRUE, 26);
+			if (_TRUE == pBtCoex->bC2hBtInquiryPage)
+				btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _TRUE, 32);
+			else
+				btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _TRUE, 27);
 		}
 		else if (BtState == BT_INFO_STATE_ACL_ONLY_BUSY)
 		{
+			padapter->pwrctrlpriv.btcoex_rfon = _TRUE;
 			if(padapter->securitypriv.ndisencryptstatus != Ndis802_11EncryptionDisabled)
 			{
 				btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, 18);
-				RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1Ant for DHCP, Encrypted AP, set PSTDMA type=%d[18]\n", pBtdm8723->curPsTdma));
+				RTPRINT(FBT, BT_TRACE,
+						("[BTCoex], 1Ant for DHCP, Encrypted AP, set TDMA(%s, %d)\n",
+						pBtdm8723->bCurPsTdmaOn?"ON":"OFF", pBtdm8723->curPsTdma));
 			}
-			else{
+			else
+			{
 				switch (pBtdm8723->curPsTdma)
 				{
 					case 1:
 					case 2:
-						RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1Ant for DHCP, Keep PSTDMA type=%d\n", pBtdm8723->curPsTdma));
+						RTPRINT(FBT, BT_TRACE,
+								("[BTCoex], 1Ant for DHCP, Keep TDMA(%s, %d)\n",
+								pBtdm8723->bCurPsTdmaOn?"ON":"OFF", pBtdm8723->curPsTdma));
 						break;
 					default:
-						padapter->pwrctrlpriv.btcoex_rfon=_TRUE;
 						btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, 16);
 						break;
 				}
 			}
 		}
-		else if (BTDM_IsWifiBusy(padapter) == _TRUE)
-		{
-			RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1Ant for DHCP, WiFi is Busy\n"));
-			RTPRINT(FBT, BT_TRACE, ("[BTCoex], %s\n", BtStateString[BtState]));
-			padapter->pwrctrlpriv.btcoex_rfon=_FALSE;
-			switch (BtState)
-			{
-				case BT_INFO_STATE_NO_CONNECTION:
-				case BT_INFO_STATE_CONNECT_IDLE:
-					btdm_1AntBtCoexistHandler(padapter);
-					break;
-				default:
-					padapter->pwrctrlpriv.btcoex_rfon=_TRUE;
-					btdm_1AntSetPSTDMA(padapter, _TRUE, 1, _TRUE, 18); // extend wifi slot
-					break;
-			}
-		}
 		else
 		{
-			RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1Ant for DHCP, WiFi is Idle\n"));
-			padapter->pwrctrlpriv.btcoex_rfon=_FALSE;
-			switch (BtState)
-			{
-				case BT_INFO_STATE_NO_CONNECTION:
-				case BT_INFO_STATE_CONNECT_IDLE:
-
-					btdm_1AntSetPSTDMA(padapter, _TRUE,1, _TRUE, 18); // extend wifi slot
-					break;
-				default:
-					padapter->pwrctrlpriv.btcoex_rfon=_TRUE;
-
-					btdm_1AntSetPSTDMA(padapter,_TRUE,1, _TRUE, 18); // extend wifi slot
-					break;
-			}
-
+			btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _TRUE, 28);
 		}
 	}
+#endif
 }
 
 void BTDM_1AntWifiScanNotify(PADAPTER padapter, u8 scanType)
 {
-	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(padapter);
+	PHAL_DATA_TYPE	pHalData;
 	u8 u1tmp;
+	u8 BtState;
+	PBT_COEXIST_8723A pBtCoex;
+	PBTDM_8723A_1ANT pBtdm8723;
 
+
+	pHalData = GET_HAL_DATA(padapter);
+	BtState = pHalData->bt_coexist.halCoex8723.c2hBtInfo;
+	pBtCoex = &pHalData->bt_coexist.halCoex8723;
+	pBtdm8723 = &pBtCoex->btdm1Ant;
 
 	RTPRINT(FBT, BT_TRACE, ("\n[BTCoex], 1Ant for wifi scan=%d!!\n", scanType));
+	RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1Ant for wifi scan, WiFi is %s\n", BTDM_IsWifiBusy(padapter)?"Busy":"IDLE"));
+	RTPRINT(FBT, BT_TRACE, ("[BTCoex], 1Ant for wifi scan, %s\n", BtStateString[BtState]));
 
 	if (scanType)
 	{
@@ -9312,15 +9451,41 @@ void BTDM_1AntWifiScanNotify(PADAPTER padapter, u8 scanType)
 		{
 			btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _FALSE, 9);
 		}
+		else if (BTDM_IsWifiConnectionExist(padapter) == _FALSE)
+		{
+			BTDM_1AntWifiAssociateNotify(padapter, _TRUE);
+		}
 		else
 		{
-			if (BTDM_IsWifiConnectionExist(padapter) == _FALSE)
+			if ((BtState == BT_INFO_STATE_SCO_ONLY_BUSY) ||
+				(BtState == BT_INFO_STATE_ACL_SCO_BUSY))
 			{
-				btdm_1AntTSFSwitch(padapter, _TRUE);
+				if (_TRUE == pBtCoex->bC2hBtInquiryPage)
+					btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _TRUE, 32);
+				else
+				{
+					padapter->pwrctrlpriv.btcoex_rfon = _TRUE;
+					btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, 33);
+				}
 			}
-
-			btdm_1AntSetPSTDMA(padapter, _FALSE, 0, _TRUE, 5);
-
+			else if (_TRUE == pBtCoex->bC2hBtInquiryPage)
+			{
+				padapter->pwrctrlpriv.btcoex_rfon = _TRUE;
+				btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, 30);
+			}
+			else if (BtState == BT_INFO_STATE_ACL_ONLY_BUSY)
+			{
+				padapter->pwrctrlpriv.btcoex_rfon = _TRUE;
+				if (pBtCoex->c2hBtProfile == BT_INFO_HID)
+					btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, 34);
+				else
+					btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, 4);
+			}
+			else
+			{
+				padapter->pwrctrlpriv.btcoex_rfon = _TRUE;
+				btdm_1AntSetPSTDMA(padapter, _TRUE, 0, _TRUE, 5);
+			}
 		}
 
 		btdm_NotifyFwScan(padapter, 1);
@@ -9328,16 +9493,6 @@ void BTDM_1AntWifiScanNotify(PADAPTER padapter, u8 scanType)
 	else // WiFi_Finish_Scan
 	{
 		btdm_NotifyFwScan(padapter, 0);
-
-		if (BT_IsBtDisabled(padapter) == _FALSE)
-		{
-			if (BTDM_IsWifiConnectionExist(padapter) == _FALSE)
-			{
-				btdm_1AntPsTdma(padapter, _FALSE, 0);
-				btdm_1AntTSFSwitch(padapter, _FALSE);
-			}
-		}
-
 		btdm_1AntBtCoexistHandler(padapter);
 	}
 }
@@ -9419,35 +9574,8 @@ void BTDM_1AntFwC2hBtInfo8723A(PADAPTER padapter)
 			pBtCoex->c2hBtInfo = BT_INFO_STATE_INQ_OR_PAG;
 	}
 
-	RTPRINT(FBT, BT_TRACE, ("[BTC2H], Bt state=%d\n", pBtCoex->c2hBtInfo));
-
-	switch (pBtCoex->c2hBtInfo)
-	{
-		case BT_INFO_STATE_DISABLED:
-			RTPRINT(FBT, BT_TRACE, ("Bt is disabled!!\n"));
-			break;
-		case BT_INFO_STATE_NO_CONNECTION:
-			RTPRINT(FBT, BT_TRACE, ("Bt is disconnected!!\n"));
-			break;
-		case BT_INFO_STATE_CONNECT_IDLE:
-			RTPRINT(FBT, BT_TRACE, ("Bt is connected & idle!!\n"));
-			break;
-		case BT_INFO_STATE_INQ_OR_PAG:
-			RTPRINT(FBT, BT_TRACE, ("Bt is inquirying or paging!!\n"));
-			break;
-		case BT_INFO_STATE_ACL_ONLY_BUSY:
-			RTPRINT(FBT, BT_TRACE, ("Bt is ACL only busy!!\n"));
-			break;
-		case BT_INFO_STATE_SCO_ONLY_BUSY:
-			RTPRINT(FBT, BT_TRACE, ("Bt is SCO only busy!!\n"));
-			break;
-		case BT_INFO_STATE_ACL_SCO_BUSY:
-			RTPRINT(FBT, BT_TRACE, ("Bt is ACL+SCO busy!!\n"));
-			break;
-		default:
-			RTPRINT(FBT, BT_TRACE, ("Undefined!!\n"));
-			break;
-	}
+	RTPRINT(FBT, BT_TRACE, ("[BTC2H], %s(%d)\n",
+			BtStateString[pBtCoex->c2hBtInfo], pBtCoex->c2hBtInfo));
 
 	if(pBtCoex->c2hBtProfile != BT_INFO_HID)
 		pBtCoex->c2hBtProfile &= ~BT_INFO_HID;
@@ -9530,7 +9658,7 @@ u8 btdm_ActionAlgorithm(PADAPTER	padapter)
 	//======================
 	// 1) initialize
 	pBtdm8723->btStatus = BT_2ANT_BT_STATUS_IDLE;
-	
+
 	if( (bScoExist) ||(bBtHsModeExist) ||
 		(BTHCI_CheckProfileExist(padapter,BT_PROFILE_HID)))
 	{
@@ -9542,7 +9670,7 @@ u8 btdm_ActionAlgorithm(PADAPTER	padapter)
 		// A2dp profile
 		if( (pBtMgnt->ExtConfig.NumberOfHandle == 1) &&
 			(BTHCI_CheckProfileExist(padapter, BT_PROFILE_A2DP)) )
-		{		
+		{
 			if(BTDM_BtTxRxCounterL(padapter) < 100)
 			{
 				RTPRINT(FBT, BT_TRACE, ("[BTCoex], A2DP, low priority tx+rx < 100, set BT connected-idle!!!\n"));
@@ -9658,7 +9786,7 @@ u8 btdm_ActionAlgorithm(PADAPTER	padapter)
 	}
 			else
 	{
-				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Error!!! NO matched profile for NumberOfHandle=%d \n", 
+				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Error!!! NO matched profile for NumberOfHandle=%d \n",
 					pBtMgnt->ExtConfig.NumberOfHandle));
 	}
 		}
@@ -9691,7 +9819,7 @@ u8 btdm_ActionAlgorithm(PADAPTER	padapter)
 			}
 			else
 	{
-				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Error!!! SCO exists but why NO matched ACL profile for NumberOfHandle=%d\n", 
+				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Error!!! SCO exists but why NO matched ACL profile for NumberOfHandle=%d\n",
 					pBtMgnt->ExtConfig.NumberOfHandle));
 			}
 	}
@@ -9733,7 +9861,7 @@ u8 btdm_ActionAlgorithm(PADAPTER	padapter)
 }
 			else
 {
-				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Error!!! NO matched profile for NumberOfHandle=%d\n", 
+				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Error!!! NO matched profile for NumberOfHandle=%d\n",
 					pBtMgnt->ExtConfig.NumberOfHandle));
 			}
 		}
@@ -9777,7 +9905,7 @@ u8 btdm_ActionAlgorithm(PADAPTER	padapter)
 			}
 			else
 		{
-				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Error!!! SCO exists but why NO matched profile for NumberOfHandle=%d\n", 
+				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Error!!! SCO exists but why NO matched profile for NumberOfHandle=%d\n",
 					pBtMgnt->ExtConfig.NumberOfHandle));
 			}
 		}
@@ -9800,7 +9928,7 @@ u8 btdm_ActionAlgorithm(PADAPTER	padapter)
 	}
 	else
 	{
-				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Error!!! NO matched profile for NumberOfHandle=%d\n", 
+				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Error!!! NO matched profile for NumberOfHandle=%d\n",
 					pBtMgnt->ExtConfig.NumberOfHandle));
 	}
 		}
@@ -9826,13 +9954,13 @@ u8 btdm_ActionAlgorithm(PADAPTER	padapter)
 			}
 			else
 	{
-				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Error!!! SCO exists but why NO matched profile for NumberOfHandle=%d\n", 
+				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Error!!! SCO exists but why NO matched profile for NumberOfHandle=%d\n",
 					pBtMgnt->ExtConfig.NumberOfHandle));
 	}
 }
 		else
 {
-			RTPRINT(FBT, BT_TRACE, ("[BTCoex], Error!!! NO matched profile for NumberOfHandle=%d\n", 
+			RTPRINT(FBT, BT_TRACE, ("[BTCoex], Error!!! NO matched profile for NumberOfHandle=%d\n",
 				pBtMgnt->ExtConfig.NumberOfHandle));
 		}
 	}
@@ -9906,7 +10034,7 @@ void btdm_SetSwFullTimeDacSwing(PADAPTER		padapter,u8	bSwDacSwingOn,u32	swDacSwi
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(padapter);
 
 	if(bSwDacSwingOn)
-	{		
+	{
 		RTPRINT(FBT, BT_TRACE, ("[BTCoex], SwDacSwing = 0x%x\n", swDacSwingLvl));
 		PHY_SetBBReg(padapter, 0x880, 0xff000000, swDacSwingLvl);
 		pHalData->bt_coexist.bSWCoexistAllOff = _FALSE;
@@ -9939,10 +10067,10 @@ void btdm_2AntDecBtPwr(PADAPTER padapter,u8 	bDecBtPwr)
 	RTPRINT(FBT, BT_TRACE, ("[BTCoex], Dec BT power = %s\n",  ((bDecBtPwr)? "ON":"OFF")));
 	pBtdm8723->bCurDecBtPwr = bDecBtPwr;
 
-	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPreDecBtPwr=%d, bCurDecBtPwr=%d\n", 
+	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPreDecBtPwr=%d, bCurDecBtPwr=%d\n",
 	//	pBtdm8723->bPreDecBtPwr, pBtdm8723->bCurDecBtPwr));
 
-	if(pBtdm8723->bPreDecBtPwr == pBtdm8723->bCurDecBtPwr) 
+	if(pBtdm8723->bPreDecBtPwr == pBtdm8723->bCurDecBtPwr)
 		return;
 
 	BTDM_SetFwDecBtPwr(padapter, pBtdm8723->bCurDecBtPwr);
@@ -9958,10 +10086,10 @@ void btdm_2AntDecBtPwr(PADAPTER padapter,u8 	bDecBtPwr)
 	RTPRINT(FBT, BT_TRACE, ("[BTCoex], set FW Dac Swing level = %d\n",  fwDacSwingLvl));
 	pBtdm8723->curFwDacSwingLvl = fwDacSwingLvl;
 
-	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], preFwDacSwingLvl=%d, curFwDacSwingLvl=%d\n", 
+	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], preFwDacSwingLvl=%d, curFwDacSwingLvl=%d\n",
 	//	pBtdm8723->preFwDacSwingLvl, pBtdm8723->curFwDacSwingLvl));
 
-	if(pBtdm8723->preFwDacSwingLvl == pBtdm8723->curFwDacSwingLvl) 
+	if(pBtdm8723->preFwDacSwingLvl == pBtdm8723->curFwDacSwingLvl)
 		return;
 
 	btdm_SetFwDacSwingLevel(padapter, pBtdm8723->curFwDacSwingLvl);
@@ -9977,10 +10105,10 @@ void btdm_2AntRfShrink( PADAPTER	padapter, u8	bRxRfShrinkOn)
 	RTPRINT(FBT, BT_TRACE, ("[BTCoex], turn Rx RF Shrink = %s\n",  ((bRxRfShrinkOn)? "ON":"OFF")));
 	pBtdm8723->bCurRfRxLpfShrink = bRxRfShrinkOn;
 
-	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPreRfRxLpfShrink=%d, bCurRfRxLpfShrink=%d\n", 
+	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPreRfRxLpfShrink=%d, bCurRfRxLpfShrink=%d\n",
 	//	pBtdm8723->bPreRfRxLpfShrink, pBtdm8723->bCurRfRxLpfShrink));
 
-	if(pBtdm8723->bPreRfRxLpfShrink == pBtdm8723->bCurRfRxLpfShrink) 
+	if(pBtdm8723->bPreRfRxLpfShrink == pBtdm8723->bCurRfRxLpfShrink)
 		return;
 
 	BTDM_SetSwRfRxLpfCorner(padapter, (u8)pBtdm8723->bCurRfRxLpfShrink);
@@ -9996,10 +10124,10 @@ void btdm_2AntLowPenaltyRa(PADAPTER	padapter, u8	bLowPenaltyRa)
 	RTPRINT(FBT, BT_TRACE, ("[BTCoex], turn LowPenaltyRA = %s\n",  ((bLowPenaltyRa)? "ON":"OFF")));
 	pBtdm8723->bCurLowPenaltyRa = bLowPenaltyRa;
 
-	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPreLowPenaltyRa=%d, bCurLowPenaltyRa=%d\n", 
+	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPreLowPenaltyRa=%d, bCurLowPenaltyRa=%d\n",
 	//	pBtdm8723->bPreLowPenaltyRa, pBtdm8723->bCurLowPenaltyRa));
 
-	if(pBtdm8723->bPreLowPenaltyRa == pBtdm8723->bCurLowPenaltyRa) 
+	if(pBtdm8723->bPreLowPenaltyRa == pBtdm8723->bCurLowPenaltyRa)
 		return;
 
 	BTDM_SetSwPenaltyTxRateAdaptive(padapter, (u1Byte)pBtdm8723->bCurLowPenaltyRa);
@@ -10014,12 +10142,12 @@ void btdm_2AntDacSwing(PADAPTER	padapter,u8	bDacSwingOn,u32	dacSwingLvl	)
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(padapter);
 	PBTDM_8723A_2ANT	pBtdm8723 = &pHalData->bt_coexist.halCoex8723.btdm2Ant;
 
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], turn DacSwing=%s, dacSwingLvl=0x%x\n",  
+	RTPRINT(FBT, BT_TRACE, ("[BTCoex], turn DacSwing=%s, dacSwingLvl=0x%x\n",
 		((bDacSwingOn)? "ON":"OFF"), dacSwingLvl));
 	pBtdm8723->bCurDacSwingOn = bDacSwingOn;
 	pBtdm8723->curDacSwingLvl = dacSwingLvl;
 
-	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPreDacSwingOn=%d, preDacSwingLvl=0x%x, bCurDacSwingOn=%d, curDacSwingLvl=0x%x\n", 
+	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPreDacSwingOn=%d, preDacSwingLvl=0x%x, bCurDacSwingOn=%d, curDacSwingLvl=0x%x\n",
 	//	pBtdm8723->bPreDacSwingOn, pBtdm8723->preDacSwingLvl,
 	//	pBtdm8723->bCurDacSwingOn, pBtdm8723->curDacSwingLvl));
 
@@ -10043,10 +10171,10 @@ void btdm_2AntAdcBackOff(PADAPTER	padapter,u8	bAdcBackOff)
 	RTPRINT(FBT, BT_TRACE, ("[BTCoex], turn AdcBackOff = %s\n",  ((bAdcBackOff)? "ON":"OFF")));
 	pBtdm8723->bCurAdcBackOff = bAdcBackOff;
 
-	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPreAdcBackOff=%d, bCurAdcBackOff=%d\n", 
+	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPreAdcBackOff=%d, bCurAdcBackOff=%d\n",
 	//	pBtdm8723->bPreAdcBackOff, pBtdm8723->bCurAdcBackOff));
 
-	if(pBtdm8723->bPreAdcBackOff == pBtdm8723->bCurAdcBackOff) 
+	if(pBtdm8723->bPreAdcBackOff == pBtdm8723->bCurAdcBackOff)
 		return;
 
 	BTDM_BBBackOffLevel(padapter, (u8)pBtdm8723->bCurAdcBackOff);
@@ -10062,10 +10190,10 @@ void btdm_2AntAgcTable(PADAPTER	padapter,u8	bAgcTableEn)
 	RTPRINT(FBT, BT_TRACE, ("[BTCoex], %s Agc Table\n",  ((bAgcTableEn)? "Enable":"Disable")));
 	pBtdm8723->bCurAgcTableEn = bAgcTableEn;
 
-	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPreAgcTableEn=%d, bCurAgcTableEn=%d\n", 
+	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPreAgcTableEn=%d, bCurAgcTableEn=%d\n",
 	//	pBtdm8723->bPreAgcTableEn, pBtdm8723->bCurAgcTableEn));
 
-	if(pBtdm8723->bPreAgcTableEn == pBtdm8723->bCurAgcTableEn) 
+	if(pBtdm8723->bPreAgcTableEn == pBtdm8723->bCurAgcTableEn)
 		return;
 
 	BTDM_AGCTable(padapter, (u8)bAgcTableEn);
@@ -10078,15 +10206,15 @@ void btdm_2AntCoexTable( PADAPTER	padapter,u32	val0x6c0,u32	val0x6c8,u8	val0x6cc
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(padapter);
 	PBTDM_8723A_2ANT	pBtdm8723 = &pHalData->bt_coexist.halCoex8723.btdm2Ant;
 
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], write Coex Table 0x6c0=0x%x, 0x6c8=0x%x, 0x6cc=0x%x\n", 
+	RTPRINT(FBT, BT_TRACE, ("[BTCoex], write Coex Table 0x6c0=0x%x, 0x6c8=0x%x, 0x6cc=0x%x\n",
 		val0x6c0, val0x6c8, val0x6cc));
 	pBtdm8723->curVal0x6c0 = val0x6c0;
 	pBtdm8723->curVal0x6c8 = val0x6c8;
 	pBtdm8723->curVal0x6cc = val0x6cc;
 
-	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], preVal0x6c0=0x%x, preVal0x6c8=0x%x, preVal0x6cc=0x%x !!\n", 
+	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], preVal0x6c0=0x%x, preVal0x6c8=0x%x, preVal0x6cc=0x%x !!\n",
 	//	pBtdm8723->preVal0x6c0, pBtdm8723->preVal0x6c8, pBtdm8723->preVal0x6cc));
-	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], curVal0x6c0=0x%x, curVal0x6c8=0x%x, curVal0x6cc=0x%x !!\n", 
+	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], curVal0x6c0=0x%x, curVal0x6c8=0x%x, curVal0x6cc=0x%x !!\n",
 	//	pBtdm8723->curVal0x6c0, pBtdm8723->curVal0x6c8, pBtdm8723->curVal0x6cc));
 
 	if( (pBtdm8723->preVal0x6c0 == pBtdm8723->curVal0x6c0) &&
@@ -10109,7 +10237,7 @@ void btdm_2AntIgnoreWlanAct(PADAPTER	padapter,u8	bEnable)
 	RTPRINT(FBT, BT_TRACE, ("[BTCoex], turn Ignore WlanAct %s\n", (bEnable? "ON":"OFF")));
 	pBtdm8723->bCurIgnoreWlanAct = bEnable;
 
-	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPreIgnoreWlanAct = %d, bCurIgnoreWlanAct = %d!!\n", 
+	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPreIgnoreWlanAct = %d, bCurIgnoreWlanAct = %d!!\n",
 	//	pBtdm8723->bPreIgnoreWlanAct, pBtdm8723->bCurIgnoreWlanAct));
 
 	if(pBtdm8723->bPreIgnoreWlanAct == pBtdm8723->bCurIgnoreWlanAct)
@@ -10131,8 +10259,8 @@ void btdm_2AntSetFw3a(PADAPTER	padapter,u8	byte1,u8	byte2,u8		byte3,u8		byte4,u8
 	{
 		pHalData->bt_coexist.bFWCoexistAllOff = _FALSE;
 	}
-	H2C_Parameter[0] = byte1;	
-	H2C_Parameter[1] = byte2;	
+	H2C_Parameter[0] = byte1;
+	H2C_Parameter[1] = byte2;
 	H2C_Parameter[2] = byte3;
 	H2C_Parameter[3] = byte4;
 	H2C_Parameter[4] = byte5;
@@ -10143,8 +10271,8 @@ void btdm_2AntSetFw3a(PADAPTER	padapter,u8	byte1,u8	byte2,u8		byte3,u8		byte4,u8
 	pHalData->bt_coexist.fw3aVal[3] = byte4;
 	pHalData->bt_coexist.fw3aVal[4] = byte5;
 
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], FW write 0x3a(5bytes)=0x%x%08x\n", 
-		H2C_Parameter[0], 
+	RTPRINT(FBT, BT_TRACE, ("[BTCoex], FW write 0x3a(5bytes)=0x%x%08x\n",
+		H2C_Parameter[0],
 		H2C_Parameter[1]<<24|H2C_Parameter[2]<<16|H2C_Parameter[3]<<8|H2C_Parameter[4]));
 
 	FillH2CCmd(padapter, 0x3a, 5, H2C_Parameter);
@@ -10161,7 +10289,7 @@ void btdm_2AntPsTdma(PADAPTER	padapter,u8	bTurnOn,u8	type)
 	btTxRxCnt = BTDM_BtTxRxCounterH(padapter)+BTDM_BtTxRxCounterL(padapter);
 	RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT TxRx Counters = %d\n", btTxRxCnt));
 	if(btTxRxCnt > 3000)
-	{		
+	{
 		bTurnOnByCnt = _TRUE;
 		psTdmaTypeByCnt = 8;
 
@@ -10176,15 +10304,15 @@ void btdm_2AntPsTdma(PADAPTER	padapter,u8	bTurnOn,u8	type)
 		pBtdm8723->curPsTdma = type;
 	}
 
-	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPrePsTdmaOn = %d, bCurPsTdmaOn = %d!!\n", 
+	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], bPrePsTdmaOn = %d, bCurPsTdmaOn = %d!!\n",
 	//	pBtdm8723->bPrePsTdmaOn, pBtdm8723->bCurPsTdmaOn));
-	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], prePsTdma = %d, curPsTdma = %d!!\n", 
+	//RTPRINT(FBT, BT_TRACE, ("[BTCoex], prePsTdma = %d, curPsTdma = %d!!\n",
 	//	pBtdm8723->prePsTdma, pBtdm8723->curPsTdma));
 
 	if( (pBtdm8723->bPrePsTdmaOn == pBtdm8723->bCurPsTdmaOn) &&
 		(pBtdm8723->prePsTdma == pBtdm8723->curPsTdma) )
 		return;
-		
+
 	if(bTurnOn)
 	{
 		switch(type)
@@ -10211,16 +10339,16 @@ void btdm_2AntPsTdma(PADAPTER	padapter,u8	bTurnOn,u8	type)
 			case 7:
 				btdm_2AntSetFw3a(padapter, 0xe3, 0xa, 0xa, 0x20, 0x98);
 				break;
-			case 8:	
+			case 8:
 				btdm_2AntSetFw3a(padapter, 0xa3, 0x5, 0x5, 0x20, 0x80);
 				break;
-			case 9:	
+			case 9:
 				btdm_2AntSetFw3a(padapter, 0xe3, 0x1a, 0x1a, 0xa1, 0x98);
 				break;
-			case 10:	
+			case 10:
 				btdm_2AntSetFw3a(padapter, 0xe3, 0x12, 0x12, 0xa1, 0x98);
 				break;
-			case 11:	
+			case 11:
 				btdm_2AntSetFw3a(padapter, 0xe3, 0xa, 0xa, 0xa1, 0x98);
 				break;
 			case 12:
@@ -10295,11 +10423,11 @@ u8 btdm_HoldForBtInqPage( PADAPTER	padapter)
 		if(pHalData->bt_coexist.halCoex8723.btInqPageStartTime == 0)
 		{
 			pHalData->bt_coexist.halCoex8723.btInqPageStartTime = curTime;
-			RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT Inquiry/page is started at time : 0x%"i64fmt"x \n", 
+			RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT Inquiry/page is started at time : 0x%"i64fmt"x \n",
 			pHalData->bt_coexist.halCoex8723.btInqPageStartTime));
 		}
 	}
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT Inquiry/page started time : 0x%"i64fmt"x, curTime : 0x%x \n", 
+	RTPRINT(FBT, BT_TRACE, ("[BTCoex], BT Inquiry/page started time : 0x%"i64fmt"x, curTime : 0x%x \n",
 		pHalData->bt_coexist.halCoex8723.btInqPageStartTime, curTime));
 
 	if(pHalData->bt_coexist.halCoex8723.btInqPageStartTime)
@@ -10332,7 +10460,7 @@ u8 btdm_Is2Ant8723ACommonAction(PADAPTER	padapter)
 	RTPRINT(FBT, BT_TRACE, ("%s :BTDM_IsWifiConnectionExist =%x check_fwstate=%x pmlmepriv->fw_state=0x%x\n",__func__,BTDM_IsWifiConnectionExist(padapter),check_fwstate(&padapter->mlmepriv, (_FW_UNDER_SURVEY|_FW_UNDER_LINKING)),padapter->mlmepriv.fw_state));
 
 
-//	if(!BTDM_IsWifiBusy(padapter) && 
+//	if(!BTDM_IsWifiBusy(padapter) &&
 	if((BTDM_IsWifiConnectionExist(padapter) == _FALSE)&&(check_fwstate(&padapter->mlmepriv, (_FW_UNDER_SURVEY|_FW_UNDER_LINKING))== _FALSE)&&
 		(BT_2ANT_BT_STATUS_IDLE == pBtdm8723->btStatus) )
 	{
@@ -10353,7 +10481,7 @@ u8 btdm_Is2Ant8723ACommonAction(PADAPTER	padapter)
 
 		bCommon = _TRUE;
 	}
-//	else if( BTDM_IsWifiBusy(padapter) && 
+//	else if( BTDM_IsWifiBusy(padapter) &&
 	else if(((BTDM_IsWifiConnectionExist(padapter) == _TRUE)||(check_fwstate(&padapter->mlmepriv, (_FW_UNDER_SURVEY|_FW_UNDER_LINKING))== _TRUE))&&
 			(BT_2ANT_BT_STATUS_IDLE == pBtdm8723->btStatus) )
 	{
@@ -10374,7 +10502,7 @@ u8 btdm_Is2Ant8723ACommonAction(PADAPTER	padapter)
 
 		bCommon = _TRUE;
 }
-//	else if(!BTDM_IsWifiBusy(padapter) && 
+//	else if(!BTDM_IsWifiBusy(padapter) &&
 	else if((BTDM_IsWifiConnectionExist(padapter) == _FALSE)&&(check_fwstate(&padapter->mlmepriv, (_FW_UNDER_SURVEY|_FW_UNDER_LINKING))== _FALSE)&&
 		(BT_2ANT_BT_STATUS_CONNECTED_IDLE == pBtdm8723->btStatus) )
 	{
@@ -10395,7 +10523,7 @@ u8 btdm_Is2Ant8723ACommonAction(PADAPTER	padapter)
 
 		bCommon = _TRUE;
 	}
-//	else if(BTDM_IsWifiBusy(padapter) && 
+//	else if(BTDM_IsWifiBusy(padapter) &&
 	else if(((BTDM_IsWifiConnectionExist(padapter) == _TRUE)||(check_fwstate(&padapter->mlmepriv, (_FW_UNDER_SURVEY|_FW_UNDER_LINKING))== _TRUE))&&
 		(BT_2ANT_BT_STATUS_CONNECTED_IDLE == pBtdm8723->btStatus) )
 {
@@ -10416,12 +10544,12 @@ u8 btdm_Is2Ant8723ACommonAction(PADAPTER	padapter)
 
 		bCommon = _TRUE;
 	}
-//	else if(!BTDM_IsWifiBusy(padapter) && 
+//	else if(!BTDM_IsWifiBusy(padapter) &&
 	else if((BTDM_IsWifiConnectionExist(padapter) == _FALSE)&&(check_fwstate(&padapter->mlmepriv, (_FW_UNDER_SURVEY|_FW_UNDER_LINKING))== _FALSE)&&
 			(BT_2ANT_BT_STATUS_NON_IDLE == pBtdm8723->btStatus) )
 	{
 		RTPRINT(FBT, BT_TRACE, ("Wifi idle + BT non-idle!!\n"));
-		
+
 		btdm_2AntLowPenaltyRa(padapter, _TRUE);
 		btdm_2AntRfShrink(padapter, _TRUE);
 		btdm_2AntCoexTable(padapter, 0x55555555, 0xffff, 0x3);
@@ -10434,7 +10562,7 @@ u8 btdm_Is2Ant8723ACommonAction(PADAPTER	padapter)
 		btdm_2AntAgcTable(padapter, _FALSE);
 		btdm_2AntAdcBackOff(padapter, _FALSE);
 		btdm_2AntDacSwing(padapter, _FALSE, 0xc0);
-		
+
 		bCommon = _TRUE;
 	}
 	else
@@ -10445,10 +10573,10 @@ u8 btdm_Is2Ant8723ACommonAction(PADAPTER	padapter)
 		btdm_2AntCoexTable(padapter, 0x55555555, 0xffff, 0x3);
 		btdm_2AntIgnoreWlanAct(padapter, _FALSE);
 		btdm_2AntFwDacSwingLvl(padapter, 0x20);
-		
+
 		bCommon = _FALSE;
 	}
-	
+
 	return bCommon;
 }
 
@@ -10479,17 +10607,17 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 					if(maxInterval == 1)
 					{
 						btdm_2AntPsTdma(padapter, _TRUE, 15);
-						pBtdm8723->psTdmaDuAdjType = 15;	
+						pBtdm8723->psTdmaDuAdjType = 15;
 }
 					else if(maxInterval == 2)
 {
 						btdm_2AntPsTdma(padapter, _TRUE, 15);
-						pBtdm8723->psTdmaDuAdjType = 15;	
+						pBtdm8723->psTdmaDuAdjType = 15;
 					}
 					else if(maxInterval == 3)
 	{
 						btdm_2AntPsTdma(padapter, _TRUE, 15);
-						pBtdm8723->psTdmaDuAdjType = 15;	
+						pBtdm8723->psTdmaDuAdjType = 15;
 	}
 	else
 	{
@@ -10502,12 +10630,12 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 					if(maxInterval == 1)
 	{
 						btdm_2AntPsTdma(padapter, _TRUE, 11);
-						pBtdm8723->psTdmaDuAdjType = 11;	
+						pBtdm8723->psTdmaDuAdjType = 11;
 					}
 					else if(maxInterval == 2)
 		{
 						btdm_2AntPsTdma(padapter, _TRUE, 11);
-						pBtdm8723->psTdmaDuAdjType = 11;	
+						pBtdm8723->psTdmaDuAdjType = 11;
 		}
 					else if(maxInterval == 3)
 		{
@@ -10528,12 +10656,12 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 					if(maxInterval == 1)
 					{
 						btdm_2AntPsTdma(padapter, _TRUE, 7);
-						pBtdm8723->psTdmaDuAdjType = 7;	
+						pBtdm8723->psTdmaDuAdjType = 7;
 		}
 					else if(maxInterval == 2)
 		{
 						btdm_2AntPsTdma(padapter, _TRUE, 7);
-						pBtdm8723->psTdmaDuAdjType = 7;	
+						pBtdm8723->psTdmaDuAdjType = 7;
 					}
 					else if(maxInterval == 3)
 			{
@@ -10551,12 +10679,12 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 					if(maxInterval == 1)
 					{
 						btdm_2AntPsTdma(padapter, _TRUE, 3);
-						pBtdm8723->psTdmaDuAdjType = 3;	
+						pBtdm8723->psTdmaDuAdjType = 3;
 					}
 					else if(maxInterval == 2)
 					{
 						btdm_2AntPsTdma(padapter, _TRUE, 3);
-						pBtdm8723->psTdmaDuAdjType = 3;	
+						pBtdm8723->psTdmaDuAdjType = 3;
 					}
 					else if(maxInterval == 3)
 					{
@@ -10585,7 +10713,7 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 		retryCount = pHalData->bt_coexist.halCoex8723.btRetryCnt;
 		RTPRINT(FBT, BT_TRACE, ("[BTCoex], retryCount = %d\n", retryCount));
 		result = 0;
-		WaitCount++; 
+		WaitCount++;
 
 		if(retryCount == 0)  // no retry in the last 2-second duration
 {
@@ -10593,21 +10721,21 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 			dn--;
 
 			if (dn <= 0)
-				dn = 0;				 
+				dn = 0;
 
 			if(up >= n)	// if 連續 n 個2秒 retry count為0, 則調寬WiFi duration
 {
-				WaitCount = 0; 
+				WaitCount = 0;
 				n = 3;
 				up = 0;
 				dn = 0;
-				result = 1; 
+				result = 1;
 				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Increase wifi duration!!\n"));
 }
 		}
 		else if (retryCount <= 3)	// <=3 retry in the last 2-second duration
 {
-			up--; 
+			up--;
 			dn++;
 
 			if (up <= 0)
@@ -10626,8 +10754,8 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 				n = 3*m;
 				up = 0;
 				dn = 0;
-				WaitCount = 0;  
-				result = -1; 
+				WaitCount = 0;
+				result = -1;
 				RTPRINT(FBT, BT_TRACE, ("[BTCoex], Decrease wifi duration for retryCounter<3!!\n"));
 	}
 }
@@ -10644,7 +10772,7 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 			n = 3*m;
 			up = 0;
 			dn = 0;
-			WaitCount = 0; 
+			WaitCount = 0;
 			result = -1;
 			RTPRINT(FBT, BT_TRACE, ("[BTCoex], Decrease wifi duration for retryCounter>3!!\n"));
 		}
@@ -10728,7 +10856,7 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 						btdm_2AntPsTdma(padapter, _TRUE, 16);
 						pBtdm8723->psTdmaDuAdjType = 16;
 	}
-				} 
+				}
 				else if (result == 1)
 	{
 					if(pBtdm8723->curPsTdma == 8)
@@ -10839,7 +10967,7 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 						btdm_2AntPsTdma(padapter, _TRUE, 12);
 						pBtdm8723->psTdmaDuAdjType = 12;
 			}
-				} 
+				}
 				else if (result == 1)
 				{
 					if(pBtdm8723->curPsTdma == 4)
@@ -10922,7 +11050,7 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 				}
 				if(result == -1)
 				{
-					if(pBtdm8723->curPsTdma == 5) 
+					if(pBtdm8723->curPsTdma == 5)
 					{
 						btdm_2AntPsTdma(padapter, _TRUE, 6);
 						pBtdm8723->psTdmaDuAdjType = 6;
@@ -10952,7 +11080,7 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 						btdm_2AntPsTdma(padapter, _TRUE, 16);
 						pBtdm8723->psTdmaDuAdjType = 16;
 					}
-				} 
+				}
 				else if (result == 1)
 				{
 					if(pBtdm8723->curPsTdma == 8)
@@ -10969,7 +11097,7 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 					{
 						btdm_2AntPsTdma(padapter, _TRUE, 6);
 						pBtdm8723->psTdmaDuAdjType = 6;
-					}					
+					}
 					else if(pBtdm8723->curPsTdma == 16)
 					{
 						btdm_2AntPsTdma(padapter, _TRUE, 15);
@@ -11062,7 +11190,7 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 						btdm_2AntPsTdma(padapter, _TRUE, 12);
 						pBtdm8723->psTdmaDuAdjType = 12;
 					}
-				} 
+				}
 				else if (result == 1)
 				{
 					if(pBtdm8723->curPsTdma == 4)
@@ -11145,7 +11273,7 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 				}
 				if(result == -1)
 				{
-					if(pBtdm8723->curPsTdma == 5) 
+					if(pBtdm8723->curPsTdma == 5)
 					{
 						btdm_2AntPsTdma(padapter, _TRUE, 7);
 						pBtdm8723->psTdmaDuAdjType = 7;
@@ -11175,7 +11303,7 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 						btdm_2AntPsTdma(padapter, _TRUE, 16);
 						pBtdm8723->psTdmaDuAdjType = 16;
 					}
-				} 
+				}
 				else if (result == 1)
 				{
 					if(pBtdm8723->curPsTdma == 8)
@@ -11192,7 +11320,7 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 					{
 						btdm_2AntPsTdma(padapter, _TRUE, 7);
 						pBtdm8723->psTdmaDuAdjType = 7;
-					}					
+					}
 					else if(pBtdm8723->curPsTdma == 16)
 					{
 						btdm_2AntPsTdma(padapter, _TRUE, 15);
@@ -11285,7 +11413,7 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 						btdm_2AntPsTdma(padapter, _TRUE, 12);
 						pBtdm8723->psTdmaDuAdjType = 12;
 					}
-				} 
+				}
 				else if (result == 1)
 				{
 					if(pBtdm8723->curPsTdma == 4)
@@ -11323,11 +11451,11 @@ void btdm_2AntTdmaDurationAdjust(PADAPTER	 padapter,u8		bScoHid,u8	bTxPause,u8		
 		}
 	}
         RTPRINT(FBT, BT_TRACE, ("[BTCoex], PsTdma type : recordPsTdma=%d\n",pBtdm8723->psTdmaDuAdjType));
-	// if current PsTdma not match with the recorded one (when scan, dhcp...), 
+	// if current PsTdma not match with the recorded one (when scan, dhcp...),
 	// then we have to adjust it back to the previous record one.
 	if(pBtdm8723->curPsTdma != pBtdm8723->psTdmaDuAdjType)
 	{
-		RTPRINT(FBT, BT_TRACE, ("[BTCoex], PsTdma type dismatch!!!, curPsTdma=%d, recordPsTdma=%d\n", 
+		RTPRINT(FBT, BT_TRACE, ("[BTCoex], PsTdma type dismatch!!!, curPsTdma=%d, recordPsTdma=%d\n",
 			pBtdm8723->curPsTdma, pBtdm8723->psTdmaDuAdjType));
 
 		if( check_fwstate(&padapter->mlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING) == _FALSE )
@@ -11361,11 +11489,11 @@ void btdm_2Ant8723AAction0(PADAPTER	padapter)
 void btdm_2Ant8723ASCOAction(PADAPTER padapter)
 {
 	u8	btRssiState, btRssiState1;
-	
+
 
 	if(btdm_NeedToDecBtPwr(padapter))
 		btdm_2AntDecBtPwr(padapter, _TRUE);
-	else	
+	else
 		btdm_2AntDecBtPwr(padapter, _FALSE);
 
 	if (BTDM_IsHT40(padapter))
@@ -11411,7 +11539,7 @@ void btdm_2Ant8723ASCOAction(PADAPTER padapter)
 			btdm_2AntPsTdma(padapter, _TRUE, 15);
 		}
 
-		
+
 		// sw mechanism
 		if ((btRssiState == BT_RSSI_STATE_HIGH) ||
 			(btRssiState == BT_RSSI_STATE_STAY_HIGH))
@@ -11438,7 +11566,7 @@ void btdm_2Ant8723AHIDAction(PADAPTER padapter)
 
 	if(btdm_NeedToDecBtPwr(padapter))
 		btdm_2AntDecBtPwr(padapter, _TRUE);
-	else	
+	else
 		btdm_2AntDecBtPwr(padapter, _FALSE);
 
 	if (BTDM_IsHT40(padapter))
@@ -11499,7 +11627,7 @@ void btdm_2Ant8723AHIDAction(PADAPTER padapter)
 			btdm_2AntAgcTable(padapter, _FALSE);
 			btdm_2AntAdcBackOff(padapter, _FALSE);
 			btdm_2AntDacSwing(padapter, _FALSE, 0xc0);
-		}		
+		}
 			}
 		}
 
@@ -11509,7 +11637,7 @@ void btdm_2Ant8723AA2DPAction(PADAPTER padapter)
 	u8		btRssiState, btRssiState1;
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(padapter);
 	u8 		btInfoExt=pHalData->bt_coexist.halCoex8723.btInfoExt;
-	
+
 	if(btdm_NeedToDecBtPwr(padapter))
 		btdm_2AntDecBtPwr(padapter, _TRUE);
 		else
@@ -11526,7 +11654,7 @@ void btdm_2Ant8723AA2DPAction(PADAPTER padapter)
 			{
 				RTPRINT(FBT, BT_TRACE, ("Wifi rssi high \n"));
 			PlatformEFIOWrite1Byte(padapter, 0x883, 0x40);
-			
+
 			if(btInfoExt&BIT(0))	//a2dp rate, 1:basic /0:edr
 			{
 				RTPRINT(FBT, BT_TRACE, ("a2dp basic rate \n"));
@@ -11611,7 +11739,7 @@ void btdm_2Ant8723AA2DPAction(PADAPTER padapter)
 			btdm_2AntAgcTable(padapter, _FALSE);
 			btdm_2AntAdcBackOff(padapter, _FALSE);
 			btdm_2AntDacSwing(padapter, _FALSE, 0xc0);
-		}		
+		}
 	}
 }
 
@@ -11619,10 +11747,10 @@ void btdm_2Ant8723AA2DPAction(PADAPTER padapter)
 void btdm_2Ant8723APANEDRAction(PADAPTER padapter)
 {
 	u8		btRssiState, btRssiState1;
-	
+
 	if(btdm_NeedToDecBtPwr(padapter))
 		btdm_2AntDecBtPwr(padapter, _TRUE);
-	else	
+	else
 		btdm_2AntDecBtPwr(padapter, _FALSE);
 
 		if(BTDM_IsHT40(padapter))
@@ -11722,7 +11850,7 @@ void btdm_2Ant8723APANHSAction(PADAPTER	padapter)
 	{
 		RTPRINT(FBT, BT_TRACE, ("HT20 or Legacy\n"));
 		btRssiState = BTDM_CheckCoexRSSIState(padapter, 2, 47, 0);
-		
+
 		if ((btRssiState == BT_RSSI_STATE_HIGH) ||
 			(btRssiState == BT_RSSI_STATE_STAY_HIGH))
 		{
@@ -11762,7 +11890,7 @@ void btdm_2Ant8723APANEDRA2DPAction(PADAPTER	padapter)
 
 	if(btdm_NeedToDecBtPwr(padapter))
 		btdm_2AntDecBtPwr(padapter, _TRUE);
-	else	
+	else
 		btdm_2AntDecBtPwr(padapter, _FALSE);
 
 		if(BTDM_IsHT40(padapter))
@@ -11813,7 +11941,7 @@ void btdm_2Ant8723APANEDRA2DPAction(PADAPTER	padapter)
 	{
 		RTPRINT(FBT, BT_TRACE, ("HT20 or Legacy\n"));
 		btRssiState = BTDM_CheckCoexRSSIState(padapter, 2, 37, 0);
-		btRssiState1 = BTDM_CheckCoexRSSIState1(padapter, 2, 27, 0);		
+		btRssiState1 = BTDM_CheckCoexRSSIState1(padapter, 2, 27, 0);
 
 		if( (btRssiState1 == BT_RSSI_STATE_HIGH) ||
 			(btRssiState1 == BT_RSSI_STATE_STAY_HIGH) )
@@ -11874,7 +12002,7 @@ void btdm_2Ant8723APANEDRHIDAction(PADAPTER	padapter)
 
 	if(btdm_NeedToDecBtPwr(padapter))
 		btdm_2AntDecBtPwr(padapter, _TRUE);
-	else	
+	else
 		btdm_2AntDecBtPwr(padapter, _FALSE);
 
 	if(BTDM_IsHT40(padapter))
@@ -11887,12 +12015,12 @@ void btdm_2Ant8723APANEDRHIDAction(PADAPTER	padapter)
 			{
 				RTPRINT(FBT, BT_TRACE, ("Wifi rssi high \n"));
 			PlatformEFIOWrite1Byte(padapter, 0x883, 0x40);
-			btdm_2AntPsTdma(padapter, _TRUE, 10); 
+			btdm_2AntPsTdma(padapter, _TRUE, 10);
 			}
 			else
 			{
 				RTPRINT(FBT, BT_TRACE, ("Wifi rssi low \n"));
-			btdm_2AntPsTdma(padapter, _TRUE, 14); 
+			btdm_2AntPsTdma(padapter, _TRUE, 14);
 		}
 
 				// sw mechanism
@@ -11949,7 +12077,7 @@ void btdm_2Ant8723AHIDA2DPPANEDRAction(PADAPTER	padapter)
 
 	if(btdm_NeedToDecBtPwr(padapter))
 		btdm_2AntDecBtPwr(padapter, _TRUE);
-	else	
+	else
 		btdm_2AntDecBtPwr(padapter, _FALSE);
 
 		if(BTDM_IsHT40(padapter))
@@ -11995,7 +12123,7 @@ void btdm_2Ant8723AHIDA2DPPANEDRAction(PADAPTER	padapter)
 	}
 	else
 	{
-		RTPRINT(FBT, BT_TRACE, ("HT20 or Legacy\n"));		
+		RTPRINT(FBT, BT_TRACE, ("HT20 or Legacy\n"));
 		btRssiState1 = BTDM_CheckCoexRSSIState1(padapter, 2, 37, 0);
 		btRssiState = BTDM_CheckCoexRSSIState(padapter, 2, 27, 0);
 			if( (btRssiState == BT_RSSI_STATE_HIGH) ||
@@ -12059,7 +12187,7 @@ void btdm_2Ant8723AHIDA2DPAction(PADAPTER	padapter)
 
 	if(btdm_NeedToDecBtPwr(padapter))
 		btdm_2AntDecBtPwr(padapter, _TRUE);
-	else	
+	else
 		btdm_2AntDecBtPwr(padapter, _FALSE);
 
 		if (BTDM_IsHT40(padapter))
@@ -12097,7 +12225,7 @@ void btdm_2Ant8723AHIDA2DPAction(PADAPTER	padapter)
 				btdm_2AntTdmaDurationAdjust(padapter, _TRUE, _TRUE, 1);
 			}
 		}
-		
+
 		// sw mechanism
 		btdm_2AntAgcTable(padapter, _FALSE);
 		btdm_2AntAdcBackOff(padapter, _TRUE);
@@ -12170,7 +12298,7 @@ void btdm_2Ant8723AHidScoEsco(PADAPTER	padapter	)
 
 	if(btdm_NeedToDecBtPwr(padapter))
 		btdm_2AntDecBtPwr(padapter, _TRUE);
-	else	
+	else
 		btdm_2AntDecBtPwr(padapter, _FALSE);
 	// coex table
 	btdm_2AntCoexTable(padapter, 0x55555555, 0xffff, 0x3);
@@ -12283,7 +12411,7 @@ void btdm_2Ant8723AFtpA2dp(	PADAPTER	padapter	)
 
 	if(btdm_NeedToDecBtPwr(padapter))
 		btdm_2AntDecBtPwr(padapter, _TRUE);
-	else	
+	else
 		btdm_2AntDecBtPwr(padapter, _FALSE);
 	// coex table
 	btdm_2AntCoexTable(padapter, 0x55555555, 0xffff, 0x3);
@@ -12361,7 +12489,7 @@ void btdm_2Ant8723AA2dp(PADAPTER padapter)
 
 	if(btdm_NeedToDecBtPwr(padapter))
 		btdm_2AntDecBtPwr(padapter, _TRUE);
-	else	
+	else
 		btdm_2AntDecBtPwr(padapter, _FALSE);
 		// coex table
 	btdm_2AntCoexTable(padapter, 0x55555555, 0xffff, 0x3);
@@ -12369,7 +12497,7 @@ void btdm_2Ant8723AA2dp(PADAPTER padapter)
 
 	if(BTDM_IsHT40(padapter))
 	{
-		RTPRINT(FBT, BT_TRACE, ("HT40\n"));	
+		RTPRINT(FBT, BT_TRACE, ("HT40\n"));
 		btRssiState = BTDM_CheckCoexRSSIState(padapter, 2, 37, 0);
 		// fw mechanism
 		if( (btRssiState == BT_RSSI_STATE_HIGH) ||
@@ -12439,7 +12567,7 @@ void btdm_2Ant8723Ftp(PADAPTER	padapter)
 
 	if(btdm_NeedToDecBtPwr(padapter))
 		btdm_2AntDecBtPwr(padapter, _TRUE);
-	else	
+	else
 		btdm_2AntDecBtPwr(padapter, _FALSE);
 	// coex table
 	btdm_2AntCoexTable(padapter, 0x55555555, 0xffff, 0x3);
@@ -12447,7 +12575,7 @@ void btdm_2Ant8723Ftp(PADAPTER	padapter)
 
 	if(BTDM_IsHT40(padapter))
 			{
-		RTPRINT(FBT, BT_TRACE, ("HT40\n"));	
+		RTPRINT(FBT, BT_TRACE, ("HT40\n"));
 		btRssiState = BTDM_CheckCoexRSSIState(padapter, 2, 37, 0);
 		// fw mechanism
 		if( (btRssiState == BT_RSSI_STATE_HIGH) ||
@@ -12503,7 +12631,7 @@ void btdm_2Ant8723Ftp(PADAPTER	padapter)
 			btdm_2AntAgcTable(padapter, _FALSE);
 			btdm_2AntAdcBackOff(padapter, _FALSE);
 			btdm_2AntDacSwing(padapter, _FALSE, 0xc0);
-		}		
+		}
 	}
 }
 
@@ -12574,7 +12702,7 @@ void BTDM_2AntSwCoexAllOff8723A(PADAPTER padapter)
 	btdm_2AntAdcBackOff(padapter, _FALSE);
 	btdm_2AntLowPenaltyRa(padapter, _FALSE);
 	btdm_2AntRfShrink(padapter, _FALSE);
-	btdm_2AntDacSwing(padapter, _FALSE, 0xc0);	
+	btdm_2AntDacSwing(padapter, _FALSE, 0xc0);
 }
 
 
@@ -12704,11 +12832,11 @@ BTDM_2AntFwC2hBtInfo8723A(
 		bBtLinkExist = _TRUE;
 		if(((btInfo&(BT_INFO_FTP|BT_INFO_A2DP|BT_INFO_HID|BT_INFO_SCO_BUSY))!=0) || pHalData->bt_coexist.halCoex8723.btRetryCnt>0){
 			pBtdm8723->btStatus =BT_2ANT_BT_STATUS_NON_IDLE;
-		}		
-		else 
+		}
+		else
 			pBtdm8723->btStatus =BT_2ANT_BT_STATUS_CONNECTED_IDLE;
 
-		
+
 		if(btInfo&BT_INFO_SCO|| btInfo&BT_INFO_SCO_BUSY){
 			if(btInfo&BT_INFO_FTP|| btInfo&BT_INFO_A2DP||btInfo&BT_INFO_HID){
 				switch(btInfo&0xe0){
@@ -12878,7 +13006,7 @@ void BTDM_2AntBtCoexist8723A(PADAPTER padapter)
 		}
 		if(pBtMgnt->ExtConfig.bHoldPeriodCnt)
 		{
-			RTPRINT(FBT, BT_TRACE, ("Hold BT inquiry/page scan setting (cnt = %d)!!\n", 
+			RTPRINT(FBT, BT_TRACE, ("Hold BT inquiry/page scan setting (cnt = %d)!!\n",
 				pBtMgnt->ExtConfig.bHoldPeriodCnt));
 			if(pBtMgnt->ExtConfig.bHoldPeriodCnt >= 11)
 			{
@@ -12889,7 +13017,7 @@ void BTDM_2AntBtCoexist8723A(PADAPTER padapter)
 				pBtMgnt->ExtConfig.bHoldPeriodCnt++;
 			return;
 		}
-		
+
 		if(pBtDbg->dbgCtrl)
 		{
 			RTPRINT(FBT, BT_TRACE, ("[Dbg control], "));
@@ -12907,7 +13035,7 @@ void BTDM_2AntBtCoexist8723A(PADAPTER padapter)
 		{
 			if(pBtdm8723->curAlgorithm != pBtdm8723->preAlgorithm)
 			{
-				RTPRINT(FBT, BT_TRACE, ("[BTCoex], preAlgorithm=%d, curAlgorithm=%d\n", 
+				RTPRINT(FBT, BT_TRACE, ("[BTCoex], preAlgorithm=%d, curAlgorithm=%d\n",
 				pBtdm8723->preAlgorithm, pBtdm8723->curAlgorithm));
 				pBtdm8723->bResetTdmaAdjust = _TRUE;
 			}
@@ -12958,7 +13086,7 @@ void BTDM_2AntBtCoexist8723A(PADAPTER padapter)
 				default:
 					RTPRINT(FBT, BT_TRACE, ("Action 2-Ant, algorithm = 0.\n"));
 					//btdm_2Ant8723AAction0(padapter);
-					btdm_2Ant8723AA2DPAction(padapter);					
+					btdm_2Ant8723AA2DPAction(padapter);
 					break;
 			}
 			pBtdm8723->preAlgorithm = pBtdm8723->curAlgorithm;
@@ -12980,7 +13108,7 @@ void BTDM_2AntBtCoexist8723A(PADAPTER padapter)
 		{
 			RTPRINT(FBT, BT_TRACE, ("Action for BT Operation adjust!!\n"));
 			return;
-		}		
+		}
 		if(pBtMgnt->ExtConfig.bHoldPeriodCnt)
 		{
 			RTPRINT(FBT, BT_TRACE, ("Hold BT inquiry/page scan setting (cnt = %d)!!\n", pBtMgnt->ExtConfig.bHoldPeriodCnt));
@@ -12993,7 +13121,7 @@ void BTDM_2AntBtCoexist8723A(PADAPTER padapter)
 				pBtMgnt->ExtConfig.bHoldPeriodCnt++;
 			return;
 		}
-		
+
 		if(pBtDbg->dbgCtrl)
 		{
 			RTPRINT(FBT, BT_TRACE, ("[Dbg control], "));
@@ -13066,7 +13194,6 @@ void BTDM_2AntBtCoexist8723A(PADAPTER padapter)
 
 	}
 }
-
 
 // ===== End of sync from SD7 driver HAL/BTCoexist/HalBtc87232Ant.c =====
 #endif
@@ -13143,10 +13270,8 @@ void btdm_BtHwCountersMonitor(PADAPTER padapter)
 	pHalData->bt_coexist.halCoex8723.lowPriorityTx = regLPTx;
 	pHalData->bt_coexist.halCoex8723.lowPriorityRx = regLPRx;
 
-//	RTPRINT(FBT, BT_TRACE, ("High Priority Tx/Rx (reg 0x%x)=%x(%d)/%x(%d)\n",
-//		regHPTxRx, regHPTx, regHPTx, regHPRx, regHPRx));
-//	RTPRINT(FBT, BT_TRACE, ("Low Priority Tx/Rx (reg 0x%x)=%x(%d)/%x(%d)\n",
-//		regLPTxRx, regLPTx, regLPTx, regLPRx, regLPRx));
+	RTPRINT(FBT, BT_TRACE, ("High Priority Tx/Rx= %d / %d\n", regHPTx, regHPRx));
+	RTPRINT(FBT, BT_TRACE, ("Low Priority Tx/Rx= %d / %d\n", regLPTx, regLPRx));
 
 	// reset counter
 	//u1Tmp = rtw_read8(padapter, 0x76e);
@@ -13257,7 +13382,7 @@ void btdm_BTCoexist8723AHandler(PADAPTER padapter)
 
 	if (!BTDM_IsSameCoexistState(padapter))
 	{
-		RTPRINT(FBT, BT_TRACE, ("[BTCoex], Coexist State[bitMap] change from %llu to %llu\n",
+		RTPRINT(FBT, BT_TRACE, ("[BTCoex], Coexist State[bitMap] change from 0x%"i64fmt"x to 0x%"i64fmt"x\n",
 			pHalData->bt_coexist.PreviousState,
 			pHalData->bt_coexist.CurrentState));
 		pHalData->bt_coexist.PreviousState = pHalData->bt_coexist.CurrentState;
@@ -13355,8 +13480,7 @@ void BTDM_SetFwChnlInfo(PADAPTER padapter, RT_MEDIA_STATUS mstatus)
 			}
 		}
 		H2C_Parameter[1] = chnl;
-		RTPRINT(FBT, BT_TRACE, ("[BTCoex], pmlmeext->cur_channel=0x%x  pmlmeext->cur_ch_offset=0x%x chnl=0x%x\n",pmlmeext->cur_channel,pmlmeext->cur_ch_offset,chnl ));
-
+//		RTPRINT(FBT, BT_TRACE, ("[BTCoex], pmlmeext->cur_channel=0x%x  pmlmeext->cur_ch_offset=0x%x chnl=0x%x\n",pmlmeext->cur_channel,pmlmeext->cur_ch_offset,chnl ));
 	}
 	else	// check if HS link is exists
 	{
@@ -13376,8 +13500,8 @@ void BTDM_SetFwChnlInfo(PADAPTER padapter, RT_MEDIA_STATUS mstatus)
 		H2C_Parameter[2] = 0x20;
 	}
 
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], FW write 0x19=0x%x\n",
-		H2C_Parameter[0]<<16|H2C_Parameter[1]<<8|H2C_Parameter[2]));
+//	RTPRINT(FBT, BT_TRACE, ("[BTCoex], FW write 0x19=0x%x\n",
+//		H2C_Parameter[0]<<16|H2C_Parameter[1]<<8|H2C_Parameter[2]));
 
 	FillH2CCmd(padapter, 0x19, 3, H2C_Parameter);
 }
@@ -13495,8 +13619,8 @@ void BTDM_QueryBtInformation(PADAPTER padapter)
 
 	H2C_Parameter[0] |= BIT(0);	// trigger
 
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], Query Bt information, write 0x38=0x%x\n",
-		H2C_Parameter[0]));
+//	RTPRINT(FBT, BT_TRACE, ("[BTCoex], Query Bt information, write 0x38=0x%x\n",
+//		H2C_Parameter[0]));
 
 	FillH2CCmd(padapter, 0x38, 1, H2C_Parameter);
 }
@@ -13533,13 +13657,13 @@ BTDM_SetSwPenaltyTxRateAdaptive(
 	tmpU1 |= BIT(0);
 	if (BT_TX_RATE_ADAPTIVE_LOW_PENALTY == raType)
 	{
-		RTPRINT(FBT, BT_TRACE, ("Tx rate adaptive, set low penalty!!\n"));
+//		RTPRINT(FBT, BT_TRACE, ("Tx rate adaptive, set low penalty!!\n"));
 		tmpU1 &= ~BIT(2);
 		pHalData->bt_coexist.bSWCoexistAllOff = _FALSE;
 	}
 	else if (BT_TX_RATE_ADAPTIVE_NORMAL == raType)
 	{
-		RTPRINT(FBT, BT_TRACE, ("Tx rate adaptive, set normal!!\n"));
+//		RTPRINT(FBT, BT_TRACE, ("Tx rate adaptive, set normal!!\n"));
 		tmpU1 |= BIT(2);
 	}
 
@@ -13597,7 +13721,7 @@ void BTDM_FwC2hBtRssi8723A(PADAPTER padapter, u8 *tmpBuf)
 	percent = u1tmp*2+10;
 
 	pHalData->bt_coexist.halCoex8723.btRssi = percent;
-//	RTPRINT(FBT, BT_TRACE, ("[BTC2H], Bt rssi, hex val=0x%x, percent=%d\n", u1tmp, percent));
+//	RTPRINT(FBT, BT_TRACE, ("[BTC2H], BT RSSI=%d\n", percent));
 }
 
 void BTDM_FwC2hBtInfo8723A(PADAPTER padapter, u8 *tmpBuf, u8 length)
@@ -13616,7 +13740,7 @@ void BTDM_FwC2hBtInfo8723A(PADAPTER padapter, u8 *tmpBuf, u8 length)
 
 	pBtCoex->bC2hBtInfoReqSent = _FALSE;
 
-	RTPRINT(FBT, BT_TRACE, ("[BTC2H], Bt info, length=%d, hex data=[", length));
+	RTPRINT(FBT, BT_TRACE, ("[BTC2H], BT info[%d]=[", length));
 
 	pBtCoex->btRetryCnt = 0;
 	for (i=0; i<length; i++)
@@ -13634,7 +13758,7 @@ void BTDM_FwC2hBtInfo8723A(PADAPTER padapter, u8 *tmpBuf, u8 length)
 				break;
 			case 3:
 				pBtCoex->btInfoExt=tmpBuf[i]&BIT(0);
-	
+				break;
 		}
 
 		if (i == length-1)
@@ -13646,17 +13770,20 @@ void BTDM_FwC2hBtInfo8723A(PADAPTER padapter, u8 *tmpBuf, u8 length)
 			RTPRINT(FBT, BT_TRACE, ("0x%02x, ", tmpBuf[i]));
 		}
 	}
+	RTPRINT(FBT, BT_TRACE, ("[BTC2H], BT RSSI=%d\n", pBtCoex->btRssi));
+	if (pBtCoex->btInfoExt)
+		RTPRINT(FBT, BT_TRACE, ("[BTC2H], pBtCoex->btInfoExt=%x\n", pBtCoex->btInfoExt));
+
+	if (btdm_BtWifiAntNum(padapter) == Ant_x1)
+		BTDM_1AntFwC2hBtInfo8723A(padapter);
+	else
+		BTDM_2AntFwC2hBtInfo8723A(padapter);
 
 	if (pBtMgnt->ExtConfig.bManualControl)
 	{
 		RTPRINT(FBT, BT_TRACE, ("%s: Action Manual control!!\n", __FUNCTION__));
 		return;
 	}
-
-	if (btdm_BtWifiAntNum(padapter) == Ant_x1)
-		BTDM_1AntFwC2hBtInfo8723A(padapter);
-	else
-		BTDM_2AntFwC2hBtInfo8723A(padapter);
 
 	btdm_BTCoexist8723AHandler(padapter);
 }
@@ -13719,7 +13846,7 @@ void BTDM_Display8723ABtCoexInfo(PADAPTER padapter)
 		if(pBtMgnt->bSupportProfile)
 		{
 			rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d / %d / %d / %d", "SCO/HID/PAN/A2DP", \
-				((BTHCI_CheckProfileExist(padapter, BT_PROFILE_SCO))? 1: 0), 
+				((BTHCI_CheckProfileExist(padapter, BT_PROFILE_SCO))? 1: 0),
 				((BTHCI_CheckProfileExist(padapter, BT_PROFILE_HID))? 1: 0),
 				((BTHCI_CheckProfileExist(padapter, BT_PROFILE_PAN))? 1: 0),
 				((BTHCI_CheckProfileExist(padapter, BT_PROFILE_A2DP))? 1: 0) );
@@ -13860,12 +13987,12 @@ void BTDM_Display8723ABtCoexInfo(PADAPTER padapter)
 
 	//u4Tmp = rtw_read32(padapter, 0x770);
 	rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d / %d", "0x770(Hi pri Rx[31:16]/Tx[15:0])", \
-		pHalData->bt_coexist.halCoex8723.highPriorityRx, 
+		pHalData->bt_coexist.halCoex8723.highPriorityRx,
 		pHalData->bt_coexist.halCoex8723.highPriorityTx);
 	DCMD_Printf(btCoexDbgBuf);
 	//u4Tmp = rtw_read32(padapter, 0x774);
 	rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d / %d", "0x774(Lo pri Rx[31:16]/Tx[15:0])", \
-		pHalData->bt_coexist.halCoex8723.lowPriorityRx, 
+		pHalData->bt_coexist.halCoex8723.lowPriorityRx,
 		pHalData->bt_coexist.halCoex8723.lowPriorityTx);
 	DCMD_Printf(btCoexDbgBuf);
 
@@ -13876,9 +14003,14 @@ void BTDM_Display8723ABtCoexInfo(PADAPTER padapter)
 	DCMD_Printf(btCoexDbgBuf);
 	rsprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = 0x%x", "lastHMEBoxNum", \
 		pHalData->LastHMEBoxNum);
-	DCMD_Printf(btCoexDbgBuf);	
+	DCMD_Printf(btCoexDbgBuf);
 }
 
+void BTDM_8723ASignalCompensation(PADAPTER padapter, u8 *rssi_wifi, u8 *rssi_bt)
+{
+	if (btdm_BtWifiAntNum(padapter) == Ant_x1)
+		BTDM_1AntSignalCompensation(padapter, rssi_wifi, rssi_bt);
+}
 
 void BTDM_8723AInit(PADAPTER padapter)
 {
@@ -13996,9 +14128,16 @@ void BTDM_WifiAssociateNotify8723A(PADAPTER padapter, u8 action)
 
 void BTDM_MediaStatusNotify8723A(PADAPTER padapter, RT_MEDIA_STATUS	 mstatus)
 {
+	PBT30Info		pBTInfo = GET_BT_INFO(padapter);
+	PBT_MGNT		pBtMgnt = &pBTInfo->BtMgnt;
+
+
 	RTPRINT(FBT, BT_TRACE, ("[BTCoex], MediaStatusNotify, %s\n", mstatus?"connect":"disconnect"));
 
 	BTDM_SetFwChnlInfo(padapter, mstatus);
+
+	if (pBtMgnt->ExtConfig.bManualControl)
+		return;
 
 	if (btdm_BtWifiAntNum(padapter) == Ant_x1)
 		BTDM_1AntMediaStatusNotify(padapter, mstatus);
@@ -14037,7 +14176,7 @@ void BTDM_BTCoexist8723A(PADAPTER padapter)
 	pBtMgnt = &pBTInfo->BtMgnt;
 	pBtCoex = &pHalData->bt_coexist.halCoex8723;
 
-	RTPRINT(FBT, BT_TRACE, ("[BTCoex], beacon pwdb = 0x%x(%d)\n",
+	RTPRINT(FBT, BT_TRACE, ("[BTCoex], beacon RSSI=0x%x(%d)\n",
 		pHalData->dmpriv.EntryMinUndecoratedSmoothedPWDB,
 		pHalData->dmpriv.EntryMinUndecoratedSmoothedPWDB));
 
@@ -18700,6 +18839,105 @@ void BTDM_TurnOffBtCoexistBeforeEnterIPS(PADAPTER padapter)
 	}
 }
 
+void BTDM_SignalCompensation(PADAPTER padapter, u8 *rssi_wifi, u8 *rssi_bt)
+{
+	if (IS_HARDWARE_TYPE_8723A(padapter))
+	{
+		BTDM_8723ASignalCompensation(padapter, rssi_wifi, rssi_bt);
+	}
+}
+#if defined(CONFIG_CHECK_BT_HANG) && defined(CONFIG_BT_COEXIST)
+/*
+0. write 0xa3 = 0x05
+
+1. 0xa0 == 0x04 
+	write 0xF6?1:0] = 0x01
+	write 0x3A[7:0] = 0x31
+
+2. read 0xC0[31:0] == 0
+	write 0xcc{2]= 1
+
+3. read X=0x6b[4]
+	if X== 1
+	{
+		write 0x6b[4] = 0
+		write 0xcc{2]= 0
+	}
+	else if X == 0
+	{
+		write 0x6b[4] = 1
+		write 0xcc{2]= 0
+	}
+
+*/
+void dm_CheckBTState(_adapter *pAdapter)
+{
+	u8 value=0,regValue8=0;
+	u32 regvalue32=0;
+	//_adapter *pAdapter = (_adapter*)context;
+
+//	if (pAdapter->drv_in_test == CMCC_TEST)
+//		return;
+	
+	rtw_write8(pAdapter, 0xa3, 5);
+
+	//DBG_871X("------>%s,get 0xa3=%0x\n",__func__,rtw_read8(pAdapter, 0xa3));
+
+	regValue8 = rtw_read8(pAdapter, 0xa0);
+	//DBG_871X("Get 0xa0 = 0x%x\n",regValue8);
+	if(regValue8 == 0x4){		
+		value = rtw_read8(pAdapter, 0xf6);
+		value &= ~3;
+		value |= 1;
+		rtw_write8(pAdapter, 0xf6, value);
+		rtw_write8(pAdapter, 0x3A, 0x31);		
+	}
+
+	regvalue32 = rtw_read32(pAdapter, 0xc0);
+	//DBG_871X("Get 0xc0 = 0x%x\n",regvalue32);
+	if(rtw_read32(pAdapter, 0xc0) == 0x0){
+		value = rtw_read8(pAdapter, 0xcc);
+		value |= 0x4;
+		rtw_write8(pAdapter, 0xcc, value);
+	}
+
+	regValue8 = rtw_read8(pAdapter, 0x6b); //0x6b[28]
+	//DBG_871X("Get 0x6b = 0x%x\n",regValue8);
+	
+	if((regValue8 & 0x10) == 0x10){
+		regValue8 &= 0xEF;
+		rtw_write8(pAdapter, 0x6b, regValue8);
+		value = rtw_read8(pAdapter, 0xcc);
+		value &= 0xfb;
+		rtw_write8(pAdapter, 0xcc, value);
+	}
+	else if ((regValue8 & 0x10) == 0){
+		regValue8 |= 0x10;
+		rtw_write8(pAdapter, 0x6b, regValue8);
+		value = rtw_read8(pAdapter, 0xcc);
+		value &= 0xfb;
+		rtw_write8(pAdapter, 0xcc, value);
+	}
+
+	//DBG_871X("<------%s,get 0x6b=0x%0x,0xcc=0x%x\n",__func__,rtw_read8(pAdapter, 0x6b),rtw_read8(pAdapter, 0xcc));
+}
+
+void check_bt_status_work(void *data)
+{
+	struct delayed_work *dwork;
+	PADAPTER padapter;
+
+	dwork = container_of(data, struct delayed_work, work);
+	padapter = container_of(dwork, struct _ADAPTER, checkbt_work);
+	if(!padapter)
+	{
+		DBG_871X("%s padapter == NULL\n", __func__);
+		return;
+	};
+
+	dm_CheckBTState(padapter);
+}
+#endif
 void BTDM_Coexist(PADAPTER padapter)
 {
 	PHAL_DATA_TYPE pHalData = GET_HAL_DATA(padapter);
@@ -19486,13 +19724,13 @@ void HALBT_InitBTVars8723A(PADAPTER padapter)
 		{
 			BTDM_SetBtCoexCurrAntNum(padapter, 2);
 			RT_TRACE(_module_hal_init_c_, _drv_info_,("BlueTooth BT_Ant_Num = Antx2\n"));
-			DBG_871X("%s WiFi BT coexist Ant_Num = Antx2\n",__func__);
+//			DBG_871X("%s WiFi BT coexist Ant_Num = Antx2\n",__func__);
 		}
 		else if (pHalData->bt_coexist.BT_Ant_Num == Ant_x1)
 		{
 			BTDM_SetBtCoexCurrAntNum(padapter, 1);
 			RT_TRACE(_module_hal_init_c_, _drv_info_,("BlueTooth BT_Ant_Num = Antx1\n"));
-			DBG_871X("%s WiFi BT coexist Ant_Num Ant_Num = Antx1\n",__func__);
+//			DBG_871X("%s WiFi BT coexist Ant_Num Ant_Num = Antx1\n",__func__);
 		}
 		pHalData->bt_coexist.bBTBusyTraffic = _FALSE;
 		pHalData->bt_coexist.bBTTrafficModeSet = _FALSE;

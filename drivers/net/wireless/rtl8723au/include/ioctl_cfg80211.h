@@ -21,6 +21,27 @@
 #define __IOCTL_CFG80211_H__ 
 
 
+#if defined(RTW_USE_CFG80211_STA_EVENT)
+	#undef CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
+#endif
+
+struct rtw_wdev_invit_info {
+	u8 token;
+	u8 flags;
+	u8 status;
+	u8 req_op_ch;
+	u8 rsp_op_ch;	
+};
+
+#define rtw_wdev_invit_info_init(invit_info) \
+	do { \
+		(invit_info)->token = 0; \
+		(invit_info)->flags = 0x00; \
+		(invit_info)->status = 0xff; \
+		(invit_info)->req_op_ch = 0; \
+		(invit_info)->rsp_op_ch = 0; \
+	} while (0)
+
 struct rtw_wdev_priv
 {	
 	struct wireless_dev *rtw_wdev;
@@ -37,8 +58,11 @@ struct rtw_wdev_priv
 
 	u8 provdisc_req_issued;
 
+	struct rtw_wdev_invit_info invit_info;
+
 	u8 bandroid_scan;
 	bool block;
+	bool power_mgmt;
 
 #ifdef CONFIG_CONCURRENT_MODE
 	ATOMIC_T ro_ch_to;
@@ -53,10 +77,9 @@ struct rtw_wdev_priv
 
 #define wiphy_to_wdev(x) (struct wireless_dev *)(((struct rtw_wdev_priv*)wiphy_priv(x))->rtw_wdev)
 
-
-
 int rtw_wdev_alloc(_adapter *padapter, struct device *dev);
 void rtw_wdev_free(struct wireless_dev *wdev);
+void rtw_wdev_unregister(struct wireless_dev *wdev);
 
 void rtw_cfg80211_init_wiphy(_adapter *padapter);
 
@@ -65,7 +88,6 @@ void rtw_cfg80211_surveydone_event_callback(_adapter *padapter);
 void rtw_cfg80211_indicate_connect(_adapter *padapter);
 void rtw_cfg80211_indicate_disconnect(_adapter *padapter);
 void rtw_cfg80211_indicate_scan_done(struct rtw_wdev_priv *pwdev_priv, bool aborted);
-void rtw_cfg80211_scan_abort(_adapter *padapter);
 
 #ifdef CONFIG_AP_MODE
 void rtw_cfg80211_indicate_sta_assoc(_adapter *padapter, u8 *pmgmt_frame, uint frame_len);
@@ -75,10 +97,13 @@ void rtw_cfg80211_indicate_sta_disassoc(_adapter *padapter, unsigned char *da, u
 void rtw_cfg80211_issue_p2p_provision_request(_adapter *padapter, const u8 *buf, size_t len);
 void rtw_cfg80211_rx_p2p_action_public(_adapter *padapter, u8 *pmgmt_frame, uint frame_len);
 void rtw_cfg80211_rx_action_p2p(_adapter *padapter, u8 *pmgmt_frame, uint frame_len);
+void rtw_cfg80211_rx_action(_adapter *adapter, u8 *frame, uint frame_len, const char*msg);
 
 int rtw_cfg80211_set_mgnt_wpsp2pie(struct net_device *net, char *buf, int len, int type);
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
+bool rtw_cfg80211_pwr_mgmt(_adapter *adapter);
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))  && !defined(COMPAT_KERNEL_RELEASE)
 #define rtw_cfg80211_rx_mgmt(dev, freq, sig_dbm, buf, len, gfp) cfg80211_rx_mgmt(dev, freq, buf, len, gfp)
 #define rtw_cfg80211_send_rx_assoc(dev, bss, buf, len) cfg80211_send_rx_assoc(dev, buf, len)
 #else

@@ -372,6 +372,14 @@ __s32 disp_set_hdmi_func(__disp_hdmi_func * func)
 
     return 0;
 }
+
+__s32 disp_set_hdmi_hpd(__u32 hpd)
+{
+    BSP_disp_set_hdmi_hpd(hpd);
+
+    return 0;
+}
+
 static void resume_work_0(struct work_struct *work)
 {
     __u32 i = 0;
@@ -456,7 +464,8 @@ __s32 DRV_DISP_Init(void)
     para.base_deu0       = (__u32)g_fbi.base_deu0;
     para.base_deu1       = (__u32)g_fbi.base_deu1;
     para.base_dsi0       = (__u32)g_fbi.base_dsi0;
-    para.base_timer       = (__u32)g_fbi.base_timer;
+    para.base_timer      = (__u32)g_fbi.base_timer;
+    para.base_hdmi       = (__u32)g_fbi.base_hdmi;
 
 	para.disp_int_process       = DRV_disp_int_process;
     para.vsync_event            = DRV_disp_vsync_event;
@@ -622,7 +631,7 @@ static int __init disp_probe(struct platform_device *pdev)//called when platform
 	info->base_pioc     = AW_VIR_PIO_BASE;
 	info->base_pwm      = AW_VIR_PWM_BASE;
     info->base_timer    = AW_VIR_TIMER_BASE;
-    
+    info->base_hdmi     = AW_VIR_HDMI_BASE;
 
 	__inf("SCALER0 base 0x%08x\n", info->base_scaler0);
     __inf("SCALER1 base 0x%08x\n", info->base_scaler1);
@@ -1791,6 +1800,10 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             ret = BSP_disp_close_lcd_backlight(ubuffer[0]);
             break;
 
+        case DISP_CMD_LCD_SET_FPS:
+            ret = BSP_disp_lcd_set_fps(ubuffer[0], ubuffer[1]);
+            break;
+
 	//----pwm----
         case DISP_CMD_PWM_SET_PARA:
             ret = pwm_set_para(ubuffer[0], (__pwm_info_t *)ubuffer[1]);
@@ -2338,6 +2351,7 @@ static void __exit disp_module_exit(void)
 
 EXPORT_SYMBOL(disp_set_hdmi_func);
 EXPORT_SYMBOL(DRV_DISP_Init);
+EXPORT_SYMBOL(disp_set_hdmi_hpd);
 
 
 module_init(disp_module_init);

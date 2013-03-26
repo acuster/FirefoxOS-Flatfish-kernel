@@ -69,6 +69,7 @@ static sw_udc_io_t      g_sw_udc_io;
 static u32 usb_connect = 0;
 static u32 is_controller_alive = 0;
 static u8 is_udc_enable = 0;   /* is udc enable by gadget? */
+extern int device_insmod_delay;
 
 #ifdef CONFIG_USB_SW_SUN6I_USB0_OTG
 static struct platform_device *g_udc_pdev = NULL;
@@ -943,9 +944,6 @@ static int sw_udc_read_fifo(struct sw_udc_ep *ep, struct sw_udc_request *req)
 	USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, idx);
 
 	fifo_count = sw_udc_fifo_count_out(g_sw_udc_io.usb_bsp_hdle, idx);
-
-	if(g_msc_read_debug)
-		pr_err("-:%d\n", fifo_count);
 
 	USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, old_ep_index);
 
@@ -2125,7 +2123,7 @@ static int sw_udc_ep_enable(struct usb_ep *_ep,
 	fifo_addr = ep->num * 1024;
 
 	if(!is_peripheral_active()){
-		DMSG_PANIC("ERR: usb device is not active\n");
+		DMSG_INFO("usb device is not active\n");
 		goto end;
 	}
 
@@ -2211,7 +2209,7 @@ static int sw_udc_ep_disable(struct usb_ep *_ep)
 	sw_udc_nuke (ep->dev, ep, -ESHUTDOWN);
 
 	if(!is_peripheral_active()){
-		DMSG_PANIC("ERR: usb device is not active\n");
+		DMSG_INFO("usb device is not active\n");
 		goto end;
 	}
 
@@ -2572,7 +2570,7 @@ static int sw_udc_set_halt(struct usb_ep *_ep, int value)
 	}
 
 	if(!is_peripheral_active()){
-		DMSG_PANIC("ERR: usb device is not active\n");
+		DMSG_INFO("ERR: usb device is not active\n");
 		return 0;
 	}
 
@@ -2645,7 +2643,7 @@ static const struct usb_ep_ops sw_udc_ep_ops = {
 static int sw_udc_get_frame(struct usb_gadget *_gadget)
 {
 	if(!is_peripheral_active()){
-		DMSG_PANIC("ERR: usb device is not active\n");
+		DMSG_INFO("ERR: usb device is not active\n");
 		return 0;
 	}
 
@@ -2673,7 +2671,7 @@ static int sw_udc_get_frame(struct usb_gadget *_gadget)
 static int sw_udc_wakeup(struct usb_gadget *_gadget)
 {
 	if(!is_peripheral_active()){
-		DMSG_PANIC("ERR: usb device is not active\n");
+		DMSG_INFO("ERR: usb device is not active\n");
 		return 0;
 	}
 
@@ -2701,7 +2699,7 @@ static int sw_udc_wakeup(struct usb_gadget *_gadget)
 static int sw_udc_set_selfpowered(struct usb_gadget *gadget, int value)
 {
 	if(!is_peripheral_active()){
-		DMSG_PANIC("ERR: usb device is not active\n");
+		DMSG_INFO("ERR: usb device is not active\n");
 		return 0;
 	}
 
@@ -2736,7 +2734,7 @@ static int sw_udc_set_pullup(struct sw_udc *udc, int is_on)
     is_udc_enable = is_on;
 
 	if(!is_peripheral_active()){
-		DMSG_PANIC("ERR: usb device is not active\n");
+		DMSG_INFO("usb device is not active\n");
 		return 0;
 	}
 
@@ -2779,7 +2777,7 @@ static int sw_udc_vbus_session(struct usb_gadget *gadget, int is_active)
 	DMSG_DBG_UDC("sw_udc_vbus_session\n");
 
 	if(!is_peripheral_active()){
-		DMSG_PANIC("ERR: usb device is not active\n");
+		DMSG_INFO("usb device is not active\n");
 		return 0;
 	}
 
@@ -2839,7 +2837,7 @@ static int sw_udc_pullup(struct usb_gadget *gadget, int is_on)
 static int sw_udc_vbus_draw(struct usb_gadget *_gadget, unsigned ma)
 {
 	if(!is_peripheral_active()){
-		DMSG_PANIC("ERR: usb device is not active\n");
+		DMSG_INFO("ERR: usb device is not active\n");
 		return 0;
 	}
 
@@ -2988,7 +2986,7 @@ s32  usbd_start_work(void)
 	DMSG_INFO_UDC("usbd_start_work\n");
 
 	if(!is_peripheral_active()){
-		DMSG_PANIC("ERR: usb device is not active\n");
+		DMSG_INFO("usb device is not active\n");
 		return 0;
 	}
 
@@ -3003,7 +3001,7 @@ s32  usbd_stop_work(void)
 	DMSG_INFO_UDC("usbd_stop_work\n");
 
 	if(!is_peripheral_active()){
-		DMSG_PANIC("ERR: usb device is not active\n");
+		DMSG_INFO("ERR: usb device is not active\n");
 		return 0;
 	}
 
@@ -3664,6 +3662,7 @@ static int sw_udc_suspend(struct platform_device *pdev, pm_message_t message)
 	struct sw_udc *udc = platform_get_drvdata(pdev);
 
     DMSG_INFO_UDC("sw_udc_suspend start\n");
+	device_insmod_delay = 0;
 
 	if(!is_peripheral_active()){
 		DMSG_INFO_UDC("udc is disable, need not enter to suspend\n");
@@ -3719,6 +3718,7 @@ static int sw_udc_resume(struct platform_device *pdev)
 	struct sw_udc *udc = platform_get_drvdata(pdev);
 
     DMSG_INFO_UDC("sw_udc_resume start\n");
+	device_insmod_delay = 0;
 
 	if(!is_peripheral_active()){
 		DMSG_INFO_UDC("udc is disable, need not enter to resume\n");

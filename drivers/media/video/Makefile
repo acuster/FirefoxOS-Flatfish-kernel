@@ -11,7 +11,14 @@ stkwebcam-objs	:=	stk-webcam.o stk-sensor.o
 omap2cam-objs	:=	omap24xxcam.o omap24xxcam-dma.o
 
 videodev-objs	:=	v4l2-dev.o v4l2-ioctl.o v4l2-device.o v4l2-fh.o \
-			v4l2-event.o v4l2-ctrls.o v4l2-subdev.o
+			v4l2-event.o v4l2-subdev.o
+
+ifdef CONFIG_VIDEO_CSI_SUNXI
+videodev-objs	+=	v4l2-ctrls.o
+endif
+ifdef CONFIG_VIDEO_SUNXI_VFE
+videodev-objs	+=	v4l2-ctrls_new.o
+endif
 
 # V4L2 core modules
 
@@ -202,7 +209,15 @@ obj-$(CONFIG_ARCH_OMAP)	+= omap/
 ifdef CONFIG_VIDEO_SUN6I_CEDAR
   obj-$(CONFIG_VIDEO_SUN6I_CEDAR) += sun6i/
 endif
+
+ifdef CONFIG_VIDEO_CSI_SUNXI
 obj-$(CONFIG_CSI1_SUNXI) += sunxi_csi/csi1/
+endif
+
+ifdef CONFIG_VIDEO_SUNXI_VFE
+obj-$(CONFIG_VIDEO_SUNXI_VFE) += sunxi-vfe/
+endif
+
 ccflags-y += -Idrivers/media/dvb/dvb-core
 ccflags-y += -Idrivers/media/dvb/frontends
 ccflags-y += -Idrivers/media/common/tuners

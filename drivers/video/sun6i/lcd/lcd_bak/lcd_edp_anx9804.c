@@ -8,6 +8,7 @@ void anx9804_init(__panel_para_t * info)
     __u32 count = 0;
     __u32 lanes;
     __u32 data_rate;
+    __u32 colordepth;
 
 	lanes = info->lcd_edp_tx_lane;
     data_rate = 0x06;
@@ -19,6 +20,8 @@ void anx9804_init(__panel_para_t * info)
     {
         data_rate = 0x0a;//2.7G
     }
+
+    colordepth = (info->lcd_edp_colordepth == 1)? 0x00:0x10;//0x00: 6bit;  0x10:8bit
 
      //HW reset
 	lcd_iic_write(0x72, DP_TX_RST_CTRL_REG, DP_TX_RST_HW_RST);
@@ -70,7 +73,7 @@ void anx9804_init(__panel_para_t * info)
 	}
 
 	//VESA range, 8bits BPC, RGB 
-	lcd_iic_write(0x72, DP_TX_VID_CTRL2_REG, 0x10);
+	lcd_iic_write(0x72, DP_TX_VID_CTRL2_REG, colordepth);
 	
 	//ANX9804 chip analog setting
 	lcd_iic_write(0x70, DP_TX_PLL_CTRL_REG, 0x07); 

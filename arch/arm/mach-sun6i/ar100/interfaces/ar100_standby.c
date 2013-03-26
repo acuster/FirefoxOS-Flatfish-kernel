@@ -22,6 +22,7 @@
 #include "..//ar100_i.h"
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
+#include <mach/sys_config.h>
 
 /* record super-standby wakeup event */
 static unsigned long wakeup_event = 0;
@@ -239,3 +240,35 @@ int ar100_cpux_talkstandby_ready_notify(void)
 	return 0;
 }
 EXPORT_SYMBOL(ar100_cpux_talkstandby_ready_notify);
+
+/**
+ * enter fake power off.
+ */
+void ar100_fake_power_off(void)
+{
+	struct ar100_message *pmessage;
+	script_item_u script_val;
+	script_item_value_type_e type;
+	
+	/* allocate a message frame */
+	pmessage = ar100_message_allocate(AR100_MESSAGE_ATTR_HARDSYN);
+	if (pmessage == NULL) {
+		AR100_ERR("allocate message for fake power off request failed\n");
+	}
+
+	type = script_get_item("pmu_para", "pmu_ir_power_key_code", &script_val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+		printk("get ir power off key config type err!");
+		script_val.val = 0;
+	}
+	
+	/* initialize message */
+	pmessage->type       = AR100_FAKE_POWER_OFF_REQ;
+	pmessage->attr       = 0;
+	pmessage->state      = AR100_MESSAGE_INITIALIZED;
+	pmessage->paras[0]   = script_val.val;
+	
+	/* send enter fake power off request to ar100 */
+	ar100_hwmsgbox_send_message(pmessage, AR100_SEND_MSG_TIMEOUT);
+}
+EXPORT_SYMBOL(ar100_fake_power_off);

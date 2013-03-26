@@ -28,7 +28,7 @@ MODULE_LICENSE("GPL");
 
 
 //for internel driver debug
-#define DEV_DBG_EN   		0 
+#define DEV_DBG_EN   		1 
 #if(DEV_DBG_EN == 1)		
 #define csi_dev_dbg(x,arg...) printk("[CSI_DEBUG][GT2005]"x,##arg)
 #else
@@ -1132,7 +1132,7 @@ static int sensor_read(struct v4l2_subdev *sd, unsigned char *reg,
 	/*
 	 * Send out the register address...
 	 */
-	msg.addr = client->addr;
+	msg.addr = 0x78>>1;
 	msg.flags = 0;
 	msg.len = REG_ADDR_STEP;
 	msg.buf = data;
@@ -1175,7 +1175,7 @@ static int sensor_write(struct v4l2_subdev *sd, unsigned char *reg,
 	for(i = REG_ADDR_STEP; i < REG_STEP; i++)
 			data[i] = value[i-REG_ADDR_STEP];
 	
-	msg.addr = client->addr;
+	msg.addr = 0x78>>1;
 	msg.flags = 0;
 	msg.len = REG_STEP;
 	msg.buf = data;
@@ -1286,9 +1286,9 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			mdelay(10);
 			//inactive mclk after stadby in
 			clk_disable(dev->csi_module_clk);
-			//reset on io
-			csi_gpio_write(sd,&dev->reset_io,CSI_RST_ON);
-			mdelay(10);
+//			//reset on io
+//			csi_gpio_write(sd,&dev->reset_io,CSI_RST_ON);
+//			mdelay(10);
 			break;
 		case CSI_SUBDEV_STBY_OFF:
 			csi_dev_dbg("CSI_SUBDEV_STBY_OFF\n");
@@ -1298,13 +1298,13 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			//standby off io
 			csi_gpio_write(sd,&dev->standby_io,CSI_STBY_OFF);
 			mdelay(10);
-			//reset off io
-			csi_gpio_write(sd,&dev->reset_io,CSI_RST_OFF);
-			mdelay(10);
-			csi_gpio_write(sd,&dev->reset_io,CSI_RST_ON);
-			mdelay(30);
-			csi_gpio_write(sd,&dev->reset_io,CSI_RST_OFF);
-			mdelay(10);
+//			//reset off io
+//			csi_gpio_write(sd,&dev->reset_io,CSI_RST_OFF);
+//			mdelay(10);
+//			csi_gpio_write(sd,&dev->reset_io,CSI_RST_ON);
+//			mdelay(30);
+//			csi_gpio_write(sd,&dev->reset_io,CSI_RST_OFF);
+//			mdelay(10);
 			break;
 		case CSI_SUBDEV_PWR_ON:
 			csi_dev_dbg("CSI_SUBDEV_PWR_ON\n");

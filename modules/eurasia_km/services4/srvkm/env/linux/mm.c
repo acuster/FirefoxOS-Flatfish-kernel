@@ -1614,7 +1614,7 @@ FreeIONLinuxMemArea(LinuxMemArea *psLinuxMemArea)
     LinuxMemAreaStructFree(psLinuxMemArea);
 }
 
-//#elif defined(CONFIG_ION_SUNXI)
+/#elif defined(CONFIG_ION_SUNXI)
 #elif defined(CONFIG_ION)
 
 #include "env_perproc.h"

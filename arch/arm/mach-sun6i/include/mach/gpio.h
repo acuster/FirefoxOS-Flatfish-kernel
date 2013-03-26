@@ -163,7 +163,7 @@ typedef u32 (*peint_handle)(void *para);
  * exported api below
  */
 
-/* new api */
+int sw_gpio_to_name(u32 gpio, char *name);
 
 /* api for multi function */
 u32 sw_gpio_setcfg(u32 gpio, u32 val);

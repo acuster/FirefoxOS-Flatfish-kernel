@@ -112,6 +112,5 @@ extern __u32 image_reg_base[2];
 extern __u32  csc_tab[192];
 extern __u32  image_enhance_tab[256];
 extern __u32  fir_tab[1792];
-extern __u32  fir_tab_video[1792];
 
 #endif

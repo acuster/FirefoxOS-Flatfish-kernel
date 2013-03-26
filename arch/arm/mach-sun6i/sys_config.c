@@ -14,6 +14,7 @@
 
 #include <linux/string.h>
 #include <linux/module.h>
+#include <linux/device.h>
 #include <linux/kernel.h>
 #include <mach/sys_config.h>
 #include <mach/gpio.h>
@@ -21,6 +22,10 @@
 
 #define SCRIPT_MALLOC(x)	kzalloc((x), GFP_KERNEL)
 #define SCRIPT_FREE(x)		kfree(x)
+
+#define ITEM_TYPE_TO_STR(type)	((SCIRPT_ITEM_VALUE_TYPE_INT == (type)) ?  "int"    :	\
+				((SCIRPT_ITEM_VALUE_TYPE_STR == (type))  ?  "string" :	\
+				((SCIRPT_ITEM_VALUE_TYPE_PIO == (type))  ?   "gpio" : "invalid")))
 
 /*
  * define origin main key data structure in cript buffer
@@ -289,9 +294,6 @@ u32 port_to_index(u32 port, u32 port_num)
 
 void dump_mainkey(script_main_key_t *pmainkey)
 {
-	#define TYPE_TO_STR(type)	((SCIRPT_ITEM_VALUE_TYPE_INT == (type)) ?  "int"    :	\
-					((SCIRPT_ITEM_VALUE_TYPE_STR == (type))  ?  "string" :	\
-					((SCIRPT_ITEM_VALUE_TYPE_PIO == (type))  ?   "gpio" : "invalid")))
 	script_sub_key_t *psubkey = NULL;
 
 	if(NULL == pmainkey || NULL == pmainkey->subkey || NULL == pmainkey->subkey_val)
@@ -305,15 +307,15 @@ void dump_mainkey(script_main_key_t *pmainkey)
 		switch(psubkey->type) {
 		case SCIRPT_ITEM_VALUE_TYPE_INT:
 			printk("               %-15s%-10s%d\n", psubkey->name,
-				TYPE_TO_STR(psubkey->type), psubkey->value->val);
+				ITEM_TYPE_TO_STR(psubkey->type), psubkey->value->val);
 			break;
 		case SCIRPT_ITEM_VALUE_TYPE_STR:
 			printk("               %-15s%-10s\"%s\"\n", psubkey->name,
-				TYPE_TO_STR(psubkey->type), psubkey->value->str);
+				ITEM_TYPE_TO_STR(psubkey->type), psubkey->value->str);
 			break;
 		case SCIRPT_ITEM_VALUE_TYPE_PIO:
 			printk("               %-15s%-10s(gpio: %3d, mul: %d, pull %d, drv %d, data %d)\n", 
-				psubkey->name, TYPE_TO_STR(psubkey->type), psubkey->value->gpio.gpio, psubkey->value->gpio.mul_sel,
+				psubkey->name, ITEM_TYPE_TO_STR(psubkey->type), psubkey->value->gpio.gpio, psubkey->value->gpio.mul_sel,
 				psubkey->value->gpio.pull, psubkey->value->gpio.drv_level, psubkey->value->gpio.data);
 			break;
 		default:
@@ -568,4 +570,197 @@ err_out:
     return -1;
 }
 core_initcall(script_init);
+
+/* string for dump all items */
+#define DUMP_ALL_STR	"all"
+
+typedef struct {
+	char mainkey[64];
+}sysfs_dump_t;
+
+typedef struct {
+	char mainkey[64];
+	char subkey[64];
+}sysfs_get_item_t;
+
+static sysfs_dump_t dump_struct;
+static sysfs_get_item_t get_item_struct;
+
+int __sysfs_dump_mainkey(script_main_key_t *pmainkey, char *buf)
+{
+	script_sub_key_t *psubkey = NULL;
+	int cnt = 0;
+
+	if(NULL == pmainkey || NULL == pmainkey->subkey || NULL == pmainkey->subkey_val)
+		return 0;
+
+	cnt += sprintf(buf + cnt, "++++++++++++++++++++++++++%s++++++++++++++++++++++++++\n", __func__);
+	cnt += sprintf(buf + cnt, "    name:      %s\n", pmainkey->name);
+	cnt += sprintf(buf + cnt, "    sub_key:   name           type      value\n");
+	psubkey = pmainkey->subkey;
+	while(psubkey) {
+		switch(psubkey->type) {
+		case SCIRPT_ITEM_VALUE_TYPE_INT:
+			cnt += sprintf(buf + cnt, "               %-15s%-10s%d\n", psubkey->name,
+				ITEM_TYPE_TO_STR(psubkey->type), psubkey->value->val);
+			break;
+		case SCIRPT_ITEM_VALUE_TYPE_STR:
+			cnt += sprintf(buf + cnt, "               %-15s%-10s\"%s\"\n", psubkey->name,
+				ITEM_TYPE_TO_STR(psubkey->type), psubkey->value->str);
+			break;
+		case SCIRPT_ITEM_VALUE_TYPE_PIO:
+			cnt += sprintf(buf + cnt, "               %-15s%-10s(gpio: %3d, mul: %d, pull %d, drv %d, data %d)\n", 
+				psubkey->name, ITEM_TYPE_TO_STR(psubkey->type), psubkey->value->gpio.gpio, psubkey->value->gpio.mul_sel,
+				psubkey->value->gpio.pull, psubkey->value->gpio.drv_level, psubkey->value->gpio.data);
+			break;
+		default:
+			cnt += sprintf(buf + cnt, "               %-15sinvalid type!\n", psubkey->name);
+			break;
+		}
+		psubkey = psubkey->next;
+	}
+	cnt += sprintf(buf + cnt, "--------------------------%s--------------------------\n", __func__);
+	return cnt;
+}
+
+/**
+ * show func of dump attribute.
+ * @dev:     class ptr.
+ * @attr:    attribute ptr.
+ * @buf:     the output buf which store the dump msg
+ *
+ * return size written to the buf, otherwise failed
+ */
+static ssize_t dump_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+	script_main_key_t *pmainkey = g_script;
+	int main_hash = 0;
+	int cnt = 0;
+#if 0
+	if(0 == dump_struct.mainkey[0]) {
+		pr_err("%s(%d) err: please input mainkey firstly\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+#endif
+	if(!memcmp(dump_struct.mainkey, DUMP_ALL_STR, strlen(DUMP_ALL_STR))
+		|| 0 == dump_struct.mainkey[0]) { /* dump all mainkey */
+		pr_info("%s: dump all main keys\n", __func__);
+		while(pmainkey) {
+			pr_info("%s: dump main key for %s\n", __func__, pmainkey->name);
+			cnt += __sysfs_dump_mainkey(pmainkey, buf + cnt);
+			pmainkey = pmainkey->next;
+		}
+	} else {
+		pr_info("%s: dump main key for %s\n", __func__, dump_struct.mainkey);
+		main_hash = hash(dump_struct.mainkey);
+		while(pmainkey) {
+			if((pmainkey->hash == main_hash) && !strcmp(pmainkey->name, dump_struct.mainkey))
+				return __sysfs_dump_mainkey(pmainkey, buf);
+			pmainkey = pmainkey->next;
+		}
+		pr_err("%s(%d) err: main key %s not found!\n", __func__, __LINE__, dump_struct.mainkey);
+	}
+	return cnt;
+}
+
+/**
+ * store func of dump attribute.
+ * @class:   class ptr.
+ * @attr:    attribute ptr.
+ * @buf:     the input buf which contain the mainkey name. eg: "lcd0_para\n"
+ * @size:    buf size.
+ *
+ * return size if success, otherwise failed
+ */
+static ssize_t dump_store(struct class *class, struct class_attribute *attr,
+			const char *buf, size_t size)
+{
+	if(strlen(buf) >= sizeof(dump_struct.mainkey)) {
+		pr_err("%s(%d) err: name \"%s\" too long\n", __func__, __LINE__, buf);
+		return -EINVAL;
+	}
+	if(0 == buf[0]) {
+		pr_err("%s(%d) err: invalid mainkey\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+	strcpy(dump_struct.mainkey, buf);
+	if('\n' == dump_struct.mainkey[strlen(dump_struct.mainkey) - 1]) /* remove tail \n */
+		dump_struct.mainkey[strlen(dump_struct.mainkey) - 1] = 0;
+	pr_info("%s: get input mainkey \"%s\"\n", __func__, dump_struct.mainkey);
+	return size;
+}
+
+ssize_t get_item_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+	script_item_value_type_e type;
+	script_item_u item;
+	ssize_t outsize;
+
+	type = script_get_item(get_item_struct.mainkey, get_item_struct.subkey, &item);
+	if(SCIRPT_ITEM_VALUE_TYPE_INVALID == type) {
+		pr_err("%s(%d) err: script_get_item failed for \"%s\"->\"%s\"\n", __func__, __LINE__,
+			get_item_struct.mainkey, get_item_struct.subkey);
+		return -EINVAL;
+	} else {
+		pr_info("%s(%d): script_get_item return type [%s] for %s->%s\n", __func__, __LINE__,
+			ITEM_TYPE_TO_STR(type), get_item_struct.mainkey, get_item_struct.subkey);
+		memcpy(buf, &item, sizeof(item));
+		/* the extra 4bytes store item type, for sizeof(script_item_value_type_e) = 4 */
+		*(u32 *)(buf + sizeof(item)) = (u32)type;
+		outsize = sizeof(item) + sizeof(u32);
+		/* copy string to user space */
+		if(SCIRPT_ITEM_VALUE_TYPE_STR == type) {
+			strcpy(buf + outsize, item.str);
+			outsize += strlen(item.str);
+		} else if(SCIRPT_ITEM_VALUE_TYPE_PIO == type) {
+			/* convert gpio to name(eg: "PH5") and copy to user space */
+			WARN_ON(0 != sw_gpio_to_name(item.gpio.gpio, buf + outsize));
+			outsize += strlen(buf + outsize);
+		}
+		return outsize;
+	}
+}
+
+ssize_t get_item_store(struct class *class, struct class_attribute *attr,
+			const char *buf, size_t size)
+{
+	char *last_char;
+
+	pr_info("%s: input buf %s\n", __func__, buf);
+	sscanf(buf, "%s %s", get_item_struct.mainkey, get_item_struct.subkey);
+	if(0 != strlen(get_item_struct.subkey)) {
+		last_char = get_item_struct.subkey + strlen(get_item_struct.subkey) - 1;
+		if('\n' == *last_char)
+			*last_char = 0;
+	}
+	pr_info("%s: get \"%s\"->\"%s\"\n", __func__, get_item_struct.mainkey, get_item_struct.subkey);
+	return size;
+}
+
+static struct class_attribute script_class_attrs[] = {
+	__ATTR(dump, 0664, dump_show, dump_store),
+	__ATTR(get_item, 0664, get_item_show, get_item_store),
+	__ATTR_NULL,
+};
+
+static struct class script_class = {
+    .name = "script",
+    .owner = THIS_MODULE,
+    .class_attrs = script_class_attrs,
+};
+
+static int __init script_sysfs_init(void)
+{
+    int status;
+
+    /* create /sys/class/script/ */
+    status = class_register(&script_class);
+    if (status < 0)
+        pr_err("%s: status %d\n", __func__, status);
+    else
+        pr_info("%s success\n", __func__);
+
+    return status;
+}
+postcore_initcall(script_sysfs_init);
 

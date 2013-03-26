@@ -364,6 +364,8 @@ static int __devinit axp_mfd_probe(struct i2c_client *client,
 	struct axp_platform_data *pdata = client->dev.platform_data;
 	struct axp_mfd_chip *chip;
 	int ret;
+	script_item_u script_val;
+	script_item_value_type_e type;
 
 	chip = kzalloc(sizeof(struct axp_mfd_chip), GFP_KERNEL);
 	if (chip == NULL)
@@ -411,9 +413,19 @@ static int __devinit axp_mfd_probe(struct i2c_client *client,
 		goto out_free_irq;
 
 	/* PM hookup */
-	if(!pm_power_off)
-		pm_power_off = axp_power_off;
-
+	if(!pm_power_off) {
+		type = script_get_item("pmu_para", "pmu_fake_power_off_enable", &script_val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+			printk("pmu fake power off config type err!");
+			script_val.val = 0;
+		}
+		if (script_val.val) {
+			pm_power_off = ar100_fake_power_off;
+		} else {
+			pm_power_off = axp_power_off;
+		}
+	}
+	
 	ret = axp_mfd_create_attrs(chip);
 	if(ret){
 		return ret;

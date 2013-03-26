@@ -29,6 +29,10 @@ config OVIPHONE_EM55
     help
         Oviphone em55 modem support.
 
+config LONGCHEER_WM5608
+    boolean "longcheer wm5608"
+    help
+        longcheer wm5608 modem support.
 endchoice
 
 choice

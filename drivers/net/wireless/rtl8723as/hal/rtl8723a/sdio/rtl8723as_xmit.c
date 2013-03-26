@@ -122,7 +122,7 @@ s32 rtl8723_dequeue_writeport(PADAPTER padapter, u8 *freePage)
 			} else {
 				//RT_TRACE(_module_hal_xmit_c_, _drv_notice_,
 				//	("%s: FIFO starvation!(%d) len=%d agg=%d page=(R)%d(A)%d\n",
-				//	__FUNCTION__, n, pxmitbuf->len, pxmitbuf->agg_num, pxmitbuf->pg_num, freePage[PageIdx] + freePage[UBLIC_QUEUE_IDX]));
+				//	__FUNCTION__, n, pxmitbuf->len, pxmitbuf->agg_num, pxmitbuf->pg_num, freePage[PageIdx] + freePage[PUBLIC_QUEUE_IDX]));
 			}
 			//rtw_yield_os();
 			rtw_msleep_os(1);
@@ -155,6 +155,7 @@ free_xmitbuf:
 
 	return _FAIL;
 }
+
 /*
  * Description
  *	Transmit xmitbuf to hardware tx fifo

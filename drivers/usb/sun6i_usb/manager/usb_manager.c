@@ -162,7 +162,7 @@ static int set_ctrl_gpio(struct usb_cfg *cfg, int is_on)
     if(ctrlio_status == is_on)
         return 0;
     if(cfg->port[0].restrict_gpio_set.valid){
-    	DMSG_PANIC("set ctrl gpio %s\n", is_on ? "on" : "off");
+    	DMSG_INFO("set ctrl gpio %s\n", is_on ? "on" : "off");
 	    __gpio_set_value(cfg->port[0].restrict_gpio_set.gpio_set.gpio.gpio, is_on);
     }
 
@@ -182,10 +182,11 @@ static int pin_init(struct usb_cfg *cfg)
 			cfg->port[0].restrict_gpio_set.valid = 1;
 		}else{
 			/* set config, ouput */
-			sw_gpio_setcfg(cfg->port[0].restrict_gpio_set.gpio_set.gpio.gpio, 1);
+			//sw_gpio_setcfg(cfg->port[0].restrict_gpio_set.gpio_set.gpio.gpio, 1);
 
 			/* reserved is pull down */
-			sw_gpio_setpull(cfg->port[0].restrict_gpio_set.gpio_set.gpio.gpio, 2);
+			//sw_gpio_setpull(cfg->port[0].restrict_gpio_set.gpio_set.gpio.gpio, 2);
+			gpio_direction_output(cfg->port[0].restrict_gpio_set.gpio_set.gpio.gpio, 0);
 		}
 	}
 	return 0;

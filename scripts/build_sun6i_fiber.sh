@@ -64,7 +64,7 @@ build_nand_lib()
 	echo "build nand library ${NAND_ROOT}/lib"
 	if [ -d ${NAND_ROOT}/lib ]; then
 		echo "build nand library now"
-	make -C modules/nand/lib clean	2>/dev/null	
+	make -C modules/nand/lib clean	2>/dev/null
 	make -C modules/nand/lib lib install
 	else
 		echo "build nand with existing library"
@@ -106,6 +106,13 @@ build_kernel()
 		cp arch/arm/configs/sun6ismp_fiber_defconfig .config
 	fi
 	cp rootfs/rootfs.cpio.gz .
+
+    #try to remove csi drivers
+    rm -rf ${LICHEE_KDIR}/drivers/media/video/sunxi_csi/device/*.ko
+    rm -rf ${LICHEE_KDIR}/drivers/media/video/sunxi_csi/device/*.o
+    rm -rf ${LICHEE_KDIR}/drivers/media/video/sunxi-vfe/device/*.ko
+    rm -rf ${LICHEE_KDIR}/drivers/media/video/sunxi-vfe/device/*.o
+
 	build_standby
 	build_mdfs
 	make ARCH=arm CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage modules
@@ -151,13 +158,13 @@ build_modules()
 	fi
 
 	update_kern_ver
-	
+
 	(
 	unset OUT
 	unset TOP
 	make -C modules/eurasia_km/eurasiacon/build/linux2/sunxi_android LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR}
 	)
-	
+
 	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
 		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
 
@@ -165,7 +172,7 @@ build_modules()
 	make -C modules/nand LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
 		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
 	copy_nand_mod
-	
+
 	for file in $(find  modules/eurasia_km -name "*.ko"); do
 		cp $file ${LICHEE_MOD_DIR}
 	done
@@ -216,13 +223,13 @@ clean_modules()
 {
 	echo "Cleaning modules"
 	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
-	
+
 	(
 	unset OUT
 	unset TOP
 	make -C modules/eurasia_km/eurasiacon/build/linux2/sunxi_android LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clobber
 	)
-	
+
 #	#build ar6302 sdio wifi module
 #	make -C modules/wifi/ar6302/AR6K_SDK_ISC.build_3.1_RC.329/host CROSS_COMPILE=${CROSS_COMPILE} \
 #	        ARCH=arm KERNEL_DIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} INSTALL_DIR=${LICHEE_MOD_DIR} \

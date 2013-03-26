@@ -21,10 +21,12 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include "boot0_v2.h"
+#include "boot1_v2.h"
 
 extern int NAND_GetParam(boot_nand_para_t0 * nand_param);
 extern int NAND_ReadBoot0(unsigned int length, void *buf);
 extern void test_dram_para(void *buffer);
+extern unsigned int NAND_GetValidBlkRatio(void);
 /*
 ************************************************************************************************************
 *
@@ -133,4 +135,32 @@ int get_dram_para(void *boot_buf)
 
 	return 0;
 }
+/*
+************************************************************************************************************
+*
+*                                             function
+*
+*    name          :
+*
+*    parmeters     :
+*
+*    return        :
+*
+*    note          :
+*
+*
+************************************************************************************************************
+*/
+int get_nand_para_for_boot1(void *boot_buf)
+{
+	boot1_file_head_t  *boot1_buf;
+	char               *data_buf;
+	boot_nand_para_t0   *nand_para;
 
+	boot1_buf = (boot1_file_head_t *)boot_buf;
+	nand_para = (boot_nand_para_t0 *)boot1_buf->prvt_head.storage_data;
+
+	nand_para->good_block_ratio = NAND_GetValidBlkRatio();
+
+	return 0;
+}

@@ -2,6 +2,7 @@
 #include "pm_i.h"
 
 static __ccmu_reg_list_t   CmuReg;
+static int i = 0;
 /*
 *********************************************************************************************************
 *                                       MEM CCU INITIALISE
@@ -15,6 +16,21 @@ static __ccmu_reg_list_t   CmuReg;
 */
 __s32 mem_ccu_save(__ccmu_reg_list_t *pReg)
 {
+	
+	i = 1;
+	while(i < 11){
+		if(0 != i || 4 != i || 5 != i){
+			//donot need care pll1 & pll5 & pll6, it is dangerous to 
+			//write the reg after enable the pllx.
+			CmuReg.PllxBias[i]	= pReg->PllxBias[i];
+		}
+		i++;
+	}
+	
+	//CmuReg.Pll1Tun	= pReg->Pll1Tun;
+	//CmuReg.Pll5Tun	= pReg->Pll5Tun;
+	CmuReg.MipiPllTun	= pReg->MipiPllTun;
+
 	// CmuReg.Pll1Ctl      	= pReg->Pll1Ctl;
 	CmuReg.Pll2Ctl      	= pReg->Pll2Ctl;
 	CmuReg.Pll3Ctl      	= pReg->Pll3Ctl;
@@ -41,7 +57,7 @@ __s32 mem_ccu_save(__ccmu_reg_list_t *pReg)
 	CmuReg.Sd1  		= pReg->Sd1;
 	CmuReg.Sd2    		= pReg->Sd2;
 	CmuReg.Sd3    		= pReg->Sd3;
-	CmuReg.Ts		    = pReg->Ts;
+	CmuReg.Ts		= pReg->Ts;
 	CmuReg.Ss        	= pReg->Ss;
 	CmuReg.Spi0      	= pReg->Spi0;
 	CmuReg.Spi1      	= pReg->Spi1;
@@ -52,9 +68,9 @@ __s32 mem_ccu_save(__ccmu_reg_list_t *pReg)
 	CmuReg.I2s1       	= pReg->I2s1;
 	CmuReg.Spdif	    	= pReg->Spdif;
 	CmuReg.Usb	      	= pReg->Usb;
-	CmuReg.Mdfs		    = pReg->Mdfs;
-	CmuReg.DramGate     = pReg->DramGate;
-
+	CmuReg.Mdfs		= pReg->Mdfs;
+	CmuReg.DramGate     	= pReg->DramGate;
+	
 	CmuReg.Be0     		= pReg->Be0;
 	CmuReg.Be1    		= pReg->Be1;
 	CmuReg.Fe0    		= pReg->Fe0;
@@ -86,33 +102,9 @@ __s32 mem_ccu_save(__ccmu_reg_list_t *pReg)
 	CmuReg.GpuMem		= pReg->GpuMem;
 	CmuReg.GpuHyd		= pReg->GpuHyd;
 
-    CmuReg.PllLock      = pReg->PllLock;
-    CmuReg.Pll1Lock     = pReg->Pll1Lock;
-    CmuReg.Pll1Bias     = pReg->Pll1Bias;
-    CmuReg.Pll2Bias     = pReg->Pll2Bias;
-    CmuReg.Pll3Bias     = pReg->Pll3Bias;
-    CmuReg.Pll4Bias     = pReg->Pll4Bias;
-    CmuReg.Pll5Bias     = pReg->Pll5Bias;
-    CmuReg.Pll6Bias     = pReg->Pll6Bias;
-    CmuReg.Pll7Bias     = pReg->Pll7Bias;
-    CmuReg.Pll8Bias     = pReg->Pll8Bias;
-    CmuReg.MipiBias     = pReg->MipiBias;
-    CmuReg.Pll9Bias     = pReg->Pll9Bias;
-    CmuReg.Pll10Bias    = pReg->Pll10Bias;
-    CmuReg.Pll1Tune     = pReg->Pll1Tune;
-    CmuReg.Pll5Tune     = pReg->Pll5Tune;
-    CmuReg.MipiTune     = pReg->MipiTune;
-    CmuReg.PLL1Pat      = pReg->PLL1Pat;
-    CmuReg.PLL2Pat      = pReg->PLL2Pat;
-    CmuReg.PLL3Pat      = pReg->PLL3Pat;
-    CmuReg.PLL4Pat      = pReg->PLL4Pat;
-    CmuReg.PLL5Pat      = pReg->PLL5Pat;
-    CmuReg.PLL7Pat      = pReg->PLL7Pat;
-    CmuReg.PLL8Pat      = pReg->PLL8Pat;
-    CmuReg.MipiPat      = pReg->MipiPat;
-    CmuReg.PLL9Pat      = pReg->PLL9Pat;
-    CmuReg.PLL10Pat     = pReg->PLL10Pat;
-
+	CmuReg.PllLock		= pReg->PllLock;
+	CmuReg.Pll1Lock		= pReg->Pll1Lock;
+	
 	CmuReg.AhbReset0	= pReg->AhbReset0;
 	CmuReg.AhbReset1	= pReg->AhbReset1;
 	CmuReg.AhbReset2	= pReg->AhbReset2;
@@ -129,6 +121,20 @@ __s32 mem_ccu_save(__ccmu_reg_list_t *pReg)
 
 __s32 mem_ccu_restore(__ccmu_reg_list_t *pReg)
 {
+	i = 1;
+	while(i < 11){
+		if(0 != i || 4 != i || 5 != i){
+			//donot need care pll1 & pll5 & pll6, it is dangerous to 
+			//write the reg after enable the pllx.
+			pReg->PllxBias[i]	= CmuReg.PllxBias[i];
+		}
+		i++;
+	}
+	
+	//pReg->Pll1Tun		= CmuReg.Pll1Tun;
+	//pReg->Pll5Tun		= CmuReg.Pll5Tun;
+	pReg->MipiPllTun	= CmuReg.MipiPllTun;
+
 	// pReg->Pll1Ctl      	= CmuReg.Pll1Ctl;
 	pReg->Pll2Ctl      	= CmuReg.Pll2Ctl;
 	pReg->Pll3Ctl      	= CmuReg.Pll3Ctl;
@@ -200,32 +206,8 @@ __s32 mem_ccu_restore(__ccmu_reg_list_t *pReg)
 	pReg->GpuMem		= CmuReg.GpuMem;
 	pReg->GpuHyd		= CmuReg.GpuHyd;
 
-    pReg->PllLock       = CmuReg.PllLock;
-    pReg->Pll1Lock      = CmuReg.Pll1Lock;
-    pReg->Pll1Bias      = CmuReg.Pll1Bias;
-    pReg->Pll2Bias      = CmuReg.Pll2Bias;
-    pReg->Pll3Bias      = CmuReg.Pll3Bias;
-    pReg->Pll4Bias      = CmuReg.Pll4Bias;
-    pReg->Pll5Bias      = CmuReg.Pll5Bias;
-    pReg->Pll6Bias      = CmuReg.Pll6Bias;
-    pReg->Pll7Bias      = CmuReg.Pll7Bias;
-    pReg->Pll8Bias      = CmuReg.Pll8Bias;
-    pReg->MipiBias      = CmuReg.MipiBias;
-    pReg->Pll9Bias      = CmuReg.Pll9Bias;
-    pReg->Pll10Bias     = CmuReg.Pll10Bias;
-    pReg->Pll1Tune      = CmuReg.Pll1Tune;
-    pReg->Pll5Tune      = CmuReg.Pll5Tune;
-    pReg->MipiTune      = CmuReg.MipiTune;
-    pReg->PLL1Pat       = CmuReg.PLL1Pat;
-    pReg->PLL2Pat       = CmuReg.PLL2Pat;
-    pReg->PLL3Pat       = CmuReg.PLL3Pat;
-    pReg->PLL4Pat       = CmuReg.PLL4Pat;
-    pReg->PLL5Pat       = CmuReg.PLL5Pat;
-    pReg->PLL7Pat       = CmuReg.PLL7Pat;
-    pReg->PLL8Pat       = CmuReg.PLL8Pat;
-    pReg->MipiPat       = CmuReg.MipiPat;
-    pReg->PLL9Pat       = CmuReg.PLL9Pat;
-    pReg->PLL10Pat      = CmuReg.PLL10Pat;
+	pReg->PllLock		= CmuReg.PllLock;
+	pReg->Pll1Lock		= CmuReg.Pll1Lock;
 
 	pReg->AhbReset0		= CmuReg.AhbReset0;
 	pReg->AhbReset1		= CmuReg.AhbReset1;

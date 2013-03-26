@@ -326,6 +326,49 @@ __s32 mem_clk_get_pll_factor(struct pll_factor_t *pll_factor)
 	return 0;
 }
 
+/*
+*********************************************************************************************************
+*                                     mem_clk_set_misc
+*
+* Description: set clk_misc
+*
+* Arguments  : none
+*
+* Returns    : 0;
+*********************************************************************************************************
+*/
+__s32 mem_clk_set_misc(struct clk_misc_t *clk_misc)
+{
+	CmuReg = (__ccmu_reg_list_t *)(AW_CCM_BASE);
+	//
+	CmuReg->PllxBias[0]	= clk_misc->pll1_bias;
+	CmuReg->PllxBias[5]	= clk_misc->pll6_bias;
+	CmuReg->Pll1Tun		= clk_misc->pll1_tun;
+	
+	return 0;
+}
+
+/*
+*********************************************************************************************************
+*                                     mem_clk_get_misc
+*
+* Description: get clk_misc
+*
+* Arguments  : none
+*
+* Returns    : 0;
+*********************************************************************************************************
+*/
+
+__s32 mem_clk_get_misc(struct clk_misc_t *clk_misc)
+{
+	clk_misc->pll1_bias	=	CmuReg->PllxBias[0];	 
+	clk_misc->pll6_bias	=	CmuReg->PllxBias[5];	
+	clk_misc->pll1_tun	=	CmuReg->Pll1Tun;	
+	
+	//busy_waiting();
+	return 0;
+}
 
 
 

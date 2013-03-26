@@ -225,6 +225,10 @@ __s32 DEU_ALG(__u32 sel)
         if(count == 300)
         {
             count = 0;
+            if(gdeu[sel].frameinfo.in_size.width == 0)
+            {
+                DE_WRN("DEU_ALG, input width is ZERO\n");
+            }
             //pr_warn("<<deu-I>>\n");
             //pr_warn("frameinfo.disp_size: <%dx%d>\n", gdeu[sel].frameinfo.disp_size.width,  gdeu[sel].frameinfo.disp_size.height);
         }
@@ -277,7 +281,7 @@ __s32 DEU_ALG(__u32 sel)
 	if(frameinfo.in_size.width == 0)
     {
         frameinfo.in_size.width = 2;
-        DE_WRN("DEU_ALG, input width is ZERO\n");
+        //DE_WRN("DEU_ALG, input width is ZERO\n");
     }
     scalefact = (frameinfo.out_size.width<<2)/frameinfo.in_size.width;  //scale factor X4
 
@@ -345,6 +349,7 @@ __s32 IEP_Deu_Enable(__u32 sel, __u32 enable)
 		DEU_EBIOS_Set_Csc_Coeff(sel, gdeu[sel].frameinfo.csc_mode);	
 		DEU_EBIOS_Csc_Enable(sel, 1);
 		g_deu_status[sel] |= DEU_USED;
+        g_deu_status[sel] &= DEU_NEED_CLOSED_MASK;
 		
 	}
 	else

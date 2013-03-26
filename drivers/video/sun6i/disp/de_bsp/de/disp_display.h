@@ -135,6 +135,9 @@ typedef struct
 	__disp_vga_mode_t       vga_mode;
 	__disp_tv_mode_t        tv_mode;
 	__disp_tv_mode_t        hdmi_mode;
+    __bool                  hdmi_hpd;//0:unplug;  1:plugin
+    __disp_tv_mode_t        hdmi_test_mode;
+    __disp_out_csc_type_t   output_csc_type;
 	__disp_tv_dac_source    dac_source[4];
     __bool                  hdmi_used;
 
@@ -148,7 +151,10 @@ typedef struct
 
 	__disp_lcd_cfg_t        lcd_cfg;
     __hdle                  gpio_hdl[6];//index4: scl;  index5: sda
+    __u32                   lcd_fps_cfg;
+    __bool                  lcd_fps_cfg_request;
     __bool                  vsync_event_en;
+    __bool                  dvi_enable;
 }__disp_screen_t;
 
 typedef struct

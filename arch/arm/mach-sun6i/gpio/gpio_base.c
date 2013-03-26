@@ -188,3 +188,51 @@ int __pio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return IRQ_NUM_INVALID;
 }
 
+typedef struct {
+	u32 start_index;
+	u32 size;
+	char name[32];
+}gpio_name_index_t;
+
+static gpio_name_index_t gpio_name_index[] = {
+	{PA_NR_BASE, PA_NR, "PA"},
+	{PB_NR_BASE, PB_NR, "PB"},
+	{PC_NR_BASE, PC_NR, "PC"},
+	{PD_NR_BASE, PD_NR, "PD"},
+	{PE_NR_BASE, PE_NR, "PE"},
+	{PF_NR_BASE, PF_NR, "PF"},
+	{PG_NR_BASE, PG_NR, "PG"},
+	{PH_NR_BASE, PH_NR, "PH"},
+	{PL_NR_BASE, PL_NR, "PL"},
+	{PM_NR_BASE, PM_NR, "PM"},
+#if 0 /* CONFIG_AW_AXP22 */ /* not support temparately */
+	{AXP_NR_BASE, AXP_NR, "POWER"},
+#endif
+};
+
+/**
+ * sw_gpio_to_name - get gpio name according to gpio index
+ * @gpio: gpio index, eg: GPIOH(5)
+ * @name: output, store gpio name, eg: "PH5"
+ *
+ * Returns 0 if sucess, otherwise failed
+ */
+int sw_gpio_to_name(u32 gpio, char *name)
+{
+	int i;
+
+	if(NULL == name)
+		goto err;
+	for(i = 0; i < ARRAY_SIZE(gpio_name_index); i++) {
+		if(gpio >= gpio_name_index[i].start_index &&
+			gpio < gpio_name_index[i].start_index + gpio_name_index[i].size) {
+			sprintf(name, "%s%d", gpio_name_index[i].name, gpio - gpio_name_index[i].start_index);
+			return 0;
+		}
+	}
+err:
+	pr_err("%s(%d) err: gpio %d, name %s\n", __func__, __LINE__, gpio, name);
+	return -EINVAL;
+}
+EXPORT_SYMBOL(sw_gpio_to_name);
+

@@ -197,7 +197,7 @@
 									(le16_to_cpu(_pFwHdr->Signature)&0xFFFF) == 0x92D2 ||\
 									(le16_to_cpu(_pFwHdr->Signature)&0xFFFF) == 0x92D3 )
 
-#define FW_8192D_SIZE				0x8000
+#define FW_8192D_SIZE				0x8020 // Max FW len = 32k + 32(FW header length).
 #define FW_8192D_START_ADDRESS	0x1000
 #define FW_8192D_END_ADDRESS		0x1FFF
 
@@ -417,6 +417,22 @@ typedef enum _PA_MODE {
 	PA_MODE_INTERNAL_SP3T = 0x01,
 	PA_MODE_INTERNAL_SPDT = 0x02	
 } PA_MODE;
+
+/* Copy from rtl8192c */
+enum c2h_id_8192d {
+	C2H_DBG = 0,
+	C2H_TSF = 1,
+	C2H_AP_RPT_RSP = 2,
+	C2H_CCX_TX_RPT = 3,
+	C2H_BT_RSSI = 4,
+	C2H_BT_OP_MODE = 5,
+	C2H_EXT_RA_RPT = 6,
+	C2H_HW_INFO_EXCH = 10,
+	C2H_C2H_H2C_TEST = 11,
+	C2H_BT_INFO = 12,
+	C2H_BT_MP_INFO = 15,
+	MAX_C2HEVENT
+};
 
 #ifdef CONFIG_PCI_HCI
 struct hal_data_8192de
@@ -780,17 +796,11 @@ struct hal_data_8192du
 
 	u32	UsbBulkOutSize;
 
-	int	RtBulkOutPipe[3];
-	int	RtBulkInPipe;
-	int	RtIntInPipe;
-
 	// Add for dual MAC  0--Mac0 1--Mac1
 	u32	interfaceIndex;
 
 	u8	OutEpQueueSel;
 	u8	OutEpNumber;
-
-	u8	Queue2EPNum[8];//for out endpoint number mapping
 
 #ifdef CONFIG_USB_TX_AGGREGATION
 	u8	UsbTxAggMode;
@@ -835,7 +845,6 @@ VOID rtl8192d_EfuseParseChnlPlan(PADAPTER Adapter, u8 *hwinfo, BOOLEAN AutoLoadF
 VOID rtl8192d_ReadTxPowerInfo(PADAPTER Adapter, u8* PROMContent, BOOLEAN AutoLoadFail);
 VOID rtl8192d_ResetDualMacSwitchVariables(IN PADAPTER Adapter);
 u8 GetEEPROMSize8192D(PADAPTER Adapter);
-void rtl8192d_HalSetBrateCfg(PADAPTER Adapter, u8 *mBratesOS, u16 *pBrateCfg);
 BOOLEAN PHY_CheckPowerOffFor8192D(PADAPTER Adapter);
 VOID PHY_SetPowerOnFor8192D(PADAPTER Adapter);
 //void PHY_ConfigMacPhyMode92D(PADAPTER Adapter);

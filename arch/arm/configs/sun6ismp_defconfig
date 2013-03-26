@@ -993,6 +993,7 @@ CONFIG_SERIAL_CORE_CONSOLE=y
 # CONFIG_SERIAL_ALTERA_UART is not set
 # CONFIG_SERIAL_IFX6X60 is not set
 # CONFIG_SERIAL_XILINX_PS_UART is not set
+# CONFIG_SERIAL_SW is not set
 # CONFIG_HVC_DCC is not set
 # CONFIG_IPMI_HANDLER is not set
 # CONFIG_HW_RANDOM is not set
@@ -1978,8 +1979,16 @@ CONFIG_HAVE_MACH_CLKDEV=y
 # CONFIG_GSENSOR is not set
 
 #
+# MediaTek Connectivity Combo Chip Config
+#
+# CONFIG_MTK_COMBO is not set
+# CONFIG_MTK_COMBO_CHIP_MT6620 is not set
+# CONFIG_MTK_GPS is not set
+
+#
 # gpu
 #
+# CONFIG_GATOR_PERF is not set
 
 #
 # File systems

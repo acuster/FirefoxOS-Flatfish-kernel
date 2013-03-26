@@ -2,7 +2,7 @@
  * sound\soc\sun6i\i2s\sun6i-i2s.c
  * (C) Copyright 2010-2016
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
- * chenpailin <chenpailin@Reuuimllatech.com>
+ * huangxin <huangxin@Reuuimllatech.com>
  *
  * some simple description for this code
  *
@@ -38,25 +38,28 @@
 #include "sun6i-i2sdma.h"
 #include "sun6i-i2s.h"
 
-/*=============mode selection====================*/
-//#define I2S_COMMUNICATION
-#define PCM_COMMUNICATION
-/*-----------------------------------------------*/
-unsigned long over_sample_rate 	= 256;		/*128fs/192fs/256fs/384fs/512fs/768fs*/
-unsigned long sample_resolution = 16;		/*16bits/20bits/24bits*/
-unsigned long word_select_size 	= 32;		/*16bits/20bits/24bits/32bits*/
-unsigned long pcm_sync_period 	= 256;		/*16/32/64/128/256*/
-unsigned long msb_lsb_first 	= 0;		/*0: msb first; 1: lsb first*/
-unsigned long sign_extend 		= 0;		/*0: zero pending; 1: sign extend*/
-unsigned long slot_index 		= 0;		/*slot index: 0: the 1st slot - 3: the 4th slot*/
-unsigned long slot_width 		= 16;		/*8 bit width / 16 bit width*/
-unsigned long frame_width 		= 1;		/*0: long frame = 2 clock width;  1: short frame*/
-unsigned long tx_data_mode 		= 0;		/*0: 16bit linear PCM; 1: 8bit linear PCM; 2: 8bit u-law; 3: 8bit a-law*/
-unsigned long rx_data_mode 		= 0;		/*0: 16bit linear PCM; 1: 8bit linear PCM; 2: 8bit u-law; 3: 8bit a-law*/
-/*===============================================*/
+struct sun6i_i2s_info sun6i_iis;
 
 static int regsave[8];
-static int i2s_used = 0;
+static int i2s_used 			= 0;
+static int i2s_select 			= 0;
+static int over_sample_rate 	= 0;
+static int sample_resolution 	= 0;
+static int word_select_size 	= 0;
+static int pcm_sync_period 		= 0;
+static int msb_lsb_first 		= 0;
+static int sign_extend 			= 0;
+static int slot_index 			= 0;
+static int slot_width 			= 0;
+static int frame_width 			= 0;
+static int tx_data_mode 		= 0;
+static int rx_data_mode 		= 0;
+
+static struct clk *i2s_apbclk 		= NULL;
+static struct clk *i2s_pll2clk 		= NULL;
+static struct clk *i2s_pllx8 		= NULL;
+static struct clk *i2s_moduleclk	= NULL;
+
 static struct sun6i_dma_params sun6i_i2s_pcm_stereo_out = {
 	.name		= "i2s_play",	
 	.dma_addr	= SUN6I_IISBASE + SUN6I_IISTXFIFO,/*send data address	*/
@@ -66,12 +69,6 @@ static struct sun6i_dma_params sun6i_i2s_pcm_stereo_in = {
 	.name   	= "i2s_capture",
 	.dma_addr	=SUN6I_IISBASE + SUN6I_IISRXFIFO,/*accept data address	*/
 };
-
-struct sun6i_i2s_info sun6i_iis;
-static struct clk *i2s_apbclk 		= NULL;
-static struct clk *i2s_pll2clk 		= NULL;
-static struct clk *i2s_pllx8 		= NULL;
-static struct clk *i2s_moduleclk	= NULL;
 
 void sun6i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 {
@@ -99,28 +96,31 @@ void sun6i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 	switch(substream->runtime->channels) {
 		case 1:
 		case 2:
-			reg_val |= SUN6I_IISCTL_SDO0EN; break;
-	#ifdef I2S_COMMUNICATION
+			reg_val |= SUN6I_IISCTL_SDO0EN;
+			break;
 		case 3:
 		case 4:
-			reg_val |= SUN6I_IISCTL_SDO0EN | SUN6I_IISCTL_SDO1EN; break;
+			reg_val |= SUN6I_IISCTL_SDO0EN | SUN6I_IISCTL_SDO1EN;
+			break;
 		case 5:
 		case 6:
-			reg_val |= SUN6I_IISCTL_SDO0EN | SUN6I_IISCTL_SDO1EN | SUN6I_IISCTL_SDO2EN; break;
+			reg_val |= SUN6I_IISCTL_SDO0EN | SUN6I_IISCTL_SDO1EN | SUN6I_IISCTL_SDO2EN;
+			break;
 		case 7:
 		case 8:
-			reg_val |= SUN6I_IISCTL_SDO0EN | SUN6I_IISCTL_SDO1EN | SUN6I_IISCTL_SDO2EN | SUN6I_IISCTL_SDO3EN; break;	
-	#endif
+			reg_val |= SUN6I_IISCTL_SDO0EN | SUN6I_IISCTL_SDO1EN | SUN6I_IISCTL_SDO2EN | SUN6I_IISCTL_SDO3EN;
+			break;
 		default:
-			reg_val |= SUN6I_IISCTL_SDO0EN; break;
+			reg_val |= SUN6I_IISCTL_SDO0EN;
+			break;
 	}
 	writel(reg_val, sun6i_iis.regs + SUN6I_IISCTL);
-	
+
 	/*flush TX FIFO*/
 	reg_val = readl(sun6i_iis.regs + SUN6I_IISFCTL);
 	reg_val |= SUN6I_IISFCTL_FTX;	
 	writel(reg_val, sun6i_iis.regs + SUN6I_IISFCTL);
-	
+
 	/*clear TX counter*/
 	writel(0, sun6i_iis.regs + SUN6I_IISTXCNT);
 
@@ -134,23 +134,17 @@ void sun6i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 		reg_val = readl(sun6i_iis.regs + SUN6I_IISINT);
 		reg_val |= SUN6I_IISINT_TXDRQEN;
 		writel(reg_val, sun6i_iis.regs + SUN6I_IISINT);
-		
-		/*Global Enable Digital Audio Interface*/
-		reg_val = readl(sun6i_iis.regs + SUN6I_IISCTL);
-		reg_val |= SUN6I_IISCTL_GEN;
-		writel(reg_val, sun6i_iis.regs + SUN6I_IISCTL);
-
 	} else {
 		/* IIS TX DISABLE */
 		reg_val = readl(sun6i_iis.regs + SUN6I_IISCTL);
 		reg_val &= ~SUN6I_IISCTL_TXEN;
 		writel(reg_val, sun6i_iis.regs + SUN6I_IISCTL);
-			
+
 		/* DISBALE dma DRQ mode */
 		reg_val = readl(sun6i_iis.regs + SUN6I_IISINT);
 		reg_val &= ~SUN6I_IISINT_TXDRQEN;
 		writel(reg_val, sun6i_iis.regs + SUN6I_IISINT);
-	}		
+	}
 }
 
 void sun6i_snd_rxctrl_i2s(struct snd_pcm_substream *substream, int on)
@@ -170,7 +164,7 @@ void sun6i_snd_rxctrl_i2s(struct snd_pcm_substream *substream, int on)
 		reg_val = 0x00003210;
 	}
 	writel(reg_val, sun6i_iis.regs + SUN6I_RXCHMAP);
-	
+
 	/*flush RX FIFO*/
 	reg_val = readl(sun6i_iis.regs + SUN6I_IISFCTL);
 	reg_val |= SUN6I_IISFCTL_FRX;	
@@ -178,68 +172,63 @@ void sun6i_snd_rxctrl_i2s(struct snd_pcm_substream *substream, int on)
 
 	/*clear RX counter*/
 	writel(0, sun6i_iis.regs + SUN6I_IISRXCNT);
-	
+
 	if (on) {
 		/* IIS RX ENABLE */
 		reg_val = readl(sun6i_iis.regs + SUN6I_IISCTL);
 		reg_val |= SUN6I_IISCTL_RXEN;
 		writel(reg_val, sun6i_iis.regs + SUN6I_IISCTL);
-			
+
 		/* enable DMA DRQ mode for record */
 		reg_val = readl(sun6i_iis.regs + SUN6I_IISINT);
 		reg_val |= SUN6I_IISINT_RXDRQEN;
 		writel(reg_val, sun6i_iis.regs + SUN6I_IISINT);
-			
-		/*Global Enable Digital Audio Interface*/
-		reg_val = readl(sun6i_iis.regs + SUN6I_IISCTL);
-		reg_val |= SUN6I_IISCTL_GEN;
-		writel(reg_val, sun6i_iis.regs + SUN6I_IISCTL);
-			
 	} else {
 		/* IIS RX DISABLE */
 		reg_val = readl(sun6i_iis.regs + SUN6I_IISCTL);
 		reg_val &= ~SUN6I_IISCTL_RXEN;
 		writel(reg_val, sun6i_iis.regs + SUN6I_IISCTL);
-			
+
 		/* DISBALE dma DRQ mode */
 		reg_val = readl(sun6i_iis.regs + SUN6I_IISINT);
 		reg_val &= ~SUN6I_IISINT_RXDRQEN;
 		writel(reg_val, sun6i_iis.regs + SUN6I_IISINT);
-	}		
-}
-
-static inline int sun6i_snd_is_clkmaster(void)
-{
-	return ((readl(sun6i_iis.regs + SUN6I_IISCTL) & SUN6I_IISCTL_MS) ? 0 : 1);
+	}
 }
 
 static int sun6i_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
-	u32 reg_val;
-	u32 reg_val1;
+	u32 reg_val = 0;
+	u32 reg_val1 = 0;
 
 	/*SDO ON*/
 	reg_val = readl(sun6i_iis.regs + SUN6I_IISCTL);
-	reg_val |= (SUN6I_IISCTL_SDO0EN | SUN6I_IISCTL_SDO1EN | SUN6I_IISCTL_SDO2EN | SUN6I_IISCTL_SDO3EN); 
-#ifdef PCM_COMMUNICATION
-	reg_val |= SUN6I_IISCTL_PCM;
-#endif
+	reg_val |= (SUN6I_IISCTL_SDO0EN | SUN6I_IISCTL_SDO1EN | SUN6I_IISCTL_SDO2EN | SUN6I_IISCTL_SDO3EN);
+
+	if (i2s_select) {
+		/*config as i2s, the default register is i2s.*/
+		reg_val &= ~SUN6I_IISCTL_PCM;
+	} else {
+		/*config as pcm*/
+		reg_val |= SUN6I_IISCTL_PCM;
+	}
 	writel(reg_val, sun6i_iis.regs + SUN6I_IISCTL);
 
 	/* master or slave selection */
 	reg_val = readl(sun6i_iis.regs + SUN6I_IISCTL);
 	switch(fmt & SND_SOC_DAIFMT_MASTER_MASK){
-		case SND_SOC_DAIFMT_CBM_CFM:   /* codec clk & frm master */
+		case SND_SOC_DAIFMT_CBM_CFM:   /* codec clk & frm master, ap is slave*/
 			reg_val |= SUN6I_IISCTL_MS;
 			break;
-		case SND_SOC_DAIFMT_CBS_CFS:   /* codec clk & frm slave */
+		case SND_SOC_DAIFMT_CBS_CFS:   /* codec clk & frm slave,ap is master*/
 			reg_val &= ~SUN6I_IISCTL_MS;
 			break;
 		default:
+			printk("unknwon master/slave format\n");
 			return -EINVAL;
 	}
 	writel(reg_val, sun6i_iis.regs + SUN6I_IISCTL);
-	
+
 	/* pcm or i2s mode selection */
 	reg_val = readl(sun6i_iis.regs + SUN6I_IISCTL);
 	reg_val1 = readl(sun6i_iis.regs + SUN6I_IISFAT0);
@@ -314,7 +303,7 @@ static int sun6i_i2s_hw_params(struct snd_pcm_substream *substream,
 		dma_data = &sun6i_i2s_pcm_stereo_out;
 	else
 		dma_data = &sun6i_i2s_pcm_stereo_in;
-	
+
 	snd_soc_dai_set_dma_data(rtd->cpu_dai, substream, dma_data);
 	return 0;
 }
@@ -323,6 +312,7 @@ static int sun6i_i2s_trigger(struct snd_pcm_substream *substream,
                               int cmd, struct snd_soc_dai *dai)
 {
 	int ret = 0;
+	u32 reg_val;
 
 	switch (cmd) {
 		case SNDRV_PCM_TRIGGER_START:
@@ -333,6 +323,11 @@ static int sun6i_i2s_trigger(struct snd_pcm_substream *substream,
 			} else {
 				sun6i_snd_txctrl_i2s(substream, 1);
 			}
+			/*Global Enable Digital Audio Interface*/
+			reg_val = readl(sun6i_iis.regs + SUN6I_IISCTL);
+			reg_val |= SUN6I_IISCTL_GEN;
+			writel(reg_val, sun6i_iis.regs + SUN6I_IISCTL);
+
 			break;
 		case SNDRV_PCM_TRIGGER_STOP:
 		case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -342,6 +337,10 @@ static int sun6i_i2s_trigger(struct snd_pcm_substream *substream,
 			} else {
 			  sun6i_snd_txctrl_i2s(substream, 0);
 			}
+			/*Global disable Digital Audio Interface*/
+			reg_val = readl(sun6i_iis.regs + SUN6I_IISCTL);
+			reg_val &= ~SUN6I_IISCTL_GEN;
+			writel(reg_val, sun6i_iis.regs + SUN6I_IISCTL);
 			break;
 		default:
 			ret = -EINVAL;
@@ -352,183 +351,178 @@ static int sun6i_i2s_trigger(struct snd_pcm_substream *substream,
 }
 
 static int sun6i_i2s_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id, 
-                                 unsigned int freq, int dir)
+                                 unsigned int freq, int i2s_pcm_select)
 {
 	if (clk_set_rate(i2s_pll2clk, freq)) {
 		printk("try to set the i2s_pll2clk failed!\n");
 	}
+	i2s_select = i2s_pcm_select;
 
 	return 0;
 }
-static int sun6i_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int div)
+
+static int sun6i_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int sample_rate)
 {
 	u32 reg_val;
-	u32 fs;
 	u32 mclk;
 	u32 mclk_div = 0;
 	u32 bclk_div = 0;
 
-	fs = div;
 	mclk = over_sample_rate;
-	
-#ifdef I2S_COMMUNICATION
-	wss = word_select_size;
-#endif
 
-#ifdef I2S_COMMUNICATION
-	/*mclk div caculate*/
-	switch(fs)
-	{
-		case 8000:
+	if (i2s_select) {
+		/*mclk div calculate*/
+		switch(sample_rate)
 		{
-			switch(mclk)
+			case 8000:
 			{
-				case 128:	mclk_div = 24;
-							break;
-				case 192:	mclk_div = 16;
-							break;
-				case 256:	mclk_div = 12;
-							break;
-				case 384:	mclk_div = 8;
-							break;
-				case 512:	mclk_div = 6;
-							break;
-				case 768:	mclk_div = 4;
-							break;
+				switch(mclk)
+				{
+					case 128:	mclk_div = 24;
+								break;
+					case 192:	mclk_div = 16;
+								break;
+					case 256:	mclk_div = 12;
+								break;
+					case 384:	mclk_div = 8;
+								break;
+					case 512:	mclk_div = 6;
+								break;
+					case 768:	mclk_div = 4;
+								break;
+				}
+				break;
 			}
-			break;
-		}
+			
+			case 16000:
+			{
+				switch(mclk)
+				{
+					case 128:	mclk_div = 12;
+								break;
+					case 192:	mclk_div = 8;
+								break;
+					case 256:	mclk_div = 6;
+								break;
+					case 384:	mclk_div = 4;
+								break;
+					case 768:	mclk_div = 2;
+								break;
+				}
+				break;
+			}
+			
+			case 32000:
+			{
+				switch(mclk)
+				{
+					case 128:	mclk_div = 6;
+								break;
+					case 192:	mclk_div = 4;
+								break;
+					case 384:	mclk_div = 2;
+								break;
+					case 768:	mclk_div = 1;
+								break;
+				}
+				break;
+			}
+	
+			case 64000:
+			{
+				switch(mclk)
+				{
+					case 192:	mclk_div = 2;
+								break;
+					case 384:	mclk_div = 1;
+								break;
+				}
+				break;
+			}
+			
+			case 128000:
+			{
+				switch(mclk)
+				{
+					case 192:	mclk_div = 1;
+								break;
+				}
+				break;
+			}
 		
-		case 16000:
-		{
-			switch(mclk)
+			case 11025:
+			case 12000:
 			{
-				case 128:	mclk_div = 12;
-							break;
-				case 192:	mclk_div = 8;
-							break;
-				case 256:	mclk_div = 6;
-							break;
-				case 384:	mclk_div = 4;
-							break;
-				case 768:	mclk_div = 2;
-							break;
+				switch(mclk)
+				{
+					case 128:	mclk_div = 16;
+								break;
+					case 256:	mclk_div = 8;
+								break;
+					case 512:	mclk_div = 4;
+								break;
+				}
+				break;
 			}
-			break;
-		}
 		
-		case 32000:
-		{
-			switch(mclk)
+			case 22050:
+			case 24000:
 			{
-				case 128:	mclk_div = 6;
-							break;
-				case 192:	mclk_div = 4;
-							break;
-				case 384:	mclk_div = 2;
-							break;
-				case 768:	mclk_div = 1;
-							break;
+				switch(mclk)
+				{
+					case 128:	mclk_div = 8;
+								break;
+					case 256:	mclk_div = 4;
+								break;
+					case 512:	mclk_div = 2;
+								break;
+				}
+				break;
 			}
-			break;
+		
+			case 44100:
+			case 48000:
+			{
+				switch(mclk)
+				{
+					case 128:	mclk_div = 4;
+								break;
+					case 256:	mclk_div = 2;
+								break;
+					case 512:	mclk_div = 1;
+								break;
+				}
+				break;
+			}
+
+			case 88200:
+			case 96000:
+			{
+				switch(mclk)
+				{
+					case 128:	mclk_div = 2;
+								break;
+					case 256:	mclk_div = 1;
+								break;
+				}
+				break;
+			}
+				
+			case 176400:
+			case 192000:
+			{
+				mclk_div = 1;
+				break;
+			}
+		
 		}
 
-		case 64000:
-		{
-			switch(mclk)
-			{
-				case 192:	mclk_div = 2;
-							break;
-				case 384:	mclk_div = 1;
-							break;
-			}
-			break;
-		}
-		
-		case 128000:
-		{
-			switch(mclk)
-			{
-				case 192:	mclk_div = 1;
-							break;
-			}
-			break;
-		}
-	
-		case 11025:
-		case 12000:
-		{
-			switch(mclk)
-			{
-				case 128:	mclk_div = 16;
-							break;
-				case 256:	mclk_div = 8;
-							break;
-				case 512:	mclk_div = 4;
-							break;
-			}
-			break;
-		}
-	
-		case 22050:
-		case 24000:
-		{
-			switch(mclk)
-			{
-				case 128:	mclk_div = 8;
-							break;
-				case 256:	mclk_div = 4;
-							break;
-				case 512:	mclk_div = 2;
-							break;
-			}
-			break;
-		}
-	
-		case 44100:
-		case 48000:
-		{
-			switch(mclk)
-			{
-				case 128:	mclk_div = 4;
-							break;
-				case 256:	mclk_div = 2;
-							break;
-				case 512:	mclk_div = 1;
-							break;
-			}
-			break;
-		}
-			
-		case 88200:
-		case 96000:
-		{
-			switch(mclk)
-			{
-				case 128:	mclk_div = 2;
-							break;
-				case 256:	mclk_div = 1;
-							break;
-			}
-			break;
-		}
-			
-		case 176400:
-		case 192000:
-		{
-			mclk_div = 1;
-			break;
-		}
-	
+		/*bclk div caculate*/
+		bclk_div = mclk/(2*word_select_size);
+	} else {
+		mclk_div = 2;
+		bclk_div = 6;
 	}
-	
-	/*bclk div caculate*/
-	bclk_div = mclk/(2*wss);
-#else
-	mclk_div = 2;
-	bclk_div = 6;
-#endif
-
 	/*calculate MCLK Divide Ratio*/
 	switch(mclk_div)
 	{
@@ -623,7 +617,7 @@ static int sun6i_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int div
 		reg_val |= SUN6I_IISFAT1_SW;
 
 	sun6i_iis.pcm_start_slot = slot_index;
-	reg_val |=(sun6i_iis.pcm_start_slot & 0x3)<<6;		
+	reg_val |=(sun6i_iis.pcm_start_slot & 0x3)<<6;
 
 	sun6i_iis.pcm_lsb_first = msb_lsb_first;
 	reg_val |= sun6i_iis.pcm_lsb_first<<9;			
@@ -638,14 +632,28 @@ static int sun6i_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int div
 	else if (sun6i_iis.pcm_sync_period == 32)
 		reg_val |= 0x1<<12;
 	writel(reg_val, sun6i_iis.regs + SUN6I_IISFAT1);
-	
+
+I2S_DBG("%s, line:%d, slot_index:%d\n", __func__, __LINE__, slot_index);
+I2S_DBG("%s, line:%d, slot_width:%d\n", __func__, __LINE__, slot_width);
+I2S_DBG("%s, line:%d, i2s_select:%d\n", __func__, __LINE__, i2s_select);
+I2S_DBG("%s, line:%d, frame_width:%d\n", __func__, __LINE__, frame_width);
+I2S_DBG("%s, line:%d, sign_extend:%d\n", __func__, __LINE__, sign_extend);
+I2S_DBG("%s, line:%d, tx_data_mode:%d\n", __func__, __LINE__, tx_data_mode);
+I2S_DBG("%s, line:%d, rx_data_mode:%d\n", __func__, __LINE__, rx_data_mode);
+I2S_DBG("%s, line:%d, msb_lsb_first:%d\n", __func__, __LINE__, msb_lsb_first);
+I2S_DBG("%s, line:%d, pcm_sync_period:%d\n", __func__, __LINE__, pcm_sync_period);
+I2S_DBG("%s, line:%d, word_select_size:%d\n", __func__, __LINE__, word_select_size);
+I2S_DBG("%s, line:%d, over_sample_rate:%d\n", __func__, __LINE__, over_sample_rate);
+I2S_DBG("%s, line:%d, sample_resolution:%d\n", __func__, __LINE__, sample_resolution);
+
 	return 0;
 }
 
 static int sun6i_i2s_dai_probe(struct snd_soc_dai *dai)
-{			
+{
 	return 0;
 }
+
 static int sun6i_i2s_dai_remove(struct snd_soc_dai *dai)
 {
 	return 0;
@@ -680,7 +688,7 @@ static int sun6i_i2s_suspend(struct snd_soc_dai *cpu_dai)
 	u32 reg_val;
 	printk("[IIS]Entered %s\n", __func__);
 
-	/*Global Enable Digital Audio Interface*/
+	/*Global disable Digital Audio Interface*/
 	reg_val = readl(sun6i_iis.regs + SUN6I_IISCTL);
 	reg_val &= ~SUN6I_IISCTL_GEN;
 	writel(reg_val, sun6i_iis.regs + SUN6I_IISCTL);
@@ -701,6 +709,7 @@ static int sun6i_i2s_suspend(struct snd_soc_dai *cpu_dai)
 	}
 	return 0;
 }
+
 static int sun6i_i2s_resume(struct snd_soc_dai *cpu_dai)
 {
 	u32 reg_val;
@@ -753,16 +762,19 @@ static struct snd_soc_dai_driver sun6i_iis_dai = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE,
 	},
 	.ops 		= &sun6i_iis_dai_ops,	
-};		
+};
 
 static int __devinit sun6i_i2s_dev_probe(struct platform_device *pdev)
 {
+	int ret = 0;
 	int reg_val = 0;
-	int ret;
-	
+	script_item_u val;
+	script_item_value_type_e  type;
+
 	sun6i_iis.regs = ioremap(SUN6I_IISBASE, 0x100);
-	if (sun6i_iis.regs == NULL)
+	if (sun6i_iis.regs == NULL) {
 		return -ENXIO;
+	}
 
 	/*i2s apbclk*/
 	i2s_apbclk = clk_get(NULL, CLK_APB_I2S0);
@@ -796,11 +808,11 @@ static int __devinit sun6i_i2s_dev_probe(struct platform_device *pdev)
 		printk("try to get i2s_moduleclk failed\n");
 	}
 	
-	if(clk_set_parent(i2s_moduleclk, i2s_pll2clk)){
+	if (clk_set_parent(i2s_moduleclk, i2s_pll2clk)) {
 		printk("try to set parent of i2s_moduleclk to i2s_pll2ck failed! line = %d\n",__LINE__);
 	}
 	
-	if(clk_set_rate(i2s_moduleclk, 24576000/8)){
+	if (clk_set_rate(i2s_moduleclk, 24576000/8)) {
 		printk("set i2s_moduleclk clock freq to 24576000 failed! line = %d\n", __LINE__);
 	}
 	
@@ -815,7 +827,68 @@ static int __devinit sun6i_i2s_dev_probe(struct platform_device *pdev)
 	reg_val = readl(sun6i_iis.regs + SUN6I_IISCTL);
 	reg_val |= SUN6I_IISCTL_GEN;
 	writel(reg_val, sun6i_iis.regs + SUN6I_IISCTL);
-	
+
+	type = script_get_item("i2s_para", "over_sample_rate", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[I2S] over_sample_rate type err!\n");
+    }
+	over_sample_rate = val.val;
+
+	type = script_get_item("i2s_para", "sample_resolution", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[I2S] sample_resolution type err!\n");
+    }
+	sample_resolution = val.val;
+
+	type = script_get_item("i2s_para", "word_select_size", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[I2S] word_select_size type err!\n");
+    }
+	word_select_size = val.val;
+
+	type = script_get_item("i2s_para", "pcm_sync_period", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[I2S] pcm_sync_period type err!\n");
+    }
+	pcm_sync_period = val.val;
+
+	type = script_get_item("i2s_para", "msb_lsb_first", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[I2S] msb_lsb_first type err!\n");
+    }
+	msb_lsb_first = val.val;
+	type = script_get_item("i2s_para", "sign_extend", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[I2S] sign_extend type err!\n");
+    }
+	sign_extend = val.val;
+	type = script_get_item("i2s_para", "slot_index", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[I2S] slot_index type err!\n");
+    }
+	slot_index = val.val;
+	type = script_get_item("i2s_para", "slot_width", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[I2S] slot_width type err!\n");
+    }
+	slot_width = val.val;
+	type = script_get_item("i2s_para", "frame_width", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[I2S] frame_width type err!\n");
+    }
+	frame_width = val.val;
+	type = script_get_item("i2s_para", "tx_data_mode", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[I2S] tx_data_mode type err!\n");
+    }
+	tx_data_mode = val.val;
+			
+	type = script_get_item("i2s_para", "rx_data_mode", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[I2S] rx_data_mode type err!\n");
+    }
+	rx_data_mode = val.val;
+
 	ret = snd_soc_register_dai(&pdev->dev, &sun6i_iis_dai);	
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register DAI\n");
@@ -893,6 +966,13 @@ static int __init sun6i_i2s_init(void)
     }
 
 	i2s_used = val.val;
+
+	type = script_get_item("i2s_para", "i2s_select", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[I2S] i2s_select type err!\n");
+    }
+	i2s_select = val.val;
+
  	if (i2s_used) {
 		/* get gpio list */
 		cnt = script_get_pio_list("i2s_para", &list);
