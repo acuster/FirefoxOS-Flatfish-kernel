@@ -712,7 +712,7 @@ static int __init axp22_board_init(void)
         if (ret)
         {
  //           printk("axp driver uning configuration failed(%d)\n", __LINE__);
-            pmu_battery_cap = BATTERYCAP;
+            pmu_battery_cap = 4000;
         }
         
         ret = axp_script_parser_fetch("pmu_para", "pmu_batdeten", &pmu_batdeten, sizeof(int));

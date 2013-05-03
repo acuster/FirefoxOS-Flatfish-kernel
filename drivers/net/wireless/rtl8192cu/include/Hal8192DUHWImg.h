@@ -36,7 +36,7 @@ extern const u32 Rtl8192DUPHY_REG_2TArray[Rtl8192DUPHY_REG_2TArrayLength];
 extern const u32 Rtl8192DUPHY_REG_1TArray[Rtl8192DUPHY_REG_1TArrayLength];
 #define Rtl8192DUPHY_REG_Array_PGLength 624
 extern const u32 Rtl8192DUPHY_REG_Array_PG[Rtl8192DUPHY_REG_Array_PGLength];
-#define Rtl8192DUPHY_REG_Array_MPLength 12
+#define Rtl8192DUPHY_REG_Array_MPLength 14
 extern const u32 Rtl8192DUPHY_REG_Array_MP[Rtl8192DUPHY_REG_Array_MPLength];
 #define Rtl8192DURadioA_2TArrayLength 378
 extern const u32 Rtl8192DURadioA_2TArray[Rtl8192DURadioA_2TArrayLength];

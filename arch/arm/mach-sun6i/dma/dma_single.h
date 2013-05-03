@@ -16,13 +16,12 @@
 #ifndef __DMA_SINGLE_H
 #define __DMA_SINGLE_H
 
-void dma_irq_hdl_single(struct dma_channel_t *pchan, u32 upend_bits);
-u32 dma_enqueue_single(dm_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt,
-				enum dma_enque_phase_e phase);
-u32 dma_config_single(dm_hdl_t dma_hdl, struct dma_config_t *pcfg, enum dma_enque_phase_e phase);
-u32 dma_ctrl_single(dm_hdl_t dma_hdl, enum dma_op_type_e op, void *parg);
-u32 dma_release_single(dm_hdl_t dma_hdl);
-u32 dma_request_init_single(struct dma_channel_t *pchan);
+void dma_irq_hdl_single(dma_channel_t *pchan, u32 upend_bits);
+void dma_enqueue_single(dm_hdl_t dma_hdl, u32 src_addr, u32 dst_addr, u32 byte_cnt);
+void dma_config_single(dm_hdl_t dma_hdl, struct dma_config_t *pcfg);
+void dma_ctrl_single(dm_hdl_t dma_hdl, enum dma_op_type_e op, void *parg);
+void dma_release_single(dm_hdl_t dma_hdl);
+void dma_request_init_single(dma_channel_t *pchan);
 
 #endif  /* __DMA_SINGLE_H */
 

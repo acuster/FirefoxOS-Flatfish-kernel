@@ -53,7 +53,7 @@
 
 
 #define ISP_AE_EXP_CHANGE_INTER    2
-#define ISP_AE_ANG_CHANGE_INTER    1
+#define ISP_AE_ANG_CHANGE_INTER    1//1
 #define ISP_AE_DIG_CHANGE_INTER    0
 
 
@@ -79,7 +79,7 @@
 #define ISP_SHARP_LEVEL_MIN      0
 #define ISP_SHARP_LEVEL_MAX      15
 #define ISP_SHARP_MIN_VALUE      32
-#define ISP_SHARP_MAX_VALUE      255
+#define ISP_SHARP_MAX_VALUE      128
 
 /* 3A Default Constants */
 #define DBG_FRAME_WIDTH          2592
@@ -268,6 +268,7 @@ enum isp_test_mode
   ISP_TEST_COLOR                = 4,
   ISP_TEST_COLOR_MATRIX         = 5,
   ISP_TEST_VCM_RANGE            = 6,
+  ISP_TEST_MANUAL    			= 7,
 };
 
 struct sensor_band_step_config
@@ -320,8 +321,12 @@ struct isp_3a_result
   unsigned int exp_line_num;          //20bits,Q4
   unsigned int exp_analog_gain;       //16bits,Q8
   unsigned int exp_digital_gain;      //16bits,Q8
-  unsigned int frame_rate;
+  unsigned int ae_gain;               //16bits,Q8
+  unsigned int sensor_exp_gain;
+  unsigned int night_mode_change;  
+  unsigned int night_mode;
 
+  unsigned int exp_value;                       /* us */
   int min_rgb_pre[8];
 
   unsigned int exp_temp;              //20bits,Q4
@@ -348,6 +353,7 @@ struct isp_3a_result
   int hdr_req;
 
   int iso_value;                  /* 真实iso，用于照片显示信息 */
+  int exp_time;                   /* us */
   unsigned int exp_cal_gain;      /* AE算法计算得来的相对增益，AF算法与AFS要用到 */
 
   /* Flicker Output */
@@ -442,6 +448,7 @@ struct exposure_settings
   enum flash_mode flash_mode; 
   enum exposure_mode exp_mode;
   enum exposure_win_mode exp_win_mode;
+  unsigned int key_block_win[64];
   enum iso_mode iso_mode;
   enum power_line_frequency flicker_mode;
   isp_bool exposure_lock;
@@ -546,19 +553,22 @@ struct isp_init_config
   int af_en;
   int awb_en;
   int drc_en;  
-  
+  int high_quality_mode_en;
   /*maybe change color matrix*/
   int defog_en;
   int satur_en;
   int pri_contrast_en;
   
   /*isp tune param */
+  int denoise_level;
+  int sharpness_level;
   int pri_contrast;  
   int lsc_center[2];
   int vcm_min_code;
   int vcm_max_code;  	
-  int bayer_gain_offset[8];  
-  unsigned short lsc_tbl[7][768];  
+  int bayer_gain_offset[8];
+  unsigned char  denoise_tbl[12];
+  unsigned short lsc_tbl[7][768];
   unsigned short hdr_tbl[4][256];
   unsigned short gamma_tbl[256];  
   struct isp_rgb2rgb_gain_offset color_matrix_ini;  
@@ -589,7 +599,6 @@ struct isp_gen_settings
   int brightness;
   int saturation;
   int hue;
-  int take_picture_flag;
   /* gsensor的值 */
   enum gsensor_direction gsensor_dir;
   
@@ -620,6 +629,10 @@ struct isp_gen_settings
   /* 调试等级 */
   unsigned alg_frame_cnt;
   unsigned take_pic_start_cnt;
+  int take_picture_flag;
+  int isp_nigth_mode_flag;
+  int take_picture_done;
+  
   enum isp_test_mode test_mode;
   int man_focus_len;
   int man_gain;

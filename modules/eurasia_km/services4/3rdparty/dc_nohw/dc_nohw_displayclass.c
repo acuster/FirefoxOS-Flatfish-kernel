@@ -362,7 +362,8 @@ static PVRSRV_ERROR CreateDCSwapChain(IMG_HANDLE hDevice,
 	|| !psDstSurfAttrib
 	|| !psSrcSurfAttrib
 	|| !ppsSyncData
-	|| !phSwapChain)
+	|| !phSwapChain
+	|| !ui32BufferCount)
 	{
 		return (PVRSRV_ERROR_INVALID_PARAMS);
 	}

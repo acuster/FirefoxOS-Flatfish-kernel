@@ -1,5 +1,5 @@
 /*************************************************************************/ /*!
-@Title          SUNXI linux display driver components
+@Title          OMAP linux display driver components
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
 @License        Dual MIT/GPLv2
 
@@ -37,7 +37,6 @@ PURPOSE AND NONINFRINGEMENT; AND (B) IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-  
 */ /**************************************************************************/
 
 /**************************************************************************
@@ -90,94 +89,94 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 MODULE_SUPPORTED_DEVICE(DEVNAME);
 
 
-void *SUNXILFBAllocKernelMem(unsigned long ulSize)
+void *OMAPLFBAllocKernelMem(unsigned long ulSize)
 {
 	return kmalloc(ulSize, GFP_KERNEL);
 }
 
-void SUNXILFBFreeKernelMem(void *pvMem)
+void OMAPLFBFreeKernelMem(void *pvMem)
 {
 	kfree(pvMem);
 }
 
-void SUNXILFBCreateSwapChainLockInit(SUNXILFB_DEVINFO *psDevInfo)
+void OMAPLFBCreateSwapChainLockInit(OMAPLFB_DEVINFO *psDevInfo)
 {
 	mutex_init(&psDevInfo->sCreateSwapChainMutex);
 }
 
-void SUNXILFBCreateSwapChainLockDeInit(SUNXILFB_DEVINFO *psDevInfo)
+void OMAPLFBCreateSwapChainLockDeInit(OMAPLFB_DEVINFO *psDevInfo)
 {
 	mutex_destroy(&psDevInfo->sCreateSwapChainMutex);
 }
 
-void SUNXILFBCreateSwapChainLock(SUNXILFB_DEVINFO *psDevInfo)
+void OMAPLFBCreateSwapChainLock(OMAPLFB_DEVINFO *psDevInfo)
 {
 	mutex_lock(&psDevInfo->sCreateSwapChainMutex);
 }
 
-void SUNXILFBCreateSwapChainUnLock(SUNXILFB_DEVINFO *psDevInfo)
+void OMAPLFBCreateSwapChainUnLock(OMAPLFB_DEVINFO *psDevInfo)
 {
 	mutex_unlock(&psDevInfo->sCreateSwapChainMutex);
 }
 
-void SUNXILFBAtomicBoolInit(SUNXILFB_ATOMIC_BOOL *psAtomic, SUNXILFB_BOOL bVal)
+void OMAPLFBAtomicBoolInit(OMAPLFB_ATOMIC_BOOL *psAtomic, OMAPLFB_BOOL bVal)
 {
 	atomic_set(psAtomic, (int)bVal);
 }
 
-void SUNXILFBAtomicBoolDeInit(SUNXILFB_ATOMIC_BOOL *psAtomic)
+void OMAPLFBAtomicBoolDeInit(OMAPLFB_ATOMIC_BOOL *psAtomic)
 {
 }
 
-void SUNXILFBAtomicBoolSet(SUNXILFB_ATOMIC_BOOL *psAtomic, SUNXILFB_BOOL bVal)
+void OMAPLFBAtomicBoolSet(OMAPLFB_ATOMIC_BOOL *psAtomic, OMAPLFB_BOOL bVal)
 {
 	atomic_set(psAtomic, (int)bVal);
 }
 
-SUNXILFB_BOOL SUNXILFBAtomicBoolRead(SUNXILFB_ATOMIC_BOOL *psAtomic)
+OMAPLFB_BOOL OMAPLFBAtomicBoolRead(OMAPLFB_ATOMIC_BOOL *psAtomic)
 {
-	return (SUNXILFB_BOOL)atomic_read(psAtomic);
+	return (OMAPLFB_BOOL)atomic_read(psAtomic);
 }
 
-void SUNXILFBAtomicIntInit(SUNXILFB_ATOMIC_INT *psAtomic, int iVal)
-{
-	atomic_set(psAtomic, iVal);
-}
-
-void SUNXILFBAtomicIntDeInit(SUNXILFB_ATOMIC_INT *psAtomic)
-{
-}
-
-void SUNXILFBAtomicIntSet(SUNXILFB_ATOMIC_INT *psAtomic, int iVal)
+void OMAPLFBAtomicIntInit(OMAPLFB_ATOMIC_INT *psAtomic, int iVal)
 {
 	atomic_set(psAtomic, iVal);
 }
 
-int SUNXILFBAtomicIntRead(SUNXILFB_ATOMIC_INT *psAtomic)
+void OMAPLFBAtomicIntDeInit(OMAPLFB_ATOMIC_INT *psAtomic)
+{
+}
+
+void OMAPLFBAtomicIntSet(OMAPLFB_ATOMIC_INT *psAtomic, int iVal)
+{
+	atomic_set(psAtomic, iVal);
+}
+
+int OMAPLFBAtomicIntRead(OMAPLFB_ATOMIC_INT *psAtomic)
 {
 	return atomic_read(psAtomic);
 }
 
-void SUNXILFBAtomicIntInc(SUNXILFB_ATOMIC_INT *psAtomic)
+void OMAPLFBAtomicIntInc(OMAPLFB_ATOMIC_INT *psAtomic)
 {
 	atomic_inc(psAtomic);
 }
 
-SUNXILFB_ERROR SUNXILFBGetLibFuncAddr (char *szFunctionName, PFN_DC_GET_PVRJTABLE *ppfnFuncTable)
+OMAPLFB_ERROR OMAPLFBGetLibFuncAddr (char *szFunctionName, PFN_DC_GET_PVRJTABLE *ppfnFuncTable)
 {
 	if(strcmp("PVRGetDisplayClassJTable", szFunctionName) != 0)
 	{
-		return (SUNXILFB_ERROR_INVALID_PARAMS);
+		return (OMAPLFB_ERROR_INVALID_PARAMS);
 	}
 
 	/* Nothing to do - should be exported from pvrsrv.ko */
 	*ppfnFuncTable = PVRGetDisplayClassJTable;
 
-	return (SUNXILFB_OK);
+	return (OMAPLFB_OK);
 }
 
 /* Inset a swap buffer into the swap chain work queue */
-void SUNXILFBQueueBufferForSwap(SUNXILFB_SWAPCHAIN *psSwapChain, SUNXILFB_BUFFER *psBuffer)
+void OMAPLFBQueueBufferForSwap(OMAPLFB_SWAPCHAIN *psSwapChain, OMAPLFB_BUFFER *psBuffer)
 {
 	int res = queue_work(psSwapChain->psWorkQueue, &psBuffer->sWork);
 
@@ -190,13 +189,13 @@ void SUNXILFBQueueBufferForSwap(SUNXILFB_SWAPCHAIN *psSwapChain, SUNXILFB_BUFFER
 /* Process an item on a swap chain work queue */
 static void WorkQueueHandler(struct work_struct *psWork)
 {
-	SUNXILFB_BUFFER *psBuffer = container_of(psWork, SUNXILFB_BUFFER, sWork);
+	OMAPLFB_BUFFER *psBuffer = container_of(psWork, OMAPLFB_BUFFER, sWork);
 
-	SUNXILFBSwapHandler(psBuffer);
+	OMAPLFBSwapHandler(psBuffer);
 }
 
 /* Create a swap chain work queue */
-SUNXILFB_ERROR SUNXILFBCreateSwapQueue(SUNXILFB_SWAPCHAIN *psSwapChain)
+OMAPLFB_ERROR OMAPLFBCreateSwapQueue(OMAPLFB_SWAPCHAIN *psSwapChain)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
 	/*
@@ -227,32 +226,32 @@ SUNXILFB_ERROR SUNXILFBCreateSwapQueue(SUNXILFB_SWAPCHAIN *psSwapChain)
 	{
 		printk(KERN_ERR DRIVER_PREFIX ": %s: Device %u: Couldn't create workqueue\n", __FUNCTION__, psSwapChain->uiFBDevID);
 
-		return (SUNXILFB_ERROR_INIT_FAILURE);
+		return (OMAPLFB_ERROR_INIT_FAILURE);
 	}
 
-	return (SUNXILFB_OK);
+	return (OMAPLFB_OK);
 }
 
 /* Prepare buffer for insertion into a swap chain work queue */
-void SUNXILFBInitBufferForSwap(SUNXILFB_BUFFER *psBuffer)
+void OMAPLFBInitBufferForSwap(OMAPLFB_BUFFER *psBuffer)
 {
 	INIT_WORK(&psBuffer->sWork, WorkQueueHandler);
 }
 
 /* Destroy a swap chain work queue */
-void SUNXILFBDestroySwapQueue(SUNXILFB_SWAPCHAIN *psSwapChain)
+void OMAPLFBDestroySwapQueue(OMAPLFB_SWAPCHAIN *psSwapChain)
 {
 	destroy_workqueue(psSwapChain->psWorkQueue);
 }
 
 /* Flip display to given buffer */
-void SUNXILFBFlip(SUNXILFB_DEVINFO *psDevInfo, SUNXILFB_BUFFER *psBuffer)
+void OMAPLFBFlip(OMAPLFB_DEVINFO *psDevInfo, OMAPLFB_BUFFER *psBuffer)
 {
 	struct fb_var_screeninfo sFBVar;
 	int res;
 	unsigned long ulYResVirtual;
 
-	SUNXILFB_CONSOLE_LOCK();
+	OMAPLFB_CONSOLE_LOCK();
 
 	sFBVar = psDevInfo->psLINFBInfo->var;
 
@@ -262,7 +261,7 @@ void SUNXILFBFlip(SUNXILFB_DEVINFO *psDevInfo, SUNXILFB_BUFFER *psBuffer)
 	ulYResVirtual = psBuffer->ulYOffset + sFBVar.yres;
 
 	/*
-	 * PVR_SUNXILFB_DONT_USE_FB_PAN_DISPLAY should be defined to work
+	 * PVR_OMAPLFB_DONT_USE_FB_PAN_DISPLAY should be defined to work
 	 * around flipping problems seen with the Taal LCDs on Blaze.
 	 * The work around is safe to use with other types of screen on Blaze
 	 * (e.g. HDMI) and on other platforms (e.g. Panda board).
@@ -293,76 +292,92 @@ void SUNXILFBFlip(SUNXILFB_DEVINFO *psDevInfo, SUNXILFB_BUFFER *psBuffer)
 		}
 	}
 
-	SUNXILFB_CONSOLE_UNLOCK();
+	OMAPLFB_CONSOLE_UNLOCK();
+}
+
+OMAPLFB_UPDATE_MODE OMAPLFBGetUpdateMode(OMAPLFB_DEVINFO *psDevInfo)
+{
+	return OMAPLFB_UPDATE_MODE_AUTO;
 }
 
 
-/* Wait for VSync */
-SUNXILFB_BOOL SUNXILFBWaitForVSync(SUNXILFB_DEVINFO *psDevInfo)
+void OMAPLFBPrintInfo(OMAPLFB_DEVINFO *psDevInfo)
 {
-	return SUNXILFB_TRUE;
+    return;
+}
+
+/* Wait for VSync */
+OMAPLFB_BOOL OMAPLFBWaitForVSync(OMAPLFB_DEVINFO *psDevInfo)
+{
+	return OMAPLFB_TRUE;
 }
 
 /*
  * Wait for screen to update.  If the screen is in manual or auto update
  * mode, we can call this function to wait for the screen to update.
  */
-SUNXILFB_BOOL SUNXILFBManualSync(SUNXILFB_DEVINFO *psDevInfo)
+OMAPLFB_BOOL OMAPLFBManualSync(OMAPLFB_DEVINFO *psDevInfo)
 {
-	return SUNXILFB_TRUE;
+	return OMAPLFB_TRUE;
 }
 
 /*
  * If the screen is manual or auto update mode, wait for the screen to
  * update.
  */
-SUNXILFB_BOOL SUNXILFBCheckModeAndSync(SUNXILFB_DEVINFO *psDevInfo)
+OMAPLFB_BOOL OMAPLFBCheckModeAndSync(OMAPLFB_DEVINFO *psDevInfo)
 {
-	SUNXILFB_UPDATE_MODE eMode = SUNXILFB_UPDATE_MODE_AUTO;
+	OMAPLFB_UPDATE_MODE eMode = OMAPLFB_UPDATE_MODE_AUTO;
 
 	switch(eMode)
 	{
-		case SUNXILFB_UPDATE_MODE_AUTO:
-		case SUNXILFB_UPDATE_MODE_MANUAL:
-			return SUNXILFBManualSync(psDevInfo);
+		case OMAPLFB_UPDATE_MODE_AUTO:
+		case OMAPLFB_UPDATE_MODE_MANUAL:
+			return OMAPLFBManualSync(psDevInfo);
 		default:
 			break;
 	}
 
-	return SUNXILFB_TRUE;
+	return OMAPLFB_TRUE;
 }
 
 /* Unblank the screen */
-SUNXILFB_ERROR SUNXILFBUnblankDisplay(SUNXILFB_DEVINFO *psDevInfo)
+OMAPLFB_ERROR OMAPLFBUnblankDisplay(OMAPLFB_DEVINFO *psDevInfo)
 {
 	int res;
 
-	SUNXILFB_CONSOLE_LOCK();
+	OMAPLFB_CONSOLE_LOCK();
 	res = fb_blank(psDevInfo->psLINFBInfo, 0);
-	SUNXILFB_CONSOLE_UNLOCK();
+	OMAPLFB_CONSOLE_UNLOCK();
 	if (res != 0 && res != -EINVAL)
 	{
 		printk(KERN_ERR DRIVER_PREFIX
 			": %s: Device %u: fb_blank failed (%d)\n", __FUNCTION__, psDevInfo->uiFBDevID, res);
-		return (SUNXILFB_ERROR_GENERIC);
+		return (OMAPLFB_ERROR_GENERIC);
 	}
 
-	return (SUNXILFB_OK);
+	return (OMAPLFB_OK);
+}
+
+/* Set up Linux Framebuffer event notification */
+OMAPLFB_ERROR OMAPLFBEnableLFBEventNotification(OMAPLFB_DEVINFO *psDevInfo)
+{
+	return (OMAPLFB_OK);
 }
 
 /* Disable Linux Framebuffer event notification */
-SUNXILFB_ERROR SUNXILFBDisableLFBEventNotification(SUNXILFB_DEVINFO *psDevInfo)
+OMAPLFB_ERROR OMAPLFBDisableLFBEventNotification(OMAPLFB_DEVINFO *psDevInfo)
 {
-	return (SUNXILFB_OK);
+	return (OMAPLFB_OK);
 }
 
 
 /* Insert the driver into the kernel */
-static int __init SUNXILFB_Init(void)
+static int __init OMAPLFB_Init(void)
 {    
-	if(SUNXILFBInit() != SUNXILFB_OK)
+	if(OMAPLFBInit() != OMAPLFB_OK)
 	{
-		printk(KERN_ERR DRIVER_PREFIX ": %s: SUNXILFBInit failed\n", __FUNCTION__);
+		printk(KERN_ERR DRIVER_PREFIX ": %s: OMAPLFBInit failed\n", __FUNCTION__);
 		return -ENODEV;
 	}
 
@@ -371,11 +386,11 @@ static int __init SUNXILFB_Init(void)
 }
 
 /* Remove the driver from the kernel */
-static void __exit SUNXILFB_Cleanup(void)
+static void __exit OMAPLFB_Cleanup(void)
 {    
-	if(SUNXILFBDeInit() != SUNXILFB_OK)
+	if(OMAPLFBDeInit() != OMAPLFB_OK)
 	{
-		printk(KERN_ERR DRIVER_PREFIX ": %s: SUNXILFBDeInit failed\n", __FUNCTION__);
+		printk(KERN_ERR DRIVER_PREFIX ": %s: OMAPLFBDeInit failed\n", __FUNCTION__);
 	}
 }
 
@@ -385,5 +400,5 @@ static void __exit SUNXILFB_Cleanup(void)
  statically as well; in both cases they define the function the kernel will
  run to start/stop the driver.
 */
-late_initcall(SUNXILFB_Init);
-module_exit(SUNXILFB_Cleanup);
+late_initcall(OMAPLFB_Init);
+module_exit(OMAPLFB_Cleanup);

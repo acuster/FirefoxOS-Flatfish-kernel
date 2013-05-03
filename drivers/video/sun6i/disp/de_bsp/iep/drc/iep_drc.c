@@ -25,7 +25,7 @@ static __u32 drc_reg_bak[2];
 
 //#define DRC_DEFAULT_ENABLE	//Enable drc default
 //#define DRC_DEMO_HALF_SCREEN //when defined DRC_DEFAULT_ENABLE, run DRC in DEMO mode 		
-#define PWRSAVE_PROC_THRES	85 //when BSP_disp_lcd_get_bright() exceed PWRSAVE_PROC_THRES, STOP PWRSAVE.
+__u32 PWRSAVE_PROC_THRES = 85; //when BSP_disp_lcd_get_bright() exceed PWRSAVE_PROC_THRES, STOP PWRSAVE.
 
 #define ____SEPARATOR_DRC_CLK____
 __s32 drc_clk_init(__u32 sel)
@@ -570,6 +570,24 @@ __s32 IEP_Drc_Init(__u32 sel)
 	}
 
 	memcpy(pttab[sel], pwrsv_lgc_tab[128*lcdgamma], IEP_LGC_TAB_SIZE);
+
+    ret = OSAL_Script_FetchParser_Data(primary_key, "smartbl_low_limit", &value, 1);
+	if(ret < 0)
+	{
+		DE_INF("smartbl_low_limit for lcd%d not exist.\n", sel);
+	}
+	else
+	{
+		DE_INF("smartbl_low_limit for lcd%d = %d.\n", sel, value);
+		if(value > 255 || value < 20)
+		{
+			DE_INF("smartbl_low_limit for lcd%d too small or too large. default value 85 will be set. please set it between 20 and 255 to make it valid.\n",sel);
+		}
+		else
+		{
+			PWRSAVE_PROC_THRES = value;
+		}
+	}
 	
 #ifdef DRC_DEFAULT_ENABLE
 #ifdef DRC_DEMO_HALF_SCREEN

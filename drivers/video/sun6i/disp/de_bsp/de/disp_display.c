@@ -60,7 +60,7 @@ __s32 BSP_disp_init(__disp_bsp_init_para * para)
     BSP_disp_close_lcd_backlight(0);
     BSP_disp_close_lcd_backlight(1);
 
-	disp_pll_init();
+	
 
     Scaler_Init(0);
     Scaler_Init(1);
@@ -74,6 +74,8 @@ __s32 BSP_disp_init(__disp_bsp_init_para * para)
     iep_init(1);
 
     disp_video_init();
+
+    disp_pll_init();
 
     return DIS_SUCCESS;
 }

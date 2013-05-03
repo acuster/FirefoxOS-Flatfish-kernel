@@ -4030,6 +4030,19 @@ static int sensor_enum_fmt(struct v4l2_subdev *sd, unsigned index,
   return 0;
 }
 
+static int sensor_enum_size(struct v4l2_subdev *sd,
+                            struct v4l2_frmsizeenum *fsize)
+{
+  if(fsize->index > N_WIN_SIZES-1)
+  	return -EINVAL;
+  
+  fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+  fsize->discrete.width = sensor_win_sizes[fsize->index].width;
+  fsize->discrete.height = sensor_win_sizes[fsize->index].height;
+  
+  return 0;
+}
+
 
 static int sensor_try_fmt_internal(struct v4l2_subdev *sd,
     struct v4l2_mbus_framefmt *fmt,
@@ -4644,6 +4657,7 @@ static const struct v4l2_subdev_core_ops sensor_core_ops = {
 
 static const struct v4l2_subdev_video_ops sensor_video_ops = {
   .enum_mbus_fmt = sensor_enum_fmt,
+  .enum_framesizes = sensor_enum_size,
   .try_mbus_fmt = sensor_try_fmt,
   .s_mbus_fmt = sensor_s_fmt,
   .s_parm = sensor_s_parm,

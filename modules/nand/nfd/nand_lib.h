@@ -72,12 +72,19 @@ extern __s32 LML_Exit(void);
 extern __s32 LML_Read(__u32 nLba, __u32 nLength, void* pBuf);
 extern __s32 LML_Write(__u32 nLba, __u32 nLength, void* pBuf);
 extern __s32 LML_FlushPageCache(void);
+extern void  LML_MergeLogBlk_Quit(void);
 
-extern __s32 BMM_RleaseLogBlock(__u32 log_level);
+extern __s32 BMM_GetLogReleasePos(__u32 log_level);
+extern __s32 BMM_CheckLastUsedPage(__u32 pos);
+extern __s32 BMM_GetLogReleaseLogBlk(__u32 pos);
+extern __s32 BMM_RleaseLogBlock(__s32 tmpPst, __s32 start_page, __u32 merge_page_cnt);
 extern __s32 BMM_WriteBackAllMapTbl(void);
+extern __s32 BMM_GetLogCnt(void);
 
 extern __s32 NAND_CacheFlush(void);
+extern __s32 NAND_CacheFlushSingle(void);
 extern __s32 NAND_CacheFlushDev(__u32 dev_num);
+extern __s32 NAND_CacheFlushLogicBlk(__u32 logicblk);
 extern __s32 NAND_CacheRead(__u32 blk, __u32 nblk, void *buf);
 extern __s32 NAND_CacheReadSecs(__u32 blk, __u32 nblk, void *buf);
 extern __s32 NAND_CacheWrite(__u32 blk, __u32 nblk, void *buf);
@@ -130,6 +137,7 @@ extern __u32 NAND_GetChipConnect(void);
 extern __u32 NAND_GetChipCnt(void);
 extern __u32 NAND_GetPageSize(void);
 extern __u32 NAND_GetLogicPageSize(void);
+extern __u32 NAND_GetLogicPageCnt(void);
 extern __u32 NAND_GetPageCntPerBlk(void);
 extern __u32 NAND_GetBlkCntPerChip(void);
 extern __u32 NAND_GetChipCnt(void);

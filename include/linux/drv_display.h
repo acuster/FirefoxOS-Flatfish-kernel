@@ -545,6 +545,8 @@ typedef struct
     __s32 (*hdmi_get_input_csc)(void);
     __s32 (*hdmi_suspend)(void);
     __s32 (*hdmi_resume)(void);
+    __s32 (*hdmi_early_suspend)(void);
+    __s32 (*hdmi_late_resume)(void);
 }__disp_hdmi_func;
 
 typedef struct
@@ -633,6 +635,9 @@ typedef struct
 	__u32 	lcd_cmap_en;
     __u32   lcd_bright_curve_en;
     __panel_extend_para_t lcd_extend_para;
+
+    char    lcd_size[8]; //e.g. 7.9, 9.7
+    char    lcd_model_name[32];
 
 	__u32   tcon_index; //not need to config for user
 	__u32	lcd_fresh_mode;//not need to config for user
@@ -758,10 +763,10 @@ typedef struct
 typedef struct
 {   
     int                 post2_layers;
-    __bool              use_sgx;
-    __disp_layer_info_t layer_info[4];
+    __disp_layer_info_t layer_info[8];
     __disp_rect_t       fb_scn_win;
-    __u32               fb_yoffset;
+
+    int                 primary_display_layer_num;
 }setup_dispc_data_t;
 
 typedef enum tag_DISP_CMD
@@ -814,6 +819,7 @@ typedef enum tag_DISP_CMD
     DISP_CMD_SET_ENHANCE_WINDOW = 0X2f,
     DISP_CMD_GET_ENHANCE_WINDOW = 0X30,
     DISP_CMD_SET_OVL_MODE = 0x31,
+    DISP_CMD_BLANK = 0x32,
 
 //----layer----
     DISP_CMD_LAYER_REQUEST = 0x40,
@@ -906,6 +912,9 @@ typedef enum tag_DISP_CMD
     DISP_CMD_LCD_BACKLIGHT_ON  = 0x14e,
     DISP_CMD_LCD_BACKLIGHT_OFF  = 0x14f,
     DISP_CMD_LCD_SET_FPS  = 0x150,
+    DISP_CMD_LCD_GET_FPS  = 0x151,
+    DISP_CMD_LCD_GET_SIZE = 0x152,
+    DISP_CMD_LCD_GET_MODEL_NAME = 0x153,
 
 //----tv----
     DISP_CMD_TV_ON = 0x180,

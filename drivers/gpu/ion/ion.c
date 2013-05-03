@@ -800,6 +800,8 @@ static void ion_vma_open(struct vm_area_struct *vma)
 	/* check that the client still exists and take a reference so
 	   it can't go away until this vma is closed */
 	client = ion_client_lookup(buffer->dev, current->group_leader);
+	if (handle)
+		ion_handle_get(handle);
 	if (IS_ERR_OR_NULL(client)) {
 		vma->vm_private_data = NULL;
 		return;

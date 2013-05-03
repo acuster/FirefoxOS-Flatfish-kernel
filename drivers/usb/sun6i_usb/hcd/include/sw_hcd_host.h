@@ -115,6 +115,8 @@ int sw_hcd_bus_resume(struct usb_hcd *hcd);
 
 void sw_hcd_host_rx(struct sw_hcd *sw_hcd, u8 epnum);
 void sw_hcd_host_tx(struct sw_hcd *sw_hcd, u8 epnum);
+#define  USB_SET_VBUS_ON                   1
+#define  USB_SET_VBUS_OFF                  0
 
 
 #endif   //__SW_HCD_HOST_H__

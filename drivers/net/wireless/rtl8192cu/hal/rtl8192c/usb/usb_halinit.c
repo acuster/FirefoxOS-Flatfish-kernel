@@ -2356,6 +2356,12 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC31);
 	rtw_write16(Adapter, REG_BCN_CTRL, 0x1818);	// For 2 PORT TSF SYNC
 
 
+
+#ifdef CONFIG_XMIT_ACK
+	//ack for xmit mgmt frames.
+	rtw_write32(Adapter, REG_FWHW_TXQ_CTRL, rtw_read32(Adapter, REG_FWHW_TXQ_CTRL)|BIT(12));
+#endif //CONFIG_XMIT_ACK
+
 exit:
 HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_END);
 
@@ -2490,7 +2496,8 @@ phy_SsPwrSwitch92CU(
 
 					// Set BB reset at first
 					rtw_write8(Adapter, REG_SYS_FUNC_EN, 0x17 );//0x16		
-
+					//undo clock gated
+					rtw_write32(Adapter, rFPGA0_XCD_RFParameter, rtw_read32(Adapter, rFPGA0_XCD_RFParameter)&(~BIT31));
 					// Enable TX
 					rtw_write8(Adapter, REG_TXPAUSE, 0x0);
 				}
@@ -2567,7 +2574,8 @@ phy_SsPwrSwitch92CU(
 
 						// After switch APSD, we need to delay for stability
 						rtw_mdelay_os(10);
-
+						//before BB reset should do clock gated
+						rtw_write32(Adapter, rFPGA0_XCD_RFParameter, rtw_read32(Adapter, rFPGA0_XCD_RFParameter)|(BIT31));
 						// Set BB reset at first
 						value8 = 0 ; 
 						value8 |=( FEN_USBD | FEN_USBA | FEN_BB_GLB_RSTn);
@@ -2742,7 +2750,9 @@ _ResetBB(
 	)
 {
 	u16	value16;
-
+	
+	//before BB reset should do clock gated
+	rtw_write32(Adapter, rFPGA0_XCD_RFParameter, rtw_read32(Adapter, rFPGA0_XCD_RFParameter)|(BIT31));
 	//reset BB
 	value16 = rtw_read16(Adapter, REG_SYS_FUNC_EN);
 	value16 &= ~(FEN_BBRSTB | FEN_BB_GLB_RSTn);
@@ -2838,7 +2848,8 @@ e.	SYS_FUNC_EN 0x02[7:0] = 0x14		//reset BB state machine
 
 	value8 |= APSDOFF;
 	rtw_write8(Adapter, REG_APSD_CTRL, value8);//0x40
-	
+	//before BB reset should do clock gated
+	rtw_write32(Adapter, rFPGA0_XCD_RFParameter, rtw_read32(Adapter, rFPGA0_XCD_RFParameter)|(BIT31));
 	value8 = 0 ; 
 	value8 |=( FEN_USBD | FEN_USBA | FEN_BB_GLB_RSTn);
 	rtw_write8(Adapter, REG_SYS_FUNC_EN,value8 );//0x16		
@@ -4786,9 +4797,9 @@ static void hw_var_set_mlme_sitesurvey(PADAPTER Adapter, u8 variable, u8* val)
 	}
 	else//sitesurvey done
 	{
-		if(check_fwstate(pmlmepriv, _FW_LINKED) 
+		if(check_fwstate(pmlmepriv, _FW_LINKED) || check_fwstate(pmlmepriv, WIFI_AP_STATE)
 #ifdef CONFIG_CONCURRENT_MODE
-			|| check_buddy_fwstate(Adapter, _FW_LINKED)
+			|| check_buddy_fwstate(Adapter, _FW_LINKED) || check_buddy_fwstate(Adapter, WIFI_AP_STATE)
 #endif
 			)
 		{
@@ -6207,8 +6218,8 @@ _func_enter_;
 	//pHalFunc->Add_RateATid = &rtl8192c_Add_RateATid;
 
 //#ifdef CONFIG_SW_ANTENNA_DIVERSITY
-	//pHalFunc->SwAntDivBeforeLinkHandler = &SwAntDivBeforeLink8192C;
-	//pHalFunc->SwAntDivCompareHandler = &SwAntDivCompare8192C;
+	//pHalFunc->AntDivBeforeLinkHandler = &SwAntDivBeforeLink8192C;
+	//pHalFunc->AntDivCompareHandler = &SwAntDivCompare8192C;
 //#endif
 
 	pHalFunc->hal_xmit = &rtl8192cu_hal_xmit;

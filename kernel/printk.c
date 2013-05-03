@@ -1308,7 +1308,8 @@ void console_unlock(void)
 {
 	unsigned long flags;
 	unsigned _con_start, _log_end;
-	unsigned wake_klogd = 0, retry = 0;
+	unsigned wake_klogd = 0;
+	bool retry = 0;
 
 	if (console_suspended) {
 		up(&console_sem);
@@ -1349,8 +1350,7 @@ again:
 	 * flush, no worries.
 	 */
 	raw_spin_lock(&logbuf_lock);
-	if (con_start != log_end)
-		retry = 1;
+		retry = (con_start != log_end);
 	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
 
 	if (retry && console_trylock())

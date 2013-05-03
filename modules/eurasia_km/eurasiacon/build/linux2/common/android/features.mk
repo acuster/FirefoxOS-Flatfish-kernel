@@ -65,9 +65,6 @@ OPK_DEFAULT := libpvrANDROID_WSEGL.so
 # before EGL_image_external was generally available.
 #
 KERNEL_COMPONENTS := srvkm
-ifeq ($(is_at_least_honeycomb),0)
-#KERNEL_COMPONENTS += bufferclass_example
-endif
 
 # Kernel modules are always installed here under Android
 #
@@ -100,48 +97,29 @@ SUPPORT_LARGE_GENERAL_HEAP := 1
 PVR_LINUX_MEM_AREA_POOL_MAX_PAGES ?= 5400
 
 ##############################################################################
-# EGL connect/disconnect hooks only available since Froyo
-# Obsolete in future versions
+# Framebuffer target extension is used to find configs compatible with
+# the framebuffer (added in JB MR1).
 #
-ifeq ($(is_at_least_froyo),1)
-ifeq ($(is_at_least_icecream_sandwich),0)
-PVR_ANDROID_HAS_CONNECT_DISCONNECT := 1
-endif
-endif
+EGL_EXTENSION_ANDROID_FRAMEBUFFER_TARGET := 1
 
 ##############################################################################
-# Override surface field name for older versions
+# This is a near-exact copy of EGL_KHR_wait_sync. Needed by JB MR1, but
+# turned on for all releases.
 #
-ifeq ($(is_at_least_gingerbread),0)
-PVR_ANDROID_SURFACE_FIELD_NAME := \"mSurface\"
-endif
-
-##############################################################################
-# Provide ANativeWindow{Buffer,} typedefs for older versions
-#
-ifeq ($(is_at_least_gingerbread),0)
-PVR_ANDROID_NEEDS_ANATIVEWINDOW_TYPEDEF := 1
-endif
-ifeq ($(is_at_least_icecream_sandwich),0)
-PVR_ANDROID_NEEDS_ANATIVEWINDOWBUFFER_TYPEDEF := 1
-endif
+EGL_EXTENSION_ANDROID_WAIT_SYNC := 1
 
 ##############################################################################
 # Handle various platform includes for unittests
 #
-UNITTEST_INCLUDES := eurasiacon/android
-
-ifeq ($(is_at_least_gingerbread),1)
-UNITTEST_INCLUDES += $(ANDROID_ROOT)/frameworks/base/native/include
-endif
+UNITTEST_INCLUDES := \
+ eurasiacon/android \
+ $(ANDROID_ROOT)/frameworks/base/native/include
 
 ifeq ($(is_at_least_jellybean),1)
 UNITTEST_INCLUDES += \
  $(ANDROID_ROOT)/frameworks/native/include \
  $(ANDROID_ROOT)/frameworks/native/opengl/include \
  $(ANDROID_ROOT)/libnativehelper/include
-# FIXME: This is the old location for the JNI header.
-UNITTEST_INCLUDES += $(ANDROID_ROOT)/dalvik/libnativehelper/include
 else
 UNITTEST_INCLUDES += \
  $(ANDROID_ROOT)/frameworks/base/opengl/include \
@@ -155,13 +133,8 @@ UNITTEST_INCLUDES += eurasiacon/unittests/include
 ##############################################################################
 # Future versions moved proprietary libraries to a vendor directory
 #
-ifeq ($(is_at_least_gingerbread),1)
 SHLIB_DESTDIR := /system/vendor/lib
 DEMO_DESTDIR := /system/vendor/bin
-else
-SHLIB_DESTDIR := /system/lib
-DEMO_DESTDIR := /system/bin
-endif
 
 # EGL libraries go in a special place
 #
@@ -170,139 +143,30 @@ EGL_DESTDIR := $(SHLIB_DESTDIR)/egl
 ##############################################################################
 # We can support OpenCL in the build since Froyo (stlport was added in 2.2)
 #
-ifeq ($(is_at_least_froyo),1)
 SYS_CXXFLAGS := \
  -fuse-cxa-atexit \
  $(SYS_CFLAGS) \
- -I$(ANDROID_ROOT)/bionic \
- -I$(ANDROID_ROOT)/external/stlport/stlport
-else
-SYS_CXXFLAGS := \
- $(SYS_CFLAGS) \
- -I$(ANDROID_ROOT)/bionic/libstdc++/include
-endif
+ -isystem $(ANDROID_ROOT)/bionic \
+ -isystem $(ANDROID_ROOT)/external/stlport/stlport
 
 ##############################################################################
-# Composition bypass feature, supported since Froyo.
-# In ICS, hardware composer (HWC) should be used instead.
+# Support the OES_EGL_image_external extensions in the client drivers.
 #
-ifeq ($(is_at_least_froyo),1)
-ifeq ($(is_at_least_honeycomb),0)
-PVR_ANDROID_HAS_NATIVE_BUFFER_TRANSFORM := 1
-SUPPORT_ANDROID_COMPOSITION_BYPASS := 1
-endif
-endif
-
-##############################################################################
-# In ICS, we have hardware composer (HWC) support.
-#
-# SUPPORT_ANDROID_COMPOSER_HAL adds Post2() to the framebuffer HAL interface
-# and is intended for inter-op with external HWC modules. It is always
-# enabled (but we allow it to be compiled out just in case).
-#
-# SUPPORT_ANDROID_COMPOSITION_BYPASS adds a new buffer type (client buffers
-# allocated from the framebuffer pool) which maximizes compatibility with
-# most 3rdparty display controllers. It is orthogonal to HWC support.
-#
-ifeq ($(is_at_least_honeycomb),1)
-SUPPORT_ANDROID_COMPOSER_HAL := 1
-endif
-
-##############################################################################
-# We have some extra GRALLOC_USAGE bits we need to handle in ICS
-#
-ifeq ($(is_at_least_honeycomb),1)
-PVR_ANDROID_HAS_GRALLOC_USAGE_EXTERNAL_DISP := 1
-PVR_ANDROID_HAS_GRALLOC_USAGE_PROTECTED := 1
-PVR_ANDROID_HAS_GRALLOC_USAGE_PRIVATE := 1
-endif
-
-##############################################################################
-# Support the new OES_EGL_image_external extension + YV12 buffers
-#
-ifeq ($(is_at_least_honeycomb),1)
-PVR_ANDROID_HAS_HAL_PIXEL_FORMAT_YV12 := 1
 GLES1_EXTENSION_EGL_IMAGE_EXTERNAL := 1
 GLES2_EXTENSION_EGL_IMAGE_EXTERNAL := 1
-endif
-
-##############################################################################
-# Gingerbread adds the native window cancelBuffer operation
-#
-ifeq ($(is_at_least_gingerbread),1)
-PVR_ANDROID_HAS_CANCELBUFFER := 1
-endif
-
-##############################################################################
-# Versions prior to ICS have another header we must include
-#
-ifeq ($(is_at_least_icecream_sandwich),0)
-PVR_ANDROID_HAS_ANDROID_NATIVE_BUFFER_H := 1
-endif
-
-##############################################################################
-# ICS added dump() hook to gralloc alloc_device_t API
-#
-ifeq ($(is_at_least_honeycomb),1)
-PVR_ANDROID_HAS_GRALLOC_DUMP := 1
-endif
-
-##############################################################################
-# ICS added support for the BGRX pixel format, and allows drivers to advertise
-# configs in this format instead of RGBX.
-#
-# The DDK provides a private definition of HAL_PIXEL_FORMAT_BGRX_8888. This
-# option exposes it as the native visual for 8888 configs with alpha ignored
-#
-ifeq ($(is_at_least_icecream_sandwich),1)
-SUPPORT_HAL_PIXEL_FORMAT_BGRX := 1
-endif
-
-##############################################################################
-# ICS added the ability for GL clients to pre-rotate their rendering to the
-# orientation desired by the compositor. The SGX DDK can use TRANSFORM_HINT
-# to access this functionality.
-#
-# This is required by some HWC implementations that cannot use the display
-# to rotate buffers, otherwise the HWC optimization cannot be used when
-# rotating the device.
-#
-ifeq ($(is_at_least_icecream_sandwich),1)
-PVR_ANDROID_HAS_WINDOW_TRANSFORM_HINT := 1
-endif
 
 ##############################################################################
 # ICS requires that at least one driver EGLConfig advertises the
 # EGL_RECORDABLE_ANDROID attribute. The platform requires that surfaces
 # rendered with this config can be consumed by an OMX video encoder.
 #
-ifeq ($(is_at_least_icecream_sandwich),1)
 EGL_EXTENSION_ANDROID_RECORDABLE := 1
-endif
-
-##############################################################################
-# ICS added a new usage bit. USAGE_HW_COMPOSER indicates that a buffer might
-# be used with HWComposer. In practice this is all non-MM buffers.
-#
-ifeq ($(is_at_least_icecream_sandwich),1)
-PVR_ANDROID_HAS_GRALLOC_USAGE_HW_COMPOSER := 1
-endif
 
 ##############################################################################
 # ICS added the EGL_ANDROID_blob_cache extension. Enable support for this
 # extension in EGL/GLESv2.
 #
-ifeq ($(is_at_least_icecream_sandwich),1)
 EGL_EXTENSION_ANDROID_BLOB_CACHE := 1
-endif
-
-##############################################################################
-# ICS MR1 added a new usage bit. USAGE_HW_VIDEO_ENCODER indicates that a
-# buffer might be used with the video encoder.
-#
-ifeq ($(is_at_least_icecream_sandwich_mr1),1)
-PVR_ANDROID_HAS_GRALLOC_USAGE_HW_VIDEO_ENCODER := 1
-endif
 
 ##############################################################################
 # ICS and earlier should rate-limit composition by waiting for 3D renders
@@ -317,6 +181,34 @@ endif
 #
 ifeq ($(is_at_least_jellybean),1)
 PVR_ANDROID_HAS_CORKSCREW_API := 1
+endif
+
+##############################################################################
+# JB MR1 makes the framebuffer HAL obsolete.
+#
+# We also need to support IMPLEMENTATION_DEFINED so gralloc allocates
+# framebuffers and GPU buffers in a 'preferred' format.
+#
+ifeq ($(is_at_least_jellybean_mr1),0)
+SUPPORT_ANDROID_FRAMEBUFFER_HAL := 1
+else
+PVR_ANDROID_HAS_HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED := 1
+endif
+
+##############################################################################
+# JB MR1 introduces cross-process syncs associated with a fd.
+# This requires a new enough kernel version to have the base/sync driver.
+#
+ifeq ($(is_at_least_jellybean_mr1),1)
+EGL_EXTENSION_ANDROID_NATIVE_FENCE_SYNC := 1
+PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC := 1
+endif
+
+##############################################################################
+# JB MR1 introduces new usage bits for the camera HAL.
+#
+ifeq ($(is_at_least_jellybean_mr1),1)
+PVR_ANDROID_HAS_GRALLOC_USAGE_HW_CAMERA := 1
 endif
 
 # Placeholder for future version handling

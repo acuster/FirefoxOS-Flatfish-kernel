@@ -184,29 +184,7 @@ static struct regval_list sensor_qsxga_regs[] = { //qsxga: 84Mhz_2592x1936_15.0f
 {0x3110,0x00},//PCLK INV[4]
 {0x3117,0x06},//PCLK Delay(default=00)
 {0x3119,0x0A},//VSYNC[3:2], HSYNC[1:0] strength
-{0x311A,0xAA},//DATA[7:6], PCLK[5:4], Strength[3:0]
-
-////+++++++++++++++++++++++++++++++//
-//// Integration setting ... 
-//{0x0202,0x07},//coarse integration time
-//{0x0203,0xA8},	                              
-//{0x0204,0x00},//analog gain[msb] 0100 x8 0080 x4
-//{0x0205,0x80},//analog gain[lsb] 0040 x2 0020 x1
-//// Frame Length
-//{0x0340,0x07},//Capture 07B4(1960[# of row]+12[V-blank])
-//{0x0341,0xB4},//Preview 03E0(980[# of row]+12[V-blank])
-//// Line Length
-//{0x0342,0x0A},//2738
-//{0x0343,0xB2},
-//
-////+++++++++++++++++++++++++++++++//
-//// PLL setting ...
-////// input clock 24MHz
-//////// Parallel (TST = 0100b), 15 fps
-//{0x0305,0x06},//PLL P = 6
-//{0x0306,0x00},//PLL M[8] = 0
-//{0x0307,0x82},//PLL M = 101
-//{0x30B5,0x01},//PLL S = 0 
+{0x311A,0x1a},//DATA[7:6], PCLK[5:4], Strength[3:0]
 
 //+++++++++++++++++++++++++++++++//
 // Frame Length
@@ -284,7 +262,7 @@ static struct regval_list sensor_sxga_regs[] = { //SXGA: 1280*960@30fps //84MHz 
 {0x3110,0x00},//PCLK INV[4]
 {0x3117,0x06},//PCLK Delay(default=00h)
 {0x3119,0x0A},//VSYNC[3:2],HSYNC[1:0] strength
-{0x311A,0xAA},//DATA[7:6],PCLK[5:4],Strength[3:0]
+{0x311A,0x1a},//DATA[7:6],PCLK[5:4],Strength[3:0]
   
 ////+++++++++++++++++++++++++++++++//
 //// Integration setting ...
@@ -380,7 +358,7 @@ static struct regval_list sensor_1080p_regs[] = { //1080p: 1920*1080@15fps //84M
 {0x3110,0x00},//PCLK INV[4]
 {0x3117,0x06},//PCLK Delay(default=00)
 {0x3119,0x0A},//VSYNC[3:2], HSYNC[1:0] strength
-{0x311A,0xAA},//DATA[7:6], PCLK[5:4], Strength[3:0]
+{0x311A,0x1a},//DATA[7:6], PCLK[5:4], Strength[3:0]
 
 //+++++++++++++++++++++++++++++++//
 // Frame Length
@@ -411,7 +389,7 @@ static struct regval_list sensor_1080p_regs[] = { //1080p: 1920*1080@15fps //84M
 {0x0383,0x01},
 {0x0384,0x00},//y_even_inc 1
 {0x0385,0x01},
-{0x0386,0x00},//y_odd_inc 3
+{0x0386,0x00},//y_odd_inc 1
 {0x0387,0x01},
 
 {0x0344,0x01},//x_addr_start 344
@@ -447,7 +425,7 @@ static struct regval_list sensor_720p_regs[] = { //720: 1280*720@30fps //84MHz p
 {0x3110,0x00},//PCLK INV[4]
 {0x3117,0x06},//PCLK Delay(default=00h)
 {0x3119,0x0A},//VSYNC[3:2],HSYNC[1:0] strength
-{0x311A,0xAA},//DATA[7:6],PCLK[5:4],Strength[3:0]
+{0x311A,0x1a},//DATA[7:6],PCLK[5:4],Strength[3:0]
 
 //+++++++++++++++++++++++++++++++//
 //Frame Length
@@ -843,10 +821,10 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       //remember to unlock i2c adapter, so the device can access the i2c bus again
       i2c_unlock_adapter(client->adapter);        
       //software standby
-      ret = sensor_s_sw_stby(sd, CSI_STBY_OFF);
-      if(ret < 0)
-        vfe_dev_err("soft stby off falied!\n");
-      mdelay(10);
+//      ret = sensor_s_sw_stby(sd, CSI_STBY_OFF);
+//      if(ret < 0)
+//        vfe_dev_err("soft stby off falied!\n");
+//      mdelay(10);
 //      vfe_dev_print("enable oe!\n");
 //      ret = sensor_write_array(sd, sensor_oe_enable_regs);
 //      if(ret < 0)
@@ -1067,10 +1045,10 @@ static struct sensor_win_size sensor_win_sizes[] = {
       .pclk       = 84*1000*1000,
       .fps_fixed  = 1,
       .bin_factor = 1,
-      .intg_min   = 3,
-      .intg_max   = 2000-8,
+      .intg_min   = 3<<4,
+      .intg_max   = (2000-8)<<4,
       .gain_min   = 1<<4,
-      .gain_max   = 16<<4,
+      .gain_max   = 8<<4,
       .regs       = sensor_qsxga_regs,
       .regs_size  = ARRAY_SIZE(sensor_qsxga_regs),
       .set_size   = NULL,
@@ -1080,19 +1058,21 @@ static struct sensor_win_size sensor_win_sizes[] = {
     {
       .width			= HD1080_WIDTH,
       .height 		= HD1080_HEIGHT,
-      .hoffset	  = 0,
-      .voffset	  = 0,
-      .hts        = 2750,//must over 2738, limited by sensor
-      .vts        = 1200,
-      .pclk       = 99*1000*1000,
+      .hoffset    = 0,
+      .voffset    = 0,
+//      .hoffset	  = (2608-HD1080_WIDTH)/2,
+//      .voffset	  = (1960-HD1080_HEIGHT)/2,
+      .hts        = 2800,//must over 2738, limited by sensor
+      .vts        = 2000,
+      .pclk       = 84*1000*1000,
       .fps_fixed  = 1,
       .bin_factor = 1,
-      .intg_min   = 3,
-      .intg_max   = 1200-8,
+      .intg_min   = 3<<4,
+      .intg_max   = (2000-8)<<4,
       .gain_min   = 1<<4,
-      .gain_max   = 16<<4,
+      .gain_max   = 8<<4,
       .regs       = sensor_1080p_regs,//
-      .regs_size  = ARRAY_SIZE(sensor_1080p_regs),//
+      .regs_size  = ARRAY_SIZE(sensor_1080p_regs),//sensor_1080p_regs
       .set_size		= NULL,
     },
 	/* UXGA */
@@ -1125,8 +1105,8 @@ static struct sensor_win_size sensor_win_sizes[] = {
       .pclk       = 84*1000*1000,
       .fps_fixed  = 1,
       .bin_factor = 1,
-      .intg_min   = 3,
-      .intg_max   = 1000-8,
+      .intg_min   = 3<<4,
+      .intg_max   = (1000-8)<<4,
       .gain_min   = 1<<4,
       .gain_max   = 16<<4,
       .regs		    = sensor_sxga_regs,
@@ -1144,8 +1124,8 @@ static struct sensor_win_size sensor_win_sizes[] = {
       .pclk       = 84*1000*1000,
       .fps_fixed  = 1,
       .bin_factor = 1,
-      .intg_min   = 3,
-      .intg_max   = 1000-8,
+      .intg_min   = 3<<4,
+      .intg_max   = (1000-8)<<4,
       .gain_min   = 1<<4,
       .gain_max   = 16<<4,
       .regs			  = sensor_720p_regs,//
@@ -1220,6 +1200,19 @@ static int sensor_enum_fmt(struct v4l2_subdev *sd, unsigned index,
     return -EINVAL;
 
   *code = sensor_formats[index].mbus_code;
+  return 0;
+}
+
+static int sensor_enum_size(struct v4l2_subdev *sd,
+                            struct v4l2_frmsizeenum *fsize)
+{
+  if(fsize->index > N_WIN_SIZES-1)
+  	return -EINVAL;
+  
+  fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+  fsize->discrete.width = sensor_win_sizes[fsize->index].width;
+  fsize->discrete.height = sensor_win_sizes[fsize->index].height;
+  
   return 0;
 }
 
@@ -1463,6 +1456,7 @@ static const struct v4l2_subdev_core_ops sensor_core_ops = {
 
 static const struct v4l2_subdev_video_ops sensor_video_ops = {
   .enum_mbus_fmt = sensor_enum_fmt,
+  .enum_framesizes = sensor_enum_size,
   .try_mbus_fmt = sensor_try_fmt,
   .s_mbus_fmt = sensor_s_fmt,
   .s_parm = sensor_s_parm,

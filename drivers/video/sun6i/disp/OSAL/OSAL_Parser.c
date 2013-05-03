@@ -45,6 +45,20 @@ int OSAL_Script_FetchParser_Data(char *main_name, char *sub_name, int value[], i
             __inf("fetch script data %s.%s fail\n", main_name, sub_name);
         }
     }
+    else
+    {
+        type = script_get_item(main_name, sub_name, &val);
+        if(SCIRPT_ITEM_VALUE_TYPE_STR == type)
+        {
+            memcpy((void*)value, (void*)val.str, strlen(val.str)+1);
+            __inf("%s.%s=%s\n",main_name, sub_name, val.str);
+        }
+        else
+        {
+            ret = -1;
+            __inf("fetch script data %s.%s fail\n", main_name, sub_name);
+        }
+    }
 
     return ret;
 }

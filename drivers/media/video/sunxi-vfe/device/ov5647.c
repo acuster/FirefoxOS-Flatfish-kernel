@@ -197,7 +197,7 @@ static struct regval_list sensor_qsxga_regs[] = { //qsxga: 2592*1936@15fps
   {0x3709,0x12}, //
   {0x370c,0x00}, //
   {0x380c,0x0a}, //[4:0]hts high
-  {0x380d,0x8c}, //[7:0]hts low
+  {0x380d,0x96}, //[7:0]hts low
   {0x380e,0x07}, //[4:0]vts high
   {0x380f,0xb0}, //[7:0]vts low
   {0x3814,0x11}, //h subsample inc
@@ -279,7 +279,7 @@ static struct regval_list sensor_sxga_regs[] = { //SXGA: 1280*960@30fps
 //for video
 static struct regval_list sensor_1080p_regs[] = { //1080: 1920*1080@30fps
   {0x3035,0x11}, //clk                
-  {0x3036,0x69}, //clk                
+  {0x3036,0x50}, //clk                
   {0x303c,0x11}, //clk                
   {0x3820,0x00}, //vbin               
   {0x3821,0x06}, //hbin               
@@ -289,7 +289,7 @@ static struct regval_list sensor_1080p_regs[] = { //1080: 1920*1080@30fps
   {0x3709,0x12}, //                   
   {0x370c,0x00}, //                   
   {0x380c,0x09}, //[4:0]hts high      
-  {0x380d,0xc4}, //[7:0]hts low       
+  {0x380d,0x4e}, //[7:0]hts low       
   {0x380e,0x04}, //[4:0]vts high      
   {0x380f,0x60}, //[7:0]vts low       
   {0x3814,0x11}, //h subsample inc    
@@ -328,10 +328,10 @@ static struct regval_list sensor_720p_regs[] = { //720: 1280*720@30fps
   {0x3708,0x22}, //                   
   {0x3709,0x52}, //                   
   {0x370c,0x03}, //                   
-  {0x380c,0x07}, //[4:0]hts high      
-  {0x380d,0x64}, //[7:0]hts low       
-  {0x380e,0x02}, //[4:0]vts high      
-  {0x380f,0xe4}, //[7:0]vts low       
+  {0x380c,0x06}, //[4:0]hts high      
+  {0x380d,0xd6}, //[7:0]hts low       
+  {0x380e,0x03}, //[4:0]vts high      
+  {0x380f,0x20}, //[7:0]vts low       
   {0x3814,0x31}, //h subsample inc    
   {0x3815,0x31}, //v subsample inc    
   {0x3808,0x05}, //[4:0]dvp h out high
@@ -599,6 +599,13 @@ static int sensor_s_vflip(struct v4l2_subdev *sd, int value)
   return 0;
 }
 */
+
+static int sensor_s_fps(struct v4l2_subdev *sd)
+{
+  struct sensor_info *info = to_state(sd);
+  return 0;
+}
+
 static int sensor_g_exp(struct v4l2_subdev *sd, __s32 *value)
 {
 	struct sensor_info *info = to_state(sd);
@@ -606,6 +613,78 @@ static int sensor_g_exp(struct v4l2_subdev *sd, __s32 *value)
 	*value = info->exp;
 	vfe_dev_dbg("sensor_get_exposure = %d\n", info->exp);
 	return 0;
+}
+
+static int sensor_s_exp_gain(struct v4l2_subdev *sd, unsigned int exp_gain)
+{
+  int exp_val, gain_val;  
+  unsigned char explow=0,expmid=0,exphigh=0,vts_diff_low,vts_diff_high;
+  unsigned char gainlow=0,gainhigh=0;  
+  struct sensor_info *info = to_state(sd);
+  exp_val = (0xfffff&exp_gain);
+  gain_val = ((0x7ff00000&exp_gain)>>20);
+  if(gain_val<1*16)
+	  gain_val=16;
+  if(gain_val>64*16-1)
+	  gain_val=64*16-1;
+  
+  if(exp_val>0xfffff)
+	  exp_val=0xfffff;
+  
+  gainlow=(unsigned char)(gain_val&0xff);
+  gainhigh=(unsigned char)((gain_val>>8)&0x3);
+  
+  
+  vts_diff_high = (unsigned char) ( (0x00ff00&((exp_val/16)))>>8);
+  vts_diff_low	= (unsigned char) ( (0x0000ff&((exp_val/16)))	);//-1968
+  
+  exphigh	= (unsigned char) ( (0x0f0000&exp_val)>>16);
+  expmid	= (unsigned char) ( (0x00ff00&exp_val)>>8);
+  explow	= (unsigned char) ( (0x0000ff&exp_val)	 );
+  
+
+  if(exp_val<=(1968*16))
+  {    
+    //printk("norm exp_val = %d,gain_val = %d\n",exp_val,gain_val);
+    sensor_write(sd, 0x3208, 0x00);//enter group write
+    sensor_write(sd, 0x3503, 0x07);
+    sensor_write(sd, 0x350d, 0x0);
+    sensor_write(sd, 0x350c, 0x0);
+	
+    sensor_write(sd, 0x350b, gainlow);
+    sensor_write(sd, 0x350a, gainhigh);
+    
+    sensor_write(sd, 0x3502, explow);
+    sensor_write(sd, 0x3501, expmid);
+    sensor_write(sd, 0x3500, exphigh);	
+    sensor_write(sd, 0x3208, 0x10);//end group write
+    sensor_write(sd, 0x3208, 0xa0);//init group write
+  }
+  else
+  {
+	  //printk("exp_val = %d,gain_val = %d\n",exp_val,gain_val);
+	  
+	  sensor_write(sd, 0x350d, vts_diff_low);
+	  sensor_write(sd, 0x350c, vts_diff_high);
+	  
+	  sensor_write(sd, 0x3208, 0x00);//enter group write
+	  
+	  sensor_write(sd, 0x3503, 0x07);
+	  //sensor_write(sd, 0x4202, 0x01);	  
+	  
+	  sensor_write(sd, 0x3502, explow);
+	  sensor_write(sd, 0x3501, expmid);
+	  sensor_write(sd, 0x3500, exphigh);	
+	  
+	  sensor_write(sd, 0x350b, gainlow);
+	  sensor_write(sd, 0x350a, gainhigh);
+	  sensor_write(sd, 0x3208, 0x10);//end group write
+	  sensor_write(sd, 0x3208, 0xa0);//init group write
+  }
+  
+  info->exp = exp_val;
+  info->gain = gain_val;
+  return 0;
 }
 
 static int sensor_s_exp(struct v4l2_subdev *sd, unsigned int exp_val)
@@ -617,9 +696,12 @@ static int sensor_s_exp(struct v4l2_subdev *sd, unsigned int exp_val)
 	if(exp_val>0xfffff)
 		exp_val=0xfffff;
 	
-	if(info->exp == exp_val)
-		return 0;
+	//if(info->exp == exp_val && exp_val <= (1968)*16)
+	//	return 0;
   
+	sensor_write(sd, 0x3503, 0x13);
+	sensor_write(sd, 0x350d, 0x0);
+	sensor_write(sd, 0x350c, 0x0);
     exphigh = (unsigned char) ( (0x0f0000&exp_val)>>16);
     expmid  = (unsigned char) ( (0x00ff00&exp_val)>>8);
     explow  = (unsigned char) ( (0x0000ff&exp_val)   );
@@ -658,8 +740,8 @@ static int sensor_s_gain(struct v4l2_subdev *sd, int gain_val)
 	if(gain_val>64*16-1)
 		gain_val=64*16-1;
 	
-	if(info->gain == gain_val)
-		return 0;
+    //if(info->gain == gain_val)
+      //  return 0;
 		
 	gainlow=(unsigned char)(gain_val&0xff);
 	gainhigh=(unsigned char)((gain_val>>8)&0x3);
@@ -686,6 +768,7 @@ static int sensor_s_gain(struct v4l2_subdev *sd, int gain_val)
 	//sensor_write(sd, 0x3208, 0x00);//enter group write
 	sensor_write(sd, 0x350b, gainlow);
 	sensor_write(sd, 0x350a, gainhigh);
+	sensor_write(sd, 0x3503, 0x13);
 	//sensor_write(sd, 0x3208, 0x10);//end group write
 	//sensor_write(sd, 0x3208, 0xa0);//init group write
 	
@@ -714,62 +797,6 @@ static int sensor_s_sw_stby(struct v4l2_subdev *sd, int on_off)
 	}
 	return ret;
 }
-
-enum ov5647_clk_div {
-  CLK_DIV_BY_1        = 0,
-  CLK_DIV_BY_1_dot_5  = 1,
-  CLK_DIV_BY_2        = 2,
-  CLK_DIV_BY_2_dot_5  = 3,
-  CLK_DIV_BY_3        = 4,
-  CLK_DIV_BY_4        = 5,
-  CLK_DIV_BY_6        = 6,
-  CLK_DIV_BY_8        = 7,
-};
-int frame_rate_relat[] = {120,80,60,48,40,30,20,15};
-
-static int sensor_s_framerate(struct v4l2_subdev *sd, unsigned int frame_rate)
-{
-  int set_clk_div;
-	//struct sensor_info *info = to_state(sd);
-
-    switch(frame_rate)
-    {
-    	case 120:
-			set_clk_div = CLK_DIV_BY_1;
-			break;
-		case 80:
-			set_clk_div = CLK_DIV_BY_1_dot_5;
-			break;
-		case 60:
-			set_clk_div = CLK_DIV_BY_2;
-			break;
-		case 48:
-			set_clk_div = CLK_DIV_BY_2_dot_5;
-			break;
-		case 40:
-			set_clk_div = CLK_DIV_BY_3;
-			break;
-		case 30:
-			set_clk_div = CLK_DIV_BY_4;
-			break;
-		case 20:
-			set_clk_div = CLK_DIV_BY_6;
-			break;
-		case 15:
-			set_clk_div = CLK_DIV_BY_8;
-			break;
-		default:
-			set_clk_div = CLK_DIV_BY_1;
-			break;		
-    }
-
-	//printk("set_clk_div = %d\n",set_clk_div);
-
-	//sensor_write(sd,0x3012,set_clk_div);
-	
-	return 0;
-}
-
 
 
 /*
@@ -980,7 +1007,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 
 static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-  int ret=0;
+  int ret=0,exp_and_gain;
   struct sensor_info *info = to_state(sd);
 //  vfe_dev_dbg("[]cmd=%d\n",cmd);
 //  vfe_dev_dbg("[]arg=%0x\n",arg);
@@ -1005,6 +1032,10 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 //        ret=sensor_write(sd, 0x3036, 0x78);
 //      else
 //        ret=sensor_write(sd, 0x3036, 0x32);
+      break;
+    case ISP_SET_EXP_GAIN:
+		exp_and_gain = *(unsigned int *)arg;
+		sensor_s_exp_gain(sd, exp_and_gain);			
       break;
     default:
       return -EINVAL;
@@ -1050,20 +1081,20 @@ static struct sensor_win_size sensor_win_sizes[] = {
       .voffset    = 0,
 //      .hts        = 2800,
 //      .vts        = 2000,
-      .hts        = 2844,
+      .hts        = 2710,
       .vts        = 1968,
       #ifdef QSXGA_12FPS
-      .pclk       = 67200*1000,
+      .pclk       = 64*1000*1000,
       #else
-      .pclk       = 84*1000*1000,
+      .pclk       = 80*1000*1000,
       #endif
-      .fps_fixed  = 1,
+      .fps_fixed  = 2,
       .bin_factor = 1,
-      .intg_min   = 1<<4,
+      .intg_min   = 1,
       //.intg_max   = 2000<<4,
-      .intg_max   = 1968<<4,
+      .intg_max   = (1968/1)<<4,
       .gain_min   = 1<<4,
-      .gain_max   = 16<<4,
+      .gain_max   = 12<<4,
       .regs       = sensor_qsxga_regs,
       .regs_size  = ARRAY_SIZE(sensor_qsxga_regs),
       .set_size   = NULL,
@@ -1075,15 +1106,15 @@ static struct sensor_win_size sensor_win_sizes[] = {
       .height 		= HD1080_HEIGHT,
       .hoffset	  = 0,
       .voffset	  = 0,
-      .hts        = 2500,
+      .hts        = 2382,
       .vts        = 1120,
-      .pclk       = 84*1000*1000,
+      .pclk       = 64*1000*1000,
       .fps_fixed  = 1,
       .bin_factor = 1,
       .intg_min   = 1<<4,
       .intg_max   = 1120<<4,
       .gain_min   = 1<<4,
-      .gain_max   = 16<<4,
+      .gain_max   = 10<<4,
       .regs       = sensor_1080p_regs,//
       .regs_size  = ARRAY_SIZE(sensor_1080p_regs),//
       .set_size		= NULL,
@@ -1118,10 +1149,10 @@ static struct sensor_win_size sensor_win_sizes[] = {
       .pclk       = 56*1000*1000,
       .fps_fixed  = 1,
       .bin_factor = 1,
-      .intg_min   = 1<<4,
+      .intg_min   = 1,
       .intg_max   = 984<<4,
       .gain_min   = 1<<4,
-      .gain_max   = 16<<4,
+      .gain_max   = 10<<4,
       .regs		    = sensor_sxga_regs,
       .regs_size	= ARRAY_SIZE(sensor_sxga_regs),
       .set_size		= NULL,
@@ -1132,15 +1163,15 @@ static struct sensor_win_size sensor_win_sizes[] = {
       .height     = HD720_HEIGHT,
       .hoffset    = 0,
       .voffset    = 0,
-      .hts        = 1892,
-      .vts        = 740,
+      .hts        = 1750,
+      .vts        = 800,
       .pclk       = 42*1000*1000,
       .fps_fixed  = 1,
       .bin_factor = 1,
-      .intg_min   = 1<<4,
-      .intg_max   = 740<<4,
+      .intg_min   = 1,
+      .intg_max   = 800<<4,
       .gain_min   = 1<<4,
-      .gain_max   = 16<<4,
+      .gain_max   = 12<<4,
       .regs			  = sensor_720p_regs,//
       .regs_size	= ARRAY_SIZE(sensor_720p_regs),//
       .set_size		= NULL,
@@ -1213,6 +1244,19 @@ static int sensor_enum_fmt(struct v4l2_subdev *sd, unsigned index,
     return -EINVAL;
 
   *code = sensor_formats[index].mbus_code;
+  return 0;
+}
+
+static int sensor_enum_size(struct v4l2_subdev *sd,
+                            struct v4l2_frmsizeenum *fsize)
+{
+  if(fsize->index > N_WIN_SIZES-1)
+  	return -EINVAL;
+  
+  fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+  fsize->discrete.width = sensor_win_sizes[fsize->index].width;
+  fsize->discrete.height = sensor_win_sizes[fsize->index].height;
+  
   return 0;
 }
 
@@ -1430,7 +1474,7 @@ static int sensor_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
     case V4L2_CID_EXPOSURE:
 	  return sensor_s_exp(sd, ctrl->value);
 	case V4L2_CID_FRAME_RATE:
-	  return sensor_s_framerate(sd, ctrl->value);
+      return sensor_s_fps(sd);
   }
   return -EINVAL;
 }
@@ -1460,6 +1504,7 @@ static const struct v4l2_subdev_core_ops sensor_core_ops = {
 
 static const struct v4l2_subdev_video_ops sensor_video_ops = {
   .enum_mbus_fmt = sensor_enum_fmt,
+  .enum_framesizes = sensor_enum_size,
   .try_mbus_fmt = sensor_try_fmt,
   .s_mbus_fmt = sensor_s_fmt,
   .s_parm = sensor_s_parm,

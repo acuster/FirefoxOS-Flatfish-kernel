@@ -74,17 +74,17 @@ void serial_init_nommu(void)
 
 static void serial_put_char_nommu(char c)
 {
-	while (!(readb(SUART_USR_PA) & 2));
-	writeb(c, SUART_THR_PA);
+	while (!(readl(SUART_USR_PA) & 2));
+	writel(c, SUART_THR_PA);
 }
 
 static char serial_get_char_nommu(void)
 {
 	__u32 time = 0xffff;
-	while(!(readb(SUART_USR_PA)&0x08) && time);
+	while(!(readl(SUART_USR_PA)&0x08) && time--);
 	if (!time)
 		return 0;
-	return readb(SUART_RBR_PA);
+	return readl(SUART_RBR_PA);
 }
 
 __s32 serial_puts_nommu(const char *string)
@@ -171,17 +171,17 @@ void serial_init(void)
 
 static void serial_put_char(char c)
 {
-	while (!(readb(SUART_USR) & 2));
-	writeb(c, SUART_THR);
+	while (!(readl(SUART_USR) & 2));
+	writel(c, SUART_THR);
 }
 
 static char serial_get_char(void)
 {
 	__u32 time = 0xffff;
-	while(!(readb(SUART_USR)&0x08) && time);
+	while(!(readl(SUART_USR)&0x08) && time--);
 	if (!time)
 		return 0;
-	return readb(SUART_RBR);
+	return (char)(readl(SUART_RBR));
 }
 
 

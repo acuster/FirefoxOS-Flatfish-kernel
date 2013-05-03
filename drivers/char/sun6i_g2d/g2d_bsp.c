@@ -890,7 +890,7 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 	__u32 reg_val = 0;
 	__u32 reg_tmp = 0;
 	__u64 addr_val;
-	__u32 cnt,sinw,soutw,scaler_inx,scaler_outx,scaler_outy,i;
+	__u32 cnt,sinw,soutw,scaler_inx,scaler_iny,scaler_outx,scaler_outy,i;
 	__s32 result = 0;
 	
 	mixer_reg_init();/* initial mixer register */
@@ -983,11 +983,15 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 		cnt = (para->dst_rect.w%1024)?cnt:cnt-1;
 		sinw = (para->src_rect.w/para->dst_rect.w)<<10;
 		sinw |= ((para->src_rect.w%para->dst_rect.w)<<10)/para->dst_rect.w;
+		if((para->flag & G2D_BLT_ROTATE90) || (para->flag & G2D_BLT_ROTATE270))
+		{
+			sinw = (para->src_rect.h/para->dst_rect.w)<<10;
+			sinw |= ((para->src_rect.h%para->dst_rect.w)<<10)/para->dst_rect.w;
+		}
 		scaler_inx = para->src_rect.x;
+		scaler_iny = para->src_rect.y;
 		scaler_outx = para->dst_rect.x;
-		if((para->flag & G2D_BLT_ROTATE90))
-			 scaler_outy = para->dst_rect.y + para->dst_rect.w - 0x401;
-		else scaler_outy = para->dst_rect.y;
+		scaler_outy = para->dst_rect.y;
 		for(i = 0; i<cnt; i++)
 		{
 			/* DMA0 */
@@ -998,6 +1002,8 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 			write_wvalue(G2D_DMA0_LADDR_REG, reg_val);
 			if(sinw<1)sinw = 1;
 			write_wvalue(G2D_DMA0_SIZE_REG, (sinw -1) | ((para->src_rect.h -1)<<16));
+			if((para->flag & G2D_BLT_ROTATE90) || (para->flag & G2D_BLT_ROTATE270))
+				write_wvalue(G2D_DMA0_SIZE_REG, (para->src_rect.w -1) | ((sinw -1)<<16));
 
 			/* DMA1 pyuv422/420/411uvc */
 			if((para->src_image.format>0x16)&&(para->src_image.format<0x1A))
@@ -1024,6 +1030,20 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 			}
 
 			/* scaler setting */
+		if((para->flag & G2D_BLT_ROTATE90) || (para->flag & G2D_BLT_ROTATE270))
+		{
+			write_wvalue(G2D_SCALER_SIZE_REG,(para->dst_rect.h - 1) | ((0x400 - 1)<<16));
+			reg_val = (para->src_rect.w/para->dst_rect.h)<<16;
+			reg_tmp = (para->src_rect.w%para->dst_rect.h);
+			reg_val |= (reg_tmp<<16)/para->dst_rect.h;
+			write_wvalue(G2D_SCALER_HFACTOR_REG,reg_val);
+			reg_val = (sinw/0x400)<<16;
+			reg_tmp = (sinw%0x400);
+			reg_val |= (reg_tmp<<16)/0x400;
+			write_wvalue(G2D_SCALER_VFACTOR_REG,reg_val);
+		}
+		else
+		{
 			write_wvalue(G2D_SCALER_SIZE_REG,(0x400 - 1) | ((para->dst_rect.h - 1)<<16));
 			reg_val = (sinw/0x400)<<16;
 			reg_tmp = (sinw%0x400);
@@ -1034,7 +1054,7 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 			reg_tmp = (para->src_rect.h%para->dst_rect.h);
 			reg_val |= (reg_tmp<<16)/para->dst_rect.h;
 			write_wvalue(G2D_SCALER_VFACTOR_REG,reg_val);
-
+		}
 		if((para->flag & G2D_BLT_PIXEL_ALPHA)||(para->flag & G2D_BLT_PLANE_ALPHA)||(para->flag & G2D_BLT_MULTI_ALPHA)||(para->flag & G2D_BLT_SRC_COLORKEY)||(para->flag & G2D_BLT_DST_COLORKEY))
 		{
 			/* DMA2 pyuv422/420/411uvc */
@@ -1068,10 +1088,12 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 			write_wvalue(G2D_DMA3_SIZE_REG, (0x400 -1) | ((para->dst_rect.h -1)<<16));
 		}
 			/* OUT */
-			if((para->flag & G2D_BLT_ROTATE90) || (para->flag & G2D_BLT_ROTATE270))
-				 write_wvalue(G2D_OUTPUT_SIZE_REG, (para->dst_rect.h -1) | ((0x400 -1)<<16));
-			else write_wvalue(G2D_OUTPUT_SIZE_REG, (0x400 -1) | ((para->dst_rect.h -1)<<16));
+			write_wvalue(G2D_OUTPUT_SIZE_REG, (0x400 -1) | ((para->dst_rect.h -1)<<16));
+			if((para->flag & G2D_BLT_ROTATE180))
+				scaler_outx = para->dst_rect.w - 0x400;
 			addr_val = mixer_get_addr(para->dst_image.addr[0],para->dst_image.format,para->dst_image.w,scaler_outx,scaler_outy);
+			if((para->flag & G2D_BLT_ROTATE270))
+			addr_val = mixer_get_addr(para->dst_image.addr[0],para->dst_image.format,para->dst_image.w,scaler_outx-0x400,scaler_outy);
 			reg_val = ((addr_val>>32)&0xF)<<16;/* high addr in bits */
 			write_wvalue(G2D_OUTPUT_HADDR_REG, reg_val);
 			reg_val = addr_val&0xFFFFFFFF;/* low addr in bits */
@@ -1098,13 +1120,20 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 			scaler_inx +=sinw;
 			if((para->flag & G2D_BLT_ROTATE90))
 			{
-				scaler_outy -=0x400;
-				scaler_outx = para->dst_rect.x;
+				scaler_outx += 0x400;
+				scaler_iny +=sinw;
+				scaler_inx = para->src_rect.x;
 			}
 			else if((para->flag & G2D_BLT_ROTATE270))
 			{
-				scaler_outy +=0x400;
 				scaler_outx = para->dst_rect.x;
+				scaler_iny +=sinw;
+				scaler_inx = para->src_rect.x;
+			}
+			else if((para->flag & G2D_BLT_ROTATE180))
+			{
+				scaler_outy = para->dst_rect.y;
+				scaler_outx =para->dst_rect.x-para->dst_image.w;
 			}
 			else
 			{
@@ -1121,15 +1150,22 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 		
 		/* last block */
 		soutw = para->dst_rect.w - 0x400*cnt;
+		if((para->flag & G2D_BLT_ROTATE90) || (para->flag & G2D_BLT_ROTATE270))
+			sinw = para->src_rect.h - sinw*cnt;
+		else
 		sinw = para->src_rect.w - sinw*cnt;
 		
 		/* DMA0 */
 		addr_val = mixer_get_addr(para->src_image.addr[0],para->src_image.format,para->src_image.w,scaler_inx,para->src_rect.y);
+		if((para->flag & G2D_BLT_ROTATE90) || (para->flag & G2D_BLT_ROTATE270))
+			addr_val = mixer_get_addr(para->src_image.addr[0],para->src_image.format,para->src_image.w,scaler_inx,scaler_iny);
 		reg_val = (addr_val>>32)&0xF;/* high addr in bits */
 		write_wvalue(G2D_DMA_HADDR_REG, reg_val);
 		reg_val = addr_val&0xFFFFFFFF;/* low addr in bits */
 		write_wvalue(G2D_DMA0_LADDR_REG, reg_val);	
 		write_wvalue(G2D_DMA0_SIZE_REG, (sinw -1) | ((para->src_rect.h -1)<<16));
+		if((para->flag & G2D_BLT_ROTATE90) || (para->flag & G2D_BLT_ROTATE270))
+			write_wvalue(G2D_DMA0_SIZE_REG, (para->src_rect.w -1) | ((sinw -1)<<16));
 
 		/* DMA1 pyuv422/420/411uvc */
 		if((para->src_image.format>0x16)&&(para->src_image.format<0x1A))
@@ -1157,16 +1193,31 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 
 		/* scaler setting */
 		if(soutw<1)soutw = 1;
-		write_wvalue(G2D_SCALER_SIZE_REG,(soutw- 1) | ((para->dst_rect.h - 1)<<16));
-		reg_val = (sinw/soutw)<<16;
-		reg_tmp = (sinw%soutw);
-		reg_val |= (reg_tmp<<16)/soutw;
-		write_wvalue(G2D_SCALER_HFACTOR_REG,reg_val);
+		if((para->flag & G2D_BLT_ROTATE90) || (para->flag & G2D_BLT_ROTATE270))
+		{
+			write_wvalue(G2D_SCALER_SIZE_REG,(para->dst_rect.h - 1) | ((soutw - 1)<<16));
+			reg_val = (para->src_rect.w/para->dst_rect.h)<<16;
+			reg_tmp = (para->src_rect.w%para->dst_rect.h);
+			reg_val |= (reg_tmp<<16)/para->dst_rect.h;
+			write_wvalue(G2D_SCALER_HFACTOR_REG,reg_val);
+			reg_val = (sinw/soutw)<<16;
+			reg_tmp = (sinw%soutw);
+			reg_val |= (reg_tmp<<16)/soutw;
+			write_wvalue(G2D_SCALER_VFACTOR_REG,reg_val);
+		}
+		else
+		{
+			write_wvalue(G2D_SCALER_SIZE_REG,(soutw- 1) | ((para->dst_rect.h - 1)<<16));
+			reg_val = (sinw/soutw)<<16;
+			reg_tmp = (sinw%soutw);
+			reg_val |= (reg_tmp<<16)/soutw;
+			write_wvalue(G2D_SCALER_HFACTOR_REG,reg_val);
 		
-		reg_val = (para->src_rect.h/para->dst_rect.h)<<16;
-		reg_tmp = (para->src_rect.h%para->dst_rect.h);
-		reg_val |= (reg_tmp<<16)/para->dst_rect.h;
-		write_wvalue(G2D_SCALER_VFACTOR_REG,reg_val);
+			reg_val = (para->src_rect.h/para->dst_rect.h)<<16;
+			reg_tmp = (para->src_rect.h%para->dst_rect.h);
+			reg_val |= (reg_tmp<<16)/para->dst_rect.h;
+			write_wvalue(G2D_SCALER_VFACTOR_REG,reg_val);
+		}
 	if((para->flag & G2D_BLT_PIXEL_ALPHA)||(para->flag & G2D_BLT_PLANE_ALPHA)||(para->flag & G2D_BLT_MULTI_ALPHA)||(para->flag & G2D_BLT_SRC_COLORKEY)||(para->flag & G2D_BLT_DST_COLORKEY))
 	{
 		/* DMA2 pyuv422/420/411uvc */
@@ -1201,10 +1252,8 @@ __s32 mixer_stretchblt(g2d_stretchblt *para){
 		write_wvalue(G2D_DMA3_SIZE_REG, (soutw - 1) | ((para->dst_rect.h -1)<<16));
 	}
 		/* OUT */
+	 	write_wvalue(G2D_OUTPUT_SIZE_REG, (soutw - 1) | ((para->dst_rect.h -1)<<16));
 		if((para->flag & G2D_BLT_ROTATE90) || (para->flag & G2D_BLT_ROTATE270))
-			 write_wvalue(G2D_OUTPUT_SIZE_REG, (para->dst_rect.h -1) | ((soutw - 1)<<16));
-		else write_wvalue(G2D_OUTPUT_SIZE_REG, (soutw - 1) | ((para->dst_rect.h -1)<<16));
-		if((para->flag & G2D_BLT_ROTATE270))
 			 addr_val = mixer_get_addr(para->dst_image.addr[0],para->dst_image.format,para->dst_image.w,scaler_outx,scaler_outy);
 		else addr_val = mixer_get_addr(para->dst_image.addr[0],para->dst_image.format,para->dst_image.w,scaler_outx,para->dst_rect.y);
 		reg_val = ((addr_val>>32)&0xF)<<16;/* high addr in bits */

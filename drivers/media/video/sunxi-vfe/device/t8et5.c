@@ -279,8 +279,8 @@ static struct regval_list sensor_default_regs[] = {
 {0xAE,0x02},//LSEDGB[7:0]//       GB;
 {0xAF,0x28},//LSEDR[7:0] //       R;
 {0xB0,0x28},//LSEDB[7:0] //       B;
-{0xB1,0xA0},//--;
-{0xB2,0x10},//--;
+{0xB1,0x00},//--;
+{0xB2,0x00},//--;
 {0xB3,0x00},//--;
 {0xB4,0xFF},//--;
 {0xB5,0xFF},//--;
@@ -363,7 +363,7 @@ static struct regval_list sensor_default_regs[] = {
 
 {0xFE,0x20},//enable modified regs
 {0x73,0xC9},//WBPCMODE/BBPCMOED/(5)/(4)/(3)/(2)/(1)/ABPCTH;manual BPC
-{0x74,0x07},//BBPCLV[7:0];
+{0x74,0x5c},//BBPCLV[7:0];//0x07
 {0x75,0x07},//WBPCLV[7:0];
 {0xF8,0x55},//--;WBPLV1[3:0]/WBPLV2[3:0]
 {0xF9,0x55},//--;WBPLV1[3:0]/WBPLV2[3:0]
@@ -783,17 +783,19 @@ static int sensor_s_gain(struct v4l2_subdev *sd, int gain_val)
 	struct sensor_info *info = to_state(sd);
 	unsigned char gainlow=0;
 	unsigned char gainhigh=0;
+	unsigned int gain_tmp;
 	
-	//printk("org gain=%d\n",gain_val);
-	gain_val=((gain_val)*26)>>4;//round to 1/26 step
-	if(gain_val<26)
-	  gain_val=26;
+	if(gain_val<16)
+	  gain_val=16;
 	if(info->gain == gain_val)
 		return 0;
-	//printk("re gain=%d\n",gain_val);
 	
-	gainlow=(unsigned char)(gain_val&0xff);
-	gainhigh=(unsigned char)((gain_val>>8)&0xff);
+	printk("org gain=%d\n",gain_val);
+	gain_tmp=((gain_val)*26)>>4;//round to 1/26 step
+	printk("re gain=%d\n",gain_tmp);
+	
+	gainlow=(unsigned char)(gain_tmp&0xff);
+	gainhigh=(unsigned char)((gain_tmp>>8)&0xff);
 	
 	sensor_write(sd, 0x04, gainlow);
 	sensor_write(sd, 0x03, gainhigh);
@@ -1104,7 +1106,7 @@ static struct sensor_win_size sensor_win_sizes[] = {
       .intg_min   = 1<<4,
       .intg_max   = 2000<<4,
       .gain_min   = 1<<4,
-      .gain_max   = 16<<4,
+      .gain_max   = 8<<4,
       .regs       = sensor_qsxga_regs,
       .regs_size  = ARRAY_SIZE(sensor_qsxga_regs),
       .set_size   = NULL,
@@ -1124,7 +1126,7 @@ static struct sensor_win_size sensor_win_sizes[] = {
       .intg_min   = 1<<4,
       .intg_max   = 2000<<4,
       .gain_min   = 1<<4,
-      .gain_max   = 16<<4,
+      .gain_max   = 8<<4,
       .regs       = sensor_qsxga_regs,//sensor_1080p_regs
       .regs_size  = ARRAY_SIZE(sensor_qsxga_regs),//sensor_1080p_regs
       .set_size		= NULL,
@@ -1163,7 +1165,7 @@ static struct sensor_win_size sensor_win_sizes[] = {
       .intg_min   = 1<<4,
       .intg_max   = 1000<<4,
       .gain_min   = 1<<4,
-      .gain_max   = 16<<4,
+      .gain_max   = 8<<4,
       .regs		    = sensor_sxga_regs,
       .regs_size	= ARRAY_SIZE(sensor_sxga_regs),
       .set_size		= NULL,
@@ -1183,7 +1185,7 @@ static struct sensor_win_size sensor_win_sizes[] = {
       .intg_min   = 1<<4,
       .intg_max   = 1000<<4,
       .gain_min   = 1<<4,
-      .gain_max   = 16<<4,
+      .gain_max   = 8<<4,
       .regs			  = sensor_sxga_regs,//sensor_720p_regs
       .regs_size	= ARRAY_SIZE(sensor_sxga_regs),//sensor_720p_regs
       .set_size		= NULL,
@@ -1256,6 +1258,19 @@ static int sensor_enum_fmt(struct v4l2_subdev *sd, unsigned index,
     return -EINVAL;
 
   *code = sensor_formats[index].mbus_code;
+  return 0;
+}
+
+static int sensor_enum_size(struct v4l2_subdev *sd,
+                            struct v4l2_frmsizeenum *fsize)
+{
+  if(fsize->index > N_WIN_SIZES-1)
+  	return -EINVAL;
+  
+  fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+  fsize->discrete.width = sensor_win_sizes[fsize->index].width;
+  fsize->discrete.height = sensor_win_sizes[fsize->index].height;
+  
   return 0;
 }
 
@@ -1351,6 +1366,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
   
   vfe_dev_dbg("sensor_s_fmt\n");
   
+  sensor_s_sw_stby(sd, CSI_STBY_ON);
   //sensor_write_array(sd, sensor_oe_disable_regs, ARRAY_SIZE(sensor_oe_disable_regs));
   
   ret = sensor_try_fmt_internal(sd, fmt, &sensor_fmt, &wsize);
@@ -1392,8 +1408,9 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
 
   }
 	
+  sensor_s_sw_stby(sd, CSI_STBY_OFF);
 	//sensor_write_array(sd, sensor_oe_enable_regs, ARRAY_SIZE(sensor_oe_enable_regs));
-	sensor_pr_regs(sd);
+	//sensor_pr_regs(sd);
 	return 0;
 }
 
@@ -1512,6 +1529,7 @@ static const struct v4l2_subdev_core_ops sensor_core_ops = {
 
 static const struct v4l2_subdev_video_ops sensor_video_ops = {
   .enum_mbus_fmt = sensor_enum_fmt,
+  .enum_framesizes = sensor_enum_size,
   .try_mbus_fmt = sensor_try_fmt,
   .s_mbus_fmt = sensor_s_fmt,
   .s_parm = sensor_s_parm,

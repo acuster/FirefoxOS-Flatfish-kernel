@@ -79,13 +79,19 @@ _start:
 	bic r0, r0, #( ARMV7_C1_A_BIT)                    ;// disable align
 	mcr p15, 0, r0, c1, c0
 
+	dsb
+	isb
+
     ldr r0, =0x01c00044
     ldr r1,[r0]
     orr r1,#0x1800
     str r1,[r0]
 
-// set SP for C language
-	ldr sp, =0x00007ffc
+// set SP for SVC mode	
+	mrc p15, 0, r0, c0, c0, 5
+	lsl	r0, r0, #10
+	add	sp, r0, #0x6000
+
 
 /**********************************the end of initializing system*********************************/
 	bl set_pll

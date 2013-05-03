@@ -48,6 +48,6 @@ else
 TARGET_ROOT := $(OUT_DIR)/target
 endif
 
-TOOLCHAIN ?= $(TARGET_ROOT)/product/$(TARGET_PRODUCT)/obj
+TOOLCHAIN ?= $(TARGET_ROOT)/product/$(TARGET_DEVICE)/obj
 
 LIBGCC := $(shell $(CROSS_COMPILE)gcc -print-libgcc-file-name)

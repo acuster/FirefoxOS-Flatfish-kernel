@@ -428,7 +428,7 @@ __s32 BSP_disp_layer_release(__u32 sel, __u32 hid)
             BSP_disp_cmu_layer_enable(sel, IDTOHAND(hid),FALSE);
             disp_cmu_layer_clear(sel);
 
-            Scaler_Release(layer_man->scaler_index, FALSE);      /*release a scaler object */
+            Scaler_Release(layer_man->scaler_index, TRUE);      /*release a scaler object */
             //pr_warn("BSP_disp_deu_disable, ====1======sel=%d,hid=%d\n",sel,hid);
             BSP_disp_deu_enable(sel, IDTOHAND(hid), FALSE);
             disp_deu_clear(sel, IDTOHAND(hid));
@@ -899,7 +899,7 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,__disp_layer_info_t *player)
                     BSP_disp_deu_enable(sel,IDTOHAND(hid),FALSE);
                     disp_deu_clear(sel, IDTOHAND(hid));
                 }
-                Scaler_Release(layer_man->scaler_index, FALSE);
+                Scaler_Release(layer_man->scaler_index, TRUE);
                 DE_BE_Layer_Video_Enable(sel, hid, FALSE);
                 DE_BE_Layer_Video_Ch_Sel(sel, hid, 0);
                 layer_man->para.mode = DISP_LAYER_WORK_MODE_NORMAL;

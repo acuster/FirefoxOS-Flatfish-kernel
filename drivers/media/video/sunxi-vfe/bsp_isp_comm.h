@@ -12,6 +12,7 @@
 
 #define ALIGN_4K(x) (((x) + (4095)) & ~(4095))
 #define ALIGN_32B(x) (((x) + (31)) & ~(31))
+#define ALIGN_16B(x) (((x) + (15)) & ~(15))
 
 /*
  *  update table
@@ -68,6 +69,7 @@
 enum isp_channel {
   MAIN_CH        = 0,
   SUB_CH         = 1,
+  ROT_CH         = 2,
   ISP_MAX_CH_NUM ,
 };
 
@@ -166,8 +168,8 @@ enum isp_lut_dpc_mode {
 };
 
 enum isp_input_fmt {
-  ISP_YUV422 = 0,
-  ISP_YUV420 = 1,
+  ISP_YUV420 = 0,
+  ISP_YUV422 = 1,
   ISP_RAW    = 2,
 };
 

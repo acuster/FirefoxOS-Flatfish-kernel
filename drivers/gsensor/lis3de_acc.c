@@ -1207,49 +1207,85 @@ static ssize_t attr_addr_set(struct device *dev, struct device_attribute *attr,
 }
 #endif
 
-static struct device_attribute attributes[] = {
-
-	__ATTR(pollrate_ms, 0664, attr_get_polling_rate, attr_set_polling_rate),
-	__ATTR(range, 0664, attr_get_range, attr_set_range),
-	__ATTR(enable_device, 0664, attr_get_enable, attr_set_enable),
-	__ATTR(int1_config, 0664, attr_get_intconfig1, attr_set_intconfig1),
-	__ATTR(int1_duration, 0664, attr_get_duration1, attr_set_duration1),
-	__ATTR(int1_threshold, 0664, attr_get_thresh1, attr_set_thresh1),
-	__ATTR(int1_source, 0444, attr_get_source1, NULL),
-	__ATTR(click_config, 0664, attr_get_click_cfg, attr_set_click_cfg),
-	__ATTR(click_source, 0444, attr_get_click_source, NULL),
-	__ATTR(click_threshold, 0664, attr_get_click_ths, attr_set_click_ths),
-	__ATTR(click_timelimit, 0664, attr_get_click_tlim, attr_set_click_tlim),
-	__ATTR(click_timelatency, 0664, attr_get_click_tlat,
-							attr_set_click_tlat),
-	__ATTR(click_timewindow, 0664, attr_get_click_tw, attr_set_click_tw),
-
+static DEVICE_ATTR(delay, 0664,
+		attr_get_polling_rate, attr_set_polling_rate);
+static DEVICE_ATTR(range, 0664,
+		attr_get_range, attr_set_range);
+static DEVICE_ATTR(enable, 0664,
+		attr_get_enable, attr_set_enable);
+static DEVICE_ATTR(int1_config, 0664,
+		attr_get_intconfig1, attr_set_intconfig1);
+static DEVICE_ATTR(int1_duration, 0664,
+		attr_get_duration1, attr_set_duration1);
+static DEVICE_ATTR(int1_threshold, 0664,
+		attr_get_thresh1, attr_set_thresh1);
+static DEVICE_ATTR(int1_source, 0444,
+		attr_get_source1, NULL);
+static DEVICE_ATTR(click_config, 0664,
+		attr_get_click_cfg, attr_set_click_cfg);
+static DEVICE_ATTR(click_source, 0444,
+		attr_get_click_source, NULL);
+static DEVICE_ATTR(click_threshold, 0664,
+		attr_get_click_ths, attr_set_click_ths);
+static DEVICE_ATTR(click_timelimit, 0664,
+		attr_get_click_tlim, attr_set_click_tlim);
+static DEVICE_ATTR(click_timelatency, 0664,
+		attr_get_click_tlat, attr_set_click_tlat);
+static DEVICE_ATTR(click_timewindow, 0664,
+		attr_get_click_tw, attr_set_click_tw);
 #ifdef DEBUG
-	__ATTR(reg_value, 0600, attr_reg_get, attr_reg_set),
-	__ATTR(reg_addr, 0200, NULL, attr_addr_set),
+static DEVICE_ATTR(reg_value, 0600,
+		attr_reg_get, attr_reg_set);
+static DEVICE_ATTR(reg_addr, 0200,
+		NULL, attr_addr_set);
 #endif
+
+
+static struct attribute *lis3de_attributes[] = {
+	&dev_attr_delay.attr,
+	&dev_attr_range.attr,
+	&dev_attr_enable.attr,
+	&dev_attr_int1_config.attr,
+	&dev_attr_int1_duration.attr,
+	&dev_attr_int1_threshold.attr,
+	&dev_attr_int1_source.attr,
+	&dev_attr_click_config.attr,
+	&dev_attr_click_source.attr,
+	&dev_attr_click_threshold.attr,
+	&dev_attr_click_timelimit.attr,
+	&dev_attr_click_timelatency.attr,
+	&dev_attr_click_timewindow.attr,
+#ifdef DEBUG
+	&dev_attr_reg_value.attr,
+	&dev_attr_reg_addr.attr,
+#endif
+	NULL
 };
+
+static struct attribute_group lis3de_attribute_group = {
+	.attrs = lis3de_attributes
+};
+
 
 static int create_sysfs_interfaces(struct device *dev)
 {
-	int i;
-	for (i = 0; i < ARRAY_SIZE(attributes); i++)
-		if (device_create_file(dev, attributes + i))
-			goto error;
+	int err = 0;
+	
+	err = sysfs_create_group(&dev->kobj, &lis3de_attribute_group);
+	if (err < 0)
+		goto error;
 	return 0;
 
 error:
-	for ( ; i >= 0; i--)
-		device_remove_file(dev, attributes + i);
+	
+	sysfs_remove_group(&dev->kobj, &lis3de_attribute_group);
 	dev_err(dev, "%s:Unable to create interface\n", __func__);
 	return -1;
 }
 
 static int remove_sysfs_interfaces(struct device *dev)
 {
-	int i;
-	for (i = 0; i < ARRAY_SIZE(attributes); i++)
-		device_remove_file(dev, attributes + i);
+	sysfs_remove_group(&dev->kobj, &lis3de_attribute_group);
 	return 0;
 }
 
@@ -1344,7 +1380,7 @@ static int lis3de_acc_input_init(struct lis3de_acc_status *stat)
 	stat->input_dev->name = LIS3DE_ACC_DEV_NAME;
 	/* stat->input_dev->name = "accelerometer"; */
 	stat->input_dev->id.bustype = BUS_I2C;
-	stat->input_dev->dev.parent = &stat->client->dev;
+	//stat->input_dev->dev.parent = &stat->client->dev;
 
 	input_set_drvdata(stat->input_dev, stat);
 
@@ -1536,9 +1572,9 @@ static int lis3de_acc_probe(struct i2c_client *client,
 	}
 
 
-	err = create_sysfs_interfaces(&client->dev);
+	err = create_sysfs_interfaces(&stat->input_dev->dev);
 	if (err < 0) {
-		dev_err(&client->dev,
+		printk(KERN_ERR
 		   "device LIS3DE_ACC_DEV_NAME sysfs register failed\n");
 		goto err_input_cleanup;
 	}
@@ -1611,7 +1647,7 @@ err_destoyworkqueue1:
 	if (stat->pdata->gpio_int1 >= 0)
 		destroy_workqueue(stat->irq1_work_queue);
 err_remove_sysfs_int:
-	remove_sysfs_interfaces(&client->dev);
+	remove_sysfs_interfaces(&stat->input_dev->dev);
 err_input_cleanup:
 	lis3de_acc_input_cleanup(stat);
 err_power_off:
@@ -1653,7 +1689,7 @@ static int __devexit lis3de_acc_remove(struct i2c_client *client)
 
 	lis3de_acc_input_cleanup(stat);
 	lis3de_acc_device_power_off(stat);
-	remove_sysfs_interfaces(&client->dev);
+	remove_sysfs_interfaces(&stat->input_dev->dev);
 	i2c_set_clientdata(client, NULL);
 
 	if (stat->pdata->exit)

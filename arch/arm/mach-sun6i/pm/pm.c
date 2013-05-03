@@ -239,6 +239,7 @@ static int aw_pm_valid(suspend_state_t state)
 */
 int aw_pm_begin(suspend_state_t state)
 {
+	int i = 0;
 	struct cpufreq_policy policy;
 
 	PM_DBG("%d state begin\n", state);
@@ -260,6 +261,12 @@ int aw_pm_begin(suspend_state_t state)
 	init_perfcounters (1, 0);
 #endif
 
+	/*init debug state*/
+	i = 0;
+	while(i < STATUS_REG_NUM){
+		*(volatile int *)(STATUS_REG + i*4) = 0x0;
+		i++;
+	}
 	return 0;
 
 out:
@@ -406,15 +413,15 @@ static int aw_early_suspend(void)
 	//backup 0x0000,0000 page entry, size?
 	save_mapping(MEM_SW_VA_SRAM_BASE);
 
-	if((sizeof(__u32)*DRAM_BACKUP_SIZE1) < sizeof(mem_para_info)){
+	if(DRAM_MEM_PARA_INFO_SIZE < sizeof(mem_para_info)){
 		//judge the reserved space for mem para is enough or not.
 		return -1;
 
 	}
 
 	//clean all the data into dram
-	memcpy((void *)phys_to_virt(DRAM_BACKUP_BASE_ADDR1_PA), (void *)&mem_para_info, sizeof(mem_para_info));
-	dmac_flush_range((void *)phys_to_virt(DRAM_BACKUP_BASE_ADDR1_PA), (void *)(phys_to_virt(DRAM_BACKUP_BASE_ADDR1_PA) + (sizeof(u32)) * DRAM_BACKUP_SIZE1));
+	memcpy((void *)phys_to_virt(DRAM_MEM_PARA_INFO_PA), (void *)&mem_para_info, sizeof(mem_para_info));
+	dmac_flush_range((void *)phys_to_virt(DRAM_MEM_PARA_INFO_PA), (void *)(phys_to_virt(DRAM_MEM_PARA_INFO_PA + DRAM_MEM_PARA_INFO_SIZE)));
 
 	mem_arch_suspend();
 	save_processor_state();
@@ -494,7 +501,7 @@ static int verify_restore(void *src, void *dest, int count)
 */
 static void aw_late_resume(void)
 {
-	memcpy((void *)&mem_para_info, (void *)phys_to_virt(DRAM_BACKUP_BASE_ADDR1_PA), sizeof(mem_para_info));
+	memcpy((void *)&mem_para_info, (void *)phys_to_virt(DRAM_MEM_PARA_INFO_PA), sizeof(mem_para_info));
 	mem_para_info.mem_flag = 0;
 	
 	//restore device state
@@ -636,6 +643,8 @@ static int aw_pm_enter(suspend_state_t state)
 
 	PM_DBG("enter state %d\n", state);
 
+	save_mem_status(BEFORE_EARLY_SUSPEND |0x1);
+	
 	if(unlikely(debug_mask&PM_STANDBY_PRINT_IO_STATUS)){
 		printk(KERN_INFO "IO status as follow:");
 		for(i=0; i<(GPIO_REG_LENGTH); i++){

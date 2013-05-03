@@ -100,33 +100,38 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
 
     if(gdisp.screen[sel].cache_flag == FALSE && gdisp.screen[sel].cfg_cnt == 0)
     {
+        DE_BE_Cfg_Ready(sel);
+        IEP_CMU_Operation_In_Vblanking(sel);
         for(i=0; i<2; i++)
         {            
             if((gdisp.scaler[i].status & SCALER_USED) && (gdisp.scaler[i].screen_index == sel))
             {
                 __u32 hid;
 
-                hid = gdisp.scaler[i].layer_id;
-                DE_SCAL_Set_Reg_Rdy(i);
-                //DE_SCAL_Reset(i);
-                //DE_SCAL_Start(i);
-                disp_deu_set_frame_info(sel, IDTOHAND(hid));
-                IEP_Deu_Operation_In_Vblanking(i);
-                gdisp.scaler[i].b_reg_change = FALSE;
-            }
-            if(gdisp.scaler[i].b_close == TRUE)
-            {
-                Scaler_close(i);
-                gdisp.scaler[i].b_close = FALSE;
+                if(gdisp.scaler[i].b_close == TRUE)
+                {
+                    Scaler_close(i);
+                    gdisp.scaler[i].b_close = FALSE;
+                }
+                else
+                {
+                    hid = gdisp.scaler[i].layer_id;
+                    DE_SCAL_Set_Reg_Rdy(i);
+                    //DE_SCAL_Reset(i);
+                    //DE_SCAL_Start(i);
+                    disp_deu_set_frame_info(sel, IDTOHAND(hid));
+                    disp_deu_output_select(sel, IDTOHAND(hid), sel);
+                    IEP_Deu_Operation_In_Vblanking(i);
+                }
+                gdisp.scaler[i].b_reg_change = false;
             }
         }
-        
+
         if(DISP_OUTPUT_TYPE_LCD == BSP_disp_get_output_type(sel))
         {
             IEP_Drc_Operation_In_Vblanking(sel);
         }
-        DE_BE_Cfg_Ready(sel);
-        IEP_CMU_Operation_In_Vblanking(sel);
+
 		gdisp.screen[sel].have_cfg_reg = TRUE;
 
 		gdisp.init_para.take_effect(sel);

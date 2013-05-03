@@ -1212,6 +1212,12 @@ static void axp_lateresume(struct early_suspend *h)
         tmp = (pmu_runtime_chgcur -200001)/150000;
         axp_update(axp_charger->master, AXP22_CHARGE_CONTROL1, tmp,0x0F);
     }
+    else if(pmu_runtime_chgcur < 300000){
+    	axp_clr_bits(axp_charger->master, AXP22_CHARGE_CONTROL1,0x0F);
+    }
+    else{
+    	axp_set_bits(axp_charger->master, AXP22_CHARGE_CONTROL1,0x0F);
+    }
 #endif
 
 }
@@ -1274,8 +1280,13 @@ static void axp_charging_monitor(struct work_struct *work)
     			tmp = (pmu_runtime_chgcur -200001)/150000;
     			charger->chgcur = tmp *150000 + 300000;
 					axp_update(charger->master, AXP20_CHARGE_CONTROL1, tmp, 0x0F);
-    		}
-  		}
+    			}else if(pmu_runtime_chgcur < 300000){
+			    	axp_clr_bits(axp_charger->master, AXP22_CHARGE_CONTROL1,0x0F);
+			    }
+			    else{
+			    	axp_set_bits(axp_charger->master, AXP22_CHARGE_CONTROL1,0x0F);
+			    }
+  			}
 #endif
 #endif
 	if(axp_debug){
@@ -1385,7 +1396,7 @@ static void axp_usb(struct work_struct *work)
 				printk("set usb limit current error,%d mA\n",pmu_usbcur);	
 		}
 		else //not limit
-			axp_set_bits(charger->master, AXP20_CHARGE_VBUS, 0x03);
+			axp_set_bits(charger->master, AXP22_CHARGE_VBUS, 0x03);
 	}
 		
 	if(axp_usbvolflag){
@@ -1847,6 +1858,14 @@ static int axp_battery_probe(struct platform_device *pdev)
 	/* µ÷ÊÔ½Ó¿Ú×¢²á */
 	class_register(&axppower_class);
 
+/*to aviod pa noise when power up,set aldo3 delay 1ms.added by zhwj 2013-03-29*/
+	axp_write(charger->master,0xf4,0x06);
+	axp_write(charger->master,0xf2,0x04);
+	axp_write(charger->master,0xff,0x01);
+	axp_write(charger->master,0x0a,0x01);
+	axp_write(charger->master,0xff,0x00);
+	axp_write(charger->master,0xf4,0x00);
+
     return ret;
 
 err_ps_register:
@@ -1964,6 +1983,11 @@ static int axp22_resume(struct platform_device *dev)
         tmp = (pmu_runtime_chgcur -200001)/150000;
         charger->chgcur = tmp *150000 + 300000;
         axp_update(charger->master, AXP22_CHARGE_CONTROL1, tmp,0x0F);
+    }else if(pmu_runtime_chgcur < 300000){
+    	axp_clr_bits(axp_charger->master, AXP22_CHARGE_CONTROL1,0x0F);
+    }
+    else{
+    	axp_set_bits(axp_charger->master, AXP22_CHARGE_CONTROL1,0x0F);
     }
 #endif
 

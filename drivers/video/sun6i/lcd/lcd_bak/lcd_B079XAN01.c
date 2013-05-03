@@ -29,6 +29,13 @@ void spi_24bit_3wire(__u32 tx)
 
 void lp079x01_init(__panel_para_t * info)
 {
+	spi_24bit_3wire(0x7000B7); //enter LP mode
+	spi_24bit_3wire(0x720340);
+	ssd2828_rst(0);
+	LCD_delay_ms(20);
+	ssd2828_rst(1);	
+	LCD_delay_ms(10);
+
 	spi_24bit_3wire(0x7000B1);  //VSA=50, HAS=64
 	spi_24bit_3wire(0x723240);
 
@@ -46,7 +53,7 @@ void lp079x01_init(__panel_para_t * info)
 
 	spi_24bit_3wire(0x7000B6);
 	spi_24bit_3wire(0x720009); //0x720009:burst mode, 18bpp packed
-														 //0x72000A:burst mode, 18bpp loosely packed
+													 //0x72000A:burst mode, 18bpp loosely packed
 							   						 //0x72000B:burst mode, 24bpp 
 							   						 
 	spi_24bit_3wire(0x7000DE); //no of lane=4
@@ -81,12 +88,26 @@ void lp079x01_init(__panel_para_t * info)
 
 	spi_24bit_3wire(0x700011); //sleep out cmd
 
-	LCD_delay_ms(200);
+	LCD_delay_ms(100);
 	spi_24bit_3wire(0x700029); //display on
 
 	LCD_delay_ms(200);
 	spi_24bit_3wire(0x7000B7); //video mode on
 	spi_24bit_3wire(0x72030b);
+}
+
+
+void lp079x01_exit(void)
+{
+	spi_24bit_3wire(0x7000B7); //enter LP mode
+	spi_24bit_3wire(0x720342);
+	
+	LCD_delay_ms(50);
+	spi_24bit_3wire(0x700028); //display off
+	LCD_delay_ms(10);	
+	spi_24bit_3wire(0x700010); //sleep in cmd
+	LCD_delay_ms(20);
+	ssd2828_rst(0);
 }
 
 

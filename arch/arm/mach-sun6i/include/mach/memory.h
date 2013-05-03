@@ -1,8 +1,8 @@
 /*
- *  arch/arm/mach-sun6i/include/mach/memory.h
+ * arch/arm/mach-sun6i/include/mach/memory.h
  *
  * Copyright (c) Allwinner.  All rights reserved.
- * Benn Huang (benn@allwinnertech.com)
+ * liugang (liugang@allwinnertech.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,20 +22,21 @@
 #define __ASM_ARCH_MEMORY_H
 
 #define PLAT_PHYS_OFFSET        UL(0x40000000)
-#define PLAT_MEM_SIZE           SZ_2G
+#define PLAT_MEM_SIZE           (CONFIG_SUNXI_MEMORY_SIZE * SZ_1G)
 
-#define SYS_CONFIG_MEMBASE      (PLAT_PHYS_OFFSET + SZ_32M + SZ_16M)    /* +48M */
-#define SYS_CONFIG_MEMSIZE      (SZ_64K)                                /* 64K */
+#define SYS_CONFIG_MEMBASE      (PLAT_PHYS_OFFSET + SZ_32M + SZ_16M)      /* 0x43000000 */
+#define SYS_CONFIG_MEMSIZE      (SZ_64K)                                  /* 0x00010000 */
 
-#define SUPER_STANDBY_MEM_BASE  (PLAT_PHYS_OFFSET + SZ_64M + SZ_32M)    /* +96M */
-#define SUPER_STANDBY_MEM_SIZE  (SZ_1K)                                 /* 1K */
+#define SUPER_STANDBY_MEM_BASE  (SYS_CONFIG_MEMBASE + SYS_CONFIG_MEMSIZE) /* 0x43010000 */
+#define SUPER_STANDBY_MEM_SIZE  (SZ_2K)                                 /* 2K */
 
-#define HW_RESERVED_MEM_BASE    (PLAT_PHYS_OFFSET + SZ_64M + SZ_32M + SZ_4M)    /* +100M */
-#define HW_RESERVED_MEM_SIZE    (SZ_128M + SZ_64M + SZ_32M + SZ_8M)   		/* 232M(DE+VE(CSI)+MP) */
+#define HW_RESERVED_MEM_BASE    (0x43100000)	/* 0x43100000 */
+#define HW_RESERVED_MEM_SIZE    (CONFIG_SUNXI_MEMORY_RESERVED_SIZE * SZ_1M) /* 232M for A31(DE+VE(CSI)+MP: SZ_128M + SZ_64M + SZ_32M + SZ_8M)
+                                                                    168M for A31s*/
 
 #if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
-#define ION_CARVEOUT_MEM_BASE   (HW_RESERVED_MEM_BASE + HW_RESERVED_MEM_SIZE)	/* +332M */
-#define ION_CARVEOUT_MEM_SIZE   (CONFIG_ION_SUNXI_CARVEOUT_SIZE * SZ_1M)  		/* in Mbytes */
+#define ION_CARVEOUT_MEM_BASE   (HW_RESERVED_MEM_BASE + HW_RESERVED_MEM_SIZE) /* 0x51900000 */
+#define ION_CARVEOUT_MEM_SIZE   (CONFIG_ION_SUNXI_CARVEOUT_SIZE * SZ_1M)      /* in Mbytes */
 #endif
 
 #endif

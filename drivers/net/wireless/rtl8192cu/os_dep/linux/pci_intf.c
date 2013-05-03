@@ -24,7 +24,7 @@
 #include <drv_types.h>
 #include <recv_osdep.h>
 #include <xmit_osdep.h>
-#include <hal_init.h>
+#include <hal_intf.h>
 #include <rtw_version.h>
 
 #ifndef CONFIG_PCI_HCI
@@ -82,14 +82,6 @@ struct pci_device_id rtw_pci_id_tbl[] = {
 struct pci_drv_priv {
 	struct pci_driver rtw_pci_drv;
 	int drv_registered;
-
-	_mutex hw_init_mutex;
-#if defined(CONFIG_CONCURRENT_MODE) || defined(CONFIG_DUALMAC_CONCURRENT)
-	//global variable
-	_mutex h2c_fwcmd_mutex;
-	_mutex setch_mutex;
-	_mutex setbw_mutex;
-#endif
 };
 
 
@@ -991,7 +983,7 @@ static void rtw_pci_update_default_setting(_adapter *padapter)
 	pwrpriv->b_support_aspm = 0;
 
 	// Dynamic Mechanism, 
-	//pAdapter->HalFunc.SetHalDefVarHandler(pAdapter, HAL_DEF_INIT_GAIN, &(pDevice->InitGainState));
+	//rtw_hal_set_def_var(pAdapter, HAL_DEF_INIT_GAIN, &(pDevice->InitGainState));
 
 	// Update PCI ASPM setting
 	pwrpriv->const_amdpci_aspm = pdvobjpriv->const_amdpci_aspm;
@@ -1109,7 +1101,7 @@ static irqreturn_t rtw_pci_interrupt(int irq, void *priv, struct pt_regs *regs)
 		return IRQ_HANDLED;
 	}
 
-	if(adapter->HalFunc.interrupt_handler(adapter) == _FAIL)
+	if(rtw_hal_interrupt_handler(adapter) == _FAIL)
 		return IRQ_HANDLED;
 		//return IRQ_NONE;
 
@@ -1158,6 +1150,12 @@ _func_enter_;
 	dvobj->ppcidev = pdev;
 	pcipriv = &(dvobj->pcipriv);
 	pci_set_drvdata(pdev, dvobj);
+
+	_rtw_mutex_init(&dvobj->hw_init_mutex);
+	_rtw_mutex_init(&dvobj->h2c_fwcmd_mutex);
+	_rtw_mutex_init(&dvobj->setch_mutex);
+	_rtw_mutex_init(&dvobj->setbw_mutex);
+
 
 	if ( (err = pci_enable_device(pdev)) != 0) {
 		DBG_871X(KERN_ERR "%s : Cannot enable new PCI device\n", pci_name(pdev));
@@ -1322,6 +1320,10 @@ disable_picdev:
 free_dvobj:
 	if (status != _SUCCESS && dvobj) {
 		pci_set_drvdata(pdev, NULL);
+		_rtw_mutex_free(&dvobj->hw_init_mutex);
+		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
+		_rtw_mutex_free(&dvobj->setch_mutex);
+		_rtw_mutex_free(&dvobj->setbw_mutex);
 		rtw_mfree((u8*)dvobj, sizeof(*dvobj));
 		dvobj = NULL;
 	}
@@ -1346,6 +1348,12 @@ _func_enter_;
 			pci_iounmap(pdev, (void *)dvobj->pci_mem_start);
 			dvobj->pci_mem_start = 0;
 		}
+
+		_rtw_mutex_free(&dvobj->hw_init_mutex);
+		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
+		_rtw_mutex_free(&dvobj->setch_mutex);
+		_rtw_mutex_free(&dvobj->setbw_mutex);
+		
 		rtw_mfree((u8*)dvobj, sizeof(*dvobj));
 	}
 
@@ -1471,7 +1479,7 @@ static void pci_intf_start(_adapter *padapter)
 	DBG_871X("+pci_intf_start\n");
 
 	//Enable hw interrupt
-	padapter->HalFunc.enable_interrupt(padapter);
+	rtw_hal_enable_interrupt(padapter);
 
 	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("-pci_intf_start\n"));
 	DBG_871X("-pci_intf_start\n");
@@ -1486,7 +1494,7 @@ static void pci_intf_stop(_adapter *padapter)
 	if(padapter->bSurpriseRemoved == _FALSE)
 	{
 		//device still exists, so driver can do i/o operation
-		padapter->HalFunc.disable_interrupt(padapter);
+		rtw_hal_disable_interrupt(padapter);
 		tasklet_disable(&(padapter->recvpriv.recv_tasklet));
 		tasklet_disable(&(padapter->recvpriv.irq_prepare_beacon_tasklet));
 		tasklet_disable(&(padapter->xmitpriv.xmit_tasklet));
@@ -1523,24 +1531,12 @@ static void rtw_dev_unload(_adapter *padapter)
 	if(padapter->bup == _TRUE)
 	{
 		DBG_871X("+rtw_dev_unload\n");
-		//s1.
-/*		if(pnetdev)
-		{
-			netif_carrier_off(pnetdev);
-			rtw_netif_stop_queue(pnetdev);
-		}
-
-		//s2.
-		//s2-1.  issue rtw_disassoc_cmd to fw
-		rtw_disassoc_cmd(padapter);
-		//s2-2.  indicate disconnect to os
-		rtw_indicate_disconnect(padapter);
-		//s2-3.
-		rtw_free_assoc_resources(padapter, 1);
-		//s2-4.
-		rtw_free_network_queue(padapter, _TRUE);*/
 
 		padapter->bDriverStopped = _TRUE;
+		#ifdef CONFIG_XMIT_ACK
+		if (padapter->xmitpriv.ack_tx)
+			rtw_ack_tx_done(&padapter->xmitpriv, RTW_SCTX_DONE_DRV_STOP);
+		#endif
 
 		//s3.
 		if(padapter->intf_stop)
@@ -1703,13 +1699,13 @@ _adapter *rtw_pci_if1_init(struct dvobj_priv * dvobj, struct pci_dev *pdev,
 	}
 
 	//.3
-	intf_read_chip_version(padapter);
+	rtw_hal_read_chip_version(padapter);
 	
 	//.4
-	intf_chip_configure(padapter);
+	rtw_hal_chip_configure(padapter);
 
 	//step 4. read efuse/eeprom data and get mac_addr
-	intf_read_chip_info(padapter);	
+	rtw_hal_read_chip_info(padapter);
 
 	//step 5.
 	if (rtw_init_drv_sw(padapter) == _FAIL) {
@@ -1717,7 +1713,7 @@ _adapter *rtw_pci_if1_init(struct dvobj_priv * dvobj, struct pci_dev *pdev,
 		goto free_hal_data;
 	}
 
-	status = padapter->HalFunc.inirp_init(padapter);
+	status = rtw_hal_inirp_init(padapter);
 	if(status ==_FAIL){
 		RT_TRACE(_module_hci_intfs_c_,_drv_err_,("Initialize PCI desc ring Failed!\n"));
 		goto free_drv_sw;
@@ -1725,12 +1721,13 @@ _adapter *rtw_pci_if1_init(struct dvobj_priv * dvobj, struct pci_dev *pdev,
 
 	rtw_init_netdev_name(pnetdev, padapter->registrypriv.ifname);
 	rtw_macaddr_cfg(padapter->eeprompriv.mac_addr);
+	rtw_init_wifidirect_addrs(padapter, padapter->eeprompriv.mac_addr, padapter->eeprompriv.mac_addr);
 
 	_rtw_memcpy(pnetdev->dev_addr, padapter->eeprompriv.mac_addr, ETH_ALEN);
 	DBG_871X("MAC Address from pnetdev->dev_addr= "MAC_FMT"\n", MAC_ARG(pnetdev->dev_addr));	
 
 
-	padapter->HalFunc.disable_interrupt(padapter);
+	rtw_hal_disable_interrupt(padapter);
 
 	//step 6. Init pci related configuration
 	rtw_pci_initialize_adapter_common(padapter);
@@ -1761,7 +1758,7 @@ _adapter *rtw_pci_if1_init(struct dvobj_priv * dvobj, struct pci_dev *pdev,
 
 inirp_deinit:
 	if (status != _SUCCESS)
-		padapter->HalFunc.inirp_deinit(padapter);
+		rtw_hal_inirp_deinit(padapter);
 free_drv_sw:
 	if (status != _SUCCESS)
 		rtw_free_drv_sw(padapter);
@@ -1771,6 +1768,7 @@ free_hal_data:
 free_wdev:
 	if (status != _SUCCESS) {
 		#ifdef CONFIG_IOCTL_CFG80211
+		rtw_wdev_unregister(padapter->rtw_wdev);
 		rtw_wdev_free(padapter->rtw_wdev);
 		#endif
 	}
@@ -1794,36 +1792,10 @@ static void rtw_pci_if1_deinit(_adapter *if1)
 	struct net_device *pnetdev = if1->pnetdev;
 	struct mlme_priv *pmlmepriv= &if1->mlmepriv;
 
-#if defined(CONFIG_HAS_EARLYSUSPEND ) || defined(CONFIG_ANDROID_POWER)
-	rtw_unregister_early_suspend(&if1->pwrctrlpriv);
-#endif
-
-	rtw_pm_set_ips(if1, IPS_NONE);
-	rtw_pm_set_lps(if1, PS_MODE_ACTIVE);
-
-	LeaveAllPowerSaveMode(if1);
 	//	padapter->intf_stop(padapter);
 
 	if(check_fwstate(pmlmepriv, _FW_LINKED))
-		disconnect_hdl(if1, NULL);
-
-	#if 0
-#ifdef RTK_DMP_PLATFORM
-	padapter->bSurpriseRemoved = _FALSE;	// always trate as device exists
-											// this will let the driver to disable it's interrupt
-#else
-	if(pci_drvpriv.drv_registered == _TRUE)
-	{
-		//DBG_871X("r871xu_dev_remove():padapter->bSurpriseRemoved == _TRUE\n");
-		padapter->bSurpriseRemoved = _TRUE;
-	}
-	/*else
-	{
-		//DBG_871X("r871xu_dev_remove():module removed\n");
-		padapter->hw_init_completed = _FALSE;
-	}*/
-#endif
-	#endif
+		rtw_disassoc_cmd(if1, 0, _FALSE);
 
 #ifdef CONFIG_AP_MODE
 	free_mlme_ap_info(if1);
@@ -1851,10 +1823,11 @@ static void rtw_pci_if1_deinit(_adapter *if1)
 	rtw_handle_dualmac(if1, 0);
 
 #ifdef CONFIG_IOCTL_CFG80211
+	rtw_wdev_unregister(if1->rtw_wdev);
 	rtw_wdev_free(if1->rtw_wdev);
 #endif //CONFIG_IOCTL_CFG80211
 
-	if1->HalFunc.inirp_deinit(if1);
+	rtw_hal_inirp_deinit(if1);
 	rtw_free_drv_sw(if1);	
 
 	if(pnetdev)
@@ -1924,7 +1897,8 @@ static int rtw_drv_init(struct pci_dev *pdev, const struct pci_device_id *did)
 free_if2:
 	if(status != _SUCCESS && if2) {
 		#ifdef CONFIG_CONCURRENT_MODE
-		rtw_drv_if2_free(if1);
+		rtw_drv_if2_stop(if2);
+		rtw_drv_if2_free(if2);
 		#endif
 	}
 free_if1:
@@ -1956,11 +1930,44 @@ _func_exit_;
 		return;
 	}
 
+	#if 0
+#ifdef RTK_DMP_PLATFORM
+	padapter->bSurpriseRemoved = _FALSE;	// always trate as device exists
+											// this will let the driver to disable it's interrupt
+#else
+	if(pci_drvpriv.drv_registered == _TRUE)
+	{
+		//DBG_871X("r871xu_dev_remove():padapter->bSurpriseRemoved == _TRUE\n");
+		padapter->bSurpriseRemoved = _TRUE;
+	}
+	/*else
+	{
+		//DBG_871X("r871xu_dev_remove():module removed\n");
+		padapter->hw_init_completed = _FALSE;
+	}*/
+#endif
+	#endif
+
+#if defined(CONFIG_HAS_EARLYSUSPEND) || defined(CONFIG_ANDROID_POWER)
+	rtw_unregister_early_suspend(&padapter->pwrctrlpriv);
+#endif
+
+	rtw_pm_set_ips(padapter, IPS_NONE);
+	rtw_pm_set_lps(padapter, PS_MODE_ACTIVE);
+
+	LeaveAllPowerSaveMode(padapter);
+
+	rtw_hal_disable_interrupt(padapter);
+
 #ifdef CONFIG_CONCURRENT_MODE
-	rtw_drv_if2_free(padapter);
+	rtw_drv_if2_stop(pdvobjpriv->if2);
 #endif //CONFIG_CONCURRENT_MODE
 
 	rtw_pci_if1_deinit(padapter);
+
+#ifdef CONFIG_CONCURRENT_MODE
+	rtw_drv_if2_free(pdvobjpriv->if2);
+#endif
 
 	pci_dvobj_deinit(pdev);
 
@@ -1982,13 +1989,6 @@ static int __init rtw_drv_entry(void)
 
 	rtw_suspend_lock_init();
 
-	_rtw_mutex_init(&pci_drvpriv.hw_init_mutex);
-#if defined(CONFIG_CONCURRENT_MODE) || defined(CONFIG_DUALMAC_CONCURRENT)
-	//init global variable
-	_rtw_mutex_init(&pci_drvpriv.h2c_fwcmd_mutex);
-	_rtw_mutex_init(&pci_drvpriv.setch_mutex);
-	_rtw_mutex_init(&pci_drvpriv.setbw_mutex);
-#endif
 	ret = pci_register_driver(&pci_drvpriv.rtw_pci_drv);
 	if (ret) {
 		RT_TRACE(_module_hci_intfs_c_, _drv_err_, (": No device found\n"));
@@ -2005,12 +2005,6 @@ static void __exit rtw_drv_halt(void)
 	rtw_suspend_lock_uninit();	
 	pci_drvpriv.drv_registered = _FALSE;
 	
-	_rtw_mutex_free(&pci_drvpriv.hw_init_mutex);
-#if defined(CONFIG_CONCURRENT_MODE) || defined(CONFIG_DUALMAC_CONCURRENT)
-	_rtw_mutex_free(&pci_drvpriv.h2c_fwcmd_mutex);
-	_rtw_mutex_free(&pci_drvpriv.setch_mutex);
-	_rtw_mutex_free(&pci_drvpriv.setbw_mutex);
-#endif
 	pci_unregister_driver(&pci_drvpriv.rtw_pci_drv);
 
 	DBG_871X("-rtw_drv_halt\n");

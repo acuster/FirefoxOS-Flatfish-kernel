@@ -5,74 +5,26 @@
 
 #include "axp-cfg.h"
 
-
-/* AXP18 Regulator Registers */
-#define AXP18_RTC			    POWER18_STATUS
-#define AXP18_ANALOG		  POWER18_LDOOUT_VOL
-#define AXP18_MOMERY		  POWER18_LDOOUT_VOL
-#define AXP18_SPDIF			  POWER18_SW_CTL
-#define AXP18_IO			    POWER18_DC12OUT_VOL
-#define AXP18_CORE			  POWER18_DC12OUT_VOL
-#define AXP18_SDRAM			  POWER18_DC12OUT_VOL
-#define AXP18_SDCARD		  POWER18_DC12OUT_VOL
-                          
-#define AXP18_LDO1EN		  POWER18_STATUS
-#define AXP18_LDO2EN		  POWER18_DCDCCTL
-#define AXP18_LDO3EN		  POWER18_LDOOUT_VOL
-#define AXP18_LDO4EN		  POWER18_SW_CTL
-#define AXP18_LDO5EN		  POWER18_SW_CTL
-#define AXP18_DCDC1EN		  POWER18_STATUS
-#define AXP18_DCDC2EN		  POWER18_STATUS
-#define AXP18_DCDC3EN		  POWER18_DCDCCTL
-#define AXP18_SW1EN			  POWER18_SW_CTL
-#define AXP18_SW2EN			  POWER18_SW_CTL
-
-#define AXP18_BUCKMODE		POWER18_DCDCCTL
-#define AXP18_BUCKFREQ		POWER18_PEK
-
-
-/* AXP19 Regulator Registers */
-#define AXP19_RTC		       POWER19_STATUS
-#define AXP19_ANALOG1		   POWER19_LDO24OUT_VOL
-#define AXP19_DIGITAL      POWER19_LDO3OUT_VOL
-#define AXP19_ANALOG2      POWER19_LDO24OUT_VOL
-#define AXP19_LDOIO0       POWER19_GPIO0_VOL
-#define AXP19_IO           POWER19_DC1OUT_VOL
-#define AXP19_CORE         POWER19_DC2OUT_VOL
-#define AXP19_MEMORY       POWER19_DC3OUT_VOL
-
-#define AXP19_LDO1EN		   POWER19_STATUS
-#define AXP19_LDO2EN		   POWER19_LDO24_DC13_CTL
-#define AXP19_LDO3EN		   POWER19_LDO3_DC2_CTL
-#define AXP19_LDO4EN		   POWER19_LDO24_DC13_CTL
-#define AXP19_LDOIOEN		   POWER19_GPIO0_CTL
-#define AXP19_DCDC1EN      POWER19_LDO24_DC13_CTL
-#define AXP19_DCDC2EN      POWER19_LDO3_DC2_CTL
-#define AXP19_DCDC3EN      POWER19_LDO24_DC13_CTL
-
-#define AXP19_BUCKMODE     POWER19_DCDC_MODESET
-#define AXP19_BUCKFREQ     POWER19_DCDC_FREQSET
-
-/* AXP20 Regulator Registers */
-#define AXP20_LDO1		    POWER20_STATUS
-#define AXP20_LDO2		    POWER20_LDO24OUT_VOL
-#define AXP20_LDO3        POWER20_LDO3OUT_VOL
-#define AXP20_LDO4        POWER20_LDO24OUT_VOL
-#define AXP20_BUCK2       POWER20_DC2OUT_VOL
-#define AXP20_BUCK3       POWER20_DC3OUT_VOL
-#define AXP20_LDOIO0		  POWER20_GPIO0_VOL
-                          
-#define AXP20_LDO1EN		  POWER20_STATUS
-#define AXP20_LDO2EN		  POWER20_LDO234_DC23_CTL
-#define AXP20_LDO3EN		  POWER20_LDO234_DC23_CTL
-#define AXP20_LDO4EN		  POWER20_LDO234_DC23_CTL
-#define AXP20_BUCK2EN     POWER20_LDO234_DC23_CTL
-#define AXP20_BUCK3EN     POWER20_LDO234_DC23_CTL
-#define AXP20_LDOIOEN		  POWER20_GPIO0_CTL
-
-
-#define AXP20_BUCKMODE     POWER20_DCDC_MODESET
-#define AXP20_BUCKFREQ     POWER20_DCDC_FREQSET
+/*Schematic_name	regulator_ID	virtual_consumer_name	max_voltage 	min_voltage   step
+------------------------------------------------------------------------------------------------
+*     DCDC1			 axp22_dcdc1	 reg-22-cs-dcdc1		  3300mV           1600mV	 100mV
+*     DCDC2			 axp22_dcdc2	 reg-22-cs-dcdc2		  1540mV           600mV	 20mV
+*     DCDC3			 axp22_dcdc3	 reg-22-cs-dcdc3		  1860mV           600mV	 20mV
+*     DCDC4			 axp22_dcdc4	 reg-22-cs-dcdc4		  1540mV           600mV	 20mV
+*     DCDC5			 axp22_dcdc5	 reg-22-cs-dcdc5		  2550mV           1000mV	 50mV
+*     ALDO1			 axp22_aldo1	 reg-22-cs-aldo1		  3300mV           700mV	 100mV
+*     ALDO2			 axp22_aldo2	 reg-22-cs-aldo2		  3300mV           700mV	 100mV
+*     ALDO3			 axp22_aldo3	 reg-22-cs-aldo3		  3300mV           700mV	 100mV
+*     DLDO1			 axp22_dldo1	 reg-22-cs-dldo1		  3300mV           700mV	 100mV
+*     DLDO2			 axp22_dldo2	 reg-22-cs-dldo2		  3300mV           700mV	 100mV
+*     DLDO3			 axp22_dldo3	 reg-22-cs-dldo3		  3300mV           700mV	 100mV
+*     DLDO4			 axp22_dldo4	 reg-22-cs-dldo4		  3300mV           700mV	 100mV
+*     ELDO1			 axp22_eldo1	 reg-22-cs-eldo1		  3300mV           700mV	 100mV
+*     ELDO2			 axp22_eldo2	 reg-22-cs-eldo2		  3300mV           700mV	 100mV
+*     ELDO3			 axp22_eldo3	 reg-22-cs-eldo3		  3300mV           700mV	 100mV
+*     GPIO0/LDO		 axp22_ldoio0	 reg-22-cs-gpio0ldo		  3300mV           700mV	 100mV
+*     GPIO1/LDO		 axp22_ldoio1	 reg-22-cs-gpio1ldo		  3300mV           700mV	 100mV
+*/
 
 /* AXP22 Regulator Registers */
 #define AXP22_LDO1		    AXP22_STATUS

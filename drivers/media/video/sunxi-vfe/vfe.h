@@ -237,7 +237,7 @@ struct vfe_ctrl_para {
   unsigned int							  prev_exp_line;
   unsigned int			                  prev_ana_gain;  
   unsigned int			                  prev_focus_pos;
-  unsigned int			                  prev_frame_rate;
+  unsigned int			                  prev_exp_gain;
   
 };
 

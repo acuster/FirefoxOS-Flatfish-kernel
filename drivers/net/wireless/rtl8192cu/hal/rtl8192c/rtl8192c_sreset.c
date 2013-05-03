@@ -115,9 +115,9 @@ static void _restore_network_status(_adapter *padapter)
 	//Switch_DM_Func(padapter, DYNAMIC_FUNC_DISABLE, _FALSE);	
 #endif
 
-	padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_BSSID, pmlmeinfo->network.MacAddress);
+	rtw_hal_set_hwreg(padapter, HW_VAR_BSSID, pmlmeinfo->network.MacAddress);
 	join_type = 0;
-	padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
+	rtw_hal_set_hwreg(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
 
 	Set_MSR(padapter, (pmlmeinfo->state & 0x3));
 

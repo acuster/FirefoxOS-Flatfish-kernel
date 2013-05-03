@@ -27,15 +27,14 @@
 #include <ioctl_cfg80211.h>
 #include <rtw_ioctl_set.h>
 
-
-#if defined(CONFIG_WIFI_CONTROL_FUNC) && 0
+#if defined(RTW_ENABLE_WIFI_CONTROL_FUNC)
 #include <linux/platform_device.h>
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
 #include <linux/wlan_plat.h>
 #else
 #include <linux/wifi_tiwlan.h>
 #endif
-#endif /* CONFIG_WIFI_CONTROL_FUNC */
+#endif /* defined(RTW_ENABLE_WIFI_CONTROL_FUNC) */
 
 const char *android_wifi_cmd_str[ANDROID_WIFI_CMD_MAX] = {
 	"START",
@@ -97,11 +96,16 @@ typedef struct cmd_tlv {
 #endif /* PNO_SUPPORT */
 
 typedef struct android_wifi_priv_cmd {
+
+#ifdef CONFIG_COMPAT
+	compat_uptr_t buf;
+#else
 	char *buf;
+#endif
+
 	int used_len;
 	int total_len;
 } android_wifi_priv_cmd;
-
 
 /**
  * Local (static) functions and variables
@@ -151,7 +155,7 @@ static int wl_android_set_pno_setup(struct net_device *dev, char *command, int t
 	DHD_INFO(("%s: command=%s, len=%d\n", __FUNCTION__, command, total_len));
 
 	if (total_len < (strlen(CMD_PNOSETUP_SET) + sizeof(cmd_tlv_t))) {
-		DHD_ERROR(("%s argument=%d less min size\n", __FUNCTION__, total_len));
+		DBG_871X("%s argument=%d less min size\n", __FUNCTION__, total_len);
 		goto exit_proc;
 	}
 
@@ -178,12 +182,12 @@ static int wl_android_set_pno_setup(struct net_device *dev, char *command, int t
 
 		if ((nssid = wl_iw_parse_ssid_list_tlv(&str_ptr, ssids_local,
 			MAX_PFN_LIST_COUNT, &tlv_size_left)) <= 0) {
-			DHD_ERROR(("SSID is not presented or corrupted ret=%d\n", nssid));
+			DBG_871X("SSID is not presented or corrupted ret=%d\n", nssid);
 			goto exit_proc;
 		} else {
 			if ((str_ptr[0] != PNO_TLV_TYPE_TIME) || (tlv_size_left <= 1)) {
-				DHD_ERROR(("%s scan duration corrupted field size %d\n",
-					__FUNCTION__, tlv_size_left));
+				DBG_871X("%s scan duration corrupted field size %d\n",
+					__FUNCTION__, tlv_size_left);
 				goto exit_proc;
 			}
 			str_ptr++;
@@ -192,16 +196,16 @@ static int wl_android_set_pno_setup(struct net_device *dev, char *command, int t
 
 			if (str_ptr[0] != 0) {
 				if ((str_ptr[0] != PNO_TLV_FREQ_REPEAT)) {
-					DHD_ERROR(("%s pno repeat : corrupted field\n",
-						__FUNCTION__));
+					DBG_871X("%s pno repeat : corrupted field\n",
+						__FUNCTION__);
 					goto exit_proc;
 				}
 				str_ptr++;
 				pno_repeat = simple_strtoul(str_ptr, &str_ptr, 16);
 				DHD_INFO(("%s :got pno_repeat=%d\n", __FUNCTION__, pno_repeat));
 				if (str_ptr[0] != PNO_TLV_FREQ_EXPO_MAX) {
-					DHD_ERROR(("%s FREQ_EXPO_MAX corrupted field size\n",
-						__FUNCTION__));
+					DBG_871X("%s FREQ_EXPO_MAX corrupted field size\n",
+						__FUNCTION__);
 					goto exit_proc;
 				}
 				str_ptr++;
@@ -211,7 +215,7 @@ static int wl_android_set_pno_setup(struct net_device *dev, char *command, int t
 			}
 		}
 	} else {
-		DHD_ERROR(("%s get wrong TLV command\n", __FUNCTION__));
+		DBG_871X("%s get wrong TLV command\n", __FUNCTION__);
 		goto exit_proc;
 	}
 
@@ -340,14 +344,21 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		ret = -EFAULT;
 		goto exit;
 	}
-	command = kmalloc(priv_cmd.total_len, GFP_KERNEL);
+
+	command = rtw_zmalloc(priv_cmd.total_len);
 	if (!command)
 	{
 		DBG_871X("%s: failed to allocate memory\n", __FUNCTION__);
 		ret = -ENOMEM;
 		goto exit;
 	}
-	if (copy_from_user(command, priv_cmd.buf, priv_cmd.total_len)) {
+
+	if (!access_ok(VERIFY_READ, priv_cmd.buf, priv_cmd.total_len)){
+	 	DBG_871X("%s: failed to access memory\n", __FUNCTION__);
+		ret = -EFAULT;
+		goto exit;
+	 }
+	if (copy_from_user(command, (void *)priv_cmd.buf, priv_cmd.total_len)) {
 		ret = -EFAULT;
 		goto exit;
 	}
@@ -550,11 +561,7 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		pwfd_info = &padapter->wfd_info;
 		pwfd_info->wfd_device_type = ( u8 ) get_int_from_command( priv_cmd.buf );
 		
-		if ( ( WFD_DEVINFO_SOURCE != pwfd_info->wfd_device_type ) && ( WFD_DEVINFO_PSINK != pwfd_info->wfd_device_type ) )
-		{
-			pwfd_info->wfd_device_type = WFD_DEVINFO_PSINK;
-		}
-	
+		pwfd_info->wfd_device_type &= WFD_DEVINFO_DUAL;
 		break;
 	}
 #endif
@@ -575,7 +582,7 @@ response:
 			bytes_written++;
 		}
 		priv_cmd.used_len = bytes_written;
-		if (copy_to_user(priv_cmd.buf, command, bytes_written)) {
+		if (copy_to_user((void *)priv_cmd.buf, command, bytes_written)) {
 			DBG_871X("%s: failed to copy data to user buffer\n", __FUNCTION__);
 			ret = -EFAULT;
 		}
@@ -597,7 +604,7 @@ exit:
 /**
  * Functions for Android WiFi card detection
  */
-#if defined(CONFIG_WIFI_CONTROL_FUNC) && 0
+#if defined(RTW_ENABLE_WIFI_CONTROL_FUNC)
 
 static int g_wifidev_registered = 0;
 static struct semaphore wifi_control_sem;
@@ -607,14 +614,14 @@ static struct resource *wifi_irqres = NULL;
 static int wifi_add_dev(void);
 static void wifi_del_dev(void);
 
-int wl_android_wifictrl_func_add(void)
+int rtw_android_wifictrl_func_add(void)
 {
 	int ret = 0;
 	sema_init(&wifi_control_sem, 0);
 
 	ret = wifi_add_dev();
 	if (ret) {
-		DHD_ERROR(("%s: platform_driver_register failed\n", __FUNCTION__));
+		DBG_871X("%s: platform_driver_register failed\n", __FUNCTION__);
 		return ret;
 	}
 	g_wifidev_registered = 1;
@@ -622,13 +629,13 @@ int wl_android_wifictrl_func_add(void)
 	/* Waiting callback after platform_driver_register is done or exit with error */
 	if (down_timeout(&wifi_control_sem,  msecs_to_jiffies(1000)) != 0) {
 		ret = -EINVAL;
-		DHD_ERROR(("%s: platform_driver_register timeout\n", __FUNCTION__));
+		DBG_871X("%s: platform_driver_register timeout\n", __FUNCTION__);
 	}
 
 	return ret;
 }
 
-void wl_android_wifictrl_func_del(void)
+void rtw_android_wifictrl_func_del(void)
 {
 	if (g_wifidev_registered)
 	{
@@ -643,14 +650,14 @@ void *wl_android_prealloc(int section, unsigned long size)
 	if (wifi_control_data && wifi_control_data->mem_prealloc) {
 		alloc_ptr = wifi_control_data->mem_prealloc(section, size);
 		if (alloc_ptr) {
-			DHD_INFO(("success alloc section %d\n", section));
+			DBG_871X("success alloc section %d\n", section);
 			if (size != 0L)
-				bzero(alloc_ptr, size);
+				memset(alloc_ptr, 0, size);
 			return alloc_ptr;
 		}
 	}
 
-	DHD_ERROR(("can't alloc section %d\n", section));
+	DBG_871X("can't alloc section %d\n", section);
 	return NULL;
 }
 
@@ -669,7 +676,7 @@ int wifi_get_irq_number(unsigned long *irq_flags_ptr)
 
 int wifi_set_power(int on, unsigned long msec)
 {
-	DHD_ERROR(("%s = %d\n", __FUNCTION__, on));
+	DBG_871X("%s = %d\n", __FUNCTION__, on);
 	if (wifi_control_data && wifi_control_data->set_power) {
 		wifi_control_data->set_power(on);
 	}
@@ -681,7 +688,7 @@ int wifi_set_power(int on, unsigned long msec)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
 int wifi_get_mac_addr(unsigned char *buf)
 {
-	DHD_ERROR(("%s\n", __FUNCTION__));
+	DBG_871X("%s\n", __FUNCTION__);
 	if (!buf)
 		return -EINVAL;
 	if (wifi_control_data && wifi_control_data->get_mac_addr) {
@@ -694,7 +701,7 @@ int wifi_get_mac_addr(unsigned char *buf)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)) || defined(COMPAT_KERNEL_RELEASE)
 void *wifi_get_country_code(char *ccode)
 {
-	DHD_TRACE(("%s\n", __FUNCTION__));
+	DBG_871X("%s\n", __FUNCTION__);
 	if (!ccode)
 		return NULL;
 	if (wifi_control_data && wifi_control_data->get_country_code) {
@@ -706,7 +713,7 @@ void *wifi_get_country_code(char *ccode)
 
 static int wifi_set_carddetect(int on)
 {
-	DHD_ERROR(("%s = %d\n", __FUNCTION__, on));
+	DBG_871X("%s = %d\n", __FUNCTION__, on);
 	if (wifi_control_data && wifi_control_data->set_carddetect) {
 		wifi_control_data->set_carddetect(on);
 	}
@@ -718,7 +725,7 @@ static int wifi_probe(struct platform_device *pdev)
 	struct wifi_platform_data *wifi_ctrl =
 		(struct wifi_platform_data *)(pdev->dev.platform_data);
 
-	DHD_ERROR(("## %s\n", __FUNCTION__));
+	DBG_871X("## %s\n", __FUNCTION__);
 	wifi_irqres = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "bcmdhd_wlan_irq");
 	if (wifi_irqres == NULL)
 		wifi_irqres = platform_get_resource_byname(pdev,
@@ -737,7 +744,7 @@ static int wifi_remove(struct platform_device *pdev)
 	struct wifi_platform_data *wifi_ctrl =
 		(struct wifi_platform_data *)(pdev->dev.platform_data);
 
-	DHD_ERROR(("## %s\n", __FUNCTION__));
+	DBG_871X("## %s\n", __FUNCTION__);
 	wifi_control_data = wifi_ctrl;
 
 	wifi_set_power(0, 0);	/* Power Off */
@@ -749,7 +756,7 @@ static int wifi_remove(struct platform_device *pdev)
 
 static int wifi_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	DHD_TRACE(("##> %s\n", __FUNCTION__));
+	DBG_871X("##> %s\n", __FUNCTION__);
 #if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 39)) && defined(OOB_INTR_ONLY)
 	bcmsdh_oob_intr_set(0);
 #endif
@@ -758,7 +765,7 @@ static int wifi_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int wifi_resume(struct platform_device *pdev)
 {
-	DHD_TRACE(("##> %s\n", __FUNCTION__));
+	DBG_871X("##> %s\n", __FUNCTION__);
 #if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 39)) && defined(OOB_INTR_ONLY)
 	if (dhd_os_check_if_up(bcmsdh_get_drvdata()))
 		bcmsdh_oob_intr_set(1);
@@ -766,6 +773,7 @@ static int wifi_resume(struct platform_device *pdev)
 	return 0;
 }
 
+/* temporarily use these two */
 static struct platform_driver wifi_device = {
 	.probe          = wifi_probe,
 	.remove         = wifi_remove,
@@ -788,7 +796,7 @@ static struct platform_driver wifi_device_legacy = {
 
 static int wifi_add_dev(void)
 {
-	DHD_TRACE(("## Calling platform_driver_register\n"));
+	DBG_871X("## Calling platform_driver_register\n");
 	platform_driver_register(&wifi_device);
 	platform_driver_register(&wifi_device_legacy);
 	return 0;
@@ -796,9 +804,9 @@ static int wifi_add_dev(void)
 
 static void wifi_del_dev(void)
 {
-	DHD_TRACE(("## Unregister platform_driver_register\n"));
+	DBG_871X("## Unregister platform_driver_register\n");
 	platform_driver_unregister(&wifi_device);
 	platform_driver_unregister(&wifi_device_legacy);
 }
-#endif /* defined(CONFIG_WIFI_CONTROL_FUNC) */
+#endif /* defined(RTW_ENABLE_WIFI_CONTROL_FUNC) */
 

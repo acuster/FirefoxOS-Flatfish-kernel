@@ -44,6 +44,8 @@
 #include <linux/usb/serial.h>
 #include "usb-wwan.h"
 
+#include "sw_dongle.h"
+
 /* Function prototypes */
 static int  option_probe(struct usb_serial *serial,
 			const struct usb_device_id *id);
@@ -642,13 +644,10 @@ static const struct option_blacklist_info zte_mf626_blacklist = {
 	.reserved = BIT(4),
 };
 
+#include "sw_dongle_info.h"
+
 static const struct usb_device_id option_ids[] = {
-    { USB_DEVICE(0x05c6, 0x0016) }, //by Cesc. iball 3.5G, India . 0x05c60016_0x05c60016,
-    { USB_DEVICE(0x19d2, 0x0088) }, //by Cesc. iball 3.5G, India . 0x05c60018_0x19d20088,
-	{ USB_DEVICE(0x12d1, 0x151d) }, //by Cesc. E3131, orange. 12d114fe_12d1151d
-	{ USB_DEVICE(0x0b3c, 0xc00a) }, //by Cesc. dongle for Brazil
-    { USB_DEVICE(0x19f5, 0x9013) }, //by Cesc. Xinke
-    { USB_DEVICE(0x19d2, 0x1177) }, //by Cesc. K3770-Z,ZTE. India
+	#include "sw_dongle_info_i.h"
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA_LIGHT) },
@@ -1543,6 +1542,22 @@ static int option_probe(struct usb_serial *serial,
 		serial->dev->descriptor.idProduct == SAMSUNG_PRODUCT_GT_B3730 &&
 		serial->interface->cur_altsetting->desc.bInterfaceClass != USB_CLASS_CDC_DATA)
 		return -ENODEV;
+
+	if (serial->dev->descriptor.idVendor == ZTE_VENDOR_ID &&
+		serial->dev->descriptor.idProduct == 0x0079 &&
+		serial->interface->cur_altsetting->desc.bInterfaceClass == 0xff &&
+		serial->interface->cur_altsetting->desc.bInterfaceSubClass == 0xff &&
+		serial->interface->cur_altsetting->desc.bInterfaceProtocol == 0xff){
+		zte_a355_init(serial->interface);
+	}
+
+	if (serial->dev->descriptor.idVendor == ZTE_VENDOR_ID &&
+		serial->dev->descriptor.idProduct == 0x0003 &&
+		serial->interface->cur_altsetting->desc.bInterfaceClass == 0xff &&
+		serial->interface->cur_altsetting->desc.bInterfaceSubClass == 0xff &&
+		serial->interface->cur_altsetting->desc.bInterfaceProtocol == 0xff){
+		zte_mu350_init(serial->interface);
+	}
 
 	data = serial->private = kzalloc(sizeof(struct usb_wwan_intf_private), GFP_KERNEL);
 	if (!data)

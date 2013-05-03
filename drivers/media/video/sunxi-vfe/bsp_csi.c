@@ -238,11 +238,11 @@ int bsp_csi_set_fmt(unsigned int sel, struct bus_info *bus_info, struct frame_in
           
         if(fmt_cfg[ch].input_fmt == CSI_YUV422 || \
            fmt_cfg[ch].input_fmt == CSI_YUV420) {
-          if(frame_info->pix_ch_fmt[ch] == PIX_FMT_YUV420P_8)
+          if(     frame_info->pix_ch_fmt[ch] == PIX_FMT_YUV420P_8  || frame_info->pix_ch_fmt[ch] == PIX_FMT_YVU420P_8)
             fmt_cfg[ch].output_fmt = (is_buf_itl[ch] == 1)? CSI_FRAME_PLANAR_YUV420:CSI_FIELD_PLANAR_YUV420;
-          else if(frame_info->pix_ch_fmt[ch] == PIX_FMT_YUV420SP_8)
+          else if(frame_info->pix_ch_fmt[ch] == PIX_FMT_YUV420SP_8 || frame_info->pix_ch_fmt[ch] == PIX_FMT_YVU420SP_8)
             fmt_cfg[ch].output_fmt = (is_buf_itl[ch] == 1)? CSI_FRAME_UV_CB_YUV420:CSI_FIELD_UV_CB_YUV420;
-          else if(frame_info->pix_ch_fmt[ch] == PIX_FMT_YUV420MB_8)
+          else if(frame_info->pix_ch_fmt[ch] == PIX_FMT_YUV420MB_8 || frame_info->pix_ch_fmt[ch] == PIX_FMT_YVU420MB_8)
             fmt_cfg[ch].output_fmt = (is_buf_itl[ch] == 1)? CSI_FRAME_MB_YUV420:CSI_FIELD_MB_YUV420;
         } else {
           if(bus_precision[ch] == W_8BIT)
@@ -271,11 +271,11 @@ int bsp_csi_set_fmt(unsigned int sel, struct bus_info *bus_info, struct frame_in
           fmt_cfg[ch].input_fmt = CSI_RAW;  //parse to isp
 
         if(fmt_cfg[ch].input_fmt == CSI_YUV422) {
-          if(frame_info->pix_ch_fmt[ch] == PIX_FMT_YUV420P_8)
+          if(frame_info->pix_ch_fmt[ch] == PIX_FMT_YUV422P_8 || frame_info->pix_ch_fmt[ch] == PIX_FMT_YVU422P_8)
             fmt_cfg[ch].output_fmt = (is_buf_itl[ch] == 1)? CSI_FRAME_PLANAR_YUV422:CSI_FIELD_PLANAR_YUV422;
-          else if(frame_info->pix_ch_fmt[ch] == PIX_FMT_YUV420SP_8)
+          else if(frame_info->pix_ch_fmt[ch] == PIX_FMT_YUV422SP_8 || frame_info->pix_ch_fmt[ch] == PIX_FMT_YVU422SP_8)
             fmt_cfg[ch].output_fmt = (is_buf_itl[ch] == 1)? CSI_FRAME_UV_CB_YUV422:CSI_FIELD_UV_CB_YUV422;
-          else if(frame_info->pix_ch_fmt[ch] == PIX_FMT_YUV420MB_8)
+          else if(frame_info->pix_ch_fmt[ch] == PIX_FMT_YUV422MB_8 || frame_info->pix_ch_fmt[ch] == PIX_FMT_YVU422MB_8)
             fmt_cfg[ch].output_fmt = (is_buf_itl[ch] == 1)? CSI_FRAME_MB_YUV422:CSI_FIELD_MB_YUV422;
         } else {
           if(bus_precision[ch] == W_8BIT)
@@ -482,16 +482,16 @@ int bsp_csi_set_size(unsigned int sel, struct bus_info *bus_info, struct frame_i
         break;
       case PIX_FMT_YUV420P_8:
       case PIX_FMT_YVU420P_8:
-        line_stride_y_ch[ch] = frame_info->ch_size[ch].width;
-        line_stride_c_ch[ch] = line_stride_y_ch[ch] >>1;
+        line_stride_y_ch[ch] = CSI_ALIGN_16B(frame_info->ch_size[ch].width);
+        line_stride_c_ch[ch] = CSI_ALIGN_16B(line_stride_y_ch[ch]>>1);
         buf_height_y_ch[ch] = frame_info->ch_size[ch].height;
         buf_height_cb_ch[ch] = buf_height_y_ch[ch] >>1;
         buf_height_cr_ch[ch] = buf_height_y_ch[ch] >>1;
         break;
       case PIX_FMT_YUV422P_8:
       case PIX_FMT_YVU422P_8: 
-        line_stride_y_ch[ch] = frame_info->ch_size[ch].width;
-        line_stride_c_ch[ch] = line_stride_y_ch[ch] >>1;
+        line_stride_y_ch[ch] = CSI_ALIGN_16B(frame_info->ch_size[ch].width);
+        line_stride_c_ch[ch] = CSI_ALIGN_16B(line_stride_y_ch[ch]>>1);
         buf_height_y_ch[ch] = frame_info->ch_size[ch].height;
         buf_height_cb_ch[ch] = buf_height_y_ch[ch];
         buf_height_cr_ch[ch] = buf_height_y_ch[ch];
@@ -500,7 +500,7 @@ int bsp_csi_set_size(unsigned int sel, struct bus_info *bus_info, struct frame_i
       case PIX_FMT_YVU420SP_8:
       case PIX_FMT_YUV420MB_8:
       case PIX_FMT_YVU420MB_8:
-        line_stride_y_ch[ch] = frame_info->ch_size[ch].width;
+        line_stride_y_ch[ch] = CSI_ALIGN_16B(frame_info->ch_size[ch].width);
         line_stride_c_ch[ch] = line_stride_y_ch[ch];
         buf_height_y_ch[ch] = frame_info->ch_size[ch].height;
         buf_height_cb_ch[ch] = buf_height_y_ch[ch] >>1;
@@ -509,7 +509,7 @@ int bsp_csi_set_size(unsigned int sel, struct bus_info *bus_info, struct frame_i
       case PIX_FMT_YVU422SP_8:
       case PIX_FMT_YUV422MB_8:
       case PIX_FMT_YVU422MB_8:
-        line_stride_y_ch[ch] = frame_info->ch_size[ch].width;
+        line_stride_y_ch[ch] = CSI_ALIGN_16B(frame_info->ch_size[ch].width);
         line_stride_c_ch[ch] = line_stride_y_ch[ch];
         buf_height_y_ch[ch] = frame_info->ch_size[ch].height;
         buf_height_cb_ch[ch] = buf_height_y_ch[ch];

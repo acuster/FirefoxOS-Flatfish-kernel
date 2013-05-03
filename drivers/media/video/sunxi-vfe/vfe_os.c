@@ -93,7 +93,7 @@ int os_gpio_write(struct gpio_config *gpio, unsigned int status)
 {
 	if(gpio->gpio==GPIO_INDEX_INVALID)
 	{
-		vfe_err("invalid gpio\n");
+		vfe_warn("invalid gpio\n");
 		return -1;
 	}
 	  

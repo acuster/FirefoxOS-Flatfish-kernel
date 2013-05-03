@@ -18,7 +18,6 @@
 
 #include <linux/spinlock.h>
 
-/* dma print macro */
 #define DMA_DBG_LEVEL		3
 
 #if (DMA_DBG_LEVEL == 1)
@@ -46,16 +45,15 @@
 
 /* dam channel state, software state */
 enum st_md_chain_e {
-	DMA_CHAN_STA_IDLE,  	/* maybe before start or after stop */
-	DMA_CHAN_STA_RUNING,	/* transferring */
-	DMA_CHAN_STA_DONE	/* all buffer has transfer done, hw idle, des queue is empty */
+	CHAN_STA_IDLE,  	/* maybe before start or after stop */
+	CHAN_STA_RUNING,	/* transferring */
 };
 
 /* dam channel state for single mode */
 enum st_md_single_e {
-	SINGLE_STA_IDLE,  	/* maybe before start or after stop */
-	SINGLE_STA_RUNING,	/* transferring */
-	SINGLE_STA_LAST_DONE	/* the last buffer has done,
+	SNGL_STA_IDLE,  	/* maybe before start or after stop */
+	SNGL_STA_RUNING,	/* transferring */
+	SNGL_STA_LAST_DONE	/* the last buffer has done,
 				 * in this state, any enqueueing will start dma
 				 */
 };
@@ -91,7 +89,7 @@ union dma_chan_sta_u {
 };
 
 /* define dma channel struct */
-struct dma_channel_t {
+typedef struct {
 	u32		used;     	/* 1 used, 0 unuse */
 	u32		id;     	/* channel id, 0~15 */
 	char 		owner[MAX_OWNER_NAME_LEN];	/* dma chnnnel owner name */
@@ -106,26 +104,19 @@ struct dma_channel_t {
 	enum dma_work_mode_e	work_mode;
 	union dma_chan_sta_u	state;		/* channel state for chain/single mode */
 	spinlock_t 		lock;		/* dma channel lock */
-	/*
-	 * for chain mode only
-	 */
-	struct list_head 	cur_list;	/* buf list which is being tranferring */
-	struct list_head 	next_list;	/* buf list bkup for next tranfer */
-	/*
-	 * for single mode only
-	 */
+
+	/* for chain mode only */
+	struct list_head 	list_chain;	/* buf list which is tranferring */
+
+	/* for single mode only */
 	des_item		*pcur_des;	/* cur buffer which is transferring */
-	struct list_head 	buf_list_head;
-};
+	struct list_head 	list_single;
+}dma_channel_t;
 
-#define STATE_CHAIN(dma_hdl)	(((struct dma_channel_t *)(dma_hdl))->state.st_md_ch)
-#define STATE_SGL(dma_hdl)	(((struct dma_channel_t *)(dma_hdl))->state.st_md_sg)
+#define STATE_CHAIN(dma_hdl)	(((dma_channel_t *)(dma_hdl))->state.st_md_ch)
+#define STATE_SGL(dma_hdl)	(((dma_channel_t *)(dma_hdl))->state.st_md_sg)
 
-/* dma manager struct */
-struct dma_mgr_t {
-	struct dma_channel_t chnl[DMA_CHAN_TOTAL];
-};
-extern struct dma_mgr_t g_dma_mgr;
+extern dma_channel_t dma_chnl[DMA_CHAN_TOTAL];
 
 /* dma channel lock */
 #define DMA_CHAN_LOCK_INIT(lock)	spin_lock_init((lock))

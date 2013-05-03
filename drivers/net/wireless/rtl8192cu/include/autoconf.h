@@ -67,6 +67,12 @@
 
 #define CONFIG_R871X_TEST	1
 
+#define CONFIG_XMIT_ACK
+#ifdef CONFIG_XMIT_ACK
+	#define CONFIG_XMIT_ACK_POLLING
+	#define CONFIG_ACTIVE_KEEP_ALIVE_CHECK
+#endif
+
 #define CONFIG_80211N_HT	1
 
 #define CONFIG_RECV_REORDERING_CTRL	1
@@ -185,6 +191,8 @@
 	//#define CONFIG_HWPORT_SWAP				//Port0->Sec , Port1 -> Pri
 #endif	// CONFIG_CONCURRENT_MODE
 
+#define CONFIG_80211D
+
 /*
  * Interface  Related Config
  */
@@ -291,9 +299,9 @@
 //#define CONFIG_DEBUG_RTL871X
 
 #define DBG	0
-//#define CONFIG_DEBUG_RTL819X
+#define CONFIG_DEBUG_RTL819X
 
-//#define CONFIG_PROC_DEBUG	1
+#define CONFIG_PROC_DEBUG	1
 
 //#define DBG_IO
 //#define DBG_DELAY_OS
@@ -322,3 +330,10 @@
 #define DBG_CONFIG_ERROR_DETECT
 //#define DBG_CONFIG_ERROR_RESET
 
+//TX use 1 urb
+//#define CONFIG_SINGLE_XMIT_BUF
+//RX use 1 urb
+//#define CONFIG_SINGLE_RECV_BUF
+
+//turn off power tracking when traffic is busy
+//#define CONFIG_BUSY_TRAFFIC_SKIP_PWR_TRACK

@@ -26,6 +26,7 @@
 #elif defined(CONFIG_ARCH_SUN6I)
 	#define STATUS_REG (0xf1f00100)
 	#define STATUS_REG_PA (0x01f00100)
+	#define STATUS_REG_NUM (6)
 
 #endif
 
@@ -82,6 +83,8 @@ void save_mem_flag(void);
 void clear_mem_flag(void);
 void save_mem_status(volatile __u32 val);
 void save_mem_status_nommu(volatile __u32 val);
+void save_cpux_mem_status_nommu(volatile __u32 val);
+
 __u32 get_mem_status(void);
 __u32 save_sun5i_mem_status_nommu(volatile __u32 val);
 __u32 save_sun5i_mem_status(volatile __u32 val);

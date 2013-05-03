@@ -717,6 +717,7 @@ void backlight_early_suspend(struct early_suspend *h)
             BSP_disp_hdmi_close(i);
         }
     }
+    BSP_disp_hdmi_early_suspend();
 
     BSP_disp_clk_off(2);
 
@@ -734,6 +735,7 @@ void backlight_late_resume(struct early_suspend *h)
     {
         BSP_disp_clk_on(2);
     }
+    BSP_disp_hdmi_late_resume();
     for(i=0; i<2; i++)
     {
         if(suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
@@ -847,6 +849,7 @@ int disp_suspend(struct platform_device *pdev, pm_message_t state)
             BSP_disp_hdmi_close(i);
         }
     }
+    BSP_disp_hdmi_early_suspend();
 #else
 #if 0
 	if(2 == suspend_prestep)//suspend after resume,not  after early suspend
@@ -888,9 +891,9 @@ int disp_suspend(struct platform_device *pdev, pm_message_t state)
         BSP_disp_store_scaler_reg(1, scaler1_reg_bak);
      }
 
-    BSP_disp_hdmi_suspend();
     Bsp_disp_iep_suspend(0);
     Bsp_disp_iep_suspend(1);
+    BSP_disp_hdmi_suspend();
 
     BSP_disp_clk_off(1);
     BSP_disp_clk_off(2);
@@ -929,12 +932,13 @@ int disp_resume(struct platform_device *pdev)
     }
     disp_dram_ctrl_init();
 
-    BSP_disp_hdmi_resume();
     Bsp_disp_iep_resume(0);
     Bsp_disp_iep_resume(1);
+    BSP_disp_hdmi_resume();
 #ifndef CONFIG_HAS_EARLYSUSPEND
 
     pr_info("[DISP]==disp_resume call==\n");
+    BSP_disp_hdmi_late_resume();
 
     for(i=1; i>=0; i--)
     {
@@ -1279,8 +1283,10 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             break;
 
       case DISP_CMD_SET_OVL_MODE:
-      		ret = disp_set_ovl_mode(ubuffer[0], ubuffer[1]);
       	    break;
+
+      case DISP_CMD_BLANK:
+            ret = dispc_blank(ubuffer[0], ubuffer[1]);
 
     //----layer----
     	case DISP_CMD_LAYER_REQUEST:
@@ -1793,15 +1799,55 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             break;
 
         case DISP_CMD_LCD_BACKLIGHT_ON:
-            ret = BSP_disp_open_lcd_backlight(ubuffer[0]);
+            if(suspend_status != 0)
+            {
+                ret = BSP_disp_open_lcd_backlight(ubuffer[0]);
+            }
             break;
 
         case DISP_CMD_LCD_BACKLIGHT_OFF:
-            ret = BSP_disp_close_lcd_backlight(ubuffer[0]);
+            if(suspend_status != 0)
+            {
+                ret = BSP_disp_close_lcd_backlight(ubuffer[0]);
+            }
             break;
 
         case DISP_CMD_LCD_SET_FPS:
             ret = BSP_disp_lcd_set_fps(ubuffer[0], ubuffer[1]);
+            break;
+
+        case DISP_CMD_LCD_GET_SIZE:
+        {
+            char ptr[8];
+            if((ubuffer[1] == 0))
+            {
+                __wrn("para invalid in disp ioctrl DISP_CMD_LCD_GET_SIZE, screen_id = %d, str_addr=%d\n", (unsigned int)ubuffer[0], (unsigned int)ubuffer[1]);
+                return -1;
+            }
+            ret = BSP_disp_lcd_get_size(ubuffer[0], ptr);
+            if(copy_to_user((void __user *)ubuffer[1], ptr,8))
+            {
+                __wrn("copy_to_user fail\n");
+                return  -EFAULT;
+            }
+        }
+            break;
+
+        case DISP_CMD_LCD_GET_MODEL_NAME:
+        {
+            char ptr[32];
+            if((ubuffer[1] == 0))
+            {
+                __wrn("para invalid in disp ioctrl DISP_CMD_LCD_GET_MODEL_NAME,screen_id = %d, str_addr=%d\n", (unsigned int)ubuffer[0], (unsigned int)ubuffer[1]);
+                return -1;
+            }
+            ret = BSP_disp_lcd_get_model_name(ubuffer[0], ptr);
+            if(copy_to_user((void __user *)ubuffer[1], ptr,32))
+            {
+                __wrn("copy_to_user fail\n");
+                return  -EFAULT;
+            }
+        }
             break;
 
 	//----pwm----

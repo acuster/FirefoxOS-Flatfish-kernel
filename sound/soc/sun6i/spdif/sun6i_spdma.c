@@ -48,11 +48,10 @@ static const struct snd_pcm_hardware sun6i_pcm_play_hardware = {
 	.buffer_bytes_max	= 128*1024,  /* value must be (2^n)Kbyte size */
 	.period_bytes_min	= 1024*4,
 	.period_bytes_max	= 1024*32,
-	.periods_min		= 2,
+	.periods_min		= 4,
 	.periods_max		= 8,
 	.fifo_size		= 32,
 };
-
 
 static const struct snd_pcm_hardware sun6i_pcm_capture_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -67,7 +66,7 @@ static const struct snd_pcm_hardware sun6i_pcm_capture_hardware = {
 	.buffer_bytes_max	= 128*1024,  /* value must be (2^n)Kbyte size */
 	.period_bytes_min	= 1024*4,
 	.period_bytes_max	= 1024*32,
-	.periods_min		= 2,
+	.periods_min		= 4,
 	.periods_max		= 8,
 	.fifo_size		= 32,
 };
@@ -84,6 +83,7 @@ struct sun6i_playback_runtime_data {
 	dm_hdl_t	dma_hdl;
 	bool		play_dma_flag;
 	struct dma_cb_t play_done_cb;
+	struct dma_cb_t play_hdone_cb;
 	struct sun6i_dma_params *params;
 };
 
@@ -188,17 +188,44 @@ static u32 sun6i_audio_capture_buffdone(dm_hdl_t dma_hdl, void *parg,
 	return 0;
 }
 
-static u32 sun6i_audio_play_buffdone(dm_hdl_t dma_hdl, void *parg,
+static u32 sun6i_audio_play_hdone(dm_hdl_t dma_hdl, void *parg,
 		                                  enum dma_cb_cause_e result)
 {
 	struct sun6i_playback_runtime_data *play_prtd = NULL;
 	struct snd_pcm_substream *substream = NULL;
-	
+
 	if ((result == DMA_CB_ABORT) || (parg == NULL)) {
 		return 0;
 	}
 
 	substream = parg;
+	play_prtd = substream->runtime->private_data;
+	spin_lock(&play_prtd->lock);
+	{
+		play_prtd->dma_loaded--;
+		sun6i_pcm_enqueue(substream);
+	}
+	spin_unlock(&play_prtd->lock);
+	
+	if ((substream) && (play_prtd)) {
+		snd_pcm_period_elapsed(substream);
+	}
+
+	return 0;
+}
+
+static u32 sun6i_audio_play_buffdone(dm_hdl_t dma_hdl, void *parg,
+		                                  enum dma_cb_cause_e result)
+{
+	struct sun6i_playback_runtime_data *play_prtd = NULL;
+	struct snd_pcm_substream *substream = NULL;
+    	
+	if ((result == DMA_CB_ABORT) || (parg == NULL)) {
+		return 0;
+	}
+	
+	substream = parg;
+
 	play_prtd = substream->runtime->private_data;
 	if ((substream) && (play_prtd)) {
 		snd_pcm_period_elapsed(substream);
@@ -210,6 +237,7 @@ static u32 sun6i_audio_play_buffdone(dm_hdl_t dma_hdl, void *parg,
 		sun6i_pcm_enqueue(substream);
 	}
 	spin_unlock(&play_prtd->lock);
+
 	return 0;
 }
 
@@ -236,27 +264,54 @@ static int sun6i_pcm_hw_params(struct snd_pcm_substream *substream,
     		return 0;
     	}
 
-		if (play_prtd->params == NULL) {		
-			play_prtd->params = play_dma;
-		/*
-		 * requeset audio dma handle(we don't care about the channel!)
-		 */
-		play_prtd->dma_hdl = sw_dma_request(play_prtd->params->name, DMA_WORK_MODE_SINGLE);
-		if (NULL == play_prtd->dma_hdl) {
-			printk(KERN_ERR "failed to request audio_play dma handle\n");
-			return -EINVAL;
+		if (play_prtd->params == NULL) {
+		play_prtd->params = play_dma;
+
+		switch(params_channels(params)) {
+		case 1:/*pcm mode*/
+		case 2:
+			/*
+			 * requeset audio dma handle(we don't care about the channel!)
+			 */
+			play_prtd->dma_hdl = sw_dma_request(play_prtd->params->name, DMA_WORK_MODE_SINGLE);
+			if (NULL == play_prtd->dma_hdl) {
+				printk(KERN_ERR "failed to request audio_play dma handle\n");
+				return -EINVAL;
+			}
+			/*
+		 	* set callback
+		 	*/
+			memset(&play_prtd->play_done_cb, 0, sizeof(play_prtd->play_done_cb));
+			play_prtd->play_done_cb.func = sun6i_audio_play_buffdone;
+			play_prtd->play_done_cb.parg = substream;
+			/*use the full buffer callback, maybe we should use the half buffer callback?*/
+			if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_SET_QD_CB, (void *)&(play_prtd->play_done_cb))) {
+				sw_dma_release(play_prtd->dma_hdl);
+				return -EINVAL;
+			}
+				break;
+		case 4:/*raw data mode*/
+			/*
+			 * requeset audio dma handle(we don't care about the channel!)
+			 */
+			play_prtd->dma_hdl = sw_dma_request(play_prtd->params->name, DMA_WORK_MODE_CHAIN);
+			if (NULL == play_prtd->dma_hdl) {
+				printk(KERN_ERR "failed to request audio_play dma handle\n");
+				return -EINVAL;
+			}
+			/* set half done callback */
+			memset(&play_prtd->play_hdone_cb, 0, sizeof(play_prtd->play_hdone_cb));
+			play_prtd->play_hdone_cb.func = sun6i_audio_play_hdone;
+			play_prtd->play_hdone_cb.parg = substream;
+			if(0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_SET_HD_CB, (void *)&(play_prtd->play_hdone_cb))) {
+				sw_dma_release(play_prtd->dma_hdl);
+				return -EINVAL;
+			}
+				break;
+			default:
+				return -EINVAL;
 		}
-		/*
-	 	* set callback
-	 	*/
-		memset(&play_prtd->play_done_cb, 0, sizeof(play_prtd->play_done_cb));
-		play_prtd->play_done_cb.func = sun6i_audio_play_buffdone;
-		play_prtd->play_done_cb.parg = substream;
-		/*use the full buffer callback, maybe we should use the half buffer callback?*/
-		if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_SET_QD_CB, (void *)&(play_prtd->play_done_cb))) {
-			sw_dma_release(play_prtd->dma_hdl);
-			return -EINVAL;
-		}
+
 		}
 		snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 		play_runtime->dma_bytes = play_totbytes;
@@ -269,7 +324,6 @@ static int sun6i_pcm_hw_params(struct snd_pcm_substream *substream,
 		play_prtd->dma_pos = play_prtd->dma_start;
 		play_prtd->dma_end = play_prtd->dma_start + play_totbytes;
 		spin_unlock_irq(&play_prtd->lock);
-    
     } else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
     	capture_runtime = substream->runtime;
     	capture_prtd = capture_runtime ->private_data;
@@ -396,7 +450,11 @@ static int sun6i_pcm_prepare(struct snd_pcm_substream *substream)
 		play_dma_config.xfer_type = DMAXFER_D_BHALF_S_BHALF;
 		play_dma_config.address_type = DMAADDRT_D_IO_S_LN;
 		play_dma_config.para = 0;
-		play_dma_config.irq_spt = CHAN_IRQ_QD;
+		if (substream->runtime->channels == 4) {
+			play_dma_config.irq_spt = CHAN_IRQ_HD;
+		} else {
+			play_dma_config.irq_spt = CHAN_IRQ_QD;
+		}
 		play_dma_config.src_addr = play_prtd->dma_start;
 		play_dma_config.dst_addr = play_prtd->params->dma_addr;
 		play_dma_config.byte_cnt = play_prtd->dma_period;

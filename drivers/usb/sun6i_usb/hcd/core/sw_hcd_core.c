@@ -745,30 +745,10 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 		DMSG_INFO("\n------------IRQ SESSION_REQ-------------\n\n");
 
 		USBC_INT_ClearMiscPending(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_SESSION_REQ));
-
-        /* power down */
-        devctl = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
-    	devctl &= ~(1 << USBC_BP_DEVCTL_SESSION);
-    	USBC_Writeb(devctl, USBC_REG_DEVCTL(usbc_base));
-
-        USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_LOW);
-
-        sw_hcd_set_vbus(sw_hcd, 0);
-	
-        /* delay */
-        mdelay(100);
-
-        /* power on */
-        devctl = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
-    	devctl |= (1 << USBC_BP_DEVCTL_SESSION);
-    	USBC_Writeb(devctl, USBC_REG_DEVCTL(usbc_base));
-
-        USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_HIGH);
-
-        sw_hcd_set_vbus(sw_hcd, 1);
+               USBC_INT_DisableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSBE_EN_SESSION_REQ));
+               sw_hcd->session_req_flag = 1;
 
 		sw_hcd->ep0_stage = SW_HCD_EP0_START;
-
 		handled = IRQ_HANDLED;
 	}
 
@@ -798,7 +778,8 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 
         /* go through A_WAIT_VFALL then start a new session */
 		if (!ignore){
-			sw_hcd_set_vbus(sw_hcd, 0);
+                       USBC_INT_DisableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_VBUS_ERROR));
+                       sw_hcd->vbus_error_flag = 1;
 			sw_hcd->ep0_stage = SW_HCD_EP0_START;
 		}
 
@@ -846,6 +827,8 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 	    DMSG_INFO("\n------------IRQ Reset or Babble-------------\n\n");
 
 		USBC_INT_ClearMiscPending(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_RESET));
+                USBC_INT_DisableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_RESET));
+                sw_hcd->reset_flag = 1;
 
         //把babble当作disconnect处理
 		USBC_Host_SetFunctionAddress_Deafult(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_EP_TYPE_TX, 0);
@@ -862,32 +845,6 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 		USBC_INT_ClearMiscPendingAll(sw_hcd->sw_hcd_io->usb_bsp_hdle);
 		USBC_INT_ClearEpPendingAll(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_EP_TYPE_TX);
 		USBC_INT_ClearEpPendingAll(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_EP_TYPE_RX);
-
-        /* power down */
-        devctl = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
-    	devctl &= ~(1 << USBC_BP_DEVCTL_SESSION);
-    	USBC_Writeb(devctl, USBC_REG_DEVCTL(usbc_base));
-
-        USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_LOW);
-
-        sw_hcd_set_vbus(sw_hcd, 0);
-
-        /* delay */
-        mdelay(100);
-
-        /* power on */
-        devctl = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
-    	devctl |= (1 << USBC_BP_DEVCTL_SESSION);
-    	USBC_Writeb(devctl, USBC_REG_DEVCTL(usbc_base));
-
-        USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_HIGH);
-
-        sw_hcd_set_vbus(sw_hcd, 1);
-
-        /* disconnect */
-		sw_hcd->ep0_stage = SW_HCD_EP0_START;
-		usb_hcd_resume_root_hub(sw_hcd_to_hcd(sw_hcd));
-		sw_hcd_root_disconnect(sw_hcd);
 
 	    handled = IRQ_HANDLED;
     }

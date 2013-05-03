@@ -17,9 +17,6 @@
 #include <mach/system.h>
 
 #include "axp-cfg.h"
-#include "axp18-mfd.h"
-#include "axp19-mfd.h"
-#include "axp20-mfd.h"
 #include "axp22-mfd.h"
 
 #include <mach/sys_config.h>
@@ -79,24 +76,6 @@ static int axp_mfd_irq_cb(void *arg)
 
 static struct axp_mfd_chip_ops axp_mfd_ops[] = {
 	[0] = {
-		.init_chip    = axp18_init_chip,
-		.enable_irqs  = axp18_enable_irqs,
-		.disable_irqs = axp18_disable_irqs,
-		.read_irqs    = axp18_read_irqs,
-	},
-	[1] = {
-		.init_chip    = axp19_init_chip,
-		.enable_irqs  = axp19_enable_irqs,
-		.disable_irqs = axp19_disable_irqs,
-		.read_irqs    = axp19_read_irqs,
-	},
-	[2] = {
-		.init_chip    = axp20_init_chip,
-		.enable_irqs  = axp20_enable_irqs,
-		.disable_irqs = axp20_disable_irqs,
-		.read_irqs    = axp20_read_irqs,
-	},
-	[3] = {
 		.init_chip    = axp22_init_chip,
 		.enable_irqs  = axp22_enable_irqs,
 		.disable_irqs = axp22_disable_irqs,
@@ -105,10 +84,7 @@ static struct axp_mfd_chip_ops axp_mfd_ops[] = {
 };
 
 static const struct i2c_device_id axp_mfd_id_table[] = {
-	{ "axp18_mfd", 0 },
-	{ "axp19_mfd", 1 },
-	{ "axp20_mfd", 2 },
-	{ "axp22_mfd", 3 },
+	{ "axp22_mfd", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, axp_mfd_id_table);
@@ -116,32 +92,11 @@ MODULE_DEVICE_TABLE(i2c, axp_mfd_id_table);
 int axp_mfd_create_attrs(struct axp_mfd_chip *chip)
 {
 	int j,ret;
-	if(chip->type ==  AXP19){
-		for (j = 0; j < ARRAY_SIZE(axp19_mfd_attrs); j++) {
-			ret = device_create_file(chip->dev,&axp19_mfd_attrs[j]);
-			if (ret)
-				goto sysfs_failed;
-		}
-	}
-	else if (chip->type ==  AXP18){
-		for (j = 0; j < ARRAY_SIZE(axp18_mfd_attrs); j++) {
-			ret = device_create_file(chip->dev,&axp18_mfd_attrs[j]);
-			if (ret)
-			goto sysfs_failed2;
-		}
-	}
-	else if (chip->type ==  AXP20){
-		for (j = 0; j < ARRAY_SIZE(axp20_mfd_attrs); j++) {
-			ret = device_create_file(chip->dev,&axp20_mfd_attrs[j]);
-			if (ret)
-			goto sysfs_failed3;
-		}
-	}
-	else if (chip->type ==  AXP22){
+	if (chip->type ==  AXP22){
 		for (j = 0; j < ARRAY_SIZE(axp22_mfd_attrs); j++) {
 			ret = device_create_file(chip->dev,&axp22_mfd_attrs[j]);
 			if (ret)
-			goto sysfs_failed4;
+			goto sysfs_failed;
 		}
 	}
 	else
@@ -149,17 +104,6 @@ int axp_mfd_create_attrs(struct axp_mfd_chip *chip)
 	goto succeed;
 
 sysfs_failed:
-	while (j--)
-		device_remove_file(chip->dev,&axp19_mfd_attrs[j]);
-	goto succeed;
-sysfs_failed2:
-	while (j--)
-		device_remove_file(chip->dev,&axp18_mfd_attrs[j]);
-	goto succeed;
-sysfs_failed3:
-	while (j--)
-		device_remove_file(chip->dev,&axp20_mfd_attrs[j]);
-sysfs_failed4:
 	while (j--)
 		device_remove_file(chip->dev,&axp22_mfd_attrs[j]);
 succeed:
@@ -231,79 +175,6 @@ static void axp_power_off(void)
 {
 	uint8_t val;
 
-#if defined (CONFIG_AW_AXP18)
-	axp_set_bits(&axp->dev, POWER18_ONOFF, 0x80);
-#endif
-
-#if defined (CONFIG_AW_AXP19)
-	axp_set_bits(&axp->dev, POWER19_OFF_CTL, 0x80);
-#endif
-
-#if defined (CONFIG_AW_AXP20)
-	if(pmu_pwroff_vol >= 2600 && pmu_pwroff_vol <= 3300){
-		if (pmu_pwroff_vol > 3200){
-			val = 0x7;
-		}
-		else if (pmu_pwroff_vol > 3100){
-			val = 0x6;
-		}
-		else if (pmu_pwroff_vol > 3000){
-			val = 0x5;
-		}
-		else if (pmu_pwroff_vol > 2900){
-			val = 0x4;
-		}
-		else if (pmu_pwroff_vol > 2800){
-			val = 0x3;
-		}
-		else if (pmu_pwroff_vol > 2700){
-			val = 0x2;
-		}
-		else if (pmu_pwroff_vol > 2600){
-			val = 0x1;
-		}
-		else
-			val = 0x0;
-
-		axp_update(&axp->dev, POWER20_VOFF_SET, val, 0x7);
-	}
-	val = 0xff;
-
-	axp_read(&axp->dev, POWER20_COULOMB_CTL, &val);
-	val &= 0x3f;
-	axp_write(&axp->dev, POWER20_COULOMB_CTL, val);
-	val |= 0x80;
-	val &= 0xbf;
-	axp_write(&axp->dev, POWER20_COULOMB_CTL, val);
-
-    //led auto
-    axp_clr_bits(&axp->dev,0x32,0x38);
-	axp_clr_bits(&axp->dev,0xb9,0x80);
-
-    printk("[axp] send power-off command!\n");
-    mdelay(20);
-    if(power_start != 1){
-		axp_read(&axp->dev, POWER20_STATUS, &val);
-		if(val & 0xF0){
-	    	axp_read(&axp->dev, POWER20_MODE_CHGSTATUS, &val);
-	    	if(val & 0x20){
-            	printk("[axp] set flag!\n");
-	        	axp_write(&axp->dev, POWER20_DATA_BUFFERC, 0x0f);
-            	mdelay(20);
-		    	printk("[axp] reboot!\n");
-		    	arch_reset(0,NULL);
-		    	printk("[axp] warning!!! arch can't ,reboot, maybe some error happend!\n");
-	    	}
-		}
-	}
-    axp_write(&axp->dev, POWER20_DATA_BUFFERC, 0x00);
-    mdelay(20);
-	axp_set_bits(&axp->dev, POWER20_OFF_CTL, 0x80);
-    mdelay(20);
-    printk("[axp] warning!!! axp can't power-off, maybe some error happend!\n");
-
-#endif
-
 #if defined (CONFIG_AW_AXP22)
 	if(pmu_pwroff_vol >= 2600 && pmu_pwroff_vol <= 3300){
 		if (pmu_pwroff_vol > 3200){
@@ -364,8 +235,6 @@ static int __devinit axp_mfd_probe(struct i2c_client *client,
 	struct axp_platform_data *pdata = client->dev.platform_data;
 	struct axp_mfd_chip *chip;
 	int ret;
-	script_item_u script_val;
-	script_item_value_type_e type;
 
 	chip = kzalloc(sizeof(struct axp_mfd_chip), GFP_KERNEL);
 	if (chip == NULL)
@@ -413,19 +282,9 @@ static int __devinit axp_mfd_probe(struct i2c_client *client,
 		goto out_free_irq;
 
 	/* PM hookup */
-	if(!pm_power_off) {
-		type = script_get_item("pmu_para", "pmu_fake_power_off_enable", &script_val);
-		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-			printk("pmu fake power off config type err!");
-			script_val.val = 0;
-		}
-		if (script_val.val) {
-			pm_power_off = ar100_fake_power_off;
-		} else {
-			pm_power_off = axp_power_off;
-		}
-	}
-	
+	if(!pm_power_off)
+		pm_power_off = axp_power_off;
+
 	ret = axp_mfd_create_attrs(chip);
 	if(ret){
 		return ret;

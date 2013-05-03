@@ -52,6 +52,16 @@ config CSI_SP0838
 	  This is a Video4Linux2 sensor-level driver for the Superpix 
 	  SP0838 VGA camera.
 
+config CSI_MT9P111
+	tristate "Micron MT9P111 5M sensor support"
+	default m
+	depends on I2C && VIDEO_V4L2
+	select	CSI_DEV_SEL
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the Micron 
+	  MT9P111 5M camera.
+
+
 config CSI_MT9M112
 	tristate "Micron MT9M112 UXGA sensor support"
 	default m

@@ -12,6 +12,47 @@
 #define SIZE_OF_HDR_TBL     4*256*2
 #define SIZE_OF_GAMMA_TBL   256*2
 
+struct isp_init_config isp_init_def_cfg = {
+ /*isp test param */
+	  .isp_test_mode = 1,
+	  .isp_dbg_level = 0,
+	  .isp_focus_len = 100,
+	  .isp_gain = 64,  
+	  .isp_exp_line = 28336,
+	  
+	  /*isp enable param */  
+	  .sprite_en = 0,
+	  .lsc_en = 0,
+	  .ae_en = 1,
+	  .af_en = 1,
+	  .awb_en = 1,
+	  .drc_en = 0, 
+	  
+	  /*maybe change color matrix*/
+	  .defog_en = 0,
+	  .satur_en = 0,
+	  .pri_contrast_en = 0,
+	  
+	  /*isp tune param */
+	  .pri_contrast = 8,  
+	  .lsc_center = {1260,950},
+	  .vcm_min_code = 10,
+	  .vcm_max_code = 1023, 	
+	  .bayer_gain_offset = {
+	  	256,256,256,256,0,0,0,0
+	   },
+	  .lsc_tbl = {{0},{0},{0},{0},{0},{0},{0}},
+	  .hdr_tbl = {{0},{0},{0},{0}},
+	  .gamma_tbl = {0}, 
+	  .color_matrix_ini = 
+	  {
+	    .matrix = {{256,0,0},{0,256,0},{0,0,256}},
+        .offset = {0, 0, 0},  	  	
+	  },	
+};
+
+
+
 int fetch_config(struct vfe_dev *dev)
 {
 #ifndef FPGA_VER  
@@ -72,7 +113,7 @@ int fetch_config(struct vfe_dev *dev)
     type = script_get_item(vfe_para, dev_para, &val);
     if (SCIRPT_ITEM_VALUE_TYPE_INT != type)
     {
-      vfe_err("fetch vip_dev%d_isp_used from sys_config failed\n", i);
+      vfe_dbg(0,"fetch vip_dev%d_isp_used from sys_config failed\n", i);
     } else {
       dev->ccm_cfg[i]->is_isp_used = val.val;
     }
@@ -81,7 +122,7 @@ int fetch_config(struct vfe_dev *dev)
     sprintf(dev_para, "vip_dev%d_fmt", i);
     type = script_get_item(vfe_para, dev_para, &val);
     if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-      vfe_err("fetch vip_dev%d_fmt from sys_config failed\n", i);
+      vfe_dbg(0,"fetch vip_dev%d_fmt from sys_config failed\n", i);
     } else {
       dev->ccm_cfg[i]->is_bayer_raw = val.val;
     }
@@ -90,7 +131,7 @@ int fetch_config(struct vfe_dev *dev)
     sprintf(dev_para, "vip_dev%d_stby_mode", i);
     type = script_get_item(vfe_para, dev_para, &val);
     if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-      vfe_err("fetch vip_dev%d_stby_mode from sys_config failed\n", i);
+      vfe_dbg(0,"fetch vip_dev%d_stby_mode from sys_config failed\n", i);
     } else {
       dev->ccm_cfg[i]->power.stby_mode = val.val;
     }
@@ -99,7 +140,7 @@ int fetch_config(struct vfe_dev *dev)
     sprintf(dev_para, "vip_dev%d_vflip", i);
     type = script_get_item(vfe_para, dev_para, &val);
     if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-      vfe_err("fetch vip_dev%d_vflip from sys_config failed\n", i);
+      vfe_dbg(0,"fetch vip_dev%d_vflip from sys_config failed\n", i);
     } else {
       dev->ccm_cfg[i]->vflip = val.val;
     }
@@ -107,7 +148,7 @@ int fetch_config(struct vfe_dev *dev)
     sprintf(dev_para, "vip_dev%d_hflip", i);
     type = script_get_item(vfe_para, dev_para, &val);
     if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-      vfe_err("fetch vip_dev%d_hflip from sys_config failed\n", i);
+      vfe_dbg(0,"fetch vip_dev%d_hflip from sys_config failed\n", i);
     } else {
       dev->ccm_cfg[i]->hflip = val.val;
     }
@@ -119,7 +160,7 @@ int fetch_config(struct vfe_dev *dev)
     if (SCIRPT_ITEM_VALUE_TYPE_STR != type) {
       char null_str[]="";
       strcpy(dev->ccm_cfg[i]->iovdd_str,null_str);
-      vfe_err("fetch vip_dev%d_iovdd from sys_config failed\n", i);
+      vfe_dbg(0,"fetch vip_dev%d_iovdd from sys_config failed\n", i);
     } else {
       strcpy(dev->ccm_cfg[i]->iovdd_str,val.str);
     }
@@ -128,7 +169,7 @@ int fetch_config(struct vfe_dev *dev)
     type = script_get_item(vfe_para,dev_para, &val);
 		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
 	    dev->ccm_cfg[i]->power.iovdd_vol=0;
-			vfe_err("fetch vip_dev%d_iovdd_vol from sys_config failed, default =0\n",i);
+			vfe_dbg(0,"fetch vip_dev%d_iovdd_vol from sys_config failed, default =0\n",i);
 		} else {
 	    dev->ccm_cfg[i]->power.iovdd_vol=val.val;
 	  }
@@ -138,7 +179,7 @@ int fetch_config(struct vfe_dev *dev)
     if (SCIRPT_ITEM_VALUE_TYPE_STR != type) {
       char null_str[]="";
       strcpy(dev->ccm_cfg[i]->avdd_str,null_str);
-      vfe_err("fetch vip_dev%d_avdd from sys_config failed\n", i);
+      vfe_dbg(0,"fetch vip_dev%d_avdd from sys_config failed\n", i);
     } else {
       strcpy(dev->ccm_cfg[i]->avdd_str,val.str);
     }
@@ -147,7 +188,7 @@ int fetch_config(struct vfe_dev *dev)
     type = script_get_item(vfe_para,dev_para, &val);
 		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
 	    dev->ccm_cfg[i]->power.avdd_vol=0;
-			vfe_err("fetch vip_dev%d_avdd_vol from sys_config failed, default =0\n",i);
+			vfe_dbg(0,"fetch vip_dev%d_avdd_vol from sys_config failed, default =0\n",i);
 		} else {
 	    dev->ccm_cfg[i]->power.avdd_vol=val.val;
 	  }
@@ -157,7 +198,7 @@ int fetch_config(struct vfe_dev *dev)
     if (SCIRPT_ITEM_VALUE_TYPE_STR != type){
       char null_str[]="";
       strcpy(dev->ccm_cfg[i]->dvdd_str,null_str);
-      vfe_err("fetch vip_dev%d_dvdd from sys_config failed\n", i);
+      vfe_dbg(0,"fetch vip_dev%d_dvdd from sys_config failed\n", i);
     } else {
       strcpy(dev->ccm_cfg[i]->dvdd_str, val.str);
     }
@@ -166,7 +207,7 @@ int fetch_config(struct vfe_dev *dev)
     type = script_get_item(vfe_para,dev_para, &val);
 		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
 	    dev->ccm_cfg[i]->power.dvdd_vol=0;
-			vfe_err("fetch vip_dev%d_dvdd_vol from sys_config failed, default =0\n",i);
+			vfe_dbg(0,"fetch vip_dev%d_dvdd_vol from sys_config failed, default =0\n",i);
 		} else {
 	    dev->ccm_cfg[i]->power.dvdd_vol=val.val;
 	  }
@@ -176,7 +217,7 @@ int fetch_config(struct vfe_dev *dev)
     if (SCIRPT_ITEM_VALUE_TYPE_STR != type) {
       char null_str[]="";
       strcpy(dev->ccm_cfg[i]->afvdd_str,null_str);
-      vfe_err("fetch vip_dev%d_afvdd from sys_config failed\n", i);
+      vfe_dbg(0,"fetch vip_dev%d_afvdd from sys_config failed\n", i);
     } else {
       strcpy(dev->ccm_cfg[i]->afvdd_str, val.str);
     }
@@ -185,7 +226,7 @@ int fetch_config(struct vfe_dev *dev)
     type = script_get_item(vfe_para,dev_para, &val);
 		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
 	    dev->ccm_cfg[i]->power.afvdd_vol=0;
-			vfe_err("fetch vip_dev%d_afvdd_vol from sys_config failed, default =0\n",i);
+			vfe_dbg(0,"fetch vip_dev%d_afvdd_vol from sys_config failed, default =0\n",i);
 		} else {
 	    dev->ccm_cfg[i]->power.afvdd_vol=val.val;
 	  }
@@ -195,7 +236,7 @@ int fetch_config(struct vfe_dev *dev)
     type = script_get_item(vfe_para, dev_para, &val);
     if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
       dev->ccm_cfg[i]->gpio.reset_io.gpio = GPIO_INDEX_INVALID;
-      vfe_err("fetch vip_dev%d_reset from sys_config failed\n", i);
+      vfe_dbg(0,"fetch vip_dev%d_reset from sys_config failed\n", i);
     } else {
       dev->ccm_cfg[i]->gpio.reset_io.gpio=val.gpio.gpio;
       dev->ccm_cfg[i]->gpio.reset_io.mul_sel=val.gpio.mul_sel;
@@ -205,7 +246,7 @@ int fetch_config(struct vfe_dev *dev)
     type = script_get_item(vfe_para, dev_para, &val);
     if (SCIRPT_ITEM_VALUE_TYPE_PIO != type){
       dev->ccm_cfg[i]->gpio.pwdn_io.gpio = GPIO_INDEX_INVALID;
-      vfe_err("fetch vip_dev%d_stby from sys_config failed\n", i);
+      vfe_dbg(0,"fetch vip_dev%d_stby from sys_config failed\n", i);
     } else {
       dev->ccm_cfg[i]->gpio.pwdn_io.gpio=val.gpio.gpio;
       dev->ccm_cfg[i]->gpio.pwdn_io.mul_sel=val.gpio.mul_sel;
@@ -214,7 +255,7 @@ int fetch_config(struct vfe_dev *dev)
     type = script_get_item(vfe_para, dev_para, &val);
     if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
       dev->ccm_cfg[i]->gpio.power_en_io.gpio = GPIO_INDEX_INVALID;
-      vfe_err("fetch vip_dev%d_power_en from sys_config failed\n", i);
+      vfe_dbg(0,"fetch vip_dev%d_power_en from sys_config failed\n", i);
     } else {
       dev->ccm_cfg[i]->gpio.power_en_io.gpio=val.gpio.gpio;
       dev->ccm_cfg[i]->gpio.power_en_io.mul_sel=val.gpio.mul_sel;
@@ -223,7 +264,7 @@ int fetch_config(struct vfe_dev *dev)
     type = script_get_item(vfe_para, dev_para, &val);
     if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
       dev->ccm_cfg[i]->gpio.flash_en_io.gpio = GPIO_INDEX_INVALID;
-      vfe_err("fetch vip_dev%d_flash_en from sys_config failed\n", i);
+      vfe_dbg(0,"fetch vip_dev%d_flash_en from sys_config failed\n", i);
     } else {
       dev->ccm_cfg[i]->gpio.flash_en_io.gpio=val.gpio.gpio;
       dev->ccm_cfg[i]->gpio.flash_en_io.mul_sel=val.gpio.mul_sel;
@@ -233,7 +274,7 @@ int fetch_config(struct vfe_dev *dev)
     type = script_get_item(vfe_para, dev_para, &val);
     if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
       dev->ccm_cfg[i]->gpio.flash_mode_io.gpio = GPIO_INDEX_INVALID;
-      vfe_err("fetch vip_dev%d_flash_mode from sys_config failed\n", i); 
+      vfe_dbg(0,"fetch vip_dev%d_flash_mode from sys_config failed\n", i); 
     } else {
       dev->ccm_cfg[i]->gpio.flash_mode_io.gpio=val.gpio.gpio;
       dev->ccm_cfg[i]->gpio.flash_mode_io.mul_sel=val.gpio.mul_sel;
@@ -244,7 +285,7 @@ int fetch_config(struct vfe_dev *dev)
     if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
       dev->ccm_cfg[i]->gpio.af_pwdn_io.gpio = GPIO_INDEX_INVALID;
 
-      vfe_err("fetch vip_dev%d_af_pwdn from sys_config failed\n", i);
+      vfe_dbg(0,"fetch vip_dev%d_af_pwdn from sys_config failed\n", i);
     } else {
       dev->ccm_cfg[i]->gpio.af_pwdn_io.gpio=val.gpio.gpio;
       dev->ccm_cfg[i]->gpio.af_pwdn_io.mul_sel=val.gpio.mul_sel;
@@ -255,7 +296,7 @@ int fetch_config(struct vfe_dev *dev)
 	  type = script_get_item(vfe_para, dev_para, &val);
 	  if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
 		dev->ccm_cfg[i]->act_used= 0;
-		vfe_err("fetch vip_dev%d_act_used from sys_config failed\n", i);
+		vfe_dbg(0,"fetch vip_dev%d_act_used from sys_config failed\n", i);
 	  } else {
 		dev->ccm_cfg[i]->act_used=val.val;
 	  }
@@ -268,7 +309,7 @@ int fetch_config(struct vfe_dev *dev)
   	    if (SCIRPT_ITEM_VALUE_TYPE_STR != type) {
   	      char null_str[]="";
   	      strcpy(dev->ccm_cfg[i]->act_name,null_str);
-  	      vfe_err("fetch vip_dev%d_act_name from sys_config failed\n", i);
+  	      vfe_dbg(0,"fetch vip_dev%d_act_name from sys_config failed\n", i);
   	    } else {
   	      strcpy(dev->ccm_cfg[i]->act_name,val.str);
   	    }
@@ -278,7 +319,7 @@ int fetch_config(struct vfe_dev *dev)
   		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
   		  dev->ccm_cfg[i]->act_slave= 0;
   		
-  		  vfe_err("fetch vip_dev%d_act_slave from sys_config failed\n", i);
+  		  vfe_dbg(0,"fetch vip_dev%d_act_slave from sys_config failed\n", i);
   		} else {
   		  dev->ccm_cfg[i]->act_slave=val.val;
   		}
@@ -360,7 +401,7 @@ int fetch_isp_cfg(struct vfe_dev *dev, struct cfg_section *cfg_section)
   type = cfg_get_one_subkey(cfg_section,"isp_test","isp_test_mode",&subkey);
   if (CFG_ITEM_VALUE_TYPE_INT != type)
   {  
-    vfe_err("fetch isp_test_mode from camera.ini failed,apply default value!\n");
+    vfe_dbg(0,"fetch isp_test_mode from camera.ini failed,apply default value!\n");
 	dev->isp_gen_set[isp_id].isp_ini_cfg.isp_test_mode = 0;
   }
   else
@@ -486,6 +527,19 @@ int fetch_isp_cfg(struct vfe_dev *dev, struct cfg_section *cfg_section)
     dev->isp_gen_set[isp_id].isp_ini_cfg.lsc_en=subkey.value->val;
 	vfe_dbg(0,"isp_ini_cfg.lsc_en = %d\n",dev->isp_gen_set[isp_id].isp_ini_cfg.lsc_en);
   }
+  /* fetch high_quality_mode_en! */
+  type = cfg_get_one_subkey(cfg_section,"isp_func","high_quality_mode_en",&subkey);
+  if (CFG_ITEM_VALUE_TYPE_INT != type)
+  {  
+    vfe_err("fetch high_quality_mode_en from camera.ini failed,apply default value!\n");
+	dev->isp_gen_set[isp_id].isp_ini_cfg.high_quality_mode_en = 0;
+  }
+  else
+  {    
+    dev->isp_gen_set[isp_id].isp_ini_cfg.high_quality_mode_en=subkey.value->val;
+	vfe_dbg(0,"isp_ini_cfg.high_quality_mode_en = %d\n",dev->isp_gen_set[isp_id].isp_ini_cfg.high_quality_mode_en);
+  }
+  
   /* fetch defog_en enable! */
   type = cfg_get_one_subkey(cfg_section,"isp_func","defog_en",&subkey);
   
@@ -583,6 +637,32 @@ int fetch_isp_cfg(struct vfe_dev *dev, struct cfg_section *cfg_section)
   {
     dev->isp_gen_set[isp_id].isp_ini_cfg.pri_contrast =subkey.value->val;
 	vfe_dbg(0,"isp_ini_cfg.pri_contrast = %d\n",dev->isp_gen_set[isp_id].isp_ini_cfg.pri_contrast);
+  }
+  
+  /* fetch denoise_level! */
+  type = cfg_get_one_subkey(cfg_section,"isp_func","denoise_level",&subkey);
+  if (CFG_ITEM_VALUE_TYPE_INT != type)
+  {  
+    vfe_err("fetch denoise_level from camera.ini failed,apply default value!\n");	
+    dev->isp_gen_set[isp_id].isp_ini_cfg.denoise_level = 0;
+  }
+  else
+  {
+    dev->isp_gen_set[isp_id].isp_ini_cfg.denoise_level =subkey.value->val;
+	vfe_dbg(0,"isp_ini_cfg.denoise_level = %d\n",dev->isp_gen_set[isp_id].isp_ini_cfg.denoise_level);
+  }
+  
+  /* fetch sharpness_level! */
+  type = cfg_get_one_subkey(cfg_section,"isp_func","sharpness_level",&subkey);
+  if (CFG_ITEM_VALUE_TYPE_INT != type)
+  {  
+    vfe_err("fetch sharpness_level from camera.ini failed,apply default value!\n");	
+    dev->isp_gen_set[isp_id].isp_ini_cfg.sharpness_level = 0;
+  }
+  else
+  {
+    dev->isp_gen_set[isp_id].isp_ini_cfg.sharpness_level =subkey.value->val;
+	vfe_dbg(0,"isp_ini_cfg.sharpness_level = %d\n",dev->isp_gen_set[isp_id].isp_ini_cfg.sharpness_level);
   }
   
   /* fetch ISP table! */
@@ -745,25 +825,29 @@ int fetch_isp_cfg(struct vfe_dev *dev, struct cfg_section *cfg_section)
 
 int read_ini_info(struct vfe_dev *dev)
 {
-
   char path[128] = "/system/etc/hawkview/camera.ini";
+  int ret = 0,isp_id = 0;
   struct cfg_section *cfg_section;
   char *buf;  
   buf = (char*)kzalloc(2048,GFP_KERNEL);
   
   vfe_dbg(0,"read ini start\n");
   cfg_section_init(&cfg_section);
-  cfg_read_ini(path, &cfg_section);
+  ret = cfg_read_ini(path, &cfg_section);
+  
+  if(ret == -1)
+  {
+    dev->isp_gen_set[isp_id].isp_ini_cfg = isp_init_def_cfg;
+  	goto read_ini_info_end;
+  }
   
   fetch_isp_cfg(dev, cfg_section);
   
+read_ini_info_end:
   cfg_section_release(&cfg_section); 
-  
+  vfe_dbg(0,"read ini end\n");
   if(buf)
     kfree(buf);
-    
-  vfe_dbg(0,"read ini end\n");
-
-  return 0;
+  return ret;
 }
 

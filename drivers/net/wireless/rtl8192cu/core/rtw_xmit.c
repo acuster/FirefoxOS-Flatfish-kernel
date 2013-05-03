@@ -297,8 +297,7 @@ _func_enter_;
 	rtw_sctx_init(&pxmitpriv->ack_tx_ops, 0);	
 #endif
 
-	if(padapter->HalFunc.init_xmit_priv != NULL)
-		padapter->HalFunc.init_xmit_priv(padapter);
+	rtw_hal_init_xmit_priv(padapter);
 
 exit:
 
@@ -338,7 +337,7 @@ void _rtw_free_xmit_priv (struct xmit_priv *pxmitpriv)
 
  _func_enter_;   
 
-	padapter->HalFunc.free_xmit_priv(padapter);
+	rtw_hal_free_xmit_priv(padapter);
  
 	rtw_mfree_xmit_priv_lock(pxmitpriv);
  
@@ -676,12 +675,10 @@ static s32 update_attrib(_adapter *padapter, _pkt *pkt, struct pkt_attrib *pattr
 		}
 	}
 
-	#ifdef CONFIG_SET_SCAN_DENY_TIMER
 	if ( (pattrib->ether_type == 0x888e) || (pattrib->dhcp_pkt == 1) )
 	{
-		rtw_set_scan_deny(pmlmepriv, 3000);
+		rtw_set_scan_deny(padapter, 3000);
 	}
-	#endif
 
 #ifdef CONFIG_LPS
 	// If EAPOL , ARP , OR DHCP packet, driver must be in active mode.
@@ -2204,26 +2201,6 @@ _func_exit_;
 	return _SUCCESS;
 }
 
-s32 rtw_free_xmitframe_ex(struct xmit_priv *pxmitpriv, struct xmit_frame *pxmitframe)
-{	
-			
-_func_enter_;	
-
-	if(pxmitframe==NULL){
-		goto exit;
-	}
-
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_debug_, ("rtw_free_xmitframe_ex()\n"));
-	
-	rtw_free_xmitframe(pxmitpriv, pxmitframe);	  
-
-exit:
-	
-_func_exit_;	 
-
-	return _SUCCESS;	
-} 
-
 void rtw_free_xmitframe_queue(struct xmit_priv *pxmitpriv, _queue *pframequeue)
 {
 	_irqL irqL;
@@ -2935,7 +2912,7 @@ s32 rtw_xmit(_adapter *padapter, _pkt **ppkt)
 	_exit_critical_bh(&pxmitpriv->lock, &irqL0);
 #endif
 
-	if (padapter->HalFunc.hal_xmit(padapter, pxmitframe) == _FALSE)
+	if (rtw_hal_xmit(padapter, pxmitframe) == _FALSE)
 		return 1;
 
 	return 0;
@@ -3335,39 +3312,44 @@ void wakeup_sta_to_xmit(_adapter *padapter, struct sta_info *psta)
 		pxmitframe->attrib.triggered = 1;
 
 		_exit_critical_bh(&psta->sleep_q.lock, &irqL);	
-		if(padapter->HalFunc.hal_xmit(padapter, pxmitframe) == _TRUE)
+		if(rtw_hal_xmit(padapter, pxmitframe) == _TRUE)
 		{		
 			rtw_os_xmit_complete(padapter, pxmitframe);
 		}		
 		_enter_critical_bh(&psta->sleep_q.lock, &irqL);
-
-		if(psta->sleepq_len==0)
-		{
+		
+	}	
+	
+	if(psta->sleepq_len==0)
+	{
 #ifdef CONFIG_TDLS
-			if( psta->tdls_sta_state & TDLS_LINKED_STATE )
-			{
-				if(psta->state&WIFI_SLEEP_STATE)
-					psta->state ^= WIFI_SLEEP_STATE;
-				
-				_exit_critical_bh(&psta->sleep_q.lock, &irqL);
-				return;
-			}
-#endif //CONFIG_TDLS
-			pstapriv->tim_bitmap &= ~BIT(psta->aid);
-
-			//DBG_871X("wakeup to xmit, qlen==0, update_BCNTIM, tim=%x\n", pstapriv->tim_bitmap);
-			//upate BCN for TIM IE
-			//update_BCNTIM(padapter);
-			update_mask = BIT(0);
-
+		if( psta->tdls_sta_state & TDLS_LINKED_STATE )
+		{
 			if(psta->state&WIFI_SLEEP_STATE)
 				psta->state ^= WIFI_SLEEP_STATE;
 
-			pstapriv->sta_dz_bitmap &= ~BIT(psta->aid);				
-				
+			_exit_critical_bh(&psta->sleep_q.lock, &irqL);
+			return;
 		}
-		
-	}	
+#endif //CONFIG_TDLS
+		pstapriv->tim_bitmap &= ~BIT(psta->aid);
+
+		//DBG_871X("wakeup to xmit, qlen==0, update_BCNTIM, tim=%x\n", pstapriv->tim_bitmap);
+		//upate BCN for TIM IE
+		//update_BCNTIM(padapter);
+		update_mask = BIT(0);
+
+		if(psta->state&WIFI_SLEEP_STATE)
+			psta->state ^= WIFI_SLEEP_STATE;
+
+		if(psta->state & WIFI_STA_ALIVE_CHK_STATE)
+		{
+			psta->expire_to = pstapriv->expire_to;
+			psta->state ^= WIFI_STA_ALIVE_CHK_STATE;
+		}
+
+		pstapriv->sta_dz_bitmap &= ~BIT(psta->aid);
+	}
 	
 	_exit_critical_bh(&psta->sleep_q.lock, &irqL);	
 
@@ -3402,25 +3384,25 @@ void wakeup_sta_to_xmit(_adapter *padapter, struct sta_info *psta)
 			pxmitframe->attrib.triggered = 1;
 
 			_exit_critical_bh(&psta_bmc->sleep_q.lock, &irqL);	
-			if(padapter->HalFunc.hal_xmit(padapter, pxmitframe) == _TRUE)
+			if(rtw_hal_xmit(padapter, pxmitframe) == _TRUE)
 			{		
 				rtw_os_xmit_complete(padapter, pxmitframe);
 			}
 			_enter_critical_bh(&psta_bmc->sleep_q.lock, &irqL);	
 
 
-			if(psta_bmc->sleepq_len==0)
-			{
-				pstapriv->tim_bitmap &= ~BIT(0);
-				pstapriv->sta_dz_bitmap &= ~BIT(0);
-
-				//DBG_871X("wakeup to xmit, qlen==0, update_BCNTIM, tim=%x\n", pstapriv->tim_bitmap);
-				//upate BCN for TIM IE
-				//update_BCNTIM(padapter);
-				update_mask |= BIT(1);
-			}
-		
 		}	
+	
+		if(psta_bmc->sleepq_len==0)
+		{
+			pstapriv->tim_bitmap &= ~BIT(0);
+			pstapriv->sta_dz_bitmap &= ~BIT(0);
+
+			//DBG_871X("wakeup to xmit, qlen==0, update_BCNTIM, tim=%x\n", pstapriv->tim_bitmap);
+			//upate BCN for TIM IE
+			//update_BCNTIM(padapter);
+			update_mask |= BIT(1);
+		}		
 	
 		_exit_critical_bh(&psta_bmc->sleep_q.lock, &irqL);	
 
@@ -3496,7 +3478,7 @@ void xmit_delivery_enabled_frames(_adapter *padapter, struct sta_info *psta)
 
 		pxmitframe->attrib.triggered = 1;
 
-		if(padapter->HalFunc.hal_xmit(padapter, pxmitframe) == _TRUE)
+		if(rtw_hal_xmit(padapter, pxmitframe) == _TRUE)
 		{		
 			rtw_os_xmit_complete(padapter, pxmitframe);
 		}
@@ -3534,7 +3516,7 @@ void rtw_sctx_init(struct submit_ctx *sctx, int timeout_ms)
 #ifdef PLATFORM_LINUX /* TODO: add condition wating interface for other os */
 	init_completion(&sctx->done);
 #endif
-	sctx->status = RTW_SCTX_DONE_SUCCESS;
+	sctx->status = RTW_SCTX_SUBMITTED;
 }
 
 int rtw_sctx_wait(struct submit_ctx *sctx)
@@ -3567,6 +3549,9 @@ bool rtw_sctx_chk_waring_status(int status)
 	case RTW_SCTX_DONE_UNKNOWN:
 	case RTW_SCTX_DONE_BUF_ALLOC:
 	case RTW_SCTX_DONE_BUF_FREE:
+
+	case RTW_SCTX_DONE_DRV_STOP:
+	case RTW_SCTX_DONE_DEV_REMOVE:
 		return _TRUE;
 	default:
 		return _FALSE;
@@ -3592,15 +3577,71 @@ void rtw_sctx_done(struct submit_ctx **sctx)
 }
 
 #ifdef CONFIG_XMIT_ACK
+
+#ifdef CONFIG_XMIT_ACK_POLLING
+s32 c2h_evt_hdl(_adapter *adapter, struct c2h_evt_hdr *c2h_evt, c2h_id_filter filter);
+
+/**
+ * rtw_ack_tx_polling -
+ * @pxmitpriv: xmit_priv to address ack_tx_ops
+ * @timeout_ms: timeout msec
+ *
+ * Init ack_tx_ops and then do c2h_evt_hdl() and polling ack_tx_ops repeatedly
+ * till tx report or timeout
+ * Returns: _SUCCESS if TX report ok, _FAIL for others
+ */
+int rtw_ack_tx_polling(struct xmit_priv *pxmitpriv, u32 timeout_ms)
+{
+	int ret = _FAIL;
+	struct submit_ctx *pack_tx_ops = &pxmitpriv->ack_tx_ops;
+	_adapter *adapter = container_of(pxmitpriv, _adapter, xmitpriv);
+
+	pack_tx_ops->submit_time = rtw_get_current_time();
+	pack_tx_ops->timeout_ms = timeout_ms;
+	pack_tx_ops->status = RTW_SCTX_SUBMITTED;
+
+	do {
+		c2h_evt_hdl(adapter, NULL, rtw_hal_c2h_id_filter_ccx(adapter));
+		if (pack_tx_ops->status != RTW_SCTX_SUBMITTED)
+			break;
+
+		if (adapter->bDriverStopped) {
+			pack_tx_ops->status = RTW_SCTX_DONE_DRV_STOP;
+			break;
+		}
+		if (adapter->bSurpriseRemoved) {
+			pack_tx_ops->status = RTW_SCTX_DONE_DEV_REMOVE;
+			break;
+		}
+		
+		rtw_msleep_os(10);
+	} while (rtw_get_passing_time_ms(pack_tx_ops->submit_time) < timeout_ms);
+
+	if (pack_tx_ops->status == RTW_SCTX_SUBMITTED) {
+		pack_tx_ops->status = RTW_SCTX_DONE_TIMEOUT;
+		DBG_871X("%s timeout\n", __func__);
+	}
+
+	if (pack_tx_ops->status == RTW_SCTX_DONE_SUCCESS)
+		ret = _SUCCESS;
+
+	return ret;
+}
+#endif
+
 int rtw_ack_tx_wait(struct xmit_priv *pxmitpriv, u32 timeout_ms)
 {
+#ifdef CONFIG_XMIT_ACK_POLLING
+	return rtw_ack_tx_polling(pxmitpriv, timeout_ms);
+#else
 	struct submit_ctx *pack_tx_ops = &pxmitpriv->ack_tx_ops;
 
 	pack_tx_ops->submit_time = rtw_get_current_time();
 	pack_tx_ops->timeout_ms = timeout_ms;
-	pack_tx_ops->status = RTW_SCTX_DONE_SUCCESS;
+	pack_tx_ops->status = RTW_SCTX_SUBMITTED;
 
 	return rtw_sctx_wait(pack_tx_ops);
+#endif
 }
 
 void rtw_ack_tx_done(struct xmit_priv *pxmitpriv, int status)

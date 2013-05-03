@@ -34,12 +34,19 @@
 
 #elif defined (CONFIG_USB_HCI)
 #ifdef CONFIG_USB_TX_AGGREGATION
-#define MAX_XMITBUF_SZ	20480	// 20k
+	#ifdef CONFIG_PLATFORM_ARM_SUNxI
+		#define MAX_XMITBUF_SZ (12288)  //12k 1536*8
+	#else
+		#define MAX_XMITBUF_SZ	(20480)	// 20k
+	#endif
 #else
 #define MAX_XMITBUF_SZ	(2048)
 #endif //CONFIG_USB_TX_AGGREGATION
-
+#ifdef CONFIG_SINGLE_XMIT_BUF
+#define NR_XMITBUFF	(1)
+#else
 #define NR_XMITBUFF	(4)
+#endif //CONFIG_SINGLE_XMIT_BUF
 
 #elif defined (CONFIG_PCI_HCI)
 #define MAX_XMITBUF_SZ	(1664)
@@ -58,8 +65,11 @@
 
 // xmit extension buff defination
 #define MAX_XMIT_EXTBUF_SZ	(1536)
-
+#ifdef CONFIG_SINGLE_XMIT_BUF
+#define NR_XMIT_EXTBUFF	(1)
+#else
 #define NR_XMIT_EXTBUFF	(32)
+#endif //CONFIG_SINGLE_XMIT_BUF
 
 #define MAX_NUMBLKS		(1)
 
@@ -392,6 +402,7 @@ struct  submit_ctx{
 };
 
 enum {
+	RTW_SCTX_SUBMITTED = -1,
 	RTW_SCTX_DONE_SUCCESS = 0,
 	RTW_SCTX_DONE_UNKNOWN,
 	RTW_SCTX_DONE_TIMEOUT,
@@ -401,6 +412,8 @@ enum {
 	RTW_SCTX_DONE_TX_DESC_NA,
 	RTW_SCTX_DONE_TX_DENY,
 	RTW_SCTX_DONE_CCX_PKT_FAIL,
+	RTW_SCTX_DONE_DRV_STOP,
+	RTW_SCTX_DONE_DEV_REMOVE,
 };
 
 
@@ -699,7 +712,6 @@ void _rtw_free_xmit_priv (struct xmit_priv *pxmitpriv);
 void rtw_alloc_hwxmits(_adapter *padapter);
 void rtw_free_hwxmits(_adapter *padapter);
 
-s32 rtw_free_xmitframe_ex(struct xmit_priv *pxmitpriv, struct xmit_frame *pxmitframe);
 
 s32 rtw_xmit(_adapter *padapter, _pkt **pkt);
 

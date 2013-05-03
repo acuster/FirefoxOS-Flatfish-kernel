@@ -696,7 +696,7 @@ static void sw_uart_set_termios(struct uart_port *port, struct ktermios *termios
 	 * if lcr & baud are changed, reset controller to disable transfer
 	 */
 	if (lcr != sw_uport->lcr || dll != sw_uport->dll || dlh != sw_uport->dlh) {
-		SERIAL_DBG("LCR & BAUD changed, reset controller...\n");
+//		SERIAL_DBG("LCR & BAUD changed, reset controller...\n");
 		sw_uart_reset(sw_uport);
 	}
 	sw_uport->dll = dll;
@@ -723,9 +723,6 @@ static void sw_uart_set_termios(struct uart_port *port, struct ktermios *termios
 	sw_uport->lcr = lcr;
 	serial_out(port, sw_uport->lcr|SW_UART_LCR_DLAB, SW_UART_LCR);
 	if (serial_in(port, SW_UART_LCR) != (sw_uport->lcr|SW_UART_LCR_DLAB)) {
-		SERIAL_MSG("uart%d write LCR(pre-dlab) failed, lcr %x reg %x\n",
-			sw_uport->id, sw_uport->lcr|(u32)SW_UART_LCR_DLAB,
-			serial_in(port, SW_UART_LCR));
 		lcr_fail = 1;
 	} else {
 		sw_uport->lcr = lcr;
@@ -733,9 +730,7 @@ static void sw_uart_set_termios(struct uart_port *port, struct ktermios *termios
 		serial_out(port, sw_uport->dlh, SW_UART_DLH);
 		serial_out(port, sw_uport->lcr, SW_UART_LCR);
 		if (serial_in(port, SW_UART_LCR) != sw_uport->lcr) {
-			SERIAL_MSG("uart%d write LCR(post-dlab) failed, lcr %x reg %x\n",
-				sw_uport->id, sw_uport->lcr, serial_in(port, SW_UART_LCR));
-			lcr_fail = 1;
+			lcr_fail = 2;
 		}
 	}
 
@@ -748,6 +743,15 @@ static void sw_uart_set_termios(struct uart_port *port, struct ktermios *termios
 	port->ops->set_mctrl(port, port->mctrl);
 
 	spin_unlock_irqrestore(&port->lock, flags);
+	/* lately output force lcr information */
+	if (lcr_fail == 1) {
+		SERIAL_MSG("uart%d write LCR(pre-dlab) failed, lcr %x reg %x\n",
+			sw_uport->id, sw_uport->lcr|(u32)SW_UART_LCR_DLAB,
+			serial_in(port, SW_UART_LCR));
+	} else if (lcr_fail == 2) {
+		SERIAL_MSG("uart%d write LCR(post-dlab) failed, lcr %x reg %x\n",
+			sw_uport->id, sw_uport->lcr, serial_in(port, SW_UART_LCR));
+	}
 	/* Don't rewrite B0 */
 	if (tty_termios_baud_rate(termios))
 		tty_termios_encode_baud_rate(termios, baud, baud);
@@ -963,15 +967,31 @@ static void sw_console_write(struct console *co, const char *s,
 {
 	struct uart_port *port;
 	struct sw_uart_port *sw_uport;
+	unsigned long flags;
+	unsigned int ier;
+	int locked = 1;
 
 	BUG_ON(co->index < 0 || co->index >= SW_UART_NR);
 
 	port = &sw_uart_port[co->index].port;
 	sw_uport = UART_TO_SPORT(port);
 
-	spin_lock(&port->lock);
+	local_irq_save(flags);
+	if (port->sysrq)
+		locked = 0;
+	else if (oops_in_progress)
+		locked = spin_trylock(&port->lock);
+	else
+		spin_lock(&port->lock);
+	ier = serial_in(port, SW_UART_IER);
+	serial_out(port, 0, SW_UART_IER);
+
 	uart_console_write(port, s, count, sw_console_putchar);
-	spin_unlock(&port->lock);
+	wait_for_xmitr(sw_uport);
+	serial_out(port, ier, SW_UART_IER);
+	if (locked)
+		spin_unlock(&port->lock);
+	local_irq_restore(flags);
 }
 
 static int __init sw_console_setup(struct console *co, char *options)
@@ -1005,7 +1025,7 @@ static struct console sw_console = {
 	.write = sw_console_write,
 	.device = uart_console_device,
 	.setup = sw_console_setup,
-	.flags = CON_PRINTBUFFER,
+	.flags = CON_PRINTBUFFER | CON_ANYTIME,
 	.index = -1,
 	.data = &sw_uart_driver,
 };

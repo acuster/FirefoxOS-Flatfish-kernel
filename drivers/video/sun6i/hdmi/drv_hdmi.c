@@ -252,7 +252,7 @@ int Hdmi_run_thread(void *parg)
 	{
         if(kthread_should_stop())
         {
-            pr_info("Hdmi_run_thread, hdmi suspend\n");
+            __inf("Hdmi_run_thread, hdmi suspend\n");
             break;
         }
 
@@ -276,25 +276,65 @@ int Hdmi_run_thread(void *parg)
 
 __s32 Hdmi_suspend(void)
 {
+    pr_info("[HDMI]Hdmi_suspend\n");
     if(hdmi_used)
     {
-        b_hdmi_suspend = 1;
-        pr_info("[HDMI]hdmi suspend\n");
+      if(HDMI_task)
+      {
+        __inf("kthread_stop hdmi thread\n");
+            kthread_stop(HDMI_task);
+        HDMI_task = 0;
+      }
     }
-	Hdmi_hal_suspend();
+    Hdmi_hal_suspend();
+
+    return 0;
+}
+
+__s32 Hdmi_early_suspend(void)
+{
+    pr_info("[HDMI]Hdmi_early_suspend\n");
+    if(hdmi_used)
+    {
+      Hdmi_hpd_event(0);
+      b_hdmi_suspend = 1;
+    }
 
     return 0;
 }
 
 __s32 Hdmi_resume(void)
 {
+    pr_info("[HDMI]Hdmi_resume\n");
     if(hdmi_used)
     {
-        b_hdmi_suspend = 0;
-        Hdmi_hal_init();
-        pr_info("[HDMI]hdmi resume\n");
+      Hdmi_hal_init();
+      HDMI_task = kthread_create(Hdmi_run_thread, (void*)0, "hdmi proc");
+      if(IS_ERR(HDMI_task))
+      {
+        __s32 err = 0;
+
+        __wrn("Unable to start kernel thread %s.\n","hdmi proc");
+        err = PTR_ERR(HDMI_task);
+        HDMI_task = NULL;
+        return err;
+      }
+      wake_up_process(HDMI_task);
     }
 	Hdmi_hal_resume();
+
+    return  0;
+}
+
+__s32 Hdmi_late_resume(void)
+{
+    pr_info("[HDMI]Hdmi_late_resume\n");
+    if(hdmi_used)
+    {
+      b_hdmi_suspend = 0;
+      //Hdmi_hpd_event(Hdmi_get_HPD_status());
+      hdmi_state = HDMI_State_Wait_Hpd;
+    }
 
     return  0;
 }
@@ -312,7 +352,7 @@ void hdmi_report_hpd_work(struct work_struct *work)
 	if(Hdmi_get_HPD_status())
     {
         //snprintf(buf, sizeof(buf), "HDMI_PLUGIN");
-        //switch_set_state(&hdmi_switch_dev, 1);
+        switch_set_state(&hdmi_switch_dev, 1);
         __inf("switch_set_state 1\n");
         disp_set_hdmi_hpd(1);
     }
@@ -347,9 +387,19 @@ __s32 hdmi_hpd_state(__u32 state)
  *
  * always return success.
  */
-__s32 Hdmi_hpd_event()
+__s32 Hdmi_hpd_event(__u32 event)
 {
-    schedule_work(&ghdmi.hpd_work);
+    //schedule_work(&ghdmi.hpd_work);
+    if(!b_hdmi_suspend)
+    {
+        __inf("hdmi_statue:%d\n", event);
+        if(switch_get_state(&hdmi_switch_dev) != event)
+        {
+            switch_set_state(&hdmi_switch_dev, event);
+            __inf("switch_set_state %d\n",event);
+            disp_set_hdmi_hpd(event);
+        }
+    }
 
     return 0;
 }
@@ -405,7 +455,9 @@ __s32 Hdmi_init(void)
             disp_func.hdmi_dvi_support= Hdmi_dvi_support;
             disp_func.hdmi_get_input_csc = Hdmi_get_input_csc;
             disp_func.hdmi_suspend = Hdmi_suspend;
+            disp_func.hdmi_early_suspend = Hdmi_early_suspend;
             disp_func.hdmi_resume = Hdmi_resume;
+            disp_func.hdmi_late_resume = Hdmi_late_resume;
             disp_set_hdmi_func(&disp_func);
 
             INIT_WORK(&ghdmi.hpd_work, hdmi_report_hpd_work);

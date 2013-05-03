@@ -20,27 +20,23 @@
  * @irq:	dma physical irq num
  * @dev:	para passed in request_irq function
  *
- * Returns 0 if sucess, the err line number if failed.
- *
  * we cannot lock __dma_irq_hdl through,
  * because sw_dma_enqueue maybe called in cb,
  * which will result in deadlock
  */
 irqreturn_t __dma_irq_hdl(int irq, void *dev)
 {
-	u32 		i = 0;
-	u32 		upend_bits = 0;
-	struct dma_channel_t *pchan = NULL;
-	struct dma_mgr_t *pdma_mgr = NULL;
+	dma_channel_t *pchans = (dma_channel_t *)dev;
+	dma_channel_t *pchan;
+	u32 upend_bits = 0;
+	int i;
 
 	DMA_DBG("%s, line %d, dma en0 0x%08x, en1 0x%08x, pd0 0x%08x, pd1 0x%08x\n", __func__, __LINE__, \
 		DMA_READ_REG(DMA_IRQ_EN_REG0), DMA_READ_REG(DMA_IRQ_EN_REG1), \
 		DMA_READ_REG(DMA_IRQ_PEND_REG0), DMA_READ_REG(DMA_IRQ_PEND_REG1));
 
-	pdma_mgr = (struct dma_mgr_t *)dev;
 	for(i = 0; i < DMA_CHAN_TOTAL; i++) {
-		pchan = &pdma_mgr->chnl[i];
-		/* get channel irq pend bits */
+		pchan = &pchans[i];
 		upend_bits = csp_dma_chan_get_irqpend(pchan);
 		if(0 == upend_bits)
 			continue;
@@ -61,17 +57,17 @@ irqreturn_t __dma_irq_hdl(int irq, void *dev)
  */
 int __dma_init(struct platform_device *device)
 {
-	int 		ret = 0;
-	int 		i = 0;
-	struct dma_channel_t *pchan = NULL;
+	dma_channel_t *pchan = NULL;
+	int ret = 0;
+	int i = 0;
 
 	/* init dma controller */
 	csp_dma_init();
 
 	/* initial the dma manager */
-	memset(&g_dma_mgr, 0, sizeof(g_dma_mgr));
+	memset(dma_chnl, 0, sizeof(dma_chnl));
 	for(i = 0; i < DMA_CHAN_TOTAL; i++) {
-		pchan 		= &g_dma_mgr.chnl[i];
+		pchan 		= &dma_chnl[i];
 		pchan->used 	= 0;
 		pchan->id 	= i;
 		pchan->reg_base = (u32)DMA_EN_REG(i);
@@ -79,16 +75,6 @@ int __dma_init(struct platform_device *device)
 		pchan->bconti_mode = false;
 		pchan->work_mode = DMA_WORK_MODE_INVALID;
 		DMA_CHAN_LOCK_INIT(&pchan->lock);
-		//pchan->state = DMA_CHAN_STA_IDLE; /* initial when request */
-
-		/* these has cleared in memset-g_dma_mgr-0 */
-		/*memset(pchan->owner, 0, sizeof(pchan->owner));
-		memset(&pchan->hd_cb, 0, sizeof(struct dma_cb_t));
-		memset(&pchan->fd_cb, 0, sizeof(struct dma_cb_t));
-		memset(&pchan->qd_cb, 0, sizeof(struct dma_cb_t));
-		memset(&pchan->op_cb, 0, sizeof(struct dma_op_cb_t));
-		memset(&pchan->des_info_save, 0, sizeof(pchan->des_info_save));
-		pchan->pdes_mgr = NULL;*/
 	}
 
 	/* alloc dma pool for des list */
@@ -100,7 +86,7 @@ int __dma_init(struct platform_device *device)
 	DMA_INF("%s(%d): g_des_pool 0x%08x\n", __func__, __LINE__, (u32)g_des_pool);
 
 	/* register dma interrupt */
-	ret = request_irq(AW_IRQ_DMA, __dma_irq_hdl, IRQF_DISABLED, "dma_irq", (void *)&g_dma_mgr);
+	ret = request_irq(AW_IRQ_DMA, __dma_irq_hdl, IRQF_DISABLED, "dma_irq", (void *)dma_chnl);
 	if(ret) {
 		DMA_ERR("%s err: request_irq return %d\n", __func__, ret);
 		ret = __LINE__;
@@ -116,7 +102,7 @@ end:
 			g_des_pool = NULL;
 		}
 		for(i = 0; i < DMA_CHAN_TOTAL; i++)
-			DMA_CHAN_LOCK_DEINIT(&g_dma_mgr.chnl[i].lock);
+			DMA_CHAN_LOCK_DEINIT(&dma_chnl[i].lock);
 	}
 	return ret;
 }
@@ -131,17 +117,17 @@ int __dma_deinit(void)
 	u32 	i = 0;
 
 	DMA_INF("%s, line %d\n", __func__, __LINE__);
-	/* free dma irq */
-	free_irq(AW_IRQ_DMA, (void *)&g_dma_mgr);
+
+	free_irq(AW_IRQ_DMA, (void *)dma_chnl);
 
 	if (NULL != g_des_pool) {
 		dma_pool_destroy(g_des_pool);
 		g_des_pool = NULL;
 	}
 	for(i = 0; i < DMA_CHAN_TOTAL; i++)
-		DMA_CHAN_LOCK_DEINIT(&g_dma_mgr.chnl[i].lock);
-	/* clear dma manager */
-	memset(&g_dma_mgr, 0, sizeof(g_dma_mgr));
+		DMA_CHAN_LOCK_DEINIT(&dma_chnl[i].lock);
+
+	memset(dma_chnl, 0, sizeof(dma_chnl));
 	return 0;
 }
 
@@ -176,7 +162,7 @@ static int __devexit dma_drv_remove(struct platform_device *dev)
  */
 int dma_drv_suspend(struct device *dev)
 {
-	if(NORMAL_STANDBY == standby_type) { /* process for normal standby */
+	if(NORMAL_STANDBY == standby_type) {
  		DMA_INF("%s: normal standby, line %d\n", __func__, __LINE__);
 		/* close dma mode clock */
 		if(NULL != g_dma_mod_clk && !IS_ERR(g_dma_mod_clk)) {
@@ -187,9 +173,9 @@ int dma_drv_suspend(struct device *dev)
 			g_dma_mod_clk = NULL;
 			DMA_INF("%s: close dma mod clock success\n", __func__);
 		}
-	} else if(SUPER_STANDBY == standby_type) { /* process for super standby */
+	} else if(SUPER_STANDBY == standby_type) {
  		DMA_INF("%s: super standby, line %d\n", __func__, __LINE__);
-		/* close dma clock */
+
 		if(0 != dma_clk_deinit())
 			DMA_ERR("%s err, dma_clk_deinit failed\n", __func__);
 	}
@@ -204,7 +190,7 @@ int dma_drv_suspend(struct device *dev)
  */
 int dma_drv_resume(struct device *dev)
 {
-	if(NORMAL_STANDBY == standby_type) { /* process for normal standby */
+	if(NORMAL_STANDBY == standby_type) {
  		DMA_INF("%s: normal standby, line %d\n", __func__, __LINE__);
 		/* enable dma mode clock */
 		g_dma_mod_clk = clk_get(NULL, CLK_MOD_DMA);
@@ -215,9 +201,9 @@ int dma_drv_resume(struct device *dev)
 		WARN_ON(0 != clk_enable(g_dma_mod_clk));
 		WARN_ON(0 != clk_reset(g_dma_mod_clk, AW_CCU_CLK_NRESET));
 		DMA_INF("%s: open dma mod clock success\n", __func__);
-	} else if(SUPER_STANDBY == standby_type) { /* process for super standby */
+	} else if(SUPER_STANDBY == standby_type) {
  		DMA_INF("%s: super standby, line %d\n", __func__, __LINE__);
-		/* enable dma clock */
+
 		if(0 != dma_clk_init())
 			DMA_ERR("%s err, dma_clk_init failed\n", __func__);
 	}

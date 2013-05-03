@@ -51,7 +51,27 @@
 #include <mach/gpio.h>
 #include <linux/ctp.h>
 
-#include "gslX680.h" //resolution:1024*768
+#include "gslX680.h"
+#include "gslX680_inetq70.h"    //resolution:1024*600
+#include "gslX680_inetq71eg.h"  //resolution:1024*600
+#include "gslX680_onda809q9.h"  //resolution:1024*768
+#include "gslX680_ondam784q6.h" //resolution:1024*768
+#include "gslX680_ondam804q6.h" //resolution:1024*768
+#include "gslX680_onda978q9.h"  //resolution:2048*1536
+
+struct gslX680_fw_array {
+	const char* name;
+	unsigned int size;
+	const struct fw_data *fw;
+} gslx680_fw_grp[] = {
+	{"gslx680_inetq70",    ARRAY_SIZE(GSLX680_FW_INETQ70),    GSLX680_FW_INETQ70},
+	{"gslx680_inetq71eg",  ARRAY_SIZE(GSLX680_FW_INETQ71EG),  GSLX680_FW_INETQ71EG},
+	{"gslx680_onda809q9",  ARRAY_SIZE(GSLX680_FW_ONDA809Q9),  GSLX680_FW_ONDA809Q9},
+	{"gslx680_onda978q9",  ARRAY_SIZE(GSLX680_FW_ONDA978Q9),  GSLX680_FW_ONDA978Q9},
+	{"gslx680_ondam784q6", ARRAY_SIZE(GSLX680_FW_ONDAM784Q6), GSLX680_FW_ONDAM784Q6},
+	{"gslx680_ondam804q6", ARRAY_SIZE(GSLX680_FW_ONDAM804Q6), GSLX680_FW_ONDAM804Q6},
+};
+
 #define FOR_TSLIB_TEST
 //#define GSL_TIMER
 //#define PRINT_POINT_INFO
@@ -194,7 +214,8 @@ static int revert_x_flag = 0;
 static int revert_y_flag = 0;
 static int exchange_x_y_flag = 0;
 static u32 int_handle = 0;
-static  char* fwname;
+static char* fwname;
+static int fw_index = -1;
 
 static __u32 twi_id = 0;
 
@@ -315,28 +336,40 @@ static __inline__ void fw2buf(u8 *buf, const u32 *fw)
 	*u32_buf = *fw;
 }
 
-static void gsl_load_fw1680(struct i2c_client *client)
+static int gsl_find_fw_idx(const char* name)
+{
+	int i = 0;
+	
+	for (i=0; i<ARRAY_SIZE(gslx680_fw_grp); i++) {
+		if (!strcmp(name, gslx680_fw_grp[i].name))
+			return i;
+	}
+	return -1;
+}
+
+static void gsl_load_fwx680(struct i2c_client *client)
 {
 	u8 buf[DMA_TRANS_LEN*4 + 1] = {0};
 	u8 send_flag = 1;
 	u8 *cur = buf + 1;
 	u32 source_line = 0;
-	u32 source_len = ARRAY_SIZE(GSL1680_FW);
+	u32 source_len = gslx680_fw_grp[fw_index].size;
+	const struct fw_data *fw = gslx680_fw_grp[fw_index].fw;
 
 	dprintk(DEBUG_INIT,"=============gsl_load_fw start==============\n");
 
 	for (source_line = 0; source_line < source_len; source_line++) {
 		/* init page trans, set the page val */
-		if (GSL_PAGE_REG == GSL1680_FW[source_line].offset){
-			fw2buf(cur, &GSL1680_FW[source_line].val);
+		if (GSL_PAGE_REG == fw[source_line].offset){
+			fw2buf(cur, &fw[source_line].val);
 			gsl_write_interface(client, GSL_PAGE_REG, buf, 4);
 			send_flag = 1;
 		}
 		else {
 			if (1 == send_flag % (DMA_TRANS_LEN < 0x20 ? DMA_TRANS_LEN : 0x20))
-				buf[0] = (u8)GSL1680_FW[source_line].offset;
+				buf[0] = (u8)fw[source_line].offset;
 
-			fw2buf(cur, &GSL1680_FW[source_line].val);
+			fw2buf(cur, &fw[source_line].val);
 			cur += 4;
 
 			if (0 == send_flag % (DMA_TRANS_LEN < 0x20 ? DMA_TRANS_LEN : 0x20)) {
@@ -348,75 +381,6 @@ static void gsl_load_fw1680(struct i2c_client *client)
 	}
 	dprintk(DEBUG_INIT,"=============gsl_load_fw end==============\n");
 }
-
-static void gsl_load_fw2680(struct i2c_client *client)
-{
-	u8 buf[DMA_TRANS_LEN*4 + 1] = {0};
-	u8 send_flag = 1;
-	u8 *cur = buf + 1;
-	u32 source_line = 0;
-	u32 source_len = ARRAY_SIZE(GSL2680_FW);
-
-	dprintk(DEBUG_INIT,"=============gsl_load_fw start==============\n");
-
-	for (source_line = 0; source_line < source_len; source_line++) {
-		/* init page trans, set the page val */
-		if (GSL_PAGE_REG == GSL2680_FW[source_line].offset){
-			fw2buf(cur, &GSL2680_FW[source_line].val);
-			gsl_write_interface(client, GSL_PAGE_REG, buf, 4);
-			send_flag = 1;
-		}
-		else {
-			if (1 == send_flag % (DMA_TRANS_LEN < 0x20 ? DMA_TRANS_LEN : 0x20))
-	    			buf[0] = (u8)GSL2680_FW[source_line].offset;
-
-			fw2buf(cur, &GSL2680_FW[source_line].val);
-			cur += 4;
-
-			if (0 == send_flag % (DMA_TRANS_LEN < 0x20 ? DMA_TRANS_LEN : 0x20)) {
-	    			gsl_write_interface(client, buf[0], buf, cur - buf - 1);
-	    			cur = buf + 1;
-			}
-			send_flag++;
-		}
-	}
-	dprintk(DEBUG_INIT,"=============gsl_load_fw end==============\n");
-}
-
-static void gsl_load_fw3680(struct i2c_client *client)
-{
-	u8 buf[DMA_TRANS_LEN*4 + 1] = {0};
-	u8 send_flag = 1;
-	u8 *cur = buf + 1;
-	u32 source_line = 0;
-	u32 source_len = ARRAY_SIZE(GSL3680_FW);
-
-	dprintk(DEBUG_INIT,"=============gsl_load_fw start==============\n");
-
-	for (source_line = 0; source_line < source_len; source_line++) {
-		/* init page trans, set the page val */
-		if (GSL_PAGE_REG == GSL3680_FW[source_line].offset){
-			fw2buf(cur, &GSL3680_FW[source_line].val);
-			gsl_write_interface(client, GSL_PAGE_REG, buf, 4);
-			send_flag = 1;
-		}
-		else {
-			if (1 == send_flag % (DMA_TRANS_LEN < 0x20 ? DMA_TRANS_LEN : 0x20))
-	    			buf[0] = (u8)GSL3680_FW[source_line].offset;
-
-			fw2buf(cur, &GSL3680_FW[source_line].val);
-			cur += 4;
-
-			if (0 == send_flag % (DMA_TRANS_LEN < 0x20 ? DMA_TRANS_LEN : 0x20)) {
-	    			gsl_write_interface(client, buf[0], buf, cur - buf - 1);
-	    			cur = buf + 1;
-			}
-			send_flag++;
-		}
-	}
-	dprintk(DEBUG_INIT,"=============gsl_load_fw end==============\n");
-}
-
 
 static int gsl_ts_write(struct i2c_client *client, u8 addr, u8 *pdata, int datalen)
 {
@@ -490,51 +454,191 @@ static void reset_chip(struct i2c_client *client)
 	msleep(10);
 }
 
+static void clr_reg(struct i2c_client *client)
+{
+	u8 write_buf[4]	= {0};
+
+	write_buf[0] = 0x88;
+	gsl_ts_write(client, 0xe0, &write_buf[0], 1);
+	msleep(20);
+	write_buf[0] = 0x01;
+	gsl_ts_write(client, 0x80, &write_buf[0], 1);
+	msleep(5);
+	write_buf[0] = 0x04;
+	gsl_ts_write(client, 0xe4, &write_buf[0], 1);
+	msleep(5);
+	write_buf[0] = 0x00;
+	gsl_ts_write(client, 0xe0, &write_buf[0], 1);
+	msleep(20);
+}
+
 static void init_chip(struct i2c_client *client)
 {
-	//test_i2c(client);
-	reset_chip(client);
-	if(!strncmp(fwname,"gsl1680",strlen(fwname))){
-	        gsl_load_fw1680(client);
-        }
-	if(!strncmp(fwname,"gsl2680",strlen(fwname))){
-	        gsl_load_fw2680(client);
-        }
-        if(!strncmp(fwname,"gsl3680",strlen(fwname))){
-	        gsl_load_fw3680(client);
-        }
-	startup_chip(client);
-	reset_chip(client);
 	gslX680_shutdown_low();
 	msleep(50);
 	gslX680_shutdown_high();
 	msleep(30);
-	gslX680_shutdown_low();
-	msleep(5);
-	gslX680_shutdown_high();
-	msleep(20);
+	//test_i2c(client);
+	clr_reg(client);
+	reset_chip(client);
+	gsl_load_fwx680(client);
+	startup_chip(client);
 	reset_chip(client);
 	startup_chip(client);
 }
 
 static void check_mem_data(struct i2c_client *client)
 {
-	char write_buf;
-	char read_buf[4]  = {0};
+	u8 read_buf[4]  = {0};
 
 	msleep(30);
-	write_buf = 0x00;
-	gsl_ts_write(client,0xf0, &write_buf, sizeof(write_buf));
-	gsl_ts_read(client,0x00, read_buf, sizeof(read_buf));
-	gsl_ts_read(client,0x00, read_buf, sizeof(read_buf));
-	if (read_buf[3] != 0x1 || read_buf[2] != 0 || read_buf[1] != 0 || read_buf[0] != 0)
+	gsl_ts_read(client,0xb0, read_buf, sizeof(read_buf));
+
+	if (read_buf[3] != 0x5a || read_buf[2] != 0x5a || read_buf[1] != 0x5a || read_buf[0] != 0x5a)
 	{
-		printk("!!!!!!!!!!!page: %x offset: %x val: %x %x %x %x\n",0x0, 0x0,
-			read_buf[3], read_buf[2], read_buf[1], read_buf[0]);
+		printk("#########check mem read 0xb0 = %x %x %x %x #########\n", read_buf[3], read_buf[2], read_buf[1], read_buf[0]);
 		init_chip(client);
 	}
 }
+#ifdef STRETCH_FRAME
+static void stretch_frame(u16 *x, u16 *y)
+{
+	u16 temp_x = *x;
+	u16 temp_y = *y;
+	u16 temp_0, temp_1, temp_2;
 
+	if(temp_x < X_STRETCH_MAX + X_STRETCH_CUST)
+	{
+		temp_0 = temp_1 = temp_2 = 0;
+		temp_0 = X_STRETCH_MAX + X_STRETCH_CUST - temp_x;
+		temp_0 = temp_0 > X_STRETCH_CUST ? X_STRETCH_CUST : temp_0;
+		temp_0 = temp_0*(100 + X_RATIO_CUST)/100;
+		if(temp_x < X_STRETCH_MAX)
+		{
+			temp_1 = X_STRETCH_MAX - temp_x;
+			temp_1 = temp_1 > X_STRETCH_MAX/4 ? X_STRETCH_MAX/4 : temp_1;
+			temp_1 = temp_1*(100 + 2*XL_RATIO_1)/100;
+		}
+		if(temp_x < 3*X_STRETCH_MAX/4)
+		{
+			temp_2 = 3*X_STRETCH_MAX/4 - temp_x;
+			temp_2 = temp_2*(100 + 2*XL_RATIO_2)/100;
+		}
+		*x = (temp_0 + temp_1 +temp_2) < (X_STRETCH_MAX + X_STRETCH_CUST) ? ((X_STRETCH_MAX + X_STRETCH_CUST) - (temp_0 + temp_1 +temp_2)) : 1;
+	}
+	else if(temp_x > (CTP_MAX_X -X_STRETCH_MAX - X_STRETCH_CUST))
+	{
+		temp_0 = temp_1 = temp_2 = 0;
+		temp_0 = temp_x - (CTP_MAX_X -X_STRETCH_MAX - X_STRETCH_CUST);
+		temp_0 = temp_0 > X_STRETCH_CUST ? X_STRETCH_CUST : temp_0;
+		temp_0 = temp_0*(100 + X_RATIO_CUST)/100;
+		if(temp_x > (CTP_MAX_X -X_STRETCH_MAX))
+		{
+			temp_1 = temp_x - (CTP_MAX_X -X_STRETCH_MAX);
+			temp_1 = temp_1 > X_STRETCH_MAX/4 ? X_STRETCH_MAX/4 : temp_1;
+			temp_1 = temp_1*(100 + 2*XR_RATIO_1)/100;
+		}
+		if(temp_x > (CTP_MAX_X -3*X_STRETCH_MAX/4))
+		{
+			temp_2 = temp_x - (CTP_MAX_X -3*X_STRETCH_MAX/4);
+			temp_2 = temp_2*(100 + 2*XR_RATIO_2)/100;
+		}
+		*x = (temp_0 + temp_1 +temp_2) < (X_STRETCH_MAX + X_STRETCH_CUST) ? ((CTP_MAX_X -X_STRETCH_MAX - X_STRETCH_CUST) + (temp_0 + temp_1 +temp_2)) : (CTP_MAX_X - 1);
+	}
+
+	if(temp_y < Y_STRETCH_MAX + Y_STRETCH_CUST)
+	{
+		temp_0 = temp_1 = temp_2 = 0;
+		temp_0 = Y_STRETCH_MAX + Y_STRETCH_CUST - temp_y;
+		temp_0 = temp_0 > Y_STRETCH_CUST ? Y_STRETCH_CUST : temp_0;
+		temp_0 = temp_0*(100 + Y_RATIO_CUST)/100;
+		if(temp_y < Y_STRETCH_MAX)
+		{
+			temp_1 = Y_STRETCH_MAX - temp_y;
+			temp_1 = temp_1 > Y_STRETCH_MAX/4 ? Y_STRETCH_MAX/4 : temp_1;
+			temp_1 = temp_1*(100 + 2*YL_RATIO_1)/100;
+		}
+		if(temp_y < 3*Y_STRETCH_MAX/4)
+		{
+			temp_2 = 3*Y_STRETCH_MAX/4 - temp_y;
+			temp_2 = temp_2*(100 + 2*YL_RATIO_2)/100;
+		}
+		*y = (temp_0 + temp_1 +temp_2) < (Y_STRETCH_MAX + Y_STRETCH_CUST) ? ((Y_STRETCH_MAX + Y_STRETCH_CUST) - (temp_0 + temp_1 +temp_2)) : 1;
+	}
+	else if(temp_y > (CTP_MAX_Y -Y_STRETCH_MAX - Y_STRETCH_CUST))
+	{
+		temp_0 = temp_1 = temp_2 = 0;
+		temp_0 = temp_y - (CTP_MAX_Y -Y_STRETCH_MAX - Y_STRETCH_CUST);
+		temp_0 = temp_0 > Y_STRETCH_CUST ? Y_STRETCH_CUST : temp_0;
+		temp_0 = temp_0*(100 + Y_RATIO_CUST)/100;
+		if(temp_y > (CTP_MAX_Y -Y_STRETCH_MAX))
+		{
+			temp_1 = temp_y - (CTP_MAX_Y -Y_STRETCH_MAX);
+			temp_1 = temp_1 > Y_STRETCH_MAX/4 ? Y_STRETCH_MAX/4 : temp_1;
+			temp_1 = temp_1*(100 + 2*YR_RATIO_1)/100;
+		}
+		if(temp_y > (CTP_MAX_Y -3*Y_STRETCH_MAX/4))
+		{
+			temp_2 = temp_y - (CTP_MAX_Y -3*Y_STRETCH_MAX/4);
+			temp_2 = temp_2*(100 + 2*YR_RATIO_2)/100;
+		}
+		*y = (temp_0 + temp_1 +temp_2) < (Y_STRETCH_MAX + Y_STRETCH_CUST) ? ((CTP_MAX_Y -Y_STRETCH_MAX - Y_STRETCH_CUST) + (temp_0 + temp_1 +temp_2)) : (CTP_MAX_Y - 1);
+	}
+}
+#endif
+#ifdef FILTER_POINT
+static void filter_point(u16 x, u16 y , u8 id)
+{
+	u16 x_err =0;
+	u16 y_err =0;
+	u16 filter_step_x = 0, filter_step_y = 0;
+
+	id_sign[id] = id_sign[id] + 1;
+	if(id_sign[id] == 1)
+	{
+		x_old[id] = x;
+		y_old[id] = y;
+	}
+
+	x_err = x > x_old[id] ? (x -x_old[id]) : (x_old[id] - x);
+	y_err = y > y_old[id] ? (y -y_old[id]) : (y_old[id] - y);
+
+	if( (x_err > FILTER_MAX && y_err > FILTER_MAX/3) || (x_err > FILTER_MAX/3 && y_err > FILTER_MAX) )
+	{
+		filter_step_x = x_err;
+		filter_step_y = y_err;
+	}
+	else
+	{
+		if(x_err > FILTER_MAX)
+			filter_step_x = x_err;
+		if(y_err> FILTER_MAX)
+			filter_step_y = y_err;
+	}
+
+	if(x_err <= 2*FILTER_MAX && y_err <= 2*FILTER_MAX)
+	{
+		filter_step_x >>= 2;
+		filter_step_y >>= 2;
+	}
+	else if(x_err <= 3*FILTER_MAX && y_err <= 3*FILTER_MAX)
+	{
+		filter_step_x >>= 1;
+		filter_step_y >>= 1;
+	}
+	else if(x_err <= 4*FILTER_MAX && y_err <= 4*FILTER_MAX)
+	{
+		filter_step_x = filter_step_x*3/4;
+		filter_step_y = filter_step_y*3/4;
+	}
+
+	x_new = x > x_old[id] ? (x_old[id] + filter_step_x) : (x_old[id] - filter_step_x);
+	y_new = y > y_old[id] ? (y_old[id] + filter_step_y) : (y_old[id] - filter_step_y);
+
+	x_old[id] = x_new;
+	y_old[id] = y_new;
+}
+#endif
 static void record_point(u16 x, u16 y , u8 id)
 {
 	u16 x_err =0;
@@ -665,7 +769,14 @@ static void process_gslX680_data(struct gsl_ts *ts)
 		id = ts->touch_data[ts->dd->id_index + 4 * i] >> 4;
 
 		if(1 <=id && id <= MAX_CONTACTS){
-			record_point(x, y , id);
+			if (4 == fw_index) {
+				stretch_frame(&x, &y);
+				filter_point(x, y ,id);
+			} else if (3 == fw_index)
+				filter_point(x, y ,id);
+			else
+				record_point(x, y ,id);
+
 			report_data(ts, x_new, y_new, 10, id);
 			id_state_flag[id] = 1;
 		}
@@ -1004,7 +1115,7 @@ static int __devinit gsl_ts_probe(struct i2c_client *client,
 	rc = device_create_file(&ts->input->dev, &dev_attr_debug_enable);
 
 	gslX680_debug_mask = 0;
-
+	device_enable_async_suspend(&client->dev);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 1;
@@ -1082,6 +1193,11 @@ static int ctp_get_system_config(void)
 	}
 	fwname = item.str;
 	dprintk(DEBUG_INIT,"%s:fwname:%s\n",__func__,fwname);
+        fw_index = gsl_find_fw_idx(fwname);
+        if (fw_index == -1) {
+        	printk("gslx680: no matched TP firmware(%s)!\n", fwname);
+        	return 0;
+        }
         ctp_print_info(config_info,DEBUG_INIT);
 
         twi_id = config_info.twi_id;

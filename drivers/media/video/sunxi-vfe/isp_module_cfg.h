@@ -311,6 +311,7 @@ enum isp_features_flags
   ISP_FEATURES_SPRITE            = (1 << 20),
   ISP_FEATURES_YCBCR_GAIN_OFFSET = (1 << 21),
   ISP_FEATURES_OUTPUT_SPEED_CTRL = (1 << 22),
+  ISP_FEATURES_3D_DENOISE        = (1 << 23),
 
   
   ISP_FEATURES_MAX,

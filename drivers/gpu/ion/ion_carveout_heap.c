@@ -102,13 +102,21 @@ static void ion_carveout_heap_free(struct ion_buffer *buffer)
 struct scatterlist *ion_carveout_heap_map_dma(struct ion_heap *heap,
 					      struct ion_buffer *buffer)
 {
-	return ERR_PTR(-EINVAL);
+	struct scatterlist *sglist;
+
+	sglist = vmalloc(sizeof(struct scatterlist));
+	if (!sglist)
+		return ERR_PTR(-ENOMEM);
+	sg_init_table(sglist, 1);
+	sg_set_page(sglist, virt_to_page(phys_to_virt(buffer->priv_phys)), buffer->size, 0);
+	return sglist;
 }
 
 void ion_carveout_heap_unmap_dma(struct ion_heap *heap,
 				 struct ion_buffer *buffer)
 {
-	return;
+	if (buffer->sglist)
+		vfree(buffer->sglist);
 }
 
 void *ion_carveout_heap_map_kernel(struct ion_heap *heap,
@@ -128,17 +136,22 @@ void ion_carveout_heap_unmap_kernel(struct ion_heap *heap,
 
 int ion_carveout_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 			       struct vm_area_struct *vma)
-{
+{	
+ 	//printk("%s, line %d,  vma->vm_start is %8x \n", __func__, __LINE__, vma->vm_start);
 	return remap_pfn_range(vma, vma->vm_start,
 			       __phys_to_pfn(buffer->priv_phys) + vma->vm_pgoff,
 			       buffer->size,
-			       pgprot_noncached(vma->vm_page_prot));
+				   __pgprot_modify(vma->vm_page_prot, L_PTE_MT_MASK, L_PTE_MT_BUFFERABLE));
+			      // pgprot_noncached(vma->vm_page_prot));
+
 }
 
 static struct ion_heap_ops carveout_heap_ops = {
 	.allocate = ion_carveout_heap_allocate,
 	.free = ion_carveout_heap_free,
 	.phys = ion_carveout_heap_phys,
+	.map_dma = ion_carveout_heap_map_dma,
+	.unmap_dma = ion_carveout_heap_unmap_dma,
 	.map_user = ion_carveout_heap_map_user,
 	.map_kernel = ion_carveout_heap_map_kernel,
 	.unmap_kernel = ion_carveout_heap_unmap_kernel,

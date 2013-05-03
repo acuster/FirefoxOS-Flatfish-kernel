@@ -1,5 +1,5 @@
 /*************************************************************************/ /*!
-@Title          SUNXI common display driver components
+@Title          OMAP common display driver components
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
 @License        Dual MIT/GPLv2
 
@@ -37,7 +37,6 @@ PURPOSE AND NONINFRINGEMENT; AND (B) IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-  
 */ /**************************************************************************/
 
 /**************************************************************************
@@ -68,9 +67,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  **************************************************************************/
 
 /*
- * SUNXI Linux 3rd party display driver.
+ * OMAP Linux 3rd party display driver.
  * This is based on the Generic PVR Linux Framebuffer 3rd party display
- * driver, with SUNXI specific extensions to support flipping.
+ * driver, with OMAP specific extensions to support flipping.
  */
 
 #include <linux/version.h>
@@ -88,20 +87,21 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "dc_sunxi.h"
 #include "linux/drv_display.h"
 
-#define SUNXILFB_COMMAND_COUNT		1
+#define OMAPLFB_COMMAND_COUNT		1
 
-#define	SUNXILFB_VSYNC_SETTLE_COUNT	5
+#define	OMAPLFB_VSYNC_SETTLE_COUNT	5
 
-#define	SUNXILFB_MAX_NUM_DEVICES		1
-#if (SUNXILFB_MAX_NUM_DEVICES > FB_MAX)
-#error "SUNXILFB_MAX_NUM_DEVICES must not be greater than FB_MAX"
+#define	OMAPLFB_MAX_NUM_DEVICES		1
+#if (OMAPLFB_MAX_NUM_DEVICES > FB_MAX)
+#error "OMAPLFB_MAX_NUM_DEVICES must not be greater than FB_MAX"
 #endif
 
-static SUNXILFB_DEVINFO *gapsDevInfo[SUNXILFB_MAX_NUM_DEVICES];
+static OMAPLFB_DEVINFO *gapsDevInfo[OMAPLFB_MAX_NUM_DEVICES];
 
 /* Top level 'hook ptr' */
 static PFN_DC_GET_PVRJTABLE gpfnGetPVRJTable = NULL;
 
+#if !defined(CONFIG_DSSCOMP)
 /* Round x up to a multiple of y */
 static inline unsigned long RoundUpToMultiple(unsigned long x, unsigned long y)
 {
@@ -131,18 +131,19 @@ static unsigned long LCM(unsigned long x, unsigned long y)
 
 	return (gcd == 0) ? 0 : ((x / gcd) * y);
 }
+#endif
 
-unsigned SUNXILFBMaxFBDevIDPlusOne(void)
+unsigned OMAPLFBMaxFBDevIDPlusOne(void)
 {
-	return SUNXILFB_MAX_NUM_DEVICES;
+	return OMAPLFB_MAX_NUM_DEVICES;
 }
 
 /* Returns DevInfo pointer for a given device */
-SUNXILFB_DEVINFO *SUNXILFBGetDevInfoPtr(unsigned uiFBDevID)
+OMAPLFB_DEVINFO *OMAPLFBGetDevInfoPtr(unsigned uiFBDevID)
 {
-	WARN_ON(uiFBDevID >= SUNXILFBMaxFBDevIDPlusOne());
+	WARN_ON(uiFBDevID >= OMAPLFBMaxFBDevIDPlusOne());
 
-	if (uiFBDevID >= SUNXILFB_MAX_NUM_DEVICES)
+	if (uiFBDevID >= OMAPLFB_MAX_NUM_DEVICES)
 	{
 		return NULL;
 	}
@@ -151,35 +152,35 @@ SUNXILFB_DEVINFO *SUNXILFBGetDevInfoPtr(unsigned uiFBDevID)
 }
 
 /* Sets the DevInfo pointer for a given device */
-static inline void SUNXILFBSetDevInfoPtr(unsigned uiFBDevID, SUNXILFB_DEVINFO *psDevInfo)
+static inline void OMAPLFBSetDevInfoPtr(unsigned uiFBDevID, OMAPLFB_DEVINFO *psDevInfo)
 {
-	WARN_ON(uiFBDevID >= SUNXILFB_MAX_NUM_DEVICES);
+	WARN_ON(uiFBDevID >= OMAPLFB_MAX_NUM_DEVICES);
 
-	if (uiFBDevID < SUNXILFB_MAX_NUM_DEVICES)
+	if (uiFBDevID < OMAPLFB_MAX_NUM_DEVICES)
 	{
 		gapsDevInfo[uiFBDevID] = psDevInfo;
 	}
 }
 
-static inline SUNXILFB_BOOL SwapChainHasChanged(SUNXILFB_DEVINFO *psDevInfo, SUNXILFB_SWAPCHAIN *psSwapChain)
+static inline OMAPLFB_BOOL SwapChainHasChanged(OMAPLFB_DEVINFO *psDevInfo, OMAPLFB_SWAPCHAIN *psSwapChain)
 {
 	return (psDevInfo->psSwapChain != psSwapChain) ||
 		(psDevInfo->uiSwapChainID != psSwapChain->uiSwapChainID);
 }
 
 /* Don't wait for vertical sync */
-static inline SUNXILFB_BOOL DontWaitForVSync(SUNXILFB_DEVINFO *psDevInfo)
+static inline OMAPLFB_BOOL DontWaitForVSync(OMAPLFB_DEVINFO *psDevInfo)
 {
-	SUNXILFB_BOOL bDontWait;
+	OMAPLFB_BOOL bDontWait;
 
-	bDontWait = SUNXILFBAtomicBoolRead(&psDevInfo->sBlanked) ||
-			SUNXILFBAtomicBoolRead(&psDevInfo->sFlushCommands);
+	bDontWait = OMAPLFBAtomicBoolRead(&psDevInfo->sBlanked) ||
+			OMAPLFBAtomicBoolRead(&psDevInfo->sFlushCommands);
 
 #if defined(CONFIG_HAS_EARLYSUSPEND)
-	bDontWait = bDontWait || SUNXILFBAtomicBoolRead(&psDevInfo->sEarlySuspendFlag);
+	//bDontWait = bDontWait || OMAPLFBAtomicBoolRead(&psDevInfo->sEarlySuspendFlag);
 #endif
 #if defined(SUPPORT_DRI_DRM)
-	bDontWait = bDontWait || SUNXILFBAtomicBoolRead(&psDevInfo->sLeaveVT);
+	bDontWait = bDontWait || OMAPLFBAtomicBoolRead(&psDevInfo->sLeaveVT);
 #endif
 	return bDontWait;
 }
@@ -190,18 +191,18 @@ static inline SUNXILFB_BOOL DontWaitForVSync(SUNXILFB_DEVINFO *psDevInfo)
  */
 static IMG_VOID SetDCState(IMG_HANDLE hDevice, IMG_UINT32 ui32State)
 {
-	SUNXILFB_DEVINFO *psDevInfo = (SUNXILFB_DEVINFO *)hDevice;
+	OMAPLFB_DEVINFO *psDevInfo = (OMAPLFB_DEVINFO *)hDevice;
 
 	switch (ui32State)
 	{
 		case DC_STATE_FLUSH_COMMANDS:
-			SUNXILFBAtomicBoolSet(&psDevInfo->sFlushCommands, SUNXILFB_TRUE);
+			OMAPLFBAtomicBoolSet(&psDevInfo->sFlushCommands, OMAPLFB_TRUE);
 			break;
 		case DC_STATE_NO_FLUSH_COMMANDS:
-			SUNXILFBAtomicBoolSet(&psDevInfo->sFlushCommands, SUNXILFB_FALSE);
+			OMAPLFBAtomicBoolSet(&psDevInfo->sFlushCommands, OMAPLFB_FALSE);
 			break;
 		case DC_STATE_FORCE_SWAP_TO_SYSTEM:
-			SUNXILFBFlip(psDevInfo, &psDevInfo->sSystemBuffer);
+			OMAPLFBFlip(psDevInfo, &psDevInfo->sSystemBuffer);
 			break;
 		default:
 			break;
@@ -216,14 +217,14 @@ static PVRSRV_ERROR OpenDCDevice(IMG_UINT32 uiPVRDevID,
                                  IMG_HANDLE *phDevice,
                                  PVRSRV_SYNC_DATA* psSystemBufferSyncData)
 {
-	SUNXILFB_DEVINFO *psDevInfo;
-	SUNXILFB_ERROR eError;
-	unsigned uiMaxFBDevIDPlusOne = SUNXILFBMaxFBDevIDPlusOne();
+	OMAPLFB_DEVINFO *psDevInfo;
+	OMAPLFB_ERROR eError;
+	unsigned uiMaxFBDevIDPlusOne = OMAPLFBMaxFBDevIDPlusOne();
 	unsigned i;
 
 	for (i = 0; i < uiMaxFBDevIDPlusOne; i++)
 	{
-		psDevInfo = SUNXILFBGetDevInfoPtr(i);
+		psDevInfo = OMAPLFBGetDevInfoPtr(i);
 		if (psDevInfo != NULL && psDevInfo->uiPVRDevID == uiPVRDevID)
 		{
 			break;
@@ -239,11 +240,11 @@ static PVRSRV_ERROR OpenDCDevice(IMG_UINT32 uiPVRDevID,
 	/* store the system surface sync data */
 	psDevInfo->sSystemBuffer.psSyncData = psSystemBufferSyncData;
 	
-	eError = SUNXILFBUnblankDisplay(psDevInfo);
-	if (eError != SUNXILFB_OK)
+	eError = OMAPLFBUnblankDisplay(psDevInfo);
+	if (eError != OMAPLFB_OK)
 	{
 		DEBUG_PRINTK((KERN_WARNING DRIVER_PREFIX
-			": %s: Device %u: SUNXILFBUnblankDisplay failed (%d)\n", __FUNCTION__, psDevInfo->uiFBDevID, eError));
+			": %s: Device %u: OMAPLFBUnblankDisplay failed (%d)\n", __FUNCTION__, psDevInfo->uiFBDevID, eError));
 		return PVRSRV_ERROR_UNBLANK_DISPLAY_FAILED;
 	}
 
@@ -258,8 +259,15 @@ static PVRSRV_ERROR OpenDCDevice(IMG_UINT32 uiPVRDevID,
  * Called from services.
  */
 static PVRSRV_ERROR CloseDCDevice(IMG_HANDLE hDevice)
-{    
+{
+#if defined(SUPPORT_DRI_DRM)
+	OMAPLFB_DEVINFO *psDevInfo = (OMAPLFB_DEVINFO *)hDevice;
+
+	OMAPLFBAtomicBoolSet(&psDevInfo->sLeaveVT, OMAPLFB_FALSE);
+	(void) OMAPLFBUnblankDisplay(psDevInfo);
+#else
 	UNREFERENCED_PARAMETER(hDevice);
+#endif
 	return PVRSRV_OK;
 }
 
@@ -271,14 +279,14 @@ static PVRSRV_ERROR EnumDCFormats(IMG_HANDLE hDevice,
                                   IMG_UINT32 *pui32NumFormats,
                                   DISPLAY_FORMAT *psFormat)
 {
-	SUNXILFB_DEVINFO	*psDevInfo;
+	OMAPLFB_DEVINFO	*psDevInfo;
 	
 	if(!hDevice || !pui32NumFormats)
 	{
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
-	psDevInfo = (SUNXILFB_DEVINFO*)hDevice;
+	psDevInfo = (OMAPLFB_DEVINFO*)hDevice;
 	
 	*pui32NumFormats = 1;
 	
@@ -299,14 +307,14 @@ static PVRSRV_ERROR EnumDCDims(IMG_HANDLE hDevice,
                                IMG_UINT32 *pui32NumDims,
                                DISPLAY_DIMS *psDim)
 {
-	SUNXILFB_DEVINFO	*psDevInfo;
+	OMAPLFB_DEVINFO	*psDevInfo;
 
 	if(!hDevice || !psFormat || !pui32NumDims)
 	{
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
-	psDevInfo = (SUNXILFB_DEVINFO*)hDevice;
+	psDevInfo = (OMAPLFB_DEVINFO*)hDevice;
 
 	*pui32NumDims = 1;
 
@@ -326,14 +334,14 @@ static PVRSRV_ERROR EnumDCDims(IMG_HANDLE hDevice,
  */
 static PVRSRV_ERROR GetDCSystemBuffer(IMG_HANDLE hDevice, IMG_HANDLE *phBuffer)
 {
-	SUNXILFB_DEVINFO	*psDevInfo;
+	OMAPLFB_DEVINFO	*psDevInfo;
 	
 	if(!hDevice || !phBuffer)
 	{
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
-	psDevInfo = (SUNXILFB_DEVINFO*)hDevice;
+	psDevInfo = (OMAPLFB_DEVINFO*)hDevice;
 
 	*phBuffer = (IMG_HANDLE)&psDevInfo->sSystemBuffer;
 
@@ -347,14 +355,14 @@ static PVRSRV_ERROR GetDCSystemBuffer(IMG_HANDLE hDevice, IMG_HANDLE *phBuffer)
  */
 static PVRSRV_ERROR GetDCInfo(IMG_HANDLE hDevice, DISPLAY_INFO *psDCInfo)
 {
-	SUNXILFB_DEVINFO	*psDevInfo;
+	OMAPLFB_DEVINFO	*psDevInfo;
 	
 	if(!hDevice || !psDCInfo)
 	{
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
-	psDevInfo = (SUNXILFB_DEVINFO*)hDevice;
+	psDevInfo = (OMAPLFB_DEVINFO*)hDevice;
 
 	*psDCInfo = psDevInfo->sDisplayInfo;
 
@@ -374,8 +382,8 @@ static PVRSRV_ERROR GetDCBufferAddr(IMG_HANDLE        hDevice,
                                     IMG_BOOL          *pbIsContiguous,
 	                                IMG_UINT32		  *pui32TilingStride)
 {
-	SUNXILFB_DEVINFO	*psDevInfo;
-	SUNXILFB_BUFFER *psSystemBuffer;
+	OMAPLFB_DEVINFO	*psDevInfo;
+	OMAPLFB_BUFFER *psSystemBuffer;
 
 	UNREFERENCED_PARAMETER(pui32TilingStride);
 
@@ -399,9 +407,9 @@ static PVRSRV_ERROR GetDCBufferAddr(IMG_HANDLE        hDevice,
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
-	psDevInfo = (SUNXILFB_DEVINFO*)hDevice;
+	psDevInfo = (OMAPLFB_DEVINFO*)hDevice;
 
-	psSystemBuffer = (SUNXILFB_BUFFER *)hBuffer;
+	psSystemBuffer = (OMAPLFB_BUFFER *)hBuffer;
 
 	*ppsSysAddr = &psSystemBuffer->sSysAddr;
 
@@ -409,7 +417,11 @@ static PVRSRV_ERROR GetDCBufferAddr(IMG_HANDLE        hDevice,
 
 	if (ppvCpuVAddr)
 	{
+#if defined(CONFIG_DSSCOMP)
+		*ppvCpuVAddr = psDevInfo->sFBInfo.bIs2D ? NULL : psSystemBuffer->sCPUVAddr;
+#else
 		*ppvCpuVAddr = psSystemBuffer->sCPUVAddr;
+#endif
 	}
 
 	if (phOSMapInfo)
@@ -419,8 +431,20 @@ static PVRSRV_ERROR GetDCBufferAddr(IMG_HANDLE        hDevice,
 
 	if (pbIsContiguous)
 	{
+#if defined(CONFIG_DSSCOMP)
+		*pbIsContiguous = !psDevInfo->sFBInfo.bIs2D;
+#else
 		*pbIsContiguous = IMG_TRUE;
+#endif
 	}
+
+#if defined(CONFIG_DSSCOMP)
+	if (psDevInfo->sFBInfo.bIs2D)
+	{
+		int i = (psSystemBuffer->sSysAddr.uiAddr - psDevInfo->sFBInfo.psPageList->uiAddr) >> PAGE_SHIFT;
+		*ppsSysAddr = psDevInfo->sFBInfo.psPageList + psDevInfo->sFBInfo.ulHeight * i;
+	}
+#endif
 
 	return PVRSRV_OK;
 }
@@ -439,15 +463,14 @@ static PVRSRV_ERROR CreateDCSwapChain(IMG_HANDLE hDevice,
                                       IMG_HANDLE *phSwapChain,
                                       IMG_UINT32 *pui32SwapChainID)
 {
-	SUNXILFB_DEVINFO	*psDevInfo;
-	SUNXILFB_SWAPCHAIN *psSwapChain;
-	SUNXILFB_BUFFER *psBuffer;
-	IMG_UINT32 i;
+	OMAPLFB_SWAPCHAIN *psSwapChain;
+	OMAPLFB_DEVINFO	*psDevInfo;
 	PVRSRV_ERROR eError;
-	IMG_UINT32 ui32BuffersToSkip;
+	IMG_UINT32 i;
 
 	UNREFERENCED_PARAMETER(ui32OEMFlags);
-	
+	UNREFERENCED_PARAMETER(ui32Flags);
+
 	/* Check parameters */
 	if(!hDevice
 	|| !psDstSurfAttrib
@@ -458,7 +481,7 @@ static PVRSRV_ERROR CreateDCSwapChain(IMG_HANDLE hDevice,
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
-	psDevInfo = (SUNXILFB_DEVINFO*)hDevice;
+	psDevInfo = (OMAPLFB_DEVINFO*)hDevice;
 	
 	/* Do we support swap chains? */
 	if (psDevInfo->sDisplayInfo.ui32MaxSwapChains == 0)
@@ -466,7 +489,7 @@ static PVRSRV_ERROR CreateDCSwapChain(IMG_HANDLE hDevice,
 		return PVRSRV_ERROR_NOT_SUPPORTED;
 	}
 
-	SUNXILFBCreateSwapChainLock(psDevInfo);
+	OMAPLFBCreateSwapChainLock(psDevInfo);
 
 	/* The driver only supports a single swapchain */
 	if(psDevInfo->psSwapChain != NULL)
@@ -474,107 +497,143 @@ static PVRSRV_ERROR CreateDCSwapChain(IMG_HANDLE hDevice,
 		eError = PVRSRV_ERROR_FLIP_CHAIN_EXISTS;
 		goto ExitUnLock;
 	}
-	
-	/* Check the buffer count */
-	if(ui32BufferCount > psDevInfo->sDisplayInfo.ui32MaxSwapChainBuffers)
-	{
-		printk("###ui32BufferCount:%d, ui32MaxSwapChainBuffers:%d\n", ui32BufferCount,psDevInfo->sDisplayInfo.ui32MaxSwapChainBuffers);
-		
-		eError = PVRSRV_ERROR_TOOMANYBUFFERS;
-		goto ExitUnLock;
-	}
-	
-	if ((psDevInfo->sFBInfo.ulRoundedBufferSize * (unsigned long)ui32BufferCount) > psDevInfo->sFBInfo.ulFBSize)
-	{
-		printk("###ulRoundedBufferSize:%ld, ulFBSize:%ld\n", psDevInfo->sFBInfo.ulRoundedBufferSize,psDevInfo->sFBInfo.ulFBSize);
-		
-		eError = PVRSRV_ERROR_TOOMANYBUFFERS;
-		goto ExitUnLock;
-	}
 
-	/*
-	 * We will allocate the swap chain buffers at the back of the frame
-	 * buffer area.  This preserves the front portion, which may be being
-	 * used by other Linux Framebuffer based applications.
-	 */
-	ui32BuffersToSkip = psDevInfo->sDisplayInfo.ui32MaxSwapChainBuffers - ui32BufferCount;
-
-	/* 
-	 *	Verify the DST/SRC attributes,
-	 *	SRC/DST must match the current display mode config
-	*/
-	if(psDstSurfAttrib->pixelformat != psDevInfo->sDisplayFormat.pixelformat
-	|| psDstSurfAttrib->sDims.ui32ByteStride != psDevInfo->sDisplayDim.ui32ByteStride
-	|| psDstSurfAttrib->sDims.ui32Width != psDevInfo->sDisplayDim.ui32Width
-	|| psDstSurfAttrib->sDims.ui32Height != psDevInfo->sDisplayDim.ui32Height)
-	{
-		/* DST doesn't match the current mode */
-		eError = PVRSRV_ERROR_INVALID_PARAMS;
-		goto ExitUnLock;
-	}		
-
-	if(psDstSurfAttrib->pixelformat != psSrcSurfAttrib->pixelformat
-	|| psDstSurfAttrib->sDims.ui32ByteStride != psSrcSurfAttrib->sDims.ui32ByteStride
-	|| psDstSurfAttrib->sDims.ui32Width != psSrcSurfAttrib->sDims.ui32Width
-	|| psDstSurfAttrib->sDims.ui32Height != psSrcSurfAttrib->sDims.ui32Height)
-	{
-		/* DST doesn't match the SRC */
-		eError = PVRSRV_ERROR_INVALID_PARAMS;
-		goto ExitUnLock;
-	}		
-
-	/* check flags if implementation requires them */
-	UNREFERENCED_PARAMETER(ui32Flags);
-	
 	/* create a swapchain structure */
-	psSwapChain = (SUNXILFB_SWAPCHAIN*)SUNXILFBAllocKernelMem(sizeof(SUNXILFB_SWAPCHAIN));
+	psSwapChain = (OMAPLFB_SWAPCHAIN*)OMAPLFBAllocKernelMem(sizeof(OMAPLFB_SWAPCHAIN));
 	if(!psSwapChain)
 	{
 		eError = PVRSRV_ERROR_OUT_OF_MEMORY;
 		goto ExitUnLock;
 	}
 
-	psBuffer = (SUNXILFB_BUFFER*)SUNXILFBAllocKernelMem(sizeof(SUNXILFB_BUFFER) * ui32BufferCount);
-	if(!psBuffer)
+	/* If services asks for a 0-length swap chain, it's probably Android.
+	 *
+	 * This will use only non-display memory posting via PVRSRVSwapToDCBuffers2(),
+	 * and we can skip some useless sanity checking.
+	 */
+	if(ui32BufferCount > 0)
 	{
-		eError = PVRSRV_ERROR_OUT_OF_MEMORY;
-		goto ErrorFreeSwapChain;
+		IMG_UINT32 ui32BuffersToSkip;
+
+		/* Check the buffer count */
+		if(ui32BufferCount > psDevInfo->sDisplayInfo.ui32MaxSwapChainBuffers)
+		{
+			eError = PVRSRV_ERROR_TOOMANYBUFFERS;
+			goto ErrorFreeSwapChain;
+		}
+	
+		if ((psDevInfo->sFBInfo.ulRoundedBufferSize * (unsigned long)ui32BufferCount) > psDevInfo->sFBInfo.ulFBSize)
+		{
+			eError = PVRSRV_ERROR_TOOMANYBUFFERS;
+			goto ErrorFreeSwapChain;
+		}
+
+		/*
+		 * We will allocate the swap chain buffers at the back of the frame
+		 * buffer area.  This preserves the front portion, which may be being
+		 * used by other Linux Framebuffer based applications.
+		 */
+		ui32BuffersToSkip = psDevInfo->sDisplayInfo.ui32MaxSwapChainBuffers - ui32BufferCount;
+
+		/* 
+		 *	Verify the DST/SRC attributes,
+		 *	SRC/DST must match the current display mode config
+		 */
+		if(psDstSurfAttrib->pixelformat != psDevInfo->sDisplayFormat.pixelformat
+		|| psDstSurfAttrib->sDims.ui32ByteStride != psDevInfo->sDisplayDim.ui32ByteStride
+		|| psDstSurfAttrib->sDims.ui32Width != psDevInfo->sDisplayDim.ui32Width
+		|| psDstSurfAttrib->sDims.ui32Height != psDevInfo->sDisplayDim.ui32Height)
+		{
+			/* DST doesn't match the current mode */
+			eError = PVRSRV_ERROR_INVALID_PARAMS;
+			goto ErrorFreeSwapChain;
+		}
+
+		if(psDstSurfAttrib->pixelformat != psSrcSurfAttrib->pixelformat
+		|| psDstSurfAttrib->sDims.ui32ByteStride != psSrcSurfAttrib->sDims.ui32ByteStride
+		|| psDstSurfAttrib->sDims.ui32Width != psSrcSurfAttrib->sDims.ui32Width
+		|| psDstSurfAttrib->sDims.ui32Height != psSrcSurfAttrib->sDims.ui32Height)
+		{
+			/* DST doesn't match the SRC */
+			eError = PVRSRV_ERROR_INVALID_PARAMS;
+			goto ErrorFreeSwapChain;
+		}
+
+		psSwapChain->psBuffer = (OMAPLFB_BUFFER*)OMAPLFBAllocKernelMem(sizeof(OMAPLFB_BUFFER) * ui32BufferCount);
+		if(!psSwapChain->psBuffer)
+		{
+			eError = PVRSRV_ERROR_OUT_OF_MEMORY;
+			goto ErrorFreeSwapChain;
+		}
+
+		/* Link the buffers */
+		for(i = 0; i < ui32BufferCount - 1; i++)
+		{
+			psSwapChain->psBuffer[i].psNext = &psSwapChain->psBuffer[i + 1];
+		}
+
+		/* and link last to first */
+		psSwapChain->psBuffer[i].psNext = &psSwapChain->psBuffer[0];
+
+		/* Configure the swapchain buffers */
+		for(i = 0; i < ui32BufferCount; i++)
+		{
+			IMG_UINT32 ui32SwapBuffer = i + ui32BuffersToSkip;
+			IMG_UINT32 ui32BufferOffset = ui32SwapBuffer * (IMG_UINT32)psDevInfo->sFBInfo.ulRoundedBufferSize;
+
+#if defined(CONFIG_DSSCOMP)
+			if (psDevInfo->sFBInfo.bIs2D)
+			{
+				ui32BufferOffset = 0;
+			}
+#endif /* defined(CONFIG_DSSCOMP) */
+
+			psSwapChain->psBuffer[i].psSyncData = ppsSyncData[i];
+
+			psSwapChain->psBuffer[i].sSysAddr.uiAddr = psDevInfo->sFBInfo.sSysAddr.uiAddr + ui32BufferOffset;
+			psSwapChain->psBuffer[i].sCPUVAddr = psDevInfo->sFBInfo.sCPUVAddr + ui32BufferOffset;
+			psSwapChain->psBuffer[i].ulYOffset = ui32BufferOffset / psDevInfo->sFBInfo.ulByteStride;
+			psSwapChain->psBuffer[i].psDevInfo = psDevInfo;
+
+#if defined(CONFIG_DSSCOMP)
+			if (psDevInfo->sFBInfo.bIs2D)
+			{
+				psSwapChain->psBuffer[i].sSysAddr.uiAddr += ui32SwapBuffer *
+					ALIGN((IMG_UINT32)psDevInfo->sFBInfo.ulWidth * psDevInfo->sFBInfo.uiBytesPerPixel, PAGE_SIZE);
+			}
+#endif /* defined(CONFIG_DSSCOMP) */
+
+			OMAPLFBInitBufferForSwap(&psSwapChain->psBuffer[i]);
+		}
 	}
+	else
+	{
+		psSwapChain->psBuffer = NULL;
+	}
+
+#if defined(PVR_OMAPFB3_UPDATE_MODE)
+	if (!OMAPLFBSetUpdateMode(psDevInfo, PVR_OMAPFB3_UPDATE_MODE))
+	{
+		printk(KERN_WARNING DRIVER_PREFIX ": %s: Device %u: Couldn't set frame buffer update mode %d\n", __FUNCTION__, psDevInfo->uiFBDevID, PVR_OMAPFB3_UPDATE_MODE);
+	}
+#endif /* defined(PVR_OMAPFB3_UPDATE_MODE) */
 
 	psSwapChain->ulBufferCount = (unsigned long)ui32BufferCount;
-	psSwapChain->psBuffer = psBuffer;
-	psSwapChain->bNotVSynced = SUNXILFB_TRUE;
+	psSwapChain->bNotVSynced = OMAPLFB_TRUE;
 	psSwapChain->uiFBDevID = psDevInfo->uiFBDevID;
 
-	/* Link the buffers */
-	for(i=0; i<ui32BufferCount-1; i++)
-	{
-		psBuffer[i].psNext = &psBuffer[i+1];
-	}
-	/* and link last to first */
-	psBuffer[i].psNext = &psBuffer[0];
-
-	/* Configure the swapchain buffers */
-	for(i=0; i<ui32BufferCount; i++)
-	{
-		IMG_UINT32 ui32SwapBuffer = i + ui32BuffersToSkip;
-		IMG_UINT32 ui32BufferOffset = ui32SwapBuffer * (IMG_UINT32)psDevInfo->sFBInfo.ulRoundedBufferSize;
-
-		psBuffer[i].psSyncData = ppsSyncData[i];
-
-		psBuffer[i].sSysAddr.uiAddr = psDevInfo->sFBInfo.sSysAddr.uiAddr + ui32BufferOffset;
-		psBuffer[i].sCPUVAddr = psDevInfo->sFBInfo.sCPUVAddr + ui32BufferOffset;
-		psBuffer[i].ulYOffset = ui32BufferOffset / psDevInfo->sFBInfo.ulByteStride;
-		psBuffer[i].psDevInfo = psDevInfo;
-
-		SUNXILFBInitBufferForSwap(&psBuffer[i]);
-	}
-
-	if (SUNXILFBCreateSwapQueue(psSwapChain) != SUNXILFB_OK)
+	if (OMAPLFBCreateSwapQueue(psSwapChain) != OMAPLFB_OK)
 	{ 
 		printk(KERN_WARNING DRIVER_PREFIX ": %s: Device %u: Failed to create workqueue\n", __FUNCTION__, psDevInfo->uiFBDevID);
 		eError = PVRSRV_ERROR_UNABLE_TO_INSTALL_ISR;
 		goto ErrorFreeBuffers;
+	}
+
+	if (OMAPLFBEnableLFBEventNotification(psDevInfo)!= OMAPLFB_OK)
+	{
+		eError = PVRSRV_ERROR_UNABLE_TO_ENABLE_EVENT;
+		printk(KERN_WARNING DRIVER_PREFIX ": %s: Device %u: Couldn't enable framebuffer event notification\n", __FUNCTION__, psDevInfo->uiFBDevID);
+		goto ErrorDestroySwapQueue;
 	}
 
 	psDevInfo->uiSwapChainID++;
@@ -594,14 +653,17 @@ static PVRSRV_ERROR CreateDCSwapChain(IMG_HANDLE hDevice,
 	eError = PVRSRV_OK;
 	goto ExitUnLock;
 
-//ErrorDestroySwapQueue:
-//	SUNXILFBDestroySwapQueue(psSwapChain);
+ErrorDestroySwapQueue:
+	OMAPLFBDestroySwapQueue(psSwapChain);
 ErrorFreeBuffers:
-	SUNXILFBFreeKernelMem(psBuffer);
+	if(psSwapChain->psBuffer)
+	{
+		OMAPLFBFreeKernelMem(psSwapChain->psBuffer);
+	}
 ErrorFreeSwapChain:
-	SUNXILFBFreeKernelMem(psSwapChain);
+	OMAPLFBFreeKernelMem(psSwapChain);
 ExitUnLock:
-	SUNXILFBCreateSwapChainUnLock(psDevInfo);
+	OMAPLFBCreateSwapChainUnLock(psDevInfo);
 	return eError;
 }
 
@@ -612,9 +674,9 @@ ExitUnLock:
 static PVRSRV_ERROR DestroyDCSwapChain(IMG_HANDLE hDevice,
 	IMG_HANDLE hSwapChain)
 {
-	SUNXILFB_DEVINFO	*psDevInfo;
-	SUNXILFB_SWAPCHAIN *psSwapChain;
-	SUNXILFB_ERROR eError;
+	OMAPLFB_DEVINFO	*psDevInfo;
+	OMAPLFB_SWAPCHAIN *psSwapChain;
+	OMAPLFB_ERROR eError;
 
 	/* Check parameters */
 	if(!hDevice || !hSwapChain)
@@ -622,10 +684,10 @@ static PVRSRV_ERROR DestroyDCSwapChain(IMG_HANDLE hDevice,
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 	
-	psDevInfo = (SUNXILFB_DEVINFO*)hDevice;
-	psSwapChain = (SUNXILFB_SWAPCHAIN*)hSwapChain;
+	psDevInfo = (OMAPLFB_DEVINFO*)hDevice;
+	psSwapChain = (OMAPLFB_SWAPCHAIN*)hSwapChain;
 
-	SUNXILFBCreateSwapChainLock(psDevInfo);
+	OMAPLFBCreateSwapChainLock(psDevInfo);
 
 	if (SwapChainHasChanged(psDevInfo, psSwapChain))
 	{
@@ -637,27 +699,30 @@ static PVRSRV_ERROR DestroyDCSwapChain(IMG_HANDLE hDevice,
 	}
 
 	/* The swap queue is flushed before being destroyed */
-	SUNXILFBDestroySwapQueue(psSwapChain);
+	OMAPLFBDestroySwapQueue(psSwapChain);
 
-	eError = SUNXILFBDisableLFBEventNotification(psDevInfo);
-	if (eError != SUNXILFB_OK)
+	eError = OMAPLFBDisableLFBEventNotification(psDevInfo);
+	if (eError != OMAPLFB_OK)
 	{
 		printk(KERN_WARNING DRIVER_PREFIX ": %s: Device %u: Couldn't disable framebuffer event notification\n", __FUNCTION__, psDevInfo->uiFBDevID);
 	}
 
 	/* Free resources */
-	SUNXILFBFreeKernelMem(psSwapChain->psBuffer);
-	SUNXILFBFreeKernelMem(psSwapChain);
+	if (psSwapChain->psBuffer)
+	{
+		OMAPLFBFreeKernelMem(psSwapChain->psBuffer);
+	}
+	OMAPLFBFreeKernelMem(psSwapChain);
 
 	psDevInfo->psSwapChain = NULL;
 
-	SUNXILFBFlip(psDevInfo, &psDevInfo->sSystemBuffer);
-	(void) SUNXILFBCheckModeAndSync(psDevInfo);
+	OMAPLFBFlip(psDevInfo, &psDevInfo->sSystemBuffer);
+	(void) OMAPLFBCheckModeAndSync(psDevInfo);
 
 	eError = PVRSRV_OK;
 
 ExitUnLock:
-	SUNXILFBCreateSwapChainUnLock(psDevInfo);
+	OMAPLFBCreateSwapChainUnLock(psDevInfo);
 
 	return eError;
 }
@@ -739,8 +804,8 @@ static PVRSRV_ERROR GetDCBuffers(IMG_HANDLE hDevice,
                                  IMG_UINT32 *pui32BufferCount,
                                  IMG_HANDLE *phBuffer)
 {
-	SUNXILFB_DEVINFO   *psDevInfo;
-	SUNXILFB_SWAPCHAIN *psSwapChain;
+	OMAPLFB_DEVINFO   *psDevInfo;
+	OMAPLFB_SWAPCHAIN *psSwapChain;
 	PVRSRV_ERROR eError;
 	unsigned i;
 	
@@ -753,10 +818,10 @@ static PVRSRV_ERROR GetDCBuffers(IMG_HANDLE hDevice,
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 	
-	psDevInfo = (SUNXILFB_DEVINFO*)hDevice;
-	psSwapChain = (SUNXILFB_SWAPCHAIN*)hSwapChain;
+	psDevInfo = (OMAPLFB_DEVINFO*)hDevice;
+	psSwapChain = (OMAPLFB_SWAPCHAIN*)hSwapChain;
 
-	SUNXILFBCreateSwapChainLock(psDevInfo);
+	OMAPLFBCreateSwapChainLock(psDevInfo);
 
 	if (SwapChainHasChanged(psDevInfo, psSwapChain))
 	{
@@ -779,7 +844,7 @@ static PVRSRV_ERROR GetDCBuffers(IMG_HANDLE hDevice,
 	eError = PVRSRV_OK;
 
 Exit:
-	SUNXILFBCreateSwapChainUnLock(psDevInfo);
+	OMAPLFBCreateSwapChainUnLock(psDevInfo);
 
 	return eError;
 }
@@ -813,19 +878,18 @@ static PVRSRV_ERROR SwapToDCBuffer(IMG_HANDLE hDevice,
  * unblank leads to screen jitter on some screens.
  * Returns true if the screen has been deemed to have settled.
  */
-static SUNXILFB_BOOL WaitForVSyncSettle(SUNXILFB_DEVINFO *psDevInfo)
+static OMAPLFB_BOOL WaitForVSyncSettle(OMAPLFB_DEVINFO *psDevInfo)
 {
 		unsigned i;
-		
-		for(i = 0; i < SUNXILFB_VSYNC_SETTLE_COUNT; i++)
+		for(i = 0; i < OMAPLFB_VSYNC_SETTLE_COUNT; i++)
 		{
-			if (DontWaitForVSync(psDevInfo) || !SUNXILFBWaitForVSync(psDevInfo))
+			if (DontWaitForVSync(psDevInfo) || !OMAPLFBWaitForVSync(psDevInfo))
 			{
-				return SUNXILFB_FALSE;
+				return OMAPLFB_FALSE;
 			}
 		}
 
-		return SUNXILFB_TRUE;
+		return OMAPLFB_TRUE;
 }
 
 /*
@@ -836,29 +900,32 @@ static SUNXILFB_BOOL WaitForVSyncSettle(SUNXILFB_DEVINFO *psDevInfo)
  * This is because the swap chain creation lock is taken when queueing work,
  * and the work queue is flushed before the swap chain is destroyed.
  */
-void SUNXILFBSwapHandler(SUNXILFB_BUFFER *psBuffer)
+void OMAPLFBSwapHandler(OMAPLFB_BUFFER *psBuffer)
 {
-	SUNXILFB_DEVINFO *psDevInfo = psBuffer->psDevInfo;
-	SUNXILFB_SWAPCHAIN *psSwapChain = psDevInfo->psSwapChain;
-	SUNXILFB_BOOL bPreviouslyNotVSynced;
-    
+	OMAPLFB_DEVINFO *psDevInfo = psBuffer->psDevInfo;
+	OMAPLFB_SWAPCHAIN *psSwapChain = psDevInfo->psSwapChain;
+	OMAPLFB_BOOL bPreviouslyNotVSynced;
+
+#if defined(SUPPORT_DRI_DRM)
+	if (!OMAPLFBAtomicBoolRead(&psDevInfo->sLeaveVT))
+#endif
 	{
-		SUNXILFBFlip(psDevInfo, psBuffer);
+		OMAPLFBFlip(psDevInfo, psBuffer);
 	}
 
 	bPreviouslyNotVSynced = psSwapChain->bNotVSynced;
-	psSwapChain->bNotVSynced = SUNXILFB_TRUE;
+	psSwapChain->bNotVSynced = OMAPLFB_TRUE;
 
 
 	if (!DontWaitForVSync(psDevInfo))
 	{
-		SUNXILFB_UPDATE_MODE eMode = SUNXILFB_UPDATE_MODE_AUTO;
-		int iBlankEvents = SUNXILFBAtomicIntRead(&psDevInfo->sBlankEvents);
+		OMAPLFB_UPDATE_MODE eMode = OMAPLFBGetUpdateMode(psDevInfo);
+		int iBlankEvents = OMAPLFBAtomicIntRead(&psDevInfo->sBlankEvents);
 
 		switch(eMode)
 		{
-			case SUNXILFB_UPDATE_MODE_AUTO:
-				psSwapChain->bNotVSynced = SUNXILFB_FALSE;
+			case OMAPLFB_UPDATE_MODE_AUTO:
+				psSwapChain->bNotVSynced = OMAPLFB_FALSE;
 
 				if (bPreviouslyNotVSynced || psSwapChain->iBlankEvents != iBlankEvents)
 				{
@@ -866,14 +933,14 @@ void SUNXILFBSwapHandler(SUNXILFB_BUFFER *psBuffer)
 					psSwapChain->bNotVSynced = !WaitForVSyncSettle(psDevInfo);
 				} else if (psBuffer->ulSwapInterval != 0)
 				{
-					psSwapChain->bNotVSynced = !SUNXILFBWaitForVSync(psDevInfo);
+					psSwapChain->bNotVSynced = !OMAPLFBWaitForVSync(psDevInfo);
 				}
 				break;
-#if defined(PVR_SUNXIFB3_MANUAL_UPDATE_SYNC_IN_SWAP)
-			case SUNXILFB_UPDATE_MODE_MANUAL:
+#if defined(PVR_OMAPFB3_MANUAL_UPDATE_SYNC_IN_SWAP)
+			case OMAPLFB_UPDATE_MODE_MANUAL:
 				if (psBuffer->ulSwapInterval != 0)
 				{
-					(void) SUNXILFBManualSync(psDevInfo);
+					(void) OMAPLFBManualSync(psDevInfo);
 				}
 				break;
 #endif
@@ -887,12 +954,12 @@ void SUNXILFBSwapHandler(SUNXILFB_BUFFER *psBuffer)
 
 /* Triggered by PVRSRVSwapToDCBuffer */
 static IMG_BOOL ProcessFlipV1(IMG_HANDLE hCmdCookie,
-							  SUNXILFB_DEVINFO *psDevInfo,
-							  SUNXILFB_SWAPCHAIN *psSwapChain,
-							  SUNXILFB_BUFFER *psBuffer,
+							  OMAPLFB_DEVINFO *psDevInfo,
+							  OMAPLFB_SWAPCHAIN *psSwapChain,
+							  OMAPLFB_BUFFER *psBuffer,
 							  unsigned long ulSwapInterval)
-{    
-	SUNXILFBCreateSwapChainLock(psDevInfo);
+{
+	OMAPLFBCreateSwapChainLock(psDevInfo);
 
 	/* The swap chain has been destroyed */
 	if (SwapChainHasChanged(psDevInfo, psSwapChain))
@@ -903,13 +970,51 @@ static IMG_BOOL ProcessFlipV1(IMG_HANDLE hCmdCookie,
 	}
 	else
 	{
-		psBuffer->hCmdComplete = (SUNXILFB_HANDLE)hCmdCookie;
+		psBuffer->hCmdComplete = (OMAPLFB_HANDLE)hCmdCookie;
 		psBuffer->ulSwapInterval = ulSwapInterval;
-
-	    SUNXILFBQueueBufferForSwap(psSwapChain, psBuffer);
+#if defined(CONFIG_DSSCOMP)
+		if (is_tiler_addr(psBuffer->sSysAddr.uiAddr))
+		{
+			int res;
+			IMG_UINT32 w = psBuffer->psDevInfo->sDisplayDim.ui32Width;
+			IMG_UINT32 h = psBuffer->psDevInfo->sDisplayDim.ui32Height;
+			struct dsscomp_setup_dispc_data comp = {
+				.num_mgrs = 1,
+				.mgrs[0].alpha_blending = 1,
+				.num_ovls = 1,
+				.ovls[0].cfg =
+				{
+					.width = w,
+					.win.w = w,
+					.crop.w = w,
+					.height = h,
+					.win.h = h,
+					.crop.h = h,
+					.stride = psBuffer->psDevInfo->sDisplayDim.ui32ByteStride,
+					.color_mode = OMAP_DSS_COLOR_ARGB32,
+					.enabled = 1,
+					.global_alpha = 255,
+				},
+				.mode = DSSCOMP_SETUP_DISPLAY,
+			};
+			struct tiler_pa_info *pas[1] = { NULL };
+			comp.ovls[0].ba = (u32) psBuffer->sSysAddr.uiAddr;
+			res = dsscomp_gralloc_queue(&comp, pas, true,
+								  (void *) psDevInfo->sPVRJTable.pfnPVRSRVCmdComplete,
+								  (void *) psBuffer->hCmdComplete);
+			if (res != 0)
+			{
+				DEBUG_PRINTK((KERN_WARNING DRIVER_PREFIX ": %s: Device %u: dsscomp_gralloc_queue failed (Y Offset: %lu, Error: %d)\n", __FUNCTION__, psDevInfo->uiFBDevID, psBuffer->ulYOffset, res));
+			}
+		}
+		else
+#endif /* defined(CONFIG_DSSCOMP) */
+		{
+			OMAPLFBQueueBufferForSwap(psSwapChain, psBuffer);
+		}
 	}
 
-	SUNXILFBCreateSwapChainUnLock(psDevInfo);
+	OMAPLFBCreateSwapChainUnLock(psDevInfo);
 
 	return IMG_TRUE;
 }
@@ -925,7 +1030,7 @@ static void dispc_proxy_cmdcomplete(void * cookie, int i)
 extern int dispc_gralloc_queue(setup_dispc_data_t *psDispcData, int ui32DispcDataLength, void (*cb_fn)(void *, int), void *cb_arg);
 
 static IMG_BOOL ProcessFlipV2(IMG_HANDLE hCmdCookie,
-							  SUNXILFB_DEVINFO *psDevInfo,
+							  OMAPLFB_DEVINFO *psDevInfo,
 							  PDC_MEM_INFO *ppsMemInfos,
 							  IMG_UINT32 ui32NumMemInfos,
 							  setup_dispc_data_t *psDispcData,
@@ -939,22 +1044,10 @@ static IMG_BOOL ProcessFlipV2(IMG_HANDLE hCmdCookie,
         IMG_CPU_PHYADDR phyAddr;
         
         psDevInfo->sPVRJTable.pfnPVRSRVDCMemInfoGetCpuPAddr(ppsMemInfos[i], 0, &phyAddr);
-
+        
         psDispcData->layer_info[i].fb.addr[0] = phyAddr.uiAddr;
     }
-    
-    if(psDispcData->use_sgx)
-    {
-        IMG_CPU_PHYADDR phyAddr;
-        SUNXILFB_FBINFO *psPVRFBInfo = &psDevInfo->sFBInfo;
-        struct fb_info *psLINFBInfo;
-
-        psLINFBInfo = registered_fb[psDevInfo->uiFBDevID];
         
-        psDevInfo->sPVRJTable.pfnPVRSRVDCMemInfoGetCpuPAddr(ppsMemInfos[i], 0, &phyAddr);
-        psDispcData->fb_yoffset = (phyAddr.uiAddr - psLINFBInfo->fix.smem_start) / psLINFBInfo->fix.line_length;
-    }
-
     dispc_gralloc_queue(psDispcData, ui32DispcDataLength, dispc_proxy_cmdcomplete, (void *)hCmdCookie);
        
     return IMG_TRUE;
@@ -966,9 +1059,7 @@ static IMG_BOOL ProcessFlip(IMG_HANDLE  hCmdCookie,
                             IMG_VOID   *pvData)
 {
 	DISPLAYCLASS_FLIP_COMMAND *psFlipCmd;
-	SUNXILFB_DEVINFO *psDevInfo;
-
-	//printk(KERN_WARNING "ProcessFlip\n");
+	OMAPLFB_DEVINFO *psDevInfo;
 
 	/* Check parameters  */
 	if(!hCmdCookie || !pvData)
@@ -984,7 +1075,7 @@ static IMG_BOOL ProcessFlip(IMG_HANDLE  hCmdCookie,
 		return IMG_FALSE;
 	}
 
-	psDevInfo = (SUNXILFB_DEVINFO*)psFlipCmd->hExtDevice;
+	psDevInfo = (OMAPLFB_DEVINFO*)psFlipCmd->hExtDevice;
 
 	if(psFlipCmd->hExtBuffer)
 	{
@@ -1014,56 +1105,36 @@ static IMG_BOOL ProcessFlip(IMG_HANDLE  hCmdCookie,
 /*!
 ******************************************************************************
 
- @Function	SUNXILFBInitFBDev
+ @Function	OMAPLFBInitFBDev
  
  @Description specifies devices in the systems memory map
  
  @Input    psSysData - sys data
 
- @Return   SUNXILFB_ERROR  :
+ @Return   OMAPLFB_ERROR  :
 
 ******************************************************************************/
-static SUNXILFB_ERROR SUNXILFBInitFBDev(SUNXILFB_DEVINFO *psDevInfo)
+static OMAPLFB_ERROR OMAPLFBInitFBDev(OMAPLFB_DEVINFO *psDevInfo)
 {
 	struct fb_info *psLINFBInfo;
 	struct module *psLINFBOwner;
-	SUNXILFB_FBINFO *psPVRFBInfo = &psDevInfo->sFBInfo;
-	SUNXILFB_ERROR eError = SUNXILFB_ERROR_GENERIC;
-	unsigned long FBSize;
-	unsigned long ulLCM;
+	OMAPLFB_FBINFO *psPVRFBInfo = &psDevInfo->sFBInfo;
+	OMAPLFB_ERROR eError = OMAPLFB_ERROR_GENERIC;
 	unsigned uiFBDevID = psDevInfo->uiFBDevID;
 
-	SUNXILFB_CONSOLE_LOCK();
+	OMAPLFB_CONSOLE_LOCK();
 
 	psLINFBInfo = registered_fb[uiFBDevID];
 	if (psLINFBInfo == NULL)
 	{
-	    printk(KERN_ERR DRIVER_PREFIX
-	        ": %s::%d psLINFBInfo == NULL\n", __FUNCTION__, __LINE__);
-		eError = SUNXILFB_ERROR_INVALID_DEVICE;
-		goto ErrorRelSem;
-	}
-
-	FBSize = (psLINFBInfo->screen_size) != 0 ?
-					psLINFBInfo->screen_size :
-					psLINFBInfo->fix.smem_len;
-
-	/*
-	 * Try and filter out invalid FB info structures (a problem
-	 * seen on some SUNXI3 systems).
-	 */
-	if (FBSize == 0 || psLINFBInfo->fix.line_length == 0)
-	{
-	    printk(KERN_ERR DRIVER_PREFIX
-	        ": %s::%d FBSize == 0 || psLINFBInfo->fix.line_length == 0\n", __FUNCTION__, __LINE__);
-		eError = SUNXILFB_ERROR_INVALID_DEVICE;
+		eError = OMAPLFB_ERROR_INVALID_DEVICE;
 		goto ErrorRelSem;
 	}
 
 	psLINFBOwner = psLINFBInfo->fbops->owner;
 	if (!try_module_get(psLINFBOwner))
 	{
-		printk(KERN_ERR DRIVER_PREFIX
+		printk(KERN_INFO DRIVER_PREFIX
 			": %s: Device %u: Couldn't get framebuffer module\n", __FUNCTION__, uiFBDevID);
 
 		goto ErrorRelSem;
@@ -1076,7 +1147,7 @@ static SUNXILFB_ERROR SUNXILFBInitFBDev(SUNXILFB_DEVINFO *psDevInfo)
 		res = psLINFBInfo->fbops->fb_open(psLINFBInfo, 0);
 		if (res != 0)
 		{
-			printk(KERN_ERR DRIVER_PREFIX
+			printk(KERN_INFO DRIVER_PREFIX
 				" %s: Device %u: Couldn't open framebuffer(%d)\n", __FUNCTION__, uiFBDevID, res);
 
 			goto ErrorModPut;
@@ -1085,58 +1156,181 @@ static SUNXILFB_ERROR SUNXILFBInitFBDev(SUNXILFB_DEVINFO *psDevInfo)
 
 	psDevInfo->psLINFBInfo = psLINFBInfo;
 
-	ulLCM = LCM(psLINFBInfo->fix.line_length, SUNXILFB_PAGE_SIZE);
+	psPVRFBInfo->ulWidth = psLINFBInfo->var.xres;
+	psPVRFBInfo->ulHeight = psLINFBInfo->var.yres;
+
+	if (psPVRFBInfo->ulWidth == 0 || psPVRFBInfo->ulHeight == 0)
+	{
+		eError = OMAPLFB_ERROR_INVALID_DEVICE;
+		goto ErrorFBRel;
+	}
+
+#if !defined(CONFIG_DSSCOMP)
+	psPVRFBInfo->ulFBSize = (psLINFBInfo->screen_size) != 0 ?
+					psLINFBInfo->screen_size :
+					psLINFBInfo->fix.smem_len;
+
+	/*
+	 * Try and filter out invalid FB info structures (a problem
+	 * seen on some OMAP3 systems).
+	 */
+	if (psPVRFBInfo->ulFBSize == 0 || psLINFBInfo->fix.line_length == 0)
+	{
+		eError = OMAPLFB_ERROR_INVALID_DEVICE;
+		goto ErrorFBRel;
+	}
 
 	DEBUG_PRINTK((KERN_INFO DRIVER_PREFIX
-			": Device %u: Framebuffer physical address: 0x%lx\n",
-			psDevInfo->uiFBDevID, psLINFBInfo->fix.smem_start));
-	DEBUG_PRINTK((KERN_INFO DRIVER_PREFIX
-			": Device %u: Framebuffer virtual address: 0x%lx\n",
-			psDevInfo->uiFBDevID, (unsigned long)psLINFBInfo->screen_base));
-	DEBUG_PRINTK((KERN_INFO DRIVER_PREFIX
 			": Device %u: Framebuffer size: %lu\n",
-			psDevInfo->uiFBDevID, FBSize));
+			psDevInfo->uiFBDevID, psPVRFBInfo->ulFBSize));
 	DEBUG_PRINTK((KERN_INFO DRIVER_PREFIX
 			": Device %u: Framebuffer virtual width: %u\n",
 			psDevInfo->uiFBDevID, psLINFBInfo->var.xres_virtual));
 	DEBUG_PRINTK((KERN_INFO DRIVER_PREFIX
 			": Device %u: Framebuffer virtual height: %u\n",
 			psDevInfo->uiFBDevID, psLINFBInfo->var.yres_virtual));
+#endif
 	DEBUG_PRINTK((KERN_INFO DRIVER_PREFIX
-			": Device %u: Framebuffer width: %u\n",
-			psDevInfo->uiFBDevID, psLINFBInfo->var.xres));
+			": Device %u: Framebuffer width: %lu\n",
+			psDevInfo->uiFBDevID, psPVRFBInfo->ulWidth));
 	DEBUG_PRINTK((KERN_INFO DRIVER_PREFIX
-			": Device %u: Framebuffer height: %u\n",
-			psDevInfo->uiFBDevID, psLINFBInfo->var.yres));
-	DEBUG_PRINTK((KERN_INFO DRIVER_PREFIX
-			": Device %u: Framebuffer stride: %u\n",
-			psDevInfo->uiFBDevID, psLINFBInfo->fix.line_length));
-	DEBUG_PRINTK((KERN_INFO DRIVER_PREFIX
-			": Device %u: LCM of stride and page size: %lu\n",
-			psDevInfo->uiFBDevID, ulLCM));
+			": Device %u: Framebuffer height: %lu\n",
+			psDevInfo->uiFBDevID, psPVRFBInfo->ulHeight));
 
-	/* Additional implementation specific information */
-	//SUNXILFBPrintInfo(psDevInfo);
+#if defined(CONFIG_DSSCOMP)
+	{
+#if defined(SUPPORT_PVRSRV_GET_DC_SYSTEM_BUFFER)
+		/*
+		 * Assume we need 3 swap buffers, and a separate system
+		 * buffer.
+		 */
+		int n = 4;
+#else
+		/*
+		 * Assume we need just 3 swap buffers, and no separate
+		 * system buffer.
+		 */
+		int n = 3;
+#endif
+		int res;
+		int i, x, y, w;
+		ion_phys_addr_t phys;
+		size_t size;
+		struct tiler_view_t view;
 
+		struct omap_ion_tiler_alloc_data sAllocData =
+		{
+			/* TILER will align width to 128-bytes */
+			/* however, SGX must have full page width */
+			.w = ALIGN(psPVRFBInfo->ulWidth, PAGE_SIZE / (psLINFBInfo->var.bits_per_pixel / 8)),
+			.h = psPVRFBInfo->ulHeight,
+			.fmt = psLINFBInfo->var.bits_per_pixel == 16 ? TILER_PIXEL_FMT_16BIT : TILER_PIXEL_FMT_32BIT,
+			.flags = 0,
+		};
 
+		printk(KERN_DEBUG DRIVER_PREFIX
+			   " %s: Device %u: Requesting %d TILER 2D framebuffers\n",
+			   __FUNCTION__, uiFBDevID, n);
+
+		sAllocData.w *= n;
+
+		psPVRFBInfo->uiBytesPerPixel = psLINFBInfo->var.bits_per_pixel >> 3;
+		psPVRFBInfo->bIs2D = OMAPLFB_TRUE;
+
+		res = omap_ion_tiler_alloc(psDevInfo->psIONClient, &sAllocData);
+		psPVRFBInfo->psIONHandle = sAllocData.handle;
+		if (res < 0)
+		{
+			printk(KERN_ERR DRIVER_PREFIX
+				   " %s: Device %u: Could not allocate 2D framebuffer(%d)\n",
+				   __FUNCTION__, uiFBDevID, res);
+			goto ErrorFBRel;
+		}
+
+		res = ion_phys(psDevInfo->psIONClient, sAllocData.handle, &phys, &size);
+		if (res < 0)
+		{
+			printk(KERN_ERR DRIVER_PREFIX
+				   " %s: Device %u: Could not get 2D framebufferphysical address (%d)\n",
+				   __FUNCTION__, uiFBDevID, res);
+			goto ErrorFBRel;
+		}
+
+		psPVRFBInfo->sSysAddr.uiAddr = phys;
+		psPVRFBInfo->sCPUVAddr = 0;
+
+		psPVRFBInfo->ulByteStride = PAGE_ALIGN(psPVRFBInfo->ulWidth * psPVRFBInfo->uiBytesPerPixel);
+		w = psPVRFBInfo->ulByteStride >> PAGE_SHIFT;
+ 
+		psPVRFBInfo->ulFBSize = sAllocData.h * n * psPVRFBInfo->ulByteStride;
+		psPVRFBInfo->psPageList = kzalloc(w * n * psPVRFBInfo->ulHeight * sizeof(*psPVRFBInfo->psPageList), GFP_KERNEL);
+		if (!psPVRFBInfo->psPageList)
+		{
+			printk(KERN_WARNING DRIVER_PREFIX ": %s: Device %u: Could not allocate page list\n", __FUNCTION__, psDevInfo->uiFBDevID);
+			ion_free(psDevInfo->psIONClient, sAllocData.handle);
+			goto ErrorFBRel;
+		}
+
+		tilview_create(&view, phys, psDevInfo->sFBInfo.ulWidth, psDevInfo->sFBInfo.ulHeight);
+		for(i = 0; i < n; i++)
+		{
+			for(y = 0; y < psDevInfo->sFBInfo.ulHeight; y++)
+			{
+				for(x = 0; x < w; x++)
+				{
+					psPVRFBInfo->psPageList[i * psDevInfo->sFBInfo.ulHeight * w + y * w + x].uiAddr =
+					phys + view.v_inc * y + ((x + i * w) << PAGE_SHIFT);
+				}
+			}
+		}
+	}
+#else /* defined(CONFIG_DSSCOMP) */
 	/* System Surface */
 	psPVRFBInfo->sSysAddr.uiAddr = psLINFBInfo->fix.smem_start;
 	psPVRFBInfo->sCPUVAddr = psLINFBInfo->screen_base;
 
-	psPVRFBInfo->ulWidth = psLINFBInfo->var.xres;
-	psPVRFBInfo->ulHeight = psLINFBInfo->var.yres;
 	psPVRFBInfo->ulByteStride =  psLINFBInfo->fix.line_length;
-	psPVRFBInfo->ulFBSize = FBSize;
+#endif /* defined(CONFIG_DSSCOMP) */
+
+	printk(KERN_WARNING 
+			"#####: Device %u: Framebuffer physical address: 0x%x\n",
+			psDevInfo->uiFBDevID, psPVRFBInfo->sSysAddr.uiAddr);
+
+	if (psPVRFBInfo->sCPUVAddr != NULL)
+	{
+		DEBUG_PRINTK((KERN_WARNING DRIVER_PREFIX
+			": Device %u: Framebuffer virtual address: %p\n",
+			psDevInfo->uiFBDevID, psPVRFBInfo->sCPUVAddr));
+	}
+
+	DEBUG_PRINTK((KERN_WARNING DRIVER_PREFIX
+			": Device %u: Framebuffer stride: %lu\n",
+			psDevInfo->uiFBDevID, psPVRFBInfo->ulByteStride));
+
+	/* Additional implementation specific information */
+	OMAPLFBPrintInfo(psDevInfo);
 
 	psPVRFBInfo->ulBufferSize = psPVRFBInfo->ulHeight * psPVRFBInfo->ulByteStride;
 
-	/* Round the buffer size up to a multiple of the number of pages
-	 * and the byte stride.
-	 * This is used internally, to ensure buffers start on page
-	 * boundaries, for the benefit of PVR Services.
-	 */
-	psPVRFBInfo->ulRoundedBufferSize = RoundUpToMultiple(psPVRFBInfo->ulBufferSize, ulLCM);
+#if defined(CONFIG_DSSCOMP)
+	psPVRFBInfo->ulRoundedBufferSize = psPVRFBInfo->ulBufferSize;
+#else
+	{
+		unsigned long ulLCM;
+		ulLCM = LCM(psPVRFBInfo->ulByteStride, OMAPLFB_PAGE_SIZE);
 
+		DEBUG_PRINTK((KERN_INFO DRIVER_PREFIX
+			": Device %u: LCM of stride and page size: %lu\n",
+			psDevInfo->uiFBDevID, ulLCM));
+
+		/* Round the buffer size up to a multiple of the number of pages
+		 * and the byte stride.
+		 * This is used internally, to ensure buffers start on page
+		 * boundaries, for the benefit of PVR Services.
+		 */
+		psPVRFBInfo->ulRoundedBufferSize = RoundUpToMultiple(psPVRFBInfo->ulBufferSize, ulLCM);
+	}
+#endif
 	if(psLINFBInfo->var.bits_per_pixel == 16)
 	{
 		if((psLINFBInfo->var.red.length == 5) &&
@@ -1186,23 +1380,39 @@ static SUNXILFB_ERROR SUNXILFBInitFBDev(SUNXILFB_DEVINFO *psDevInfo)
 	psDevInfo->sFBInfo.sSysAddr.uiAddr = psPVRFBInfo->sSysAddr.uiAddr;
 	psDevInfo->sFBInfo.sCPUVAddr = psPVRFBInfo->sCPUVAddr;
 
-	eError = SUNXILFB_OK;
+	eError = OMAPLFB_OK;
 	goto ErrorRelSem;
 
+ErrorFBRel:
+	if (psLINFBInfo->fbops->fb_release != NULL) 
+	{
+		(void) psLINFBInfo->fbops->fb_release(psLINFBInfo, 0);
+	}
 ErrorModPut:
 	module_put(psLINFBOwner);
 ErrorRelSem:
-	SUNXILFB_CONSOLE_UNLOCK();
+	OMAPLFB_CONSOLE_UNLOCK();
 
 	return eError;
 }
 
-static void SUNXILFBDeInitFBDev(SUNXILFB_DEVINFO *psDevInfo)
+static void OMAPLFBDeInitFBDev(OMAPLFB_DEVINFO *psDevInfo)
 {
 	struct fb_info *psLINFBInfo = psDevInfo->psLINFBInfo;
 	struct module *psLINFBOwner;
 
-	SUNXILFB_CONSOLE_LOCK();
+	OMAPLFB_CONSOLE_LOCK();
+
+#if defined(CONFIG_DSSCOMP)
+	{
+		OMAPLFB_FBINFO *psPVRFBInfo = &psDevInfo->sFBInfo;
+		kfree(psPVRFBInfo->psPageList);
+		if (psPVRFBInfo->psIONHandle)
+		{
+			ion_free(psDevInfo->psIONClient, psPVRFBInfo->psIONHandle);
+		}
+	}
+#endif /* defined(CONFIG_DSSCOMP) */
 
 	psLINFBOwner = psLINFBInfo->fbops->owner;
 
@@ -1213,17 +1423,17 @@ static void SUNXILFBDeInitFBDev(SUNXILFB_DEVINFO *psDevInfo)
 
 	module_put(psLINFBOwner);
 
-	SUNXILFB_CONSOLE_UNLOCK();
+	OMAPLFB_CONSOLE_UNLOCK();
 }
 
-static SUNXILFB_DEVINFO *SUNXILFBInitDev(unsigned uiFBDevID)
+static OMAPLFB_DEVINFO *OMAPLFBInitDev(unsigned uiFBDevID)
 {
-	PFN_CMD_PROC	 	pfnCmdProcList[SUNXILFB_COMMAND_COUNT];
-	IMG_UINT32		aui32SyncCountList[SUNXILFB_COMMAND_COUNT][2];
-	SUNXILFB_DEVINFO		*psDevInfo = NULL;
+	PFN_CMD_PROC	 	pfnCmdProcList[OMAPLFB_COMMAND_COUNT];
+	IMG_UINT32		aui32SyncCountList[OMAPLFB_COMMAND_COUNT][2];
+	OMAPLFB_DEVINFO		*psDevInfo = NULL;
 
 	/* Allocate device info. structure */
-	psDevInfo = (SUNXILFB_DEVINFO *)SUNXILFBAllocKernelMem(sizeof(SUNXILFB_DEVINFO));
+	psDevInfo = (OMAPLFB_DEVINFO *)OMAPLFBAllocKernelMem(sizeof(OMAPLFB_DEVINFO));
 
 	if(psDevInfo == NULL)
 	{
@@ -1234,30 +1444,41 @@ static SUNXILFB_DEVINFO *SUNXILFBInitDev(unsigned uiFBDevID)
 	}
 
 	/* Any fields not set will be zero */
-	memset(psDevInfo, 0, sizeof(SUNXILFB_DEVINFO));
+	memset(psDevInfo, 0, sizeof(OMAPLFB_DEVINFO));
 
 	psDevInfo->uiFBDevID = uiFBDevID;
 
 	/* Get the kernel services function table */
 	if(!(*gpfnGetPVRJTable)(&psDevInfo->sPVRJTable))
 	{
-	    printk(KERN_ERR DRIVER_PREFIX
-		    ": %s::%d, Get the kernel services function table fail\n", __FUNCTION__, __LINE__);
 		goto ErrorFreeDevInfo;
 	}
 
+#if defined(CONFIG_ION_OMAP)
+	psDevInfo->psIONClient =
+		ion_client_create(omap_ion_device,
+						  1 << ION_HEAP_TYPE_CARVEOUT |
+						  1 << OMAP_ION_HEAP_TYPE_TILER,
+						  "dc_omapfb3_linux");
+	if (IS_ERR_OR_NULL(psDevInfo->psIONClient))
+	{
+		printk(KERN_ERR DRIVER_PREFIX
+			": %s: Device %u: Failed to create ion client\n", __FUNCTION__, uiFBDevID);
+
+		goto ErrorFreeDevInfo;
+	}
+#endif /* defined(CONFIG_ION_OMAP) */
+
 	/* Save private fbdev information structure in the dev. info. */
-	if(SUNXILFBInitFBDev(psDevInfo) != SUNXILFB_OK)
+	if(OMAPLFBInitFBDev(psDevInfo) != OMAPLFB_OK)
 	{
 		/*
-		 * Leave it to SUNXILFBInitFBDev to print an error message, if
+		 * Leave it to OMAPLFBInitFBDev to print an error message, if
 		 * required.  The function may have failed because
 		 * there is no Linux framebuffer device corresponding
 		 * to the device ID.
 		 */
-		 printk(KERN_ERR DRIVER_PREFIX
-		    ": %s::%d, Save private fbdev information structure in the dev. info fail\n", __FUNCTION__, __LINE__);
-		goto ErrorFreeDevInfo;
+		goto ErrorIonClientDestroy;
 	}
 
 	psDevInfo->sDisplayInfo.ui32MaxSwapChainBuffers = (IMG_UINT32)(psDevInfo->sFBInfo.ulFBSize / psDevInfo->sFBInfo.ulRoundedBufferSize);
@@ -1265,6 +1486,9 @@ static SUNXILFB_DEVINFO *SUNXILFBInitDev(unsigned uiFBDevID)
 	{
 		psDevInfo->sDisplayInfo.ui32MaxSwapChains = 1;
 		psDevInfo->sDisplayInfo.ui32MaxSwapInterval = 1;
+#if defined(CONFIG_DSSCOMP)
+		psDevInfo->sDisplayInfo.ui32MinSwapInterval = 1;
+#endif
 	}
 
 	psDevInfo->sDisplayInfo.ui32PhysicalWidthmm = psDevInfo->sFBInfo.ulPhysicalWidthmm;
@@ -1286,7 +1510,11 @@ static SUNXILFB_DEVINFO *SUNXILFBInitDev(unsigned uiFBDevID)
 	psDevInfo->sSystemBuffer.sCPUVAddr = psDevInfo->sFBInfo.sCPUVAddr;
 	psDevInfo->sSystemBuffer.psDevInfo = psDevInfo;
 
-	SUNXILFBInitBufferForSwap(&psDevInfo->sSystemBuffer);
+	OMAPLFBInitBufferForSwap(&psDevInfo->sSystemBuffer);
+
+#if defined(CONFIG_DSSCOMP) && defined(SUPPORT_PVRSRV_GET_DC_SYSTEM_BUFFER)
+	OMAPLFBFlip(psDevInfo, &psDevInfo->sSystemBuffer);
+#endif
 
 	/*
 		Setup the DC Jtable so SRVKM can call into this driver
@@ -1338,57 +1566,85 @@ static SUNXILFB_DEVINFO *SUNXILFBInitDev(unsigned uiFBDevID)
 	if (psDevInfo->sPVRJTable.pfnPVRSRVRegisterCmdProcList(psDevInfo->uiPVRDevID,
 															&pfnCmdProcList[0],
 															aui32SyncCountList,
-															SUNXILFB_COMMAND_COUNT) != PVRSRV_OK)
+															OMAPLFB_COMMAND_COUNT) != PVRSRV_OK)
 	{
 		printk(KERN_ERR DRIVER_PREFIX
 			": %s: Device %u: Couldn't register command processing functions with PVR Services\n", __FUNCTION__, uiFBDevID);
 		goto ErrorUnregisterDevice;
 	}
 
-	SUNXILFBCreateSwapChainLockInit(psDevInfo);
+	OMAPLFBCreateSwapChainLockInit(psDevInfo);
 
-	SUNXILFBAtomicBoolInit(&psDevInfo->sBlanked, SUNXILFB_FALSE);
-	SUNXILFBAtomicIntInit(&psDevInfo->sBlankEvents, 0);
-	SUNXILFBAtomicBoolInit(&psDevInfo->sFlushCommands, SUNXILFB_FALSE);
+	OMAPLFBAtomicBoolInit(&psDevInfo->sBlanked, OMAPLFB_FALSE);
+	OMAPLFBAtomicIntInit(&psDevInfo->sBlankEvents, 0);
+	OMAPLFBAtomicBoolInit(&psDevInfo->sFlushCommands, OMAPLFB_FALSE);
 #if defined(CONFIG_HAS_EARLYSUSPEND)
-	SUNXILFBAtomicBoolInit(&psDevInfo->sEarlySuspendFlag, SUNXILFB_FALSE);
+	OMAPLFBAtomicBoolInit(&psDevInfo->sEarlySuspendFlag, OMAPLFB_FALSE);
 #endif
 #if defined(SUPPORT_DRI_DRM)
-	SUNXILFBAtomicBoolInit(&psDevInfo->sLeaveVT, SUNXILFB_FALSE);
+	OMAPLFBAtomicBoolInit(&psDevInfo->sLeaveVT, OMAPLFB_FALSE);
 #endif
+
 	return psDevInfo;
 
 ErrorUnregisterDevice:
 	(void)psDevInfo->sPVRJTable.pfnPVRSRVRemoveDCDevice(psDevInfo->uiPVRDevID);
 ErrorDeInitFBDev:
-	SUNXILFBDeInitFBDev(psDevInfo);
+	OMAPLFBDeInitFBDev(psDevInfo);
+ErrorIonClientDestroy:
+#if defined(CONFIG_ION_OMAP)
+	ion_client_destroy(psDevInfo->psIONClient);
+#endif /* defined(CONFIG_ION_OMAP) */
 ErrorFreeDevInfo:
-	SUNXILFBFreeKernelMem(psDevInfo);
+	OMAPLFBFreeKernelMem(psDevInfo);
 ErrorExit:
 	return NULL;
 }
 
+OMAPLFB_ERROR OMAPLFBInit(void)
+{
+	unsigned uiMaxFBDevIDPlusOne = OMAPLFBMaxFBDevIDPlusOne();
+	unsigned i;
+	unsigned uiDevicesFound = 0;
+
+	if(OMAPLFBGetLibFuncAddr ("PVRGetDisplayClassJTable", &gpfnGetPVRJTable) != OMAPLFB_OK)
+	{
+		return OMAPLFB_ERROR_INIT_FAILURE;
+	}
+
+	/*
+	 * We search for frame buffer devices backwards, as the last device
+	 * registered with PVR Services will be the first device enumerated
+	 * by PVR Services.
+	 */
+	for(i = uiMaxFBDevIDPlusOne; i-- != 0;)
+	{
+		OMAPLFB_DEVINFO *psDevInfo = OMAPLFBInitDev(i);
+
+		if (psDevInfo != NULL)
+		{
+			/* Set the top-level anchor */
+			OMAPLFBSetDevInfoPtr(psDevInfo->uiFBDevID, psDevInfo);
+			uiDevicesFound++;
+		}
+	}
+
+	return (uiDevicesFound != 0) ? OMAPLFB_OK : OMAPLFB_ERROR_INIT_FAILURE;
+}
+
 /*
- *	SUNXILFBDeInitDev
+ *	OMAPLFBDeInitDev
  *	DeInitialises one device
  */
-static SUNXILFB_BOOL SUNXILFBDeInitDev(SUNXILFB_DEVINFO *psDevInfo)
+static OMAPLFB_BOOL OMAPLFBDeInitDev(OMAPLFB_DEVINFO *psDevInfo)
 {
 	PVRSRV_DC_DISP2SRV_KMJTABLE *psPVRJTable = &psDevInfo->sPVRJTable;
 
-	SUNXILFBCreateSwapChainLockDeInit(psDevInfo);
-
-	SUNXILFBAtomicBoolDeInit(&psDevInfo->sBlanked);
-	SUNXILFBAtomicIntDeInit(&psDevInfo->sBlankEvents);
-	SUNXILFBAtomicBoolDeInit(&psDevInfo->sFlushCommands);
-
-	psPVRJTable = &psDevInfo->sPVRJTable;
-
-	if (psPVRJTable->pfnPVRSRVRemoveCmdProcList (psDevInfo->uiPVRDevID, SUNXILFB_COMMAND_COUNT) != PVRSRV_OK)
+	if (psPVRJTable->pfnPVRSRVRemoveCmdProcList (psDevInfo->uiPVRDevID, OMAPLFB_COMMAND_COUNT) != PVRSRV_OK)
 	{
 		printk(KERN_ERR DRIVER_PREFIX
 			": %s: Device %u: PVR Device %u: Couldn't unregister command processing functions\n", __FUNCTION__, psDevInfo->uiFBDevID, psDevInfo->uiPVRDevID);
-		return SUNXILFB_FALSE;
+		return OMAPLFB_FALSE;
 	}
 
 	/*
@@ -1399,74 +1655,65 @@ static SUNXILFB_BOOL SUNXILFBDeInitDev(SUNXILFB_DEVINFO *psDevInfo)
 	{
 		printk(KERN_ERR DRIVER_PREFIX
 			": %s: Device %u: PVR Device %u: Couldn't remove device from PVR Services\n", __FUNCTION__, psDevInfo->uiFBDevID, psDevInfo->uiPVRDevID);
-		return SUNXILFB_FALSE;
+		return OMAPLFB_FALSE;
 	}
-	
-	SUNXILFBDeInitFBDev(psDevInfo);
 
-	SUNXILFBSetDevInfoPtr(psDevInfo->uiFBDevID, NULL);
+#if defined(CONFIG_DSSCOMP)
+	/* Disable the overlay, as we will be freeing the display buffers */
+	psDevInfo->sSystemBuffer.sSysAddr.uiAddr = 0;
+	OMAPLFBFlip(psDevInfo, &psDevInfo->sSystemBuffer);
+#endif /* defined(CONFIG_DSSCOMP) */
+
+	OMAPLFBCreateSwapChainLockDeInit(psDevInfo);
+
+	OMAPLFBAtomicBoolDeInit(&psDevInfo->sBlanked);
+	OMAPLFBAtomicIntDeInit(&psDevInfo->sBlankEvents);
+	OMAPLFBAtomicBoolDeInit(&psDevInfo->sFlushCommands);
+#if defined(CONFIG_HAS_EARLYSUSPEND)
+	OMAPLFBAtomicBoolDeInit(&psDevInfo->sEarlySuspendFlag);
+#endif
+#if defined(SUPPORT_DRI_DRM)
+	OMAPLFBAtomicBoolDeInit(&psDevInfo->sLeaveVT);
+#endif
+
+	OMAPLFBDeInitFBDev(psDevInfo);
+
+#if defined(CONFIG_ION_OMAP)
+	ion_client_destroy(psDevInfo->psIONClient);
+#endif
+
+	OMAPLFBSetDevInfoPtr(psDevInfo->uiFBDevID, NULL);
 
 	/* De-allocate data structure */
-	SUNXILFBFreeKernelMem(psDevInfo);
+	OMAPLFBFreeKernelMem(psDevInfo);
 
-	return SUNXILFB_TRUE;
-}
-
-SUNXILFB_ERROR SUNXILFBInit(void)
-{
-	unsigned uiMaxFBDevIDPlusOne = SUNXILFBMaxFBDevIDPlusOne();
-	unsigned i;
-	unsigned uiDevicesFound = 0;
-
-	if(SUNXILFBGetLibFuncAddr ("PVRGetDisplayClassJTable", &gpfnGetPVRJTable) != SUNXILFB_OK)
-	{
-		return SUNXILFB_ERROR_INIT_FAILURE;
-	}
-
-	/*
-	 * We search for frame buffer devices backwards, as the last device
-	 * registered with PVR Services will be the first device enumerated
-	 * by PVR Services.
-	 */
-	for(i = uiMaxFBDevIDPlusOne; i-- != 0;)
-	{
-		SUNXILFB_DEVINFO *psDevInfo = SUNXILFBInitDev(i);
-
-		if (psDevInfo != NULL)
-		{
-			/* Set the top-level anchor */
-			SUNXILFBSetDevInfoPtr(psDevInfo->uiFBDevID, psDevInfo);
-			uiDevicesFound++;
-		}
-	}
-
-	return (uiDevicesFound != 0) ? SUNXILFB_OK : SUNXILFB_ERROR_INIT_FAILURE;
+	return OMAPLFB_TRUE;
 }
 
 /*
- *	SUNXILFBDeInit
+ *	OMAPLFBDeInit
  *	Deinitialises the display class device component of the FBDev
  */
-SUNXILFB_ERROR SUNXILFBDeInit(void)
+OMAPLFB_ERROR OMAPLFBDeInit(void)
 {
-	unsigned uiMaxFBDevIDPlusOne = SUNXILFBMaxFBDevIDPlusOne();
+	unsigned uiMaxFBDevIDPlusOne = OMAPLFBMaxFBDevIDPlusOne();
 	unsigned i;
-	SUNXILFB_BOOL bError = SUNXILFB_FALSE;
+	OMAPLFB_BOOL bError = OMAPLFB_FALSE;
 
 	for(i = 0; i < uiMaxFBDevIDPlusOne; i++)
 	{
-		SUNXILFB_DEVINFO *psDevInfo = SUNXILFBGetDevInfoPtr(i);
+		OMAPLFB_DEVINFO *psDevInfo = OMAPLFBGetDevInfoPtr(i);
 
 		if (psDevInfo != NULL)
 		{
-			bError |= !SUNXILFBDeInitDev(psDevInfo);
+			bError |= !OMAPLFBDeInitDev(psDevInfo);
 		}
 	}
 
-	return (bError) ? SUNXILFB_ERROR_INIT_FAILURE : SUNXILFB_OK;
+	return (bError) ? OMAPLFB_ERROR_INIT_FAILURE : OMAPLFB_OK;
 }
 
 /******************************************************************************
- End of file (dc_sunxi_displayclass.c)
+ End of file (omaplfb_displayclass.c)
 ******************************************************************************/
 

@@ -87,6 +87,23 @@ struct collect_ops collect_arg;
 
 #endif
 
+#ifdef NAND_LOG_AUTO_MERGE
+
+static int nand_io_clear = 0;
+static int nand_log_release_finish_flag = 0;
+static int nand_shut_down_flag = 0;
+
+struct logrelease_ops{
+		unsigned long timeout;
+		wait_queue_head_t wait;
+		struct completion thread_exit;
+		unsigned char quit;
+};
+struct collect_ops logrelease_arg;
+
+#endif
+
+
 struct burn_param_t{
 	void* buffer;
   long length;
@@ -126,14 +143,68 @@ extern __u32 NAND_GetIOBaseAddrCH1(void);
 
 
 DEFINE_SEMAPHORE(nand_mutex);
+DEFINE_SEMAPHORE(nand_global_value_mutex);
+spinlock_t     nand_global_value_lock;   
+
+
+
 static unsigned char volatile IS_IDLE = 1;
 static int nand_flush(struct nand_blk_dev *dev);
 static int nand_logrelease(struct nand_blk_dev *dev);
 
 static int nand_flush_force(__u32 dev_num);
 static int nand_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg);
+static int nand_getglobalvalue(int *value);
+static void nand_clearglobalvalue(int *value);
+static void nand_setglobalvalue(int *value);
+static void nand_setglobalvalue2(int *value);
+
 
 static struct nand_state nand_reg_state;
+
+
+static int nand_getglobalvalue(int *value)
+{
+	int result;
+	
+	//down(&nand_global_value_mutex);
+	spin_lock(&nand_global_value_lock);
+	result = *value;
+	//up(&nand_global_value_mutex);
+	spin_unlock(&nand_global_value_lock);
+
+	return result;
+
+}
+
+static void nand_clearglobalvalue(int *value)
+{
+	//down(&nand_global_value_mutex);
+	spin_lock(&nand_global_value_lock);
+	*value = 0;
+	//up(&nand_global_value_mutex);
+	spin_unlock(&nand_global_value_lock);
+	
+}
+
+static void nand_setglobalvalue(int *value)
+{
+	//down(&nand_global_value_mutex);
+	spin_lock(&nand_global_value_lock);
+	*value = 1;
+	//up(&nand_global_value_mutex);
+	spin_unlock(&nand_global_value_lock);
+}
+
+static void nand_setglobalvalue2(int *value)
+{
+	//down(&nand_global_value_mutex);
+	spin_lock(&nand_global_value_lock);
+	*value = 2;
+	//up(&nand_global_value_mutex);
+	spin_unlock(&nand_global_value_lock);
+}
+
 
 #ifdef __LINUX_NAND_SUPPORT_INT__	
     spinlock_t     nand_int_lock;    
@@ -366,6 +437,11 @@ static int nand_blktrans_thread(void *arg)
 	static int call_count = 0;
 	#endif
 #endif
+
+	#ifdef NAND_LOG_AUTO_MERGE
+      		//nand_io_clear = 0;
+      		nand_clearglobalvalue(&nand_io_clear);
+	#endif
 	
 	/* we might get involved when memory gets low, so use PF_MEMALLOC */
 	current->flags |= PF_MEMALLOC | PF_NOFREEZE;
@@ -395,11 +471,24 @@ static int nand_blktrans_thread(void *arg)
 			add_wait_queue(&nandr->thread_wq, &wait);
 			set_current_state(TASK_INTERRUPTIBLE);
 			spin_unlock_irq(rq->queue_lock);
+		#ifdef NAND_LOG_AUTO_MERGE
+			//nand_io_clear = 1;
+			if(nand_getglobalvalue(&nand_io_clear) == 1)
+			{
+				nand_setglobalvalue(&nand_io_clear);
+				wake_up_interruptible(&logrelease_arg.wait);
+			}
+		#endif
 			schedule();
 			spin_lock_irq(rq->queue_lock);
 			remove_wait_queue(&nandr->thread_wq, &wait);
 			continue;
 		}
+
+		#ifdef NAND_LOG_AUTO_MERGE
+      		//nand_io_clear = 0;
+		nand_clearglobalvalue(&nand_io_clear);
+		#endif
 
 		dev = req->rq_disk->private_data;
 	#if USE_BIO_MERGE==1
@@ -461,7 +550,10 @@ static int nand_blktrans_thread(void *arg)
 		//printk("req flags=%x\n",req->cmd_flags);
 		#ifdef NAND_CACHE_FLUSH_EVERY_SEC
 		if(req->cmd_flags&REQ_WRITE)
-			after_rw = 1;
+		{
+			//after_rw = 1;
+			nand_setglobalvalue(&after_rw);
+		}
 		if(req->cmd_flags&REQ_SYNC){
 			wake_up_interruptible(&collect_arg.wait);
 		}
@@ -576,7 +668,10 @@ static int nand_blktrans_thread(void *arg)
 
 		#ifdef NAND_CACHE_FLUSH_EVERY_SEC
 		if(rw_flag == REQ_WRITE)
-			after_rw = 1;
+		{
+			//after_rw = 1;
+			nand_setglobalvalue(&after_rw);
+		}
 		if((req->cmd_flags&REQ_SYNC)&&(req->cmd_flags&REQ_WRITE))
 			wake_up_interruptible(&collect_arg.wait);
 
@@ -820,7 +915,10 @@ static int nand_blktrans_thread(void *arg)
 
 		#ifdef NAND_CACHE_FLUSH_EVERY_SEC
 		if(rw_flag == REQ_WRITE)
-			after_rw = 1;
+		{
+			//after_rw = 1;
+			nand_setglobalvalue(&after_rw);
+		}
 		if((req->cmd_flags&REQ_SYNC)&&(req->cmd_flags&REQ_WRITE))
 			wake_up_interruptible(&collect_arg.wait);
 
@@ -1135,7 +1233,10 @@ static int nand_blktrans_thread(void *arg)
 
 		#ifdef NAND_CACHE_FLUSH_EVERY_SEC
 		if(rw_flag == REQ_WRITE)
-			after_rw = 1;
+		{
+			//after_rw = 1;
+			nand_setglobalvalue(&after_rw);
+		}
 		if((req->cmd_flags&REQ_SYNC)&&(req->cmd_flags&REQ_WRITE))
 			wake_up_interruptible(&collect_arg.wait);
 
@@ -1378,7 +1479,7 @@ static int collect_thread(void *tmparg)
 {
 	unsigned long ret;
 	struct collect_ops *arg = tmparg;
-	int log_release_flag;
+	//int log_release_flag;
 
 	current->flags |= PF_MEMALLOC | PF_NOFREEZE;
 	daemonize("%sd", "nfmt");
@@ -1401,31 +1502,71 @@ static int collect_thread(void *tmparg)
 #else
 	while (!arg->quit)
 	{
-		ret = wait_event_interruptible(arg->wait,after_rw);
+		//ret = wait_event_interruptible(arg->wait,after_rw);
+		ret = wait_event_interruptible(arg->wait,nand_getglobalvalue(&after_rw));
 		if(ret==0)
 		{
 			do{
-				after_rw = 0;
+				//after_rw = 0;
+				nand_clearglobalvalue(&after_rw);
 				msleep(arg->timeout);
-			}while(after_rw);
+			}while(nand_getglobalvalue(&after_rw));
 			//IS_IDLE = 1;
 			nand_flush(NULL);
 			//IS_IDLE = 1;
-
-			while(!after_rw)
-			{
-				log_release_flag = nand_logrelease(NULL);
-				if(log_release_flag<=0)
-					break;
-
-				msleep(100);
-			}
 		}
 	}
 #endif
 	complete_and_exit(&arg->thread_exit, 0);
 }
 #endif
+
+#ifdef NAND_LOG_AUTO_MERGE
+static int nandlogrelease_thread(void *tmparg)
+{
+	unsigned long ret;
+	struct collect_ops *arg = tmparg;
+	int log_release_flag;
+
+	current->flags |= PF_MEMALLOC | PF_NOFREEZE;
+	daemonize("%sd", "nfmt");
+
+	spin_lock_irq(&current->sighand->siglock);
+	sigfillset(&current->blocked);
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
+
+	while (!arg->quit)
+	{
+		//ret = wait_event_interruptible(arg->wait,nand_io_clear);
+		ret = wait_event_interruptible(arg->wait,nand_getglobalvalue(&nand_io_clear));
+		if(ret==0)
+		{
+		#if 0
+			do{
+				log_release_flag = nand_logrelease(NULL);
+				if(log_release_flag<=0)
+					break;
+				
+			}while(nand_io_clear);
+		#else
+			do{
+				//nand_io_clear = 1;
+				nand_setglobalvalue(&nand_io_clear);
+				msleep(500);
+			}while(nand_getglobalvalue(&nand_io_clear) == 0);
+			
+			log_release_flag = nand_logrelease(NULL);
+
+		#endif
+
+		}
+	}
+
+	complete_and_exit(&arg->thread_exit, 0);
+}
+#endif
+
 
 int nand_blk_register(struct nand_blk_ops *nandr)
 {
@@ -1483,6 +1624,24 @@ int nand_blk_register(struct nand_blk_ops *nandr)
 	}
 	#endif
 
+	#ifdef NAND_LOG_AUTO_MERGE
+	/*init wait queue*/
+	logrelease_arg.quit = 0;
+	logrelease_arg.timeout = TIMEOUT;
+	init_completion(&logrelease_arg.thread_exit);
+	init_waitqueue_head(&logrelease_arg.wait);
+	ret = kernel_thread(nandlogrelease_thread, &logrelease_arg, CLONE_KERNEL);
+ 	if (ret < 0)
+	{
+		dbg_err("sorry,thread creat failed\n");
+		return 0;
+	}
+
+	//printk("*************************************************************\n");
+	printk("[NAND]nandlogrelease_thread init \n");
+	//printk("*************************************************************\n");
+	#endif
+
 	//devfs_mk_dir(nandr->name);
 	INIT_LIST_HEAD(&nandr->devs);
 
@@ -1511,6 +1670,13 @@ void nand_blk_unregister(struct nand_blk_ops *nandr)
 	wake_up(&collect_arg.wait);
 	wait_for_completion(&collect_arg.thread_exit);
 #endif
+
+#ifdef NAND_LOG_AUTO_MERGE
+		logrelease_arg.quit =1;
+		wake_up(&logrelease_arg.wait);
+		wait_for_completion(&logrelease_arg.thread_exit);
+#endif
+
 	/* Remove it from the list of active majors */
 
 
@@ -1652,11 +1818,12 @@ static int nand_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 
 static int nand_flush(struct nand_blk_dev *dev)
 {
+#if 1
 	if (0 == down_trylock(&mytr.nand_ops_mutex))
 	{
 		IS_IDLE = 0;
 	#ifdef NAND_CACHE_RW
-		NAND_CacheFlush();
+		NAND_CacheFlushSingle();
 	#else
 		LML_FlushPageCache();
 	#endif
@@ -1665,27 +1832,121 @@ static int nand_flush(struct nand_blk_dev *dev)
 
 		dbg_inf("nand_flush \n");
 	}
-
+#endif
 	return 0;
 }
 
 static int nand_logrelease(struct nand_blk_dev *dev)
 {
-    __s32 log_cnt =-1;
+    //__s32 log_cnt =-1;
+    __s32 tmpPos = -1;	
+    __s32 tmpLogicBlock = -1;
+    __s32 start_page = 0;
+    __s32 merge_page_cnt;
+	
 
-    #ifdef NAND_LOG_AUTO_MERGE
-	if (0 == down_trylock(&mytr.nand_ops_mutex))
+    #ifdef NAND_LOG_AUTO_MERGE	
+	//merge_page_cnt= NAND_GetLogicPageCnt();
+	merge_page_cnt= 1;
+	
+	//if ((nand_shut_down_flag == 0)&&(0 == down_trylock(&mytr.nand_ops_mutex)))
+	if ((nand_getglobalvalue(&nand_shut_down_flag) == 0)&&(0 == down_trylock(&mytr.nand_ops_mutex)))
 	{
-		IS_IDLE = 0;
-		log_cnt = BMM_RleaseLogBlock(NAND_LOG_RELEASE_LEVEL);
-		up(&mytr.nand_ops_mutex);
-		IS_IDLE = 1;
-		//printk("nand_log_release: %x \n", log_cnt);
-		if(log_cnt == NAND_LOG_RELEASE_LEVEL)
+		//IS_IDLE = 0;
+		if(BMM_GetLogCnt()<=NAND_LOG_RELEASE_LEVEL)
+		{
+			msleep(500);
+			up(&mytr.nand_ops_mutex);
 			return 0;
+		}
 		else
-			return log_cnt;
+		{
+			tmpPos = BMM_GetLogReleasePos(NAND_LOG_RELEASE_LEVEL);
+			// flush cached page before Merge
+			if(tmpPos>=0)
+			{
+				tmpLogicBlock = BMM_GetLogReleaseLogBlk(tmpPos);
+				if((tmpLogicBlock>=0)&&(tmpLogicBlock<0xffff)&&(BMM_CheckLastUsedPage(tmpPos)!=0))
+					NAND_CacheFlushLogicBlk(tmpLogicBlock);
+				tmpLogicBlock = BMM_GetLogReleaseLogBlk(tmpPos);
+				if(tmpLogicBlock == 0xffff)
+				{
+					up(&mytr.nand_ops_mutex);
+					return 0;
+				}
+			}
+			up(&mytr.nand_ops_mutex);
+		}
+		
+		if(tmpPos>=0)
+		{
+			start_page = 0;
+			
+			while(1)
+			{
+				if(nand_getglobalvalue(&nand_io_clear) == 0)
+				{
+					msleep(100);
+					continue;
+				}
+				
+				if(0 == down_trylock(&mytr.nand_ops_mutex))
+				{
+					//if(start_page == 0)
+					//	printk("BMM_RleaseLogBlock  0x%x start!\n", BMM_GetLogReleaseLogBlk(tmpPos));
+					if(start_page == 0)
+					{
+						tmpLogicBlock = BMM_GetLogReleaseLogBlk(tmpPos);
+						if(tmpLogicBlock == 0xffff)
+						{
+							up(&mytr.nand_ops_mutex);
+							return 0;
+						}
+					}
+					
+					
+					start_page = BMM_RleaseLogBlock(tmpPos, start_page, merge_page_cnt);
+					//nand_log_release_finish_flag = 0;
+					nand_clearglobalvalue(&nand_log_release_finish_flag);
+
+					//recieved nand_shut_down_flag
+					if(nand_getglobalvalue(&nand_shut_down_flag) == 1)
+						nand_setglobalvalue2(&nand_shut_down_flag);	
+
+					if((start_page == 0xffff)||(start_page<0))
+					{
+						//printk("BMM_RleaseLogBlock pos %d end\n", tmpPos);
+						//printk("BMM_RleaseLogBlock end!\n");
+						//nand_log_release_finish_flag = 1;
+						nand_setglobalvalue(&nand_log_release_finish_flag);
+						up(&mytr.nand_ops_mutex);
+						break;
+					}
+					else
+					{
+						up(&mytr.nand_ops_mutex);
+					}
+				}
+				else
+				{
+					msleep(100);
+				}
+			}
+			
+		}
+		
+		//IS_IDLE = 1;
+		return 0;
+
 	}
+	else
+	{
+		//recieved nand_shut_down_flag
+		if(nand_getglobalvalue(&nand_shut_down_flag) == 1)
+			nand_setglobalvalue2(&nand_shut_down_flag);			
+	}
+
+	
 	#endif
 
 	return -1;
@@ -1693,6 +1954,7 @@ static int nand_logrelease(struct nand_blk_dev *dev)
 
 static int nand_flush_force(__u32 dev_num)
 {
+#if 1
     //printk("nf dev: %d\n", dev_num);
 	#ifdef NAND_CACHE_RW
 		NAND_CacheFlushDev(dev_num);
@@ -1700,19 +1962,51 @@ static int nand_flush_force(__u32 dev_num)
 		LML_FlushPageCache();
 	#endif
 	//printk("e\n");
-
+#endif
 	return 0;
 }
 
 
-
+#if 0
 static void nand_flush_all(void)
 {
     int     timeout = 0;
 
+   //nand_shut_down_flag = 1;
+	nand_setglobalvalue(&nand_shut_down_flag);
+
+   /* wait for nand_shut_down_flag recieved */
+    for(timeout=0; timeout<10; timeout++) {
+        //if(nand_log_release_finish_flag == 0) {
+        if(nand_getglobalvalue(&nand_shut_down_flag) == 2) {
+		printk("nand wait nand_shut_down_flag recieved ok: 0x%x!\n", nand_getglobalvalue(&nand_shut_down_flag));	
+            break;
+        }
+        else {
+		 msleep(500);
+        }
+    }
+
+   /* wait for log release finish */
+    for(timeout=0; timeout<10; timeout++) {
+        //if(nand_log_release_finish_flag == 0) {
+        if(nand_getglobalvalue(&nand_log_release_finish_flag) == 0) {
+            msleep(500);
+        }
+        else {
+		printk("nand wait log release finish ok: 0x%x!\n", nand_getglobalvalue(&nand_log_release_finish_flag));	
+            break;
+        }
+    }
+
+   if((timeout == 10)||(nand_getglobalvalue(&nand_log_release_finish_flag) == 0))
+   {
+   	printk("nand wait log release finish failed! timeout = %d, nand_log_release_finish_flag = 0x%x\n", timeout, nand_getglobalvalue(&nand_log_release_finish_flag));
+   }	
+
     /* wait write finish */
     for(timeout=0; timeout<10; timeout++) {
-        if(after_rw) {
+        if(nand_getglobalvalue(&after_rw)||(nand_getglobalvalue(&nand_io_clear) == 0)) {
             msleep(500);
         }
         else {
@@ -1747,6 +2041,53 @@ static void nand_flush_all(void)
 #endif
 
 }
+#else
+static void nand_flush_all(void)
+{
+    int     timeout = 0;
+
+    /* wait write finish */
+    for(timeout=0; timeout<10; timeout++) {
+        if(nand_getglobalvalue(&after_rw)) {
+            msleep(500);
+        }
+        else {
+            break;
+        }
+    }
+
+    /* get nand ops mutex */
+    down(&mytr.nand_ops_mutex);
+	 
+    printk("nand try to shutdown %d time\n", timeout);
+
+#if 0
+    #ifdef NAND_CACHE_RW
+    NAND_CacheFlush();
+    #else
+    LML_FlushPageCache();
+    #endif
+    BMM_WriteBackAllMapTbl();
+    printk("Nand flash shutdown ok!\n");
+#else
+	#ifdef NAND_CACHE_RW
+    	NAND_CacheFlush();
+		NAND_CacheClose();
+	#else
+		LML_FlushPageCache();
+	#endif
+
+	LML_MergeLogBlk_Quit();
+
+	LML_Exit();
+	FMT_Exit();
+	PHY_Exit();
+
+#endif
+
+}
+
+#endif
 
 
 int cal_partoff_within_disk(char *name,struct inode *i)
@@ -1770,6 +2111,12 @@ static int __init init_blklayer(void)
 	unsigned long irqflags_ch0, irqflags_ch1;
 #endif
 	ClearNandStruct();
+	spin_lock_init(&nand_global_value_lock);
+
+	//nand_log_release_finish_flag = 1;
+	nand_setglobalvalue(&nand_log_release_finish_flag);
+	//nand_shut_down_flag = 0;	
+	nand_clearglobalvalue(&nand_shut_down_flag);
 
 	printk("[NAND] nand IO Merge: 0x%x \n", USE_BIO_MERGE);
 
@@ -2011,6 +2358,7 @@ static int nand_resume(struct platform_device *plat_dev)
     __s32 ret;
         int nand_ch_cnt=NAND_GetChannelCnt();
 	__u32 nand_index_bak = NAND_GetCurrentCH();
+	__u32 bank = 0;
 	
 	if(NORMAL_STANDBY== standby_type){
 		printk("[NAND] nand_resume normal\n");
@@ -2057,7 +2405,6 @@ static int nand_resume(struct platform_device *plat_dev)
         {
         	NAND_SetCurrentCH(j);
 		//printk("nand ch %d, chipconnectinfo: 0x%x\n ", j, NAND_GetChipConnect());
-			__u32 bank = 0;
         	for(i=0; i<4; i++)
 	        {
 	            if(NAND_GetChipConnect()&(0x1<<i)) //chip valid

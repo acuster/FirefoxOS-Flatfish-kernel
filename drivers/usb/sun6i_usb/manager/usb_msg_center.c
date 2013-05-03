@@ -49,8 +49,6 @@
 #include  "usb_hw_scan.h"
 #include  "usb_msg_center.h"
 
-extern int axp_usbvol(void);
-extern int axp_usbcur(void);
 extern int axp_usbvol_restore(void);
 extern int axp_usbcur_restore(void);
 
@@ -236,10 +234,6 @@ static void insmod_device_driver(struct usb_msg_center_info *center_info)
 {
 	DMSG_INFO("\n\ninsmod_device_driver\n\n");
 
-#ifndef  SW_USB_FPGA
-    axp_usbvol();
-    axp_usbcur();
-#endif
 	set_usb_role(center_info, USB_ROLE_DEVICE);
 	sw_usb_device_enable();
 

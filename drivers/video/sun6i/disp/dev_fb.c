@@ -319,7 +319,7 @@ static int __init Fb_map_video_memory(struct fb_info *info)
 	{
 		info->screen_base = page_address(page);
 		info->fix.smem_start = virt_to_phys(info->screen_base);
-		memset(info->screen_base,0,info->fix.smem_len);
+		memset(info->screen_base,0x0,info->fix.smem_len);
 		__inf("Fb_map_video_memory(alloc pages), pa=0x%08lx size:0x%x\n",info->fix.smem_start, info->fix.smem_len);
 		return 0;
 	}
@@ -334,7 +334,7 @@ static int __init Fb_map_video_memory(struct fb_info *info)
     if(info->screen_base)
     {
         __inf("Fb_map_video_memory(reserve), pa=0x%x size:0x%x\n",(unsigned int)info->fix.smem_start, (unsigned int)info->fix.smem_len);
-        memset(info->screen_base,0,info->fix.smem_len);
+        memset(info->screen_base,0x0,info->fix.smem_len);
         
         return 0;
     }else
@@ -1089,14 +1089,16 @@ __s32 DRV_disp_int_process(__u32 sel)
     g_fbi.wait_count[sel]++;
     wake_up_interruptible(&g_fbi.wait[sel]);
 
-	if(sel == 0)
-	{
-	    if(g_fbi.cb_r_conut != g_fbi.cb_w_conut)
-	    {
+    g_fbi.reg_active[sel] = 1;
+
+    if((g_fbi.reg_active[0] || !TCON_get_open_status(0)) && (g_fbi.reg_active[1] || !TCON_get_open_status(1)))
+    {
+        if(g_fbi.cb_r_conut != g_fbi.cb_w_conut)
+        {
     		schedule_work(&g_fbi.post2_cb_work);
         }
-	}
-
+    }
+    
     return 0;
 }
 
@@ -1131,88 +1133,99 @@ static void post2_cb(struct work_struct *work)
     mutex_unlock(&g_fbi.runtime_lock);
 }
 
-int disp_set_ovl_mode(__u32 sel, __u32 mode)
-{
-    if(mode == 2 && g_fbi.b_ovl_request)
-    {
-        BSP_disp_layer_release(0, 101);
-        BSP_disp_layer_release(0, 102);
-        BSP_disp_layer_release(0, 103);
-        g_fbi.b_ovl_request = 0;
-        //printk(KERN_WARNING "##>>>release layer\n");
-    }
-    g_fbi.ovl_mode = mode;
-
-    return 0;
-}
-
 int dispc_gralloc_queue(setup_dispc_data_t *psDispcData, int ui32DispcDataLength, void (*cb_fn)(void *, int), void *cb_arg)
 {
     __disp_layer_info_t         layer_info;
-    int i = 0;
-
-    if(g_fbi.ovl_mode != 2)
+    int i,disp,hdl;
+    int start_idx, layer_num = 0;
+    
+    BSP_disp_cmd_cache(0);
+    BSP_disp_cmd_cache(1);
+    for(disp = 0; disp < 2; disp++)
     {
-        for(i=0; i<3; i++)
+         if(disp == 0)
         {
-            int hdl = 101 + i;
-            
-            if(i < psDispcData->post2_layers)
-            {            
-                memcpy(&layer_info, &psDispcData->layer_info[i], sizeof(__disp_layer_info_t));
-                if(g_fbi.b_ovl_request == 0)
-                {
-                    BSP_disp_layer_request(0, DISP_LAYER_WORK_MODE_NORMAL);
-                    BSP_disp_layer_request(0, DISP_LAYER_WORK_MODE_NORMAL);
-                    BSP_disp_layer_request(0, DISP_LAYER_WORK_MODE_NORMAL);
-                    g_fbi.b_ovl_request = 1;
-                    //printk(KERN_WARNING "##>>>request layer\n");
-                }
+            start_idx = 0;
+            layer_num = psDispcData->primary_display_layer_num;
+        }
+        else
+        {
+            start_idx = psDispcData->primary_display_layer_num;
+            layer_num = psDispcData->post2_layers - psDispcData->primary_display_layer_num;
+        }
 
-                BSP_disp_layer_set_para(0, hdl, &layer_info);
-                BSP_disp_layer_open(0, hdl);
-                BSP_disp_layer_set_top(0, hdl);
+        for(i=0; i<4; i++)
+        {
+            hdl = 100 + i;
+
+            BSP_disp_layer_get_para(disp, hdl, &layer_info);
+            if(layer_info.mode == DISP_LAYER_WORK_MODE_SCALER)
+            {
+                if((i >= layer_num) || (psDispcData->layer_info[start_idx + i].mode == DISP_LAYER_WORK_MODE_NORMAL))
+                {
+                    BSP_disp_layer_release(disp, hdl);
+                    BSP_disp_layer_request(disp, DISP_LAYER_WORK_MODE_NORMAL);
+                }
+            }
+        }
+    }
+
+    for(disp = 0; disp < 2; disp++)
+    {
+        int haveFbTarget = 0;
+        
+        if(disp == 0)
+        {
+            start_idx = 0;
+            layer_num = psDispcData->primary_display_layer_num;
+        }
+        else
+        {
+            start_idx = psDispcData->primary_display_layer_num;
+            layer_num = psDispcData->post2_layers - psDispcData->primary_display_layer_num;
+        }
+        
+        for(i=0; i<4; i++)
+        {
+            hdl = 100 + i;
+            
+            if(i < layer_num)
+            {
+                memcpy(&layer_info, &psDispcData->layer_info[start_idx + i], sizeof(__disp_layer_info_t));
+
+                if(layer_info.fb.mode == DISP_MOD_NON_MB_PLANAR)
+                {
+                    if(layer_info.fb.format == DISP_FORMAT_YUV420)
+                    {
+                        layer_info.fb.addr[2] = layer_info.fb.addr[0] + layer_info.fb.size.width * layer_info.fb.size.height;
+                        layer_info.fb.addr[1] = layer_info.fb.addr[2] + (layer_info.fb.size.width * layer_info.fb.size.height)/4;
+                    }
+                }
+                BSP_disp_layer_set_para(disp, hdl, &layer_info);
+                BSP_disp_layer_open(disp, hdl);
+                BSP_disp_layer_set_top(disp, hdl);
+
+                if(i==1 && (psDispcData->layer_info[start_idx + 1].prio < psDispcData->layer_info[start_idx].prio))
+                {
+                    haveFbTarget = 1;
+                }
             }
             else
             {
-                if(g_fbi.b_ovl_request)
-                {
-                    BSP_disp_layer_close(0, hdl);
-                }
+
+                BSP_disp_layer_close(disp, hdl);
+
+            }
+
+            if(haveFbTarget)
+            {
+                BSP_disp_layer_set_top(disp, 100);
             }
         }
     }
     
-    if(psDispcData->use_sgx)
-    {
-        __disp_layer_info_t layer_para;
-        
-    	BSP_disp_layer_open(0, 100);
-        BSP_disp_layer_set_top(0, 100);
-        if(psDispcData->post2_layers == 0 && g_fbi.ovl_mode!=2)
-        {
-            BSP_disp_layer_alpha_enable(0, 100, 1);
-        }
-        else
-        {
-            BSP_disp_layer_alpha_enable(0, 100, 0);
-        }
-
-        BSP_disp_layer_get_para(0, 100, &layer_para);
-        layer_para.src_win.x = psDispcData->fb_scn_win.x;
-        layer_para.src_win.y = psDispcData->fb_yoffset + psDispcData->fb_scn_win.y;
-        layer_para.src_win.width = psDispcData->fb_scn_win.width;
-        layer_para.src_win.height = psDispcData->fb_scn_win.height;
-        layer_para.scn_win.x = psDispcData->fb_scn_win.x;
-        layer_para.scn_win.y = psDispcData->fb_scn_win.y;
-        layer_para.scn_win.width = psDispcData->fb_scn_win.width;
-        layer_para.scn_win.height = psDispcData->fb_scn_win.height;
-        BSP_disp_layer_set_para(0, 100, &layer_para);
-    }
-    else
-	{
-		BSP_disp_layer_close(0, 100);
-	}
+    BSP_disp_cmd_submit(0);
+    BSP_disp_cmd_submit(1);
 
     mutex_lock(&g_fbi.runtime_lock);
     if(g_fbi.b_no_output)
@@ -1233,10 +1246,37 @@ int dispc_gralloc_queue(setup_dispc_data_t *psDispcData, int ui32DispcDataLength
     	}
     	g_fbi.cb_arg[g_fbi.cb_w_conut] = cb_arg;
 
-    	//printk(KERN_WARNING "##w_conut:%d %x %d %d %d\n", g_fbi.cb_w_conut, (unsigned int)cb_arg, psDispcData->use_sgx, psDispcData->post2_layers, psDispcData->fb_yoffset);
+    	//printk(KERN_WARNING "##w_conut:%d %x %d\n", g_fbi.cb_w_conut, (unsigned int)cb_arg, psDispcData->post2_layers);
+	}
+
+	if(psDispcData->post2_layers > psDispcData->primary_display_layer_num)//have external display
+	{
+    	g_fbi.reg_active[0] = 0;
+    	g_fbi.reg_active[1] = 0;
+	}
+	else
+	{
+    	g_fbi.reg_active[0] = 0;
+    	g_fbi.reg_active[1] = 1;
 	}
 	mutex_unlock(&g_fbi.runtime_lock);
 
+    return 0;
+}
+
+int dispc_blank(int disp, int blank)
+{
+    int i = 0;
+    
+    if(blank)
+    {
+        for(i=0; i<4; i++)
+        {
+            BSP_disp_layer_close(disp, 100 + i);
+        }
+    }
+    g_fbi.blank[disp] = blank;
+    
     return 0;
 }
 

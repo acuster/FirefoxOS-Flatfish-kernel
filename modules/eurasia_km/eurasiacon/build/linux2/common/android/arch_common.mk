@@ -42,20 +42,24 @@ SYS_CFLAGS := \
  -fno-short-enums \
  -funwind-tables \
  -D__linux__ \
- -I$(ANDROID_ROOT)/bionic/libc/arch-$(ANDROID_ARCH)/include \
- -I$(ANDROID_ROOT)/bionic/libc/include \
- -I$(ANDROID_ROOT)/bionic/libc/kernel/common \
- -I$(ANDROID_ROOT)/bionic/libc/kernel/arch-$(ANDROID_ARCH) \
- -I$(ANDROID_ROOT)/bionic/libm/include \
- -I$(ANDROID_ROOT)/bionic/libm/include/$(ANDROID_ARCH) \
- -I$(ANDROID_ROOT)/bionic/libthread_db/include \
- -I$(ANDROID_ROOT)/frameworks/base/include \
+ -isystem $(ANDROID_ROOT)/bionic/libc/arch-$(ANDROID_ARCH)/include \
+ -isystem $(ANDROID_ROOT)/bionic/libc/include \
+ -isystem $(ANDROID_ROOT)/bionic/libc/kernel/common \
+ -isystem $(ANDROID_ROOT)/bionic/libc/kernel/arch-$(ANDROID_ARCH) \
+ -isystem $(ANDROID_ROOT)/bionic/libm/include \
+ -isystem $(ANDROID_ROOT)/bionic/libm/include/$(ANDROID_ARCH) \
+ -isystem $(ANDROID_ROOT)/bionic/libthread_db/include \
+ -isystem $(ANDROID_ROOT)/frameworks/base/include \
  -isystem $(ANDROID_ROOT)/system/core/include \
- -I$(ANDROID_ROOT)/hardware/libhardware/include \
- -I$(ANDROID_ROOT)/external/openssl/include
+ -isystem $(ANDROID_ROOT)/hardware/libhardware/include \
+ -isystem $(ANDROID_ROOT)/external/openssl/include
 
 SYS_EXE_LDFLAGS := \
  -Bdynamic -nostdlib -Wl,-dynamic-linker,/system/bin/linker \
  -lc -ldl -lcutils
 
 SYS_LIB_LDFLAGS := $(SYS_EXE_LDFLAGS)
+
+SYS_EXE_LDFLAGS_CXX := -lstdc++
+
+SYS_LIB_LDFLAGS_CXX := $(SYS_EXE_LDFLAGS_CXX)

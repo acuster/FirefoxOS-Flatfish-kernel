@@ -3351,14 +3351,14 @@ dm_CheckStatistics(
 		return;
 
 	//2008.12.10 tynli Add for getting Current_Tx_Rate_Reg flexibly.
-	Adapter->HalFunc.GetHwRegHandler( Adapter, HW_VAR_INIT_TX_RATE, (pu1Byte)(&Adapter->TxStats.CurrentInitTxRate) );
+	rtw_hal_get_hwreg( Adapter, HW_VAR_INIT_TX_RATE, (pu1Byte)(&Adapter->TxStats.CurrentInitTxRate) );
 
 	// Calculate current Tx Rate(Successful transmited!!)
 
 	// Calculate current Rx Rate(Successful received!!)
 	
 	//for tx tx retry count
-	Adapter->HalFunc.GetHwRegHandler( Adapter, HW_VAR_RETRY_COUNT, (pu1Byte)(&Adapter->TxStats.NumTxRetryCount) );
+	rtw_hal_get_hwreg( Adapter, HW_VAR_RETRY_COUNT, (pu1Byte)(&Adapter->TxStats.NumTxRetryCount) );
 #endif	
 }
 
@@ -3366,10 +3366,14 @@ static void dm_CheckPbcGPIO(_adapter *padapter)
 {	
 	u8	tmp1byte;
 	u8	bPbcPressed = _FALSE;
+	int i=0;
 
 	if(!padapter->registrypriv.hw_wps_pbc)
 		return;
 
+	do
+	{
+		i++;
 #ifdef CONFIG_USB_HCI
 	tmp1byte = rtw_read8(padapter, GPIO_IO_SEL);
 	tmp1byte |= (HAL_8192C_HW_GPIO_WPS_BIT);
@@ -3385,30 +3389,44 @@ static void dm_CheckPbcGPIO(_adapter *padapter)
 	tmp1byte =rtw_read8(padapter, GPIO_IN);
 	
 	if (tmp1byte == 0xff)
-		return ;
+	{
+		bPbcPressed = _FALSE;
+		break ;
+	}	
 
 	if (tmp1byte&HAL_8192C_HW_GPIO_WPS_BIT)
 	{
 		bPbcPressed = _TRUE;
+
+		if(i<=3)
+			rtw_msleep_os(50);
 	}
 #else
 	tmp1byte = rtw_read8(padapter, GPIO_IN);
 	//RT_TRACE(COMP_IO, DBG_TRACE, ("dm_CheckPbcGPIO - %x\n", tmp1byte));
 
 	if (tmp1byte == 0xff || padapter->init_adpt_in_progress)
-		return ;
+	{
+		bPbcPressed = _FALSE;
+		break ;
+	}
 
 	if((tmp1byte&HAL_8192C_HW_GPIO_WPS_BIT)==0)
 	{
 		bPbcPressed = _TRUE;
-	}
-#endif
 
+		if(i<=3)
+			rtw_msleep_os(50);
+	}
+#endif		
+
+	}while(i<=3 && bPbcPressed == _TRUE);
+	
 	if( _TRUE == bPbcPressed)
 	{
 		// Here we only set bPbcPressed to true
 		// After trigger PBC, the variable will be set to false		
-		DBG_8192C("CheckPbcGPIO - PBC is pressed\n");
+		DBG_8192C("CheckPbcGPIO - PBC is pressed, try_cnt=%d\n", i-1);
                 
 #ifdef RTK_DMP_PLATFORM
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,12))
@@ -3427,7 +3445,7 @@ static void dm_CheckPbcGPIO(_adapter *padapter)
 		rtw_signal_process(padapter->pid[0], SIGUSR1);
 #endif
 #endif
-	}
+	}	
 }
 
 #ifdef CONFIG_PCI_HCI
@@ -4772,6 +4790,7 @@ rtl8192c_HalDmWatchDog(
 	u8 hw_init_completed = _FALSE;
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	struct mlme_priv	*pmlmepriv = &Adapter->mlmepriv;
 #ifdef CONFIG_CONCURRENT_MODE
 	PADAPTER pbuddy_adapter = Adapter->pbuddy_adapter;
 #endif //CONFIG_CONCURRENT_MODE
@@ -4792,12 +4811,12 @@ rtl8192c_HalDmWatchDog(
 	#if defined(CONFIG_CONCURRENT_MODE)
 	if (Adapter->iface_type != IFACE_PORT0 && pbuddy_adapter) {
 		bFwCurrentInPSMode = pbuddy_adapter->pwrctrlpriv.bFwCurrentInPSMode;
-		Adapter->HalFunc.GetHwRegHandler(pbuddy_adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
+		rtw_hal_get_hwreg(pbuddy_adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
 	} else
 	#endif
 	{
 		bFwCurrentInPSMode = Adapter->pwrctrlpriv.bFwCurrentInPSMode;
-		Adapter->HalFunc.GetHwRegHandler(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
+		rtw_hal_get_hwreg(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
 	}
 #endif
 
@@ -4859,7 +4878,12 @@ rtl8192c_HalDmWatchDog(
 		//
 		// Tx Power Tracking.
 		//
-		rtl8192c_dm_CheckTXPowerTracking(Adapter);
+#if MP_DRIVER == 0
+#ifdef CONFIG_BUSY_TRAFFIC_SKIP_PWR_TRACK
+		if(pmlmepriv->LinkDetectInfo.bBusyTraffic == _FALSE)
+#endif //CONFIG_BUSY_TRAFFIC_SKIP_PWR_TRACK
+#endif
+			rtl8192c_dm_CheckTXPowerTracking(Adapter);
 
 		//
 		// Rate Adaptive by Rx Signal Strength mechanism.

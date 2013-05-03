@@ -10,6 +10,12 @@
 
 #define MAX_CH_NUM 4
 
+#define CSI_ALIGN_4K(x) (((x) + (4095)) & ~(4095))
+#define CSI_ALIGN_32B(x) (((x) + (31)) & ~(31))
+#define CSI_ALIGN_16B(x) (((x) + (15)) & ~(15))
+#define CSI_ALIGN_8B(x) (((x) + (7)) & ~(7))
+
+
 enum bus_if
 {
   PARALLEL = 0,

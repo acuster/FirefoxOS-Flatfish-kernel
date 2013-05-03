@@ -1400,6 +1400,10 @@ void USBC_ForceVbusValid(__hdle hUSB, __u32 vbus_type)
 {
     __usbc_otg_t *usbc_otg = (__usbc_otg_t *)hUSB;
 
+	if(usbc_otg == NULL){
+		return ;
+	}
+
     switch(vbus_type){
 		case USBC_VBUS_TYPE_LOW:
 			__USBC_ForceVbusValidToLow(usbc_otg->base_addr);
@@ -1412,6 +1416,7 @@ void USBC_ForceVbusValid(__hdle hUSB, __u32 vbus_type)
 		default:
 			__USBC_ForceVbusValidDisable(usbc_otg->base_addr);
 	}
+	return ;
 }
 
 void USBC_A_valid_InputSelect(__hdle hUSB, __u32 source)

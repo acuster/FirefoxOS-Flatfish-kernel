@@ -199,6 +199,11 @@ dhd_common_init(osl_t *osh)
 	if (select_type == 1 || select_type == 2) {
 		bcm_strncpy_s(fw_path, sizeof(fw_path), "/system/vendor/modules/fw_bcm40181a2.bin", MOD_PARAM_PATHLEN-1);
 	}
+
+	//select ap6330
+	if (select_type == 9) {
+		bcm_strncpy_s(fw_path, sizeof(fw_path), "/system/vendor/modules/fw_bcm40183b2_ag.bin", MOD_PARAM_PATHLEN-1);
+	}
 #else /* CONFIG_BCMDHD_FW_PATH */
 	fw_path[0] = '\0';
 #endif /* CONFIG_BCMDHD_FW_PATH */
@@ -211,6 +216,11 @@ dhd_common_init(osl_t *osh)
 	//select ap6210
 	if (select_type == 2) {
 		bcm_strncpy_s(nv_path, sizeof(nv_path), "/system/vendor/modules/nvram_ap6210.txt", MOD_PARAM_PATHLEN-1);
+	}
+
+	//select ap6330
+	if (select_type == 9) {
+		bcm_strncpy_s(nv_path, sizeof(nv_path), "/system/vendor/modules/nvram_ap6330.txt", MOD_PARAM_PATHLEN-1);
 	}
 #else /* CONFIG_BCMDHD_NVRAM_PATH */
 	nv_path[0] = '\0';

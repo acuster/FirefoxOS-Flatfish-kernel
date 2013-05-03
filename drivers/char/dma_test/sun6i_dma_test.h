@@ -46,21 +46,17 @@
 
 #include <mach/dma.h>
 
-/*
- * dma test case id
- */
+/* dma test case id */
 enum dma_test_case_e {
-	DTC_1T_MEM_2_MEM,	/* dma test case one-thread from memory to memory */
-	DTC_SINGLE_MODE,	/* dma test case for single mode */
-	DTC_SINGLE_CONT_MODE,	/* dma test case for single mode & continue mode */
-	DTC_2T_MEM_2_MEM,	/* dma test case two-thread from memory to memory,
-				 * memory range should not be conflict, eg: thread one
-				 * from memory-A to memory-B, thread two from C to D.
-				 */
-	DTC_1TM2M_MANY_ENQ, 	/* dma test case one-thread memory to memory, many enqueue */
-	DTC_1TM2M_CONTI_MOD,	/* dma test case one-thread memory to memory, continue mode */
-	DTC_1T_ENQ_AFT_DONE,	/* check if dma driver can continue transfer new enqueued buffer after done */
-	DTC_1T_CMD_STOP,	/* stop when dma running */
+	DTC_CHAIN_MODE,		/* test chain mode */
+	DTC_CHAIN_CONTI_MOD,	/* test chain continue mode */
+	DTC_SINGLE_MODE,	/* test single mode */
+	DTC_SINGLE_CONT_MODE,	/* test single continue mode */
+
+	DTC_TWO_THREAD,		/* test two-thread using dma simultaneously */
+	DTC_MANY_ENQ, 		/* test many enqueueing */
+	DTC_ENQ_AFT_DONE,	/* test enqueue after all buffer done, to see if auto start new buf */
+	DTC_STOP,		/* test stop dma when running */
 	DTC_MAX
 };
 

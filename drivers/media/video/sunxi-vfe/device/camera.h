@@ -16,6 +16,10 @@
  * useful.
  */
 
+#define HXGA_WIDTH    4000
+#define HXGA_HEIGHT   3000
+#define QUXGA_WIDTH   3264
+#define QUXGA_HEIGHT  2448
 #define QSXGA_WIDTH   2592
 #define QSXGA_HEIGHT  1936
 #define QXGA_WIDTH    2048

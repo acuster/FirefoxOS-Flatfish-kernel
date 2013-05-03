@@ -65,6 +65,10 @@ __s32 hdmi_core_close()
     HDMI_WUINT32(0x204,0x00000000);
     HDMI_WUINT32(0x208,0x00000000);
     HDMI_WUINT32(0x004,0x00000000);			//close hdmi controller
+    hdmi_state	=	HDMI_State_Idle;
+	video_mode  = 	HDMI720P_50;
+	memset(&audio_info,0,sizeof(HDMI_AUDIO_INFO));
+	memset(Device_Support_VIC,0,sizeof(Device_Support_VIC));
     __inf("reg:  200:0x%08x,  204:0x%08x,  208:0x%08x,  004:0x%08x\n",HDMI_RUINT32(0x200), HDMI_RUINT32(0x204), HDMI_RUINT32(0x208), HDMI_RUINT32(0x004));
     return 0;
 }
@@ -74,7 +78,7 @@ __s32 main_Hpd_Check(void)
 
 	for(i=0;i<3;i++)
 	{
-		hdmi_delay_ms(10);
+		hdmi_delay_ms(200);
 		if( HDMI_RUINT32(0x00c)&0x01)
 		{
 		    times_1++;
@@ -110,7 +114,7 @@ __s32 hdmi_main_task_loop(void)
 		{
 			__inf("plugout\n");
             hdmi_state = HDMI_State_Wait_Hpd;
-            Hdmi_hpd_event();
+            Hdmi_hpd_event(0);
 		}
 	}
 	switch(hdmi_state)
@@ -146,7 +150,7 @@ __s32 hdmi_main_task_loop(void)
     		 HDMI_RUINT32(0x5f0);
 
     		 hdmi_state = HDMI_State_Wait_Video_config;
-             Hdmi_hpd_event();
+             Hdmi_hpd_event(1);
 
     	case HDMI_State_Wait_Video_config:
     	    if(video_enable)

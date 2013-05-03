@@ -116,9 +116,9 @@ static void LCD_cfg_panel_info(__panel_extend_para_t * info)
 
 static __s32 LCD_open_flow(__u32 sel)
 {
-	LCD_OPEN_FUNC(sel, LCD_power_on, 50);   //open lcd power, and delay 50ms
-	LCD_OPEN_FUNC(sel, LCD_panel_init,	200);   //open lcd power, than delay 200ms
-	LCD_OPEN_FUNC(sel, TCON_open, 100);     //open lcd controller, and delay 100ms
+	LCD_OPEN_FUNC(sel, LCD_power_on, 100);   //open lcd power, and delay 50ms
+	LCD_OPEN_FUNC(sel, LCD_panel_init, 200);   //open lcd power, than delay 200ms
+	LCD_OPEN_FUNC(sel, TCON_open, 200);     //open lcd controller, and delay 100ms
 	LCD_OPEN_FUNC(sel, LCD_bl_open, 0);     //open lcd backlight, and delay 0ms
 
 	return 0;
@@ -180,6 +180,15 @@ static void LCD_panel_init(__u32 sel)
 
 static void LCD_panel_exit(__u32 sel)
 {
+    __panel_para_t *info = kmalloc(sizeof(__panel_para_t), GFP_KERNEL | __GFP_ZERO);
+    
+    lcd_get_panel_para(sel, info);
+	if(info->lcd_if == LCD_IF_EXT_DSI)
+	{
+		lp079x01_exit();
+	}
+	kfree(info);
+
 	return ;
 }
 

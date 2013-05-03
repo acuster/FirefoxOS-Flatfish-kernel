@@ -195,6 +195,9 @@ typedef struct sw_hcd{
 	sw_hcd_io_t	*sw_hcd_io;
 	u32 enable;
 	u32 suspend;
+       u32 session_req_flag;
+       u32 reset_flag;
+       u32 vbus_error_flag;
 }sw_hcd_t;
 
 struct sw_hcd_ep_reg{

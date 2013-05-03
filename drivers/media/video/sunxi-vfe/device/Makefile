@@ -12,6 +12,7 @@ obj-m			+= ov5650.o
 obj-m			+= ov5647.o
 obj-m			+= t8et5.o
 obj-m			+= s5k4e1.o
+obj-m			+= s5k4e1_mipi.o
 
 
 

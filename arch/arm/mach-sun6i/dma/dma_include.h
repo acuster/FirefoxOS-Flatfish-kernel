@@ -32,7 +32,7 @@
 #include <linux/clk.h>
 #include <linux/pm.h>
 
-//#define TEMP_FOR_XJF_20121121 	/* alloc des buf in request, temp for xujinfeng, 2012-11-21 */
+//#define NOT_ALLOC_DES_TEMP 	/* not alloc des buf in enqueue, temparily */
 
 #include <mach/dma.h>
 #include <mach/clock.h>
@@ -43,11 +43,11 @@
 #include "dma_single.h"
 #include "dma_chain.h"
 
-#ifdef TEMP_FOR_XJF_20121121
+#ifdef NOT_ALLOC_DES_TEMP
 #define TEMP_DES_CNT	20
 extern u32 index_get, index_put;
 extern u32 v_addr, p_addr;
-#endif /* TEMP_FOR_XJF_20121121 */
+#endif /* NOT_ALLOC_DES_TEMP */
 
 #ifdef DBG_DMA
 #include <linux/delay.h>

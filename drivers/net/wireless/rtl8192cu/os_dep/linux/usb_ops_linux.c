@@ -383,7 +383,7 @@ _func_enter_;
 		_rtw_up_sema(&(pxmitpriv->tx_retevt));
 	}
 */
-        //rtw_free_xmitframe_ex(pxmitpriv, pxmitframe);
+        //rtw_free_xmitframe(pxmitpriv, pxmitframe);
 	
 	if(padapter->bSurpriseRemoved || padapter->bDriverStopped ||padapter->bWritePortCancel)
 	{
@@ -583,6 +583,14 @@ _func_enter_;
 		rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_WRITE_PORT_ERR);
 		DBG_871X("usb_write_port, status=%d\n", status);
 		RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_write_port(): usb_submit_urb, status=%x\n", status));
+		
+		switch (status) {
+		case -ENODEV:
+			padapter->bDriverStopped=_TRUE;
+			break;
+		default:
+			break;
+		}
 		goto exit;
 	}
 

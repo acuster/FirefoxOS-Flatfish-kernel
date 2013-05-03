@@ -568,7 +568,7 @@ int cfg_read_file(char *file_path, char *buf, size_t len)
 	  
   fp = filp_open(file_path,O_RDONLY | O_CREAT,0);
   if(IS_ERR(fp)) {
-    printk("open bin file failed!\n");
+    printk("[vfe_warn]open bin file failed!\n");
     return -EFAULT;
   }
   
@@ -596,13 +596,13 @@ int cfg_read_file(char *file_path, char *buf, size_t len)
  */
 int cfg_read_ini(char *file_path, struct cfg_section **cfg_section)
 {
-  struct file* fp;
+//  struct file* fp;
   unsigned int i;
   struct cfg_section *cfg_sct = *(cfg_section);
-  loff_t pos = 0;
-  mm_segment_t old_fs;
+//  loff_t pos = 0;
+//  mm_segment_t old_fs;
 	char *buf;
-	int buf_len, ret;
+	int buf_len, ret = 0;
 	
 	buf = (char*)kzalloc(INI_MAX_CHAR_NUM,GFP_KERNEL);
 

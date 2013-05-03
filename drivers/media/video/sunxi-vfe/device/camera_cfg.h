@@ -8,9 +8,13 @@
 typedef enum tag_CAMERA_IO_CMD {
   GET_CURRENT_WIN_CFG,
   SET_FPS,
+  ISP_SET_EXP_GAIN,
 }__camera_cmd_t;
 
-
+struct sensor_exp_gain {
+	int exp_val;
+	int gain_val;	
+};
 struct sensor_win_size {
   int width;
   int height;

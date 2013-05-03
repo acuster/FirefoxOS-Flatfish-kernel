@@ -83,6 +83,8 @@ static struct gpio_hdle {
 #ifdef FPGA_SIM_CONFIG
 #define IR_RXFILT_VAL    (16)             /* Filter Threshold = 8*42.7 = ~341us < 500us */
 #define IR_RXIDLE_VAL    (5)              /* Idle Threshold = (2+1)*128*42.7 = ~16.4ms > 9ms */
+#define IR_ACTIVE_T      (0)              /* Active Threshold */
+#define IR_ACTIVE_T_C    (1)              /* Active Threshold */
 
 #define IR_L1_MIN        (160)            /* 80*42.7 = ~3.4ms, Lead1(4.5ms) > IR_L1_MIN */
 #define IR_L0_MIN        (80)             /* 40*42.7 = ~1.7ms, Lead0(4.5ms) Lead0R(2.25ms)> IR_L0_MIN */ 
@@ -93,6 +95,8 @@ static struct gpio_hdle {
 #else
 #define IR_RXFILT_VAL    (8)              /* Filter Threshold = 8*42.7 = ~341us	< 500us */	
 #define IR_RXIDLE_VAL    (2)              /* Idle Threshold = (2+1)*128*42.7 = ~16.4ms > 9ms */
+#define IR_ACTIVE_T      (0)              /* Active Threshold */
+#define IR_ACTIVE_T_C    (1)              /* Active Threshold */
 
 #define IR_L1_MIN        (80)             /* 80*42.7 = ~3.4ms, Lead1(4.5ms) > IR_L1_MIN */
 #define IR_L0_MIN        (40)             /* 40*42.7 = ~1.7ms, Lead0(4.5ms) Lead0R(2.25ms)> IR_L0_MIN */
@@ -332,6 +336,8 @@ static void ir_reg_cfg(void)
         
 	tmp |= (IR_RXFILT_VAL&0x3f)<<2;		/* Set Filter Threshold */
 	tmp |= (IR_RXIDLE_VAL&0xff)<<8; 	/* Set Idle Threshold */
+	tmp |= (IR_ACTIVE_T&0xff)<<16;          /* Set Active Threshold */
+	tmp |= (IR_ACTIVE_T_C&0xff)<<23;
 	writel(tmp, IR_BASE+IR_SPLCFG_REG);
 	
 	/* Invert Input Signal */
@@ -342,8 +348,8 @@ static void ir_reg_cfg(void)
 	
 	/* Set Rx Interrupt Enable */
 	tmp = (0x1<<4)|0x3;
-	//tmp |= ((IR_FIFO_SIZE>>1)-1)<<8; 	/* Rx FIFO Threshold = FIFOsz/2; */
-	tmp |= ((IR_FIFO_SIZE>>2)-1)<<8;	/* Rx FIFO Threshold = FIFOsz/4; */
+	tmp |= ((IR_FIFO_SIZE>>1)-1)<<8; 	/* Rx FIFO Threshold = FIFOsz/2; */
+	//tmp |= ((IR_FIFO_SIZE>>2)-1)<<8;	/* Rx FIFO Threshold = FIFOsz/4; */
 	writel(tmp, IR_BASE+IR_RXINTE_REG);
 	
 	/* Enable IR Module */
@@ -396,13 +402,17 @@ static unsigned long ir_packet_handler(unsigned char *buf, unsigned long dcnt)
 	unsigned long code = 0;
 	int bitCnt = 0;
 	unsigned long i=0;
+	unsigned int active_delay = 0;
 	
 	//print_hex_dump_bytes("--- ", DUMP_PREFIX_NONE, buf, dcnt);
 
 	dprintk(DEBUG_DATA_INFO, "dcnt = %d \n", (int)dcnt);
 	
 	/* Find Lead '1' */
+	active_delay = (IR_ACTIVE_T+1)*(IR_ACTIVE_T_C ? 128:1);
+	dprintk(DEBUG_DATA_INFO, "%d active_delay = %d\n", __LINE__, active_delay);
 	len = 0;
+	len += (active_delay>>1);
 	for (i=0; i<dcnt; i++) {
 		val = buf[i];
 		if (val & 0x80) {
@@ -415,9 +425,11 @@ static unsigned long ir_packet_handler(unsigned char *buf, unsigned long dcnt)
 		}
 	}
 
+	dprintk(DEBUG_DATA_INFO, "%d len = %ld\n", __LINE__, len);
+
 	if ((val&0x80) || (len<=IR_L1_MIN))
 		return IR_ERROR_CODE; /* Invalid Code */
-		
+
 	/* Find Lead '0' */
 	len = 0;
 	for (; i<dcnt; i++) {
@@ -517,10 +529,9 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 		/* Read FIFO */
 		for (i=0; i<dcnt; i++) {
 			if (ir_rawbuffer_full()) {
-			
-				dprintk(DEBUG_INT, "ir_irq_service: Raw Buffer Full!!\n");
+
+				ir_get_data();
 				
-				break;
 			} else {
 				ir_write_rawbuffer(ir_get_data());
 			}			
@@ -530,6 +541,12 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 	if (intsta & IR_RXINTS_RXPE) {	 /* Packet End */
 		unsigned long code;
 		int code_valid;
+
+		if (ir_rawbuffer_full()) {
+			dprintk(DEBUG_INT, "ir_irq_service: Raw Buffer Full!!\n");
+			ir_rawbuf.dcnt = 0;
+			return IRQ_HANDLED;
+		}
 		
 		code = ir_packet_handler(ir_rawbuf.buf, ir_rawbuf.dcnt);
 		ir_rawbuf.dcnt = 0;
@@ -549,8 +566,12 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 			}
 		} else {
 			if (code_valid) {
-				s_timer->expires = jiffies + (HZ/5);	/* 200ms timeout */
-				add_timer(s_timer);
+				if (!timer_pending(s_timer)) {
+					s_timer->expires = jiffies + (HZ/5);	/* 200ms timeout */
+					add_timer(s_timer);
+
+				} else
+					mod_timer(s_timer, jiffies + (HZ/5));
 				timer_used = 1;	
 			}
 		}
@@ -561,11 +582,11 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 				if (code_valid)	
 					ir_code = code;  /* update saved code with a new valid code */
 				
-					dprintk(DEBUG_INT, "IR RAW CODE : %lu\n",(ir_code>>16)&0xff);
+				dprintk(DEBUG_INT, "IR RAW CODE : %lu\n",(ir_code>>16)&0xff);
 				
-					input_report_key(ir_dev, ir_keycodes[(ir_code>>16)&0xff], 1);
+				input_report_key(ir_dev, ir_keycodes[(ir_code>>16)&0xff], 1);
 			
-					dprintk(DEBUG_INT, "IR CODE : %d\n",ir_keycodes[(ir_code>>16)&0xff]);
+				dprintk(DEBUG_INT, "IR CODE : %d\n",ir_keycodes[(ir_code>>16)&0xff]);
 				
 				input_sync(ir_dev);			
 				

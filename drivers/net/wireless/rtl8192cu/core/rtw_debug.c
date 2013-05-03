@@ -332,24 +332,17 @@ int proc_get_rf_info(char *page, char **start,
 			  int *eof, void *data)
 {
 	struct net_device *dev = data;
-	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);	
-	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;	
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	int len = 0;
 
-	len += snprintf(page + len, count - len, "cur_ch=%d, cur_bw=%d, cur_ch_offet=%d\n", 
-					pmlmeext->cur_channel, pmlmeext->cur_bwmode, pmlmeext->cur_ch_offset);
-	
-#ifdef CONFIG_CONCURRENT_MODE
-	if(padapter->pcodatapriv)
-	{	
-		len += snprintf(page + len, count - len, "co_ch=%d, co_bw=%d, co_ch_offset=%d\n", 
-					padapter->pcodatapriv->co_ch, padapter->pcodatapriv->co_bw, padapter->pcodatapriv->co_ch_offset);
-	}	
-#endif //CONFIG_CONCURRENT_MODE
-				
+	len += snprintf(page + len, count - len, "cur_ch=%d, cur_bw=%d, cur_ch_offet=%d\n"
+		"oper_ch=%d, oper_bw=%d, oper_ch_offet=%d\n",
+		pmlmeext->cur_channel, pmlmeext->cur_bwmode, pmlmeext->cur_ch_offset,
+		rtw_get_oper_ch(padapter), rtw_get_oper_bw(padapter), rtw_get_oper_choffset(padapter));
 	*eof = 1;
-	return len;
 
+	return len;
 }
 
 int proc_get_ap_info(char *page, char **start,
@@ -595,7 +588,7 @@ int proc_get_rf_reg_dump1(char *page, char **start,
 	for(i=0;i<0xC0;i++)
 	{								
 		//value = PHY_QueryRFReg(padapter, (RF90_RADIO_PATH_E)path,i, bMaskDWord);
-		value =padapter->HalFunc.read_rfreg(padapter, path, i, 0xffffffff);
+		value =rtw_hal_read_rfreg(padapter, path, i, 0xffffffff);
 		if(j%4==1)	len += snprintf(page + len, count - len, "0x%02x ",i);
 		len += snprintf(page + len, count - len, " 0x%08x ",value);
 		if((j++)%4==0)	len += snprintf(page + len, count - len, "\n");	
@@ -622,7 +615,7 @@ int proc_get_rf_reg_dump2(char *page, char **start,
 	for(i=0xC0;i<0x100;i++)
 	{								
 		//value = PHY_QueryRFReg(padapter, (RF90_RADIO_PATH_E)path,i, bMaskDWord);
-		value =padapter->HalFunc.read_rfreg(padapter, path, i, 0xffffffff);
+		value =rtw_hal_read_rfreg(padapter, path, i, 0xffffffff);
 		if(j%4==1)	len += snprintf(page + len, count - len, "0x%02x ",i);
 		len += snprintf(page + len, count - len, " 0x%08x ",value);
 		if((j++)%4==0)	len += snprintf(page + len, count - len, "\n");	
@@ -648,7 +641,7 @@ int proc_get_rf_reg_dump3(char *page, char **start,
 	for(i=0;i<0xC0;i++)
 	{								
 		//value = PHY_QueryRFReg(padapter, (RF90_RADIO_PATH_E)path,i, bMaskDWord);
-		value =padapter->HalFunc.read_rfreg(padapter, path, i, 0xffffffff);
+		value =rtw_hal_read_rfreg(padapter, path, i, 0xffffffff);
 		if(j%4==1)	len += snprintf(page + len, count - len, "0x%02x ",i);
 		len += snprintf(page + len, count - len, " 0x%08x ",value);
 		if((j++)%4==0)	len += snprintf(page + len, count - len, "\n");	
@@ -675,7 +668,7 @@ int proc_get_rf_reg_dump4(char *page, char **start,
 	for(i=0xC0;i<0x100;i++)
 	{								
 		//value = PHY_QueryRFReg(padapter, (RF90_RADIO_PATH_E)path,i, bMaskDWord);
-		value =padapter->HalFunc.read_rfreg(padapter, path, i, 0xffffffff);
+		value =rtw_hal_read_rfreg(padapter, path, i, 0xffffffff);
 		if(j%4==1)	len += snprintf(page + len, count - len, "0x%02x ",i);
 		len += snprintf(page + len, count - len, " 0x%08x ",value);
 		if((j++)%4==0)	len += snprintf(page + len, count - len, "\n");
@@ -749,6 +742,54 @@ int proc_set_rx_signal(struct file *file, const char *buffer,
 	return count;
 	
 }
+
+int proc_get_ht_enable(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+	
+	int len = 0;
+	
+	if(pregpriv)
+		len += snprintf(page + len, count - len,
+			"%d\n",
+			pregpriv->ht_enable
+			);
+
+	*eof = 1;
+	return len;
+}
+
+int proc_set_ht_enable(struct file *file, const char *buffer,
+		unsigned long count, void *data)
+{
+	struct net_device *dev = (struct net_device *)data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+	char tmp[32];
+	u32 mode;
+
+	if (count < 1)
+		return -EFAULT;
+
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {		
+
+		int num = sscanf(tmp, "%d ", &mode);
+
+		if( pregpriv && mode >= 0 && mode < 2 )
+		{
+			pregpriv->ht_enable= mode;
+			printk("ht_enable=%d\n", pregpriv->ht_enable);
+		}
+	}
+	
+	return count;
+	
+}
+
 
 int proc_get_cbw40_enable(char *page, char **start,
 			  off_t offset, int count,
@@ -921,7 +962,7 @@ int proc_get_vid(char *page, char **start,
 	u16 VID=0;
 	int len = 0;
 
-	padapter->HalFunc.GetHwRegHandler(padapter, HW_VAR_VID, (u8 *)&VID);	
+	rtw_hal_get_hwreg(padapter, HW_VAR_VID, (u8 *)&VID);	
 	len += snprintf(page + len, count - len,
 		"%04x\n",
 		VID
@@ -940,7 +981,7 @@ int proc_get_pid(char *page, char **start,
 	u16 PID=0;	
 	int len = 0;
 
-	padapter->HalFunc.GetHwRegHandler(padapter, HW_VAR_PID, (u8 *)&PID);		
+	rtw_hal_get_hwreg(padapter, HW_VAR_PID, (u8 *)&PID);		
 	len += snprintf(page + len, count - len,
 		"%04x\n",
 		PID

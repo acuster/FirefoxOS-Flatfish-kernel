@@ -376,6 +376,7 @@ __s32 Scaler_open(__u32 sel)
     scaler_clk_on(sel);
     deu_clk_open(sel, 0);
     DE_SCAL_Reset(sel);
+    DE_SCAL_DisableINT(sel,DE_WB_END_IE);
     DE_SCAL_Enable(sel);
 
     return DIS_SUCCESS;
@@ -425,33 +426,51 @@ __s32 Scaler_Request(__u32 sel)
         if(!(gdisp.scaler[0].status & SCALER_USED))
         {
             ret = 0;
+            Scaler_open(ret);
+        }
+        else if(gdisp.scaler[0].b_close == TRUE)
+        {
+            ret = 0;
+            gdisp.scaler[0].b_close = FALSE;
         }
         else if(!(gdisp.scaler[1].status & SCALER_USED))
         {
             ret = 1;
+            Scaler_open(ret);
+        }
+        else if(gdisp.scaler[1].b_close == TRUE)
+        {
+            ret = 1;
+            gdisp.scaler[1].b_close = FALSE;
         }
     }
 
     if(ret == 0 || ret == 1)
     {
-        Scaler_open(ret);
+        //Scaler_open(ret);
         gdisp.scaler[ret].b_close = FALSE;
         gdisp.scaler[ret].status |= SCALER_USED;
     }
-    else
-    {
-        DE_WRN("request scaler fail\n");
-    }
+
     return ret;
 }
 
 
 __s32 Scaler_Release(__u32 sel, __bool b_display)
 {   
+    __u32 screen_index = 0xff;
+    __bool b_display_off = TRUE;
+
     DE_INF("Scaler_Release:%d\n", sel);
-    
+
     DE_SCAL_Set_Di_Ctrl(sel, 0, 0, 0, 0);
-    if(b_display == FALSE || BSP_disp_get_output_type(sel)==DISP_OUTPUT_TYPE_NONE)
+    screen_index = gdisp.scaler[sel].screen_index;
+
+    if((screen_index != 0xff) && (BSP_disp_get_output_type(screen_index) != DISP_OUTPUT_TYPE_NONE))
+    {
+        b_display_off = FALSE;
+    }
+    if((b_display == FALSE) || b_display_off)
     {
         Scaler_close(sel);
     }
@@ -1006,7 +1025,12 @@ __s32 BSP_disp_scaler_release(__u32 handle)
     __u32 sel = 0;
 
     sel = SCALER_HANDTOID(handle);
-    return Scaler_Release(sel, FALSE);
+    if(gdisp.scaler[sel].screen_index == 0xff)
+    {
+        return Scaler_Release(sel, FALSE);
+    }
+    DE_INF("BSP_disp_scaler_release, scaler %d not a independent scaler\n", sel);
+    return 0;
 }
 
 __s32 BSP_disp_scaler_start_ex(__u32 handle,__disp_scaler_para_t *para)

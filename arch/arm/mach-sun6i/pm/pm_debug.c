@@ -77,6 +77,13 @@ void save_mem_status_nommu(volatile __u32 val)
 	return;
 }
 
+void save_cpux_mem_status_nommu(volatile __u32 val)
+{
+	*(volatile __u32 *)(STATUS_REG_PA  + 0x00) = val;
+	return;
+}
+
+
 
 
 /*

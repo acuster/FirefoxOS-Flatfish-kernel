@@ -223,7 +223,7 @@ static void sw_hcd_port_reset(struct sw_hcd *sw_hcd, bool do_reset)
     u8 power = 0;
 	void __iomem *usbc_base = sw_hcd->mregs;
 
-	if (!is_host_active(sw_hcd)){
+	if (!is_host_active(sw_hcd) || !sw_hcd->enable){
 	    DMSG_PANIC("ERR: usb host is not active\n");
 	    return;
 	}
@@ -410,6 +410,11 @@ int sw_hcd_hub_control(struct usb_hcd	*hcd,
         return -ESHUTDOWN;
     }
 
+	if (!is_host_active(sw_hcd) || !sw_hcd->enable){
+	    DMSG_PANIC("ERR: usb host is not active\n");
+	    return -ESHUTDOWN;
+	}
+
 	spin_lock_irqsave(&sw_hcd->lock, flags);
 
     if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))) {
@@ -453,7 +458,7 @@ int sw_hcd_hub_control(struct usb_hcd	*hcd,
     		    case USB_PORT_FEAT_POWER:
 					/* fixme */
 				    //sw_hcd_set_vbus(sw_hcd, 0);
-				    set_vbus_flag = 0;
+                                   set_vbus_flag = USB_SET_VBUS_OFF;
     			break;
 
         		case USB_PORT_FEAT_C_CONNECTION:
@@ -562,7 +567,7 @@ int sw_hcd_hub_control(struct usb_hcd	*hcd,
         			 */
 
         			sw_hcd_start(sw_hcd);
-					set_vbus_flag = 1;
+                                       set_vbus_flag = USB_SET_VBUS_ON;
 
     			break;
 
@@ -646,8 +651,13 @@ error:
 	}
 
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
-	if(set_vbus_flag != -1){
+
+       if(set_vbus_flag == USB_SET_VBUS_OFF){
 		sw_hcd_set_vbus(sw_hcd, set_vbus_flag);
+       }else if(set_vbus_flag == USB_SET_VBUS_ON){
+               if(sw_hcd->enable){
+                       sw_hcd_set_vbus(sw_hcd, set_vbus_flag);
+               }
 	}
     return retval;
 }

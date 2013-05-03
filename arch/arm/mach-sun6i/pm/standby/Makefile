@@ -33,6 +33,7 @@ RESUME1_OBJ =	./super/common.o             	\
 		./super/super_delay.o      	\
 		./super/super_clock.o      	\
 		./super/super_power.o      	\
+		./super/super_cpus.o      	\
 		./super/resume/resume1.o 	\
 		./super/resume/resume_head.o 	\
 		./super/resume/resume1_c_part.o \
@@ -107,6 +108,7 @@ resume1:
 	$(CC) $(INCLUDE) $(CFLAGS) ./super/super_delay.S             -o ./super/super_delay.o
 	$(CC) $(INCLUDE) $(CFLAGS) ./super/super_clock.c             -o ./super/super_clock.o
 	$(CC) $(INCLUDE) $(CFLAGS) ./super/super_power.c             -o ./super/super_power.o
+	$(CC) $(INCLUDE) $(CFLAGS) ./super/super_cpus.c              -o ./super/super_cpus.o	
 	
 	$(CC) $(INCLUDE) $(CFLAGS) ./super/resume/resume1_c_part.c     	-o ./super/resume/resume1_c_part.o
 	$(CC) $(INCLUDE) $(CFLAGS) ./super/resume/resume_head.c     	-o ./super/resume/resume_head.o	

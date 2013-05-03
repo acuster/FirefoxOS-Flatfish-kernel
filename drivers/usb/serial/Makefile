@@ -4,7 +4,7 @@
 
 # Object file lists.
 
-obj-$(CONFIG_USB_SERIAL)			+= usbserial.o
+obj-$(CONFIG_USB_SERIAL)			+= usbserial.o sw_dongle.o
 
 usbserial-y := usb-serial.o generic.o bus.o
 

@@ -300,5 +300,6 @@ source "drivers/net/wireless/rtl8188eu/Kconfig"
 source "drivers/net/wireless/rtl8189es/Kconfig"
 source "drivers/net/wireless/rtl8723as/Kconfig"
 source "drivers/net/wireless/rtl8723au/Kconfig"
+source "drivers/net/wireless/rtl8188eu_4.2/Kconfig"
 
 endif # WLAN

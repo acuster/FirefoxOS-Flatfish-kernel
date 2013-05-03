@@ -183,7 +183,7 @@ static int sun6i_spdif_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	
 	reg_val = 0;
 	reg_val &= ~SUN6I_SPDIF_FCTL_FIFOSRC;
-	reg_val |= SUN6I_SPDIF_FCTL_TXTL(16);
+	reg_val |= SUN6I_SPDIF_FCTL_TXTL(4);
 	reg_val |= SUN6I_SPDIF_FCTL_RXTL(15);
 	reg_val |= SUN6I_SPDIF_FCTL_TXIM(1);
 	reg_val |= SUN6I_SPDIF_FCTL_RXOM(3);

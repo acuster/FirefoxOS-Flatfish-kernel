@@ -63,9 +63,10 @@ typedef struct
     __u32   cur_count;
     void    (*cb_fn)(void *, int);
     void    *cb_arg[10];
-    __bool  b_ovl_request;
     __bool  b_no_output;
+    __u32   reg_active[2];
     struct mutex	runtime_lock;
+    int     blank[2];
 }fb_info_t;
 
 typedef struct
@@ -121,6 +122,7 @@ extern __s32 DRV_lcd_close(__u32 sel);
 extern __s32 Fb_Init(__u32 from);
 extern __s32 Fb_Exit(void);
 
-extern int disp_set_ovl_mode(__u32 sel, __u32 mode);
+extern int dispc_blank(int disp, int blank);
+
 
 #endif

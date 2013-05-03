@@ -124,6 +124,8 @@ typedef struct
     __s32 (*hmdi_get_input_csc)(void);
     __s32 (*hdmi_suspend)(void);
     __s32 (*hdmi_resume)(void);
+    __s32 (*hdmi_early_suspend)(void);
+    __s32 (*hdmi_late_resume)(void);
 	__s32 (*disp_int_process)(__u32 sel);
 	__s32 (*vsync_event)(__u32 sel);
     __s32 (*take_effect) (__u32 sel);
@@ -277,6 +279,8 @@ extern __s32 bsp_disp_lcd_get_bright_curve_en(__u32 sel);
 extern __s32 bsp_disp_lcd_set_bright_curve_en(__u32 sel, __u32 en);
 extern __s32 bsp_disp_get_fps(__u32 sel);
 extern __s32 BSP_disp_lcd_set_fps(__u32 sel, __u32 fps);
+extern __s32 BSP_disp_lcd_get_size(__u32 sel, char *lcd_size);
+extern __s32 BSP_disp_lcd_get_model_name(__u32 sel, char *model_name);
 
 extern __s32 BSP_disp_tv_open(__u32 sel);
 extern __s32 BSP_disp_tv_close(__u32 sel);
@@ -305,6 +309,8 @@ extern __s32 BSP_disp_hdmi_dvi_support(__u32 sel);
 extern __s32 BSP_dsip_hdmi_get_input_csc(__u32 sel);
 extern __s32 BSP_disp_hdmi_suspend(void);
 extern __s32 BSP_disp_hdmi_resume(void);
+extern __s32 BSP_disp_hdmi_early_suspend(void);
+extern __s32 BSP_disp_hdmi_late_resume(void);
 extern __s32 BSP_disp_hdmi_cts_enable(__u32 en);
 extern __s32 BSP_disp_hdmi_get_cts_enable(void);
 extern __s32 BSP_disp_hdmi_set_test_mode(__u32 sel, __u32 mode);
@@ -374,6 +380,10 @@ extern __s32 BSP_disp_deu_get_window(__u32 sel, __u32 hid, __disp_rect_t *rect);
 
 extern __s32 iep_init(__u32 sel);
 extern __s32 iep_exit(__u32 sel);
+
+extern int TCON_get_open_status(__u32 sel);
+extern __s32 BSP_disp_cfg_start(__u32 sel);
+extern __s32 BSP_disp_cfg_finish(__u32 sel);
 
 #ifdef __LINUX_OSAL__
 __s32 Display_set_fb_timming(__u32 sel);

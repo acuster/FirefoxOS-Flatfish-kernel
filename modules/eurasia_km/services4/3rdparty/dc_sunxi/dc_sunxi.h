@@ -1,5 +1,5 @@
 /*************************************************************************/ /*!
-@Title          SUNXI Linux display driver structures and prototypes
+@Title          OMAP Linux display driver structures and prototypes
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
 @License        Dual MIT/GPLv2
 
@@ -39,8 +39,8 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   
 */ /**************************************************************************/
-#ifndef __SUNXILFB_H__
-#define __SUNXILFB_H__
+#ifndef __OMAPLFB_H__
+#define __OMAPLFB_H__
 
 #include <linux/version.h>
 
@@ -59,30 +59,30 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
-#define	SUNXILFB_CONSOLE_LOCK()		console_lock()
-#define	SUNXILFB_CONSOLE_UNLOCK()	console_unlock()
+#define	OMAPLFB_CONSOLE_LOCK()		console_lock()
+#define	OMAPLFB_CONSOLE_UNLOCK()	console_unlock()
 #else
-#define	SUNXILFB_CONSOLE_LOCK()		acquire_console_sem()
-#define	SUNXILFB_CONSOLE_UNLOCK()	release_console_sem()
+#define	OMAPLFB_CONSOLE_LOCK()		acquire_console_sem()
+#define	OMAPLFB_CONSOLE_UNLOCK()	release_console_sem()
 #endif
 
 #define unref__ __attribute__ ((unused))
 
-typedef void *       SUNXILFB_HANDLE;
+typedef void *       OMAPLFB_HANDLE;
 
-typedef bool SUNXILFB_BOOL, *SUNXILFB_PBOOL;
-#define	SUNXILFB_FALSE false
-#define SUNXILFB_TRUE true
+typedef bool OMAPLFB_BOOL, *OMAPLFB_PBOOL;
+#define	OMAPLFB_FALSE false
+#define OMAPLFB_TRUE true
 
-typedef	atomic_t	SUNXILFB_ATOMIC_BOOL;
+typedef	atomic_t	OMAPLFB_ATOMIC_BOOL;
 
-typedef atomic_t	SUNXILFB_ATOMIC_INT;
+typedef atomic_t	OMAPLFB_ATOMIC_INT;
 
-/* SUNXILFB buffer structure */
-typedef struct SUNXILFB_BUFFER_TAG
+/* OMAPLFB buffer structure */
+typedef struct OMAPLFB_BUFFER_TAG
 {
-	struct SUNXILFB_BUFFER_TAG	*psNext;
-	struct SUNXILFB_DEVINFO_TAG	*psDevInfo;
+	struct OMAPLFB_BUFFER_TAG	*psNext;
+	struct OMAPLFB_DEVINFO_TAG	*psDevInfo;
 
 	struct work_struct sWork;
 
@@ -95,12 +95,12 @@ typedef struct SUNXILFB_BUFFER_TAG
 	IMG_CPU_VIRTADDR             	sCPUVAddr;
 	PVRSRV_SYNC_DATA            	*psSyncData;
 
-	SUNXILFB_HANDLE      		hCmdComplete;
+	OMAPLFB_HANDLE      		hCmdComplete;
 	unsigned long    		ulSwapInterval;
-} SUNXILFB_BUFFER;
+} OMAPLFB_BUFFER;
 
-/* SUNXILFB swapchain structure */
-typedef struct SUNXILFB_SWAPCHAIN_TAG
+/* OMAPLFB swapchain structure */
+typedef struct OMAPLFB_SWAPCHAIN_TAG
 {
 	/* Swap chain ID */
 	unsigned int			uiSwapChainID;
@@ -109,7 +109,7 @@ typedef struct SUNXILFB_SWAPCHAIN_TAG
 	unsigned long       		ulBufferCount;
 
 	/* list of buffers in the swapchain */
-	SUNXILFB_BUFFER     		*psBuffer;
+	OMAPLFB_BUFFER     		*psBuffer;
 
 	/* Swap chain work queue */
 	struct workqueue_struct   	*psWorkQueue;
@@ -121,16 +121,16 @@ typedef struct SUNXILFB_SWAPCHAIN_TAG
 	 * unblanked, by forcing an extended wait for VSync before
 	 * attempting the next flip.
 	 */
-	SUNXILFB_BOOL			bNotVSynced;
+	OMAPLFB_BOOL			bNotVSynced;
 
 	/* Previous number of blank events */
 	int				iBlankEvents;
 
 	/* Framebuffer Device ID for messages (e.g. printk) */
 	unsigned int            	uiFBDevID;
-} SUNXILFB_SWAPCHAIN;
+} OMAPLFB_SWAPCHAIN;
 
-typedef struct SUNXILFB_FBINFO_TAG
+typedef struct OMAPLFB_FBINFO_TAG
 {
 	unsigned long       ulFBSize;
 	unsigned long       ulBufferSize;
@@ -150,15 +150,15 @@ typedef struct SUNXILFB_FBINFO_TAG
 	PVRSRV_PIXEL_FORMAT ePixelFormat;
 
 #if defined(CONFIG_DSSCOMP)
-	SUNXILFB_BOOL		bIs2D;
+	OMAPLFB_BOOL		bIs2D;
 	IMG_SYS_PHYADDR		*psPageList;
 	struct ion_handle	*psIONHandle;
 	IMG_UINT32			uiBytesPerPixel;
 #endif
-} SUNXILFB_FBINFO;
+} OMAPLFB_FBINFO;
 
 /* kernel device information structure */
-typedef struct SUNXILFB_DEVINFO_TAG
+typedef struct OMAPLFB_DEVINFO_TAG
 {
 	/* Framebuffer Device ID */
 	unsigned int            uiFBDevID;
@@ -170,7 +170,7 @@ typedef struct SUNXILFB_DEVINFO_TAG
 	struct mutex		sCreateSwapChainMutex;
 
 	/* system surface info */
-	SUNXILFB_BUFFER          sSystemBuffer;
+	OMAPLFB_BUFFER          sSystemBuffer;
 
 	/* jump table into PVR services */
 	PVRSRV_DC_DISP2SRV_KMJTABLE	sPVRJTable;
@@ -179,16 +179,16 @@ typedef struct SUNXILFB_DEVINFO_TAG
 	PVRSRV_DC_SRV2DISP_KMJTABLE	sDCJTable;
 
 	/* fb info structure */
-	SUNXILFB_FBINFO          sFBInfo;
+	OMAPLFB_FBINFO          sFBInfo;
 
 	/* Only one swapchain supported by this device so hang it here */
-	SUNXILFB_SWAPCHAIN      *psSwapChain;
+	OMAPLFB_SWAPCHAIN      *psSwapChain;
 
 	/* Swap chain ID */
 	unsigned int		uiSwapChainID;
 
 	/* True if PVR Services is flushing its command queues */
-	SUNXILFB_ATOMIC_BOOL     sFlushCommands;
+	OMAPLFB_ATOMIC_BOOL     sFlushCommands;
 
 	/* pointer to linux frame buffer information structure */
 	struct fb_info         *psLINFBInfo;
@@ -211,25 +211,25 @@ typedef struct SUNXILFB_DEVINFO_TAG
 	DISPLAY_DIMS            sDisplayDim;
 
 	/* True if screen is blanked */
-	SUNXILFB_ATOMIC_BOOL	sBlanked;
+	OMAPLFB_ATOMIC_BOOL	sBlanked;
 
 	/* Number of blank/unblank events */
-	SUNXILFB_ATOMIC_INT	sBlankEvents;
+	OMAPLFB_ATOMIC_INT	sBlankEvents;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	/* Set by early suspend */
-	SUNXILFB_ATOMIC_BOOL	sEarlySuspendFlag;
+	OMAPLFB_ATOMIC_BOOL	sEarlySuspendFlag;
 
 	struct early_suspend    sEarlySuspend;
 #endif
 
 #if defined(SUPPORT_DRI_DRM)
-	SUNXILFB_ATOMIC_BOOL     sLeaveVT;
+	OMAPLFB_ATOMIC_BOOL     sLeaveVT;
 #endif
 
-}  SUNXILFB_DEVINFO;
+}  OMAPLFB_DEVINFO;
 
-#define	SUNXILFB_PAGE_SIZE 4096
+#define	OMAPLFB_PAGE_SIZE 4096
 
 /* DEBUG only printk */
 #ifdef	DEBUG
@@ -247,75 +247,76 @@ typedef struct SUNXILFB_DEVINFO_TAG
  *****************************************************************************
  * Error values
  *****************************************************************************/
-typedef enum _SUNXILFB_ERROR_
+typedef enum _OMAPLFB_ERROR_
 {
-	SUNXILFB_OK                             =  0,
-	SUNXILFB_ERROR_GENERIC                  =  1,
-	SUNXILFB_ERROR_OUT_OF_MEMORY            =  2,
-	SUNXILFB_ERROR_TOO_FEW_BUFFERS          =  3,
-	SUNXILFB_ERROR_INVALID_PARAMS           =  4,
-	SUNXILFB_ERROR_INIT_FAILURE             =  5,
-	SUNXILFB_ERROR_CANT_REGISTER_CALLBACK   =  6,
-	SUNXILFB_ERROR_INVALID_DEVICE           =  7,
-	SUNXILFB_ERROR_DEVICE_REGISTER_FAILED   =  8,
-	SUNXILFB_ERROR_SET_UPDATE_MODE_FAILED   =  9
-} SUNXILFB_ERROR;
+	OMAPLFB_OK                             =  0,
+	OMAPLFB_ERROR_GENERIC                  =  1,
+	OMAPLFB_ERROR_OUT_OF_MEMORY            =  2,
+	OMAPLFB_ERROR_TOO_FEW_BUFFERS          =  3,
+	OMAPLFB_ERROR_INVALID_PARAMS           =  4,
+	OMAPLFB_ERROR_INIT_FAILURE             =  5,
+	OMAPLFB_ERROR_CANT_REGISTER_CALLBACK   =  6,
+	OMAPLFB_ERROR_INVALID_DEVICE           =  7,
+	OMAPLFB_ERROR_DEVICE_REGISTER_FAILED   =  8,
+	OMAPLFB_ERROR_SET_UPDATE_MODE_FAILED   =  9
+} OMAPLFB_ERROR;
 
-typedef enum _SUNXILFB_UPDATE_MODE_
+typedef enum _OMAPLFB_UPDATE_MODE_
 {
-	SUNXILFB_UPDATE_MODE_UNDEFINED			= 0,
-	SUNXILFB_UPDATE_MODE_MANUAL			= 1,
-	SUNXILFB_UPDATE_MODE_AUTO			= 2,
-	SUNXILFB_UPDATE_MODE_DISABLED			= 3
-} SUNXILFB_UPDATE_MODE;
+	OMAPLFB_UPDATE_MODE_UNDEFINED			= 0,
+	OMAPLFB_UPDATE_MODE_MANUAL			= 1,
+	OMAPLFB_UPDATE_MODE_AUTO			= 2,
+	OMAPLFB_UPDATE_MODE_DISABLED			= 3
+} OMAPLFB_UPDATE_MODE;
 
 #ifndef UNREFERENCED_PARAMETER
 #define	UNREFERENCED_PARAMETER(param) (param) = (param)
 #endif
 
-SUNXILFB_ERROR SUNXILFBInit(void);
-SUNXILFB_ERROR SUNXILFBDeInit(void);
+OMAPLFB_ERROR OMAPLFBInit(void);
+OMAPLFB_ERROR OMAPLFBDeInit(void);
 
 /* OS Specific APIs */
-SUNXILFB_DEVINFO *SUNXILFBGetDevInfoPtr(unsigned uiFBDevID);
-unsigned SUNXILFBMaxFBDevIDPlusOne(void);
-void *SUNXILFBAllocKernelMem(unsigned long ulSize);
-void SUNXILFBFreeKernelMem(void *pvMem);
-SUNXILFB_ERROR SUNXILFBGetLibFuncAddr(char *szFunctionName, PFN_DC_GET_PVRJTABLE *ppfnFuncTable);
-SUNXILFB_ERROR SUNXILFBCreateSwapQueue (SUNXILFB_SWAPCHAIN *psSwapChain);
-void SUNXILFBDestroySwapQueue(SUNXILFB_SWAPCHAIN *psSwapChain);
-void SUNXILFBInitBufferForSwap(SUNXILFB_BUFFER *psBuffer);
-void SUNXILFBSwapHandler(SUNXILFB_BUFFER *psBuffer);
-void SUNXILFBQueueBufferForSwap(SUNXILFB_SWAPCHAIN *psSwapChain, SUNXILFB_BUFFER *psBuffer);
-void SUNXILFBFlip(SUNXILFB_DEVINFO *psDevInfo, SUNXILFB_BUFFER *psBuffer);
-SUNXILFB_BOOL SUNXILFBSetUpdateMode(SUNXILFB_DEVINFO *psDevInfo, SUNXILFB_UPDATE_MODE eMode);
-SUNXILFB_BOOL SUNXILFBWaitForVSync(SUNXILFB_DEVINFO *psDevInfo);
-SUNXILFB_BOOL SUNXILFBManualSync(SUNXILFB_DEVINFO *psDevInfo);
-SUNXILFB_BOOL SUNXILFBCheckModeAndSync(SUNXILFB_DEVINFO *psDevInfo);
-SUNXILFB_ERROR SUNXILFBUnblankDisplay(SUNXILFB_DEVINFO *psDevInfo);
-SUNXILFB_ERROR SUNXILFBEnableLFBEventNotification(SUNXILFB_DEVINFO *psDevInfo);
-SUNXILFB_ERROR SUNXILFBDisableLFBEventNotification(SUNXILFB_DEVINFO *psDevInfo);
-void SUNXILFBCreateSwapChainLockInit(SUNXILFB_DEVINFO *psDevInfo);
-void SUNXILFBCreateSwapChainLockDeInit(SUNXILFB_DEVINFO *psDevInfo);
-void SUNXILFBCreateSwapChainLock(SUNXILFB_DEVINFO *psDevInfo);
-void SUNXILFBCreateSwapChainUnLock(SUNXILFB_DEVINFO *psDevInfo);
-void SUNXILFBAtomicBoolInit(SUNXILFB_ATOMIC_BOOL *psAtomic, SUNXILFB_BOOL bVal);
-void SUNXILFBAtomicBoolDeInit(SUNXILFB_ATOMIC_BOOL *psAtomic);
-void SUNXILFBAtomicBoolSet(SUNXILFB_ATOMIC_BOOL *psAtomic, SUNXILFB_BOOL bVal);
-SUNXILFB_BOOL SUNXILFBAtomicBoolRead(SUNXILFB_ATOMIC_BOOL *psAtomic);
-void SUNXILFBAtomicIntInit(SUNXILFB_ATOMIC_INT *psAtomic, int iVal);
-void SUNXILFBAtomicIntDeInit(SUNXILFB_ATOMIC_INT *psAtomic);
-void SUNXILFBAtomicIntSet(SUNXILFB_ATOMIC_INT *psAtomic, int iVal);
-int SUNXILFBAtomicIntRead(SUNXILFB_ATOMIC_INT *psAtomic);
-void SUNXILFBAtomicIntInc(SUNXILFB_ATOMIC_INT *psAtomic);
+OMAPLFB_DEVINFO *OMAPLFBGetDevInfoPtr(unsigned uiFBDevID);
+unsigned OMAPLFBMaxFBDevIDPlusOne(void);
+void *OMAPLFBAllocKernelMem(unsigned long ulSize);
+void OMAPLFBFreeKernelMem(void *pvMem);
+OMAPLFB_ERROR OMAPLFBGetLibFuncAddr(char *szFunctionName, PFN_DC_GET_PVRJTABLE *ppfnFuncTable);
+OMAPLFB_ERROR OMAPLFBCreateSwapQueue (OMAPLFB_SWAPCHAIN *psSwapChain);
+void OMAPLFBDestroySwapQueue(OMAPLFB_SWAPCHAIN *psSwapChain);
+void OMAPLFBInitBufferForSwap(OMAPLFB_BUFFER *psBuffer);
+void OMAPLFBSwapHandler(OMAPLFB_BUFFER *psBuffer);
+void OMAPLFBQueueBufferForSwap(OMAPLFB_SWAPCHAIN *psSwapChain, OMAPLFB_BUFFER *psBuffer);
+void OMAPLFBFlip(OMAPLFB_DEVINFO *psDevInfo, OMAPLFB_BUFFER *psBuffer);
+OMAPLFB_UPDATE_MODE OMAPLFBGetUpdateMode(OMAPLFB_DEVINFO *psDevInfo);
+OMAPLFB_BOOL OMAPLFBSetUpdateMode(OMAPLFB_DEVINFO *psDevInfo, OMAPLFB_UPDATE_MODE eMode);
+OMAPLFB_BOOL OMAPLFBWaitForVSync(OMAPLFB_DEVINFO *psDevInfo);
+OMAPLFB_BOOL OMAPLFBManualSync(OMAPLFB_DEVINFO *psDevInfo);
+OMAPLFB_BOOL OMAPLFBCheckModeAndSync(OMAPLFB_DEVINFO *psDevInfo);
+OMAPLFB_ERROR OMAPLFBUnblankDisplay(OMAPLFB_DEVINFO *psDevInfo);
+OMAPLFB_ERROR OMAPLFBEnableLFBEventNotification(OMAPLFB_DEVINFO *psDevInfo);
+OMAPLFB_ERROR OMAPLFBDisableLFBEventNotification(OMAPLFB_DEVINFO *psDevInfo);
+void OMAPLFBCreateSwapChainLockInit(OMAPLFB_DEVINFO *psDevInfo);
+void OMAPLFBCreateSwapChainLockDeInit(OMAPLFB_DEVINFO *psDevInfo);
+void OMAPLFBCreateSwapChainLock(OMAPLFB_DEVINFO *psDevInfo);
+void OMAPLFBCreateSwapChainUnLock(OMAPLFB_DEVINFO *psDevInfo);
+void OMAPLFBAtomicBoolInit(OMAPLFB_ATOMIC_BOOL *psAtomic, OMAPLFB_BOOL bVal);
+void OMAPLFBAtomicBoolDeInit(OMAPLFB_ATOMIC_BOOL *psAtomic);
+void OMAPLFBAtomicBoolSet(OMAPLFB_ATOMIC_BOOL *psAtomic, OMAPLFB_BOOL bVal);
+OMAPLFB_BOOL OMAPLFBAtomicBoolRead(OMAPLFB_ATOMIC_BOOL *psAtomic);
+void OMAPLFBAtomicIntInit(OMAPLFB_ATOMIC_INT *psAtomic, int iVal);
+void OMAPLFBAtomicIntDeInit(OMAPLFB_ATOMIC_INT *psAtomic);
+void OMAPLFBAtomicIntSet(OMAPLFB_ATOMIC_INT *psAtomic, int iVal);
+int OMAPLFBAtomicIntRead(OMAPLFB_ATOMIC_INT *psAtomic);
+void OMAPLFBAtomicIntInc(OMAPLFB_ATOMIC_INT *psAtomic);
 
-#if defined(DEBUG)
-void SUNXILFBPrintInfo(SUNXILFB_DEVINFO *psDevInfo);
-#else
-#define	SUNXILFBPrintInfo(psDevInfo)
-#endif
+//#if defined(DEBUG)
+void OMAPLFBPrintInfo(OMAPLFB_DEVINFO *psDevInfo);
+//#else
+//#define	OMAPLFBPrintInfo(psDevInfo)
+//#endif
 
-#endif /* __SUNXILFB_H__ */
+#endif /* __OMAPLFB_H__ */
 
 /******************************************************************************
  End of file (dc_sunxi.h)

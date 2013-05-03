@@ -354,6 +354,26 @@ __s32 BSP_disp_hdmi_resume(void)
     return -1;
 }
 
+__s32 BSP_disp_hdmi_early_suspend(void)
+{
+    if(gdisp.init_para.hdmi_early_suspend)
+    {
+        return gdisp.init_para.hdmi_early_suspend();
+    }
+
+    return -1;
+}
+
+__s32 BSP_disp_hdmi_late_resume(void)
+{
+    if(gdisp.init_para.hdmi_late_resume)
+    {
+        return gdisp.init_para.hdmi_late_resume();
+    }
+
+    return -1;
+}
+
 __s32 BSP_disp_set_hdmi_func(__disp_hdmi_func * func)
 {
     gdisp.init_para.hdmi_open = func->hdmi_open;
@@ -367,6 +387,8 @@ __s32 BSP_disp_set_hdmi_func(__disp_hdmi_func * func)
     gdisp.init_para.hmdi_get_input_csc = func->hdmi_get_input_csc;
     gdisp.init_para.hdmi_suspend = func->hdmi_suspend;
     gdisp.init_para.hdmi_resume = func->hdmi_resume;
+    gdisp.init_para.hdmi_early_suspend = func->hdmi_early_suspend;
+    gdisp.init_para.hdmi_late_resume = func->hdmi_late_resume;
 
     return DIS_SUCCESS;
 }

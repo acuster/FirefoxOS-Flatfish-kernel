@@ -1074,6 +1074,78 @@ static int sw_hcd_core_init(u16 sw_hcd_type, struct sw_hcd *sw_hcd)
 static void sw_hcd_irq_work(struct work_struct *data)
 {
 	struct sw_hcd *sw_hcd = container_of(data, struct sw_hcd, irq_work);
+       void __iomem *usbc_base = sw_hcd->mregs;
+       int reg_val = 0;
+
+	   if( sw_hcd == NULL || !sw_hcd->enable){
+		   DMSG_PANIC("ERR: sw_hcd_irq_work: sw_hcd is null\n");
+			return;
+	   }
+	   	
+       if(sw_hcd->vbus_error_flag){
+               sw_hcd->vbus_error_flag = 0;
+               /* power down */
+               sw_hcd_set_vbus(sw_hcd, 0);
+
+               USBC_INT_EnableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_VBUS_ERROR));
+       }
+
+       if(sw_hcd->session_req_flag){
+               sw_hcd->session_req_flag = 0;
+               /* power down */
+               reg_val = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
+               reg_val &= ~(1 << USBC_BP_DEVCTL_SESSION);
+               USBC_Writeb(reg_val, USBC_REG_DEVCTL(usbc_base));
+
+               USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_LOW);
+
+               sw_hcd_set_vbus(sw_hcd, 0);
+
+               /* delay */
+               mdelay(100);
+
+               /* power on */
+               reg_val = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
+               reg_val |= (1 << USBC_BP_DEVCTL_SESSION);
+               USBC_Writeb(reg_val, USBC_REG_DEVCTL(usbc_base));
+
+               USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_HIGH);
+
+               sw_hcd_set_vbus(sw_hcd, 1);
+
+               USBC_INT_EnableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSBE_EN_SESSION_REQ));
+       }
+
+       if(sw_hcd->reset_flag){
+               sw_hcd->reset_flag = 0;
+               /* power down */
+               reg_val = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
+               reg_val &= ~(1 << USBC_BP_DEVCTL_SESSION);
+               USBC_Writeb(reg_val, USBC_REG_DEVCTL(usbc_base));
+
+               USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_LOW);
+
+               sw_hcd_set_vbus(sw_hcd, 0);
+
+               /* delay */
+               mdelay(100);
+
+               /* power on */
+               reg_val = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
+               reg_val |= (1 << USBC_BP_DEVCTL_SESSION);
+               USBC_Writeb(reg_val, USBC_REG_DEVCTL(usbc_base));
+
+               USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_HIGH);
+
+               sw_hcd_set_vbus(sw_hcd, 1);
+
+               /* disconnect */
+               sw_hcd->ep0_stage = SW_HCD_EP0_START;
+               usb_hcd_resume_root_hub(sw_hcd_to_hcd(sw_hcd));
+               sw_hcd_root_disconnect(sw_hcd);
+
+               USBC_INT_EnableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_RESET));
+       }
 
 	sysfs_notify(&sw_hcd->controller->kobj, NULL, "mode");
 
@@ -1390,7 +1462,7 @@ static int sw_hcd_init_controller(struct device *dev, int nIrq, void __iomem *ct
 	 */
 	if (is_host_enabled(sw_hcd)) {
 		SW_HCD_HST_MODE(sw_hcd);
-
+		sw_hcd->enable = 1;
 		status = usb_add_hcd(sw_hcd_to_hcd(sw_hcd), -1, 0);
 		if (status){
 		    DMSG_PANIC("ERR: usb_add_hcd failed\n");

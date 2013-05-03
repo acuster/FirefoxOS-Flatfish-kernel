@@ -44,6 +44,13 @@ static int rfkill_set_power(void *data, bool blocked)
         case 7: /* mtk6620 */
             RF_MSG("[init] just record bt module select %d !!\n",mod_sel);
             break;            
+        case 9: /* ap6330 */
+             if (!blocked) {
+                wifi_pm_gpio_ctrl("ap6xxx_bt_regon", 1);
+            } else {
+                wifi_pm_gpio_ctrl("ap6xxx_bt_regon", 0);
+            }
+            break;
         default:
             RF_MSG("no bt module matched !!\n");
     }

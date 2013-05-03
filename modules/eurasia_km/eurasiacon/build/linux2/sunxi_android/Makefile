@@ -39,7 +39,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ### ###########################################################################
 ############
-TARGET_PRODUCT := fiber-evb
+TARGET_PRODUCT := fiber-w02
 ANDROID_ROOT = ../../../../../../../../android
 DISCIMAGE =$(ANDROID_ROOT)/out/target/product/$(TARGET_PRODUCT)
 LICHEE_KDIR = ../../../../../../../../lichee
@@ -61,7 +61,7 @@ TOP = $(KERNELDIR)/modules/eurasia_km/
 
 SGXCORE := 544
 SGX_CORE_REV := 115
-TARGET_PRODUCT ?= fiber-evb
+TARGET_PRODUCT ?= fiber-w02
 
 SGX_DYNAMIC_TIMING_INFO := 0
 
@@ -91,6 +91,8 @@ SUPPORT_ACTIVE_POWER_MANAGEMENT :=1
 SUPPORT_SGX_LOW_LATENCY_SCHEDULING :=1
 PVRSRV_NEED_PVR_DPF =: 1
 PVRSRV_NEW_PVR_DPF =: 1
+
+SUPPORT_ION := 1
 ##################
 
 # We have more memory on OMAP platforms, so we can spare to make the
