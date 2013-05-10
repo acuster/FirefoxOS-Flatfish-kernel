@@ -820,9 +820,16 @@ phy_PathA_RxIQK(
 	if(!(regEAC & BIT28) &&		
 		(((regE94 & 0x03FF0000)>>16) != 0x142) &&
 		(((regE9C & 0x03FF0000)>>16) != 0x42) )
+	{
 		result |= 0x01;
-	else							//if Tx not OK, ignore Rx
+	}
+	else
+	{
+		//reload RF 0x01
+		ODM_SetBBReg(pDM_Odm, rFPGA0_IQK, bMaskDWord, 0x00000000);
+		ODM_SetRFReg(pDM_Odm, RF_PATH_A, 0xdf, bRFRegOffsetMask, 0x180 );//if Tx not OK, ignore Rx
 		return result;
+	}
 
 	u4tmp = 0x80007C00 | (regE94&0x3FF0000)  | ((regE9C&0x3FF0000) >> 16);	
 	ODM_SetBBReg(pDM_Odm, rTx_IQK, bMaskDWord, u4tmp);

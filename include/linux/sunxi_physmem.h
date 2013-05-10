@@ -32,6 +32,7 @@ struct sunmm_cache_range{
 unsigned int sunxi_mem_alloc(unsigned int size);
 void sunxi_mem_free(unsigned int phymem);
 unsigned int sunxi_mem_get_rest_size(void);
+unsigned int sunxi_get_largest_free(void);
 
 /* sunxi flush cache api */
 int flush_dcache_all(void);

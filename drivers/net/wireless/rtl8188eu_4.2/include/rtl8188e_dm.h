@@ -64,12 +64,14 @@ struct 	dm_priv
 	u8 LastDTPLvl;
 	u8 DynamicTxHighPowerLvl;//Add by Jacken Tx Power Control for Near/Far Range 2008/03/06
 	u8	PowerIndex_backup[6];
+	u8	TxPowerTrackControl;	//for mp mode, turn off txpwrtracking as default
 #if 0		
 	//for tx power tracking
 	u8	bTXPowerTracking;
 	u8	TXPowercount;
 	u8	bTXPowerTrackingInit;	
-	u8	TxPowerTrackControl;	//for mp mode, turn off txpwrtracking as default
+
+
 	u8	TM_Trigger;
 
 	u8	ThermalMeter[2];				// ThermalMeter, index 0 for RFIC0, and 1 for RFIC1

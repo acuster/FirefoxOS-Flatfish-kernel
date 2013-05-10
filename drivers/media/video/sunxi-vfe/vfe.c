@@ -931,7 +931,8 @@ static void isp_isr_bh_handle(struct work_struct *work)
 	  if(dev->ctrl_para.prev_exp_line != dev->isp_3a_result_pt->exp_line_num || 
 	  	dev->isp_gen_set_pt->isp_ini_cfg.isp_test_mode != 0 || 
 	  	dev->isp_gen_set_pt->isp_ini_cfg.ae_en == 0 || 
-	  	dev->isp_3a_result_pt->exp_line_num > dev->isp_gen_set_pt->stat.intg_max)
+	  	dev->ctrl_para.prev_ana_gain != dev->isp_3a_result_pt->exp_analog_gain || 
+	  	dev->isp_gen_set_pt->isp_ini_cfg.isp_test_mode != 0)
 	  	{
 	  	  if(dev->isp_3a_result_pt->exp_line_num >= 16)
 		  {
@@ -946,15 +947,8 @@ static void isp_isr_bh_handle(struct work_struct *work)
 			  dev->ctrl_para.prev_exp_line = dev->isp_3a_result_pt->exp_line_num;
 			}
 		  }
-		}
-	  
-	  if(dev->ctrl_para.prev_ana_gain != dev->isp_3a_result_pt->exp_analog_gain || 
-	  	dev->isp_gen_set_pt->isp_ini_cfg.isp_test_mode != 0 || 
-	  	dev->isp_gen_set_pt->isp_ini_cfg.ae_en == 0) 
-	  
-	  {
-	  	
-		  if(dev->isp_3a_result_pt->exp_analog_gain >= 16){
+		  if(dev->isp_3a_result_pt->exp_analog_gain >= 16)
+          {
 			ctrl.id = V4L2_CID_GAIN;
 			ctrl.value = dev->isp_3a_result_pt->exp_analog_gain;
 			if(v4l2_subdev_call(dev->sd,core,s_ctrl,&ctrl) != 0)

@@ -268,6 +268,38 @@ static ssize_t disp_debug_store(struct device *dev,
 static DEVICE_ATTR(debug, S_IRUGO|S_IWUSR|S_IWGRP,
 		disp_debug_show, disp_debug_store);
 
+#define ____SEPARATOR_CFG_COUNT____
+static ssize_t disp_cfg_cnt_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "cfg_cnt=%d\n", bsp_disp_cfg_get(sel));
+}
+
+static ssize_t disp_cfg_cnt_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	return count;
+}
+
+static DEVICE_ATTR(cfg_cnt, S_IRUGO|S_IWUSR|S_IWGRP,
+		disp_cfg_cnt_show, disp_cfg_cnt_store);
+
+static ssize_t disp_cache_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "cache=%s\n", bsp_disp_cmd_cache_get(sel)? "true":"false");
+}
+
+static ssize_t disp_cache_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	return count;
+}
+
+static DEVICE_ATTR(cache, S_IRUGO|S_IWUSR|S_IWGRP,
+		disp_cache_show, disp_cache_store);
 
 #define ____SEPARATOR_LAYER_PARA____
 static ssize_t disp_layer_para_show(struct device *dev,
@@ -1681,6 +1713,8 @@ static struct attribute *disp_attributes[] = {
     &dev_attr_lcd_src.attr,
     &dev_attr_hdmi_cts.attr,
     &dev_attr_hdmi_test_mode.attr,
+    &dev_attr_cfg_cnt.attr,
+    &dev_attr_cache.attr,
 	NULL
 };
 

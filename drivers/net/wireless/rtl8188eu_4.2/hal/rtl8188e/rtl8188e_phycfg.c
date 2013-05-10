@@ -1273,109 +1273,112 @@ storePwrIndexDiffRateOffset(
 	)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-
+	
 	if(RegAddr == rTxAGC_A_Rate18_06)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][0] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][0] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][0]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][0]-TxAGC_A_Rate18_06 = 0x%x\n", pHalData->pwrGroupCnt,
+		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][0]);
 	}
 	if(RegAddr == rTxAGC_A_Rate54_24)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][1] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][1] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][1]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][1]-TxAGC_A_Rate54_24 = 0x%x\n", pHalData->pwrGroupCnt,
+		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][1]);
 	}
 	if(RegAddr == rTxAGC_A_CCK1_Mcs32)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][6] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][6] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][6]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][6]-TxAGC_A_CCK1_Mcs32 = 0x%x\n", pHalData->pwrGroupCnt,
+		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][6]);
 	}
 	if(RegAddr == rTxAGC_B_CCK11_A_CCK2_11 && BitMask == 0xffffff00)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][7] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][7] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][7]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][7]-TxAGC_B_CCK11_A_CCK2_11 = 0x%x\n", pHalData->pwrGroupCnt,
+		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][7]);
 	}
 	if(RegAddr == rTxAGC_A_Mcs03_Mcs00)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][2] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][2] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][2]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][2]-TxAGC_A_Mcs03_Mcs00 = 0x%x\n", pHalData->pwrGroupCnt,
+		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][2]);
 	}
 	if(RegAddr == rTxAGC_A_Mcs07_Mcs04)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][3] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][3] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][3]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][3]-TxAGC_A_Mcs07_Mcs04 = 0x%x\n", pHalData->pwrGroupCnt,
+		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][3]);
 	}
 	if(RegAddr == rTxAGC_A_Mcs11_Mcs08)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][4] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][4] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][4]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][4]-TxAGC_A_Mcs11_Mcs08 = 0x%x\n", pHalData->pwrGroupCnt,
+		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][4]);
 	}
 	if(RegAddr == rTxAGC_A_Mcs15_Mcs12)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][5] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][5] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][5]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][5]-TxAGC_A_Mcs15_Mcs12 = 0x%x\n", pHalData->pwrGroupCnt,pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][5]);
 		if(pHalData->rf_type== RF_1T1R)
 		{
-			pHalData->pwrGroupCnt++;
-			//RT_TRACE(COMP_INIT, DBG_TRACE, ("pwrGroupCnt = %d\n", pHalData->pwrGroupCnt));
+			//printk("pwrGroupCnt = %d\n", pHalData->pwrGroupCnt);
+			pHalData->pwrGroupCnt++;			
 		}
 	}
 	if(RegAddr == rTxAGC_B_Rate18_06)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][8] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][8] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][8]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][8]-TxAGC_B_Rate18_06 = 0x%x\n", pHalData->pwrGroupCnt,
+		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][8]);
 	}
 	if(RegAddr == rTxAGC_B_Rate54_24)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][9] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][9] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][9]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][9]-TxAGC_B_Rate54_24 = 0x%x\n", pHalData->pwrGroupCnt,
+		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][9]);
 	}
 	if(RegAddr == rTxAGC_B_CCK1_55_Mcs32)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][14] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][14] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][14]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][14]-TxAGC_B_CCK1_55_Mcs32 = 0x%x\n", pHalData->pwrGroupCnt,
+		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][14]);
 	}
 	if(RegAddr == rTxAGC_B_CCK11_A_CCK2_11 && BitMask == 0x000000ff)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][15] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][15] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][15]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][15]-TxAGC_B_CCK11_A_CCK2_11 = 0x%x\n", pHalData->pwrGroupCnt,
+		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][15]);
 	}
 	if(RegAddr == rTxAGC_B_Mcs03_Mcs00)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][10] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][10] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][10]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][10]-TxAGC_B_Mcs03_Mcs00 = 0x%x\n", pHalData->pwrGroupCnt,
+		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][10]);
 	}
 	if(RegAddr == rTxAGC_B_Mcs07_Mcs04)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][11] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][11] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][11]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][11]-TxAGC_B_Mcs07_Mcs04 = 0x%x\n", pHalData->pwrGroupCnt,
+		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][11]);
 	}
 	if(RegAddr == rTxAGC_B_Mcs11_Mcs08)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][12] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][12] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][12]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][12]-TxAGC_B_Mcs11_Mcs08 = 0x%x\n", pHalData->pwrGroupCnt,
+		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][12]);
 	}
 	if(RegAddr == rTxAGC_B_Mcs15_Mcs12)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][13] = Data;
-		//RT_TRACE(COMP_INIT, DBG_TRACE, ("MCSTxPowerLevelOriginalOffset[%d][13] = 0x%lx\n", pHalData->pwrGroupCnt,
-		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][13]));
+		//printk("MCSTxPowerLevelOriginalOffset[%d][13]-TxAGC_B_Mcs15_Mcs12 = 0x%x\n", pHalData->pwrGroupCnt,
+		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][13]);
+		
 		if(pHalData->rf_type != RF_1T1R)
+		{
+			//printk("pwrGroupCnt = %d\n", pHalData->pwrGroupCnt);	
 			pHalData->pwrGroupCnt++;
+		}
 	}
 }
 /*-----------------------------------------------------------------------------

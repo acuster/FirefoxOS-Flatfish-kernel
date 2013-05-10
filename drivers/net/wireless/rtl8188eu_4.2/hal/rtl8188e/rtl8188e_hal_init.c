@@ -792,15 +792,32 @@ exit:
 	return ret;
 }
 
-void _8051Reset88E(PADAPTER padapter)
+void _MCUIO_Reset88E(PADAPTER padapter,u8 bReset)
 {
 	u8 u1bTmp;
 
+	if(bReset==_TRUE){
+		// Reset MCU IO Wrapper- sugggest by SD1-Gimmy
+		u1bTmp = rtw_read8(padapter, REG_RSV_CTRL+1);
+		rtw_write8(padapter,REG_RSV_CTRL+1, (u1bTmp&(~BIT3)));
+	}else{
+		// Enable MCU IO Wrapper
+		u1bTmp = rtw_read8(padapter, REG_RSV_CTRL+1);
+		rtw_write8(padapter, REG_RSV_CTRL+1, u1bTmp|BIT3);
+	}
+
+}
+void _8051Reset88E(PADAPTER padapter)
+{
+	u8 u1bTmp;
+	
+	_MCUIO_Reset88E(padapter,_TRUE);
 	u1bTmp = rtw_read8(padapter, REG_SYS_FUNC_EN+1);
 	rtw_write8(padapter, REG_SYS_FUNC_EN+1, u1bTmp&(~BIT2));
+	_MCUIO_Reset88E(padapter,_FALSE);
 	rtw_write8(padapter, REG_SYS_FUNC_EN+1, u1bTmp|(BIT2));
+	
 	DBG_871X("=====> _8051Reset88E(): 8051 reset success .\n");
-
 }
 
 static s32 _FWFreeToGo(PADAPTER padapter)
@@ -2915,10 +2932,11 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 #ifdef DBG_CONFIG_ERROR_DETECT
 	pHalFunc->sreset_init_value = &sreset_init_value;
 	pHalFunc->sreset_reset_value = &sreset_reset_value;
-	pHalFunc->silentreset = &rtl8188e_silentreset_for_specific_platform;
+	pHalFunc->silentreset = &sreset_reset;
 	pHalFunc->sreset_xmit_status_check = &rtl8188e_sreset_xmit_status_check;
 	pHalFunc->sreset_linked_status_check  = &rtl8188e_sreset_linked_status_check;
 	pHalFunc->sreset_get_wifi_status  = &sreset_get_wifi_status;
+	pHalFunc->sreset_inprogress= &sreset_inprogress;
 #endif //DBG_CONFIG_ERROR_DETECT
 
 	pHalFunc->GetHalODMVarHandler = &rtl8188e_GetHalODMVar;
@@ -3006,6 +3024,20 @@ u8 _LLTRead(PADAPTER padapter, u32 address)
 	} while (count++);
 
 	return 0xFF;
+}
+void Read_LLT_Tab(PADAPTER padapter)
+{
+	u32 addr,next_addr;
+      printk("############### %s ###################\n",__FUNCTION__);
+      for(addr=0;addr<176;addr++)
+      {
+      		next_addr = _LLTRead(padapter,addr);
+             printk("%d->",next_addr);
+             if(((addr+1) %8) ==0)
+             	printk("\n");
+      }
+       printk("\n##################################\n");
+       
 }
 
 s32 InitLLTTable(PADAPTER padapter, u8 txpktbuf_bndy)
@@ -3152,18 +3184,20 @@ Hal_EEValueCheck(
 
 static void
 Hal_ReadPowerValueFromPROM_8188E(
+	IN	PADAPTER 		padapter,
 	IN	PTxPowerInfo24G	pwrInfo24G,
 	IN	u8*				PROMContent,
 	IN	BOOLEAN			AutoLoadFail
 	)
-{	
+{		
 	u32 rfPath, eeAddr=EEPROM_TX_PWR_INX_88E, group,TxCount=0;
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 	
 	_rtw_memset(pwrInfo24G, 0, sizeof(TxPowerInfo24G));
 
 	if(AutoLoadFail)
 	{	
-		for(rfPath = 0 ; rfPath < MAX_RF_PATH ; rfPath++)
+		for(rfPath = 0 ; rfPath < pHalData->NumTotalRFPath ; rfPath++)
 		{
 			//2.4G default value
 			for(group = 0 ; group < MAX_CHNL_GROUP_24G; group++)
@@ -3194,12 +3228,14 @@ Hal_ReadPowerValueFromPROM_8188E(
 		return;
 	}	
 
-	for(rfPath = 0 ; rfPath < MAX_RF_PATH ; rfPath++)
+	for(rfPath = 0 ; rfPath < pHalData->NumTotalRFPath ; rfPath++)
 	{
 		//2.4G default value
 		for(group = 0 ; group < MAX_CHNL_GROUP_24G; group++)
 		{
+			//printk(" IndexCCK_Base rfPath:%d group:%d,eeAddr:0x%02x ",rfPath,group,eeAddr);
 			pwrInfo24G->IndexCCK_Base[rfPath][group] =	PROMContent[eeAddr++];
+			//printk(" IndexCCK_Base:%02x \n",pwrInfo24G->IndexCCK_Base[rfPath][group] );
 			if(pwrInfo24G->IndexCCK_Base[rfPath][group] == 0xFF)
 			{
 				pwrInfo24G->IndexCCK_Base[rfPath][group] = EEPROM_DEFAULT_24G_INDEX;
@@ -3208,7 +3244,9 @@ Hal_ReadPowerValueFromPROM_8188E(
 		}
 		for(group = 0 ; group < MAX_CHNL_GROUP_24G-1; group++)
 		{
+			//printk(" IndexBW40_Base rfPath:%d group:%d,eeAddr:0x%02x ",rfPath,group,eeAddr);
 			pwrInfo24G->IndexBW40_Base[rfPath][group] =	PROMContent[eeAddr++];
+			//printk(" IndexBW40_Base: %02x \n",pwrInfo24G->IndexBW40_Base[rfPath][group]  );
 			if(pwrInfo24G->IndexBW40_Base[rfPath][group] == 0xFF)
 				pwrInfo24G->IndexBW40_Base[rfPath][group] =	EEPROM_DEFAULT_24G_INDEX;
 		}			
@@ -3422,7 +3460,7 @@ Hal_ReadTxPowerInfo88E(
 	u8			rfPath, ch, group, rfPathMax=1;
 	u8			pwr, diff,bIn24G,TxCount;
 
-	Hal_ReadPowerValueFromPROM_8188E(&pwrInfo24G, PROMContent, AutoLoadFail);
+	Hal_ReadPowerValueFromPROM_8188E(padapter,&pwrInfo24G, PROMContent, AutoLoadFail);
 
 	if(!AutoLoadFail)
 		pHalData->bTXPowerDataReadFromEEPORM = TRUE;		
@@ -3430,15 +3468,15 @@ Hal_ReadTxPowerInfo88E(
 	//for(rfPath = 0 ; rfPath < MAX_RF_PATH ; rfPath++)
 	for(rfPath = 0 ; rfPath < pHalData->NumTotalRFPath ; rfPath++)
 	{
-		for(ch = 0 ; ch <= CHANNEL_MAX_NUMBER ; ch++)
+		for(ch = 0 ; ch < CHANNEL_MAX_NUMBER ; ch++)
 		{
-			bIn24G = Hal_GetChnlGroup88E(ch,&group);
+			bIn24G = Hal_GetChnlGroup88E(ch+1,&group);
 			if(bIn24G)
 			{
 
 				pHalData->Index24G_CCK_Base[rfPath][ch]=pwrInfo24G.IndexCCK_Base[rfPath][group];
 
-				if(ch==14)
+				if(ch==(14-1))
 					pHalData->Index24G_BW40_Base[rfPath][ch]=pwrInfo24G.IndexBW40_Base[rfPath][4];
 				else
 					pHalData->Index24G_BW40_Base[rfPath][ch]=pwrInfo24G.IndexBW40_Base[rfPath][group];
@@ -3446,9 +3484,9 @@ Hal_ReadTxPowerInfo88E(
 			
 			if(bIn24G)
 			{
-				DBG_871X("======= Path %d, Channel %d =======\n",rfPath,ch );			
-				DBG_871X("Index24G_CCK_Base[%d][%d] = 0x%x\n",rfPath,ch ,pHalData->Index24G_CCK_Base[rfPath][ch]);
-				DBG_871X("Index24G_BW40_Base[%d][%d] = 0x%x\n",rfPath,ch ,pHalData->Index24G_BW40_Base[rfPath][ch]);			
+				DBG_871X("======= Path %d, Channel %d =======\n",rfPath,ch+1 );			
+				DBG_871X("Index24G_CCK_Base[%d][%d] = 0x%x\n",rfPath,ch+1 ,pHalData->Index24G_CCK_Base[rfPath][ch]);
+				DBG_871X("Index24G_BW40_Base[%d][%d] = 0x%x\n",rfPath,ch+1 ,pHalData->Index24G_BW40_Base[rfPath][ch]);			
 			}			
 		}	
 
@@ -3472,9 +3510,15 @@ Hal_ReadTxPowerInfo88E(
 	// 2010/10/19 MH Add Regulator recognize for CU.
 	if(!AutoLoadFail)
 	{
-		pHalData->EEPROMRegulatory = (PROMContent[EEPROM_RF_BOARD_OPTION_88E]&0x7);	//bit0~2
-		if(PROMContent[EEPROM_RF_BOARD_OPTION_88E] == 0xFF)
-			pHalData->EEPROMRegulatory = (EEPROM_DEFAULT_BOARD_OPTION&0x7);	//bit0~2
+		struct registry_priv  *registry_par = &padapter->registrypriv;
+		if( registry_par->regulatory_tid == 0xff){			
+			if(PROMContent[EEPROM_RF_BOARD_OPTION_88E] == 0xFF)
+				pHalData->EEPROMRegulatory = (EEPROM_DEFAULT_BOARD_OPTION&0x7);	//bit0~2
+			else
+				pHalData->EEPROMRegulatory = (PROMContent[EEPROM_RF_BOARD_OPTION_88E]&0x7);	//bit0~2
+		}else{
+			pHalData->EEPROMRegulatory = registry_par->regulatory_tid;
+		}
 	}
 	else
 	{

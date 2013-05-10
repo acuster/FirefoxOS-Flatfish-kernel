@@ -655,7 +655,7 @@ error:
        if(set_vbus_flag == USB_SET_VBUS_OFF){
 		sw_hcd_set_vbus(sw_hcd, set_vbus_flag);
        }else if(set_vbus_flag == USB_SET_VBUS_ON){
-               if(sw_hcd->enable){
+               if(sw_hcd->enable && !sw_hcd->init_controller){
                        sw_hcd_set_vbus(sw_hcd, set_vbus_flag);
                }
 	}

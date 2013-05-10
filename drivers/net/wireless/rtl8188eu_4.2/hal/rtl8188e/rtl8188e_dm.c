@@ -458,25 +458,18 @@ rtl8188e_HalDmWatchDog(
 
 	_func_enter_;
 
-	#if defined(CONFIG_CONCURRENT_MODE)
-	if (Adapter->isprimary == _FALSE && pbuddy_adapter) {
-		hw_init_completed = pbuddy_adapter->hw_init_completed;
-	} else
-	#endif
-	{
-		hw_init_completed = Adapter->hw_init_completed;
-	}
+	hw_init_completed = Adapter->hw_init_completed;
 
 	if (hw_init_completed == _FALSE)
 		goto skip_dm;
 
 #ifdef CONFIG_LPS
-	#if defined(CONFIG_CONCURRENT_MODE)
+	#ifdef CONFIG_CONCURRENT_MODE
 	if (Adapter->iface_type != IFACE_PORT0 && pbuddy_adapter) {
 		bFwCurrentInPSMode = pbuddy_adapter->pwrctrlpriv.bFwCurrentInPSMode;
 		rtw_hal_get_hwreg(pbuddy_adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
 	} else
-	#endif
+	#endif //CONFIG_CONCURRENT_MODE
 	{
 		bFwCurrentInPSMode = Adapter->pwrctrlpriv.bFwCurrentInPSMode;
 		rtw_hal_get_hwreg(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
@@ -498,11 +491,6 @@ rtl8188e_HalDmWatchDog(
 		//
 		dm_CheckStatistics(Adapter);
 	
-#ifdef CONFIG_CONCURRENT_MODE
-		if(Adapter->adapter_type > PRIMARY_ADAPTER)
-			goto _record_initrate;
-#endif
-	
 		//
 		// Dynamically switch RTS/CTS protection.
 		//
@@ -516,33 +504,24 @@ rtl8188e_HalDmWatchDog(
 		//if(Adapter->HalFunc.TxCheckStuckHandler(Adapter))
 		//	PlatformScheduleWorkItem(&(GET_HAL_DATA(Adapter)->HalResetWorkItem));
 #endif
-		_record_initrate:
-	_func_exit_;	
+	
 	}
 
 
 	//ODM
 	if (hw_init_completed == _TRUE)
 	{
-		struct mlme_priv	*pmlmepriv = &Adapter->mlmepriv;
 		u8	bLinked=_FALSE;
+
 		#ifdef CONFIG_DISABLE_ODM
 		pHalData->odmpriv.SupportAbility = 0;
 		#endif
 			
-		if(	(check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE) ||
-			(check_fwstate(pmlmepriv, WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE) == _TRUE))
-		{				
-			if(Adapter->stapriv.asoc_sta_count > 2)
-				bLinked = _TRUE;
-		}
-		else{//Station mode
-			if(check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE)
-				bLinked = _TRUE;
-		}
+		if(rtw_linked_check(Adapter))
+			bLinked = _TRUE;
 		
 #ifdef CONFIG_CONCURRENT_MODE
-		if(check_buddy_fw_link(Adapter))
+		if(pbuddy_adapter && rtw_linked_check(pbuddy_adapter))
 			bLinked = _TRUE;
 #endif //CONFIG_CONCURRENT_MODE
 

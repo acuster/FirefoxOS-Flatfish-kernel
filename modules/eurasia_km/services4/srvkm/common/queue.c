@@ -663,8 +663,6 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVGetQueueSpaceKM(PVRSRV_QUEUE_INFO *psQueue,
 												IMG_SIZE_T uParamSize,
 												IMG_VOID **ppvSpace)
 {
-	IMG_BOOL bTimeout = IMG_TRUE;
-
 	/*	round to 4byte units */
 	uParamSize =  (uParamSize + 3) & 0xFFFFFFFC;
 
@@ -674,31 +672,18 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVGetQueueSpaceKM(PVRSRV_QUEUE_INFO *psQueue,
 		return PVRSRV_ERROR_CMD_TOO_BIG;
 	}
 
-	/* PRQA S 3415,4109 1 */ /* macro format critical - leave alone */
-	LOOP_UNTIL_TIMEOUT(MAX_HW_TIME_US)
+	if (GET_SPACE_IN_CMDQ(psQueue) > uParamSize)
 	{
-		if (GET_SPACE_IN_CMDQ(psQueue) > uParamSize)
-		{
-			bTimeout = IMG_FALSE;
-			break;
-		}
-		OSSleepms(1);
-	} END_LOOP_UNTIL_TIMEOUT();
-
-	if (bTimeout == IMG_TRUE)
-	{
-		*ppvSpace = IMG_NULL;
-
-		return PVRSRV_ERROR_CANNOT_GET_QUEUE_SPACE;
+		*ppvSpace = (IMG_VOID *)((IMG_UINTPTR_T)psQueue->pvLinQueueUM + psQueue->uWriteOffset);
 	}
 	else
 	{
-		*ppvSpace = (IMG_VOID *)((IMG_UINTPTR_T)psQueue->pvLinQueueUM + psQueue->uWriteOffset);
+		*ppvSpace = IMG_NULL;
+		return PVRSRV_ERROR_CANNOT_GET_QUEUE_SPACE;
 	}
 
 	return PVRSRV_OK;
 }
-
 
 /*!
 *****************************************************************************

@@ -849,12 +849,12 @@ static int recvbuf2recvframe(_adapter *padapter, struct recv_buf *precvbuf)
 #endif					
 		if ((pattrib->crc_err) || (pattrib->icv_err))
 		{
-			if(pattrib->pkt_len>2000){
+			
 				DBG_8192C("%s: RX Warning! crc_err=%d icv_err=%d, skip!\n", __FUNCTION__, pattrib->crc_err, pattrib->icv_err);
 #ifdef CONFIG_SPECIAL_SETTING_FOR_FUNAI_TV		
 				printk("%s: RX Warning!pkt_len= %d, data rate=0x%02x \n", __FUNCTION__,pattrib->pkt_len,pattrib->mcs_rate);
 #endif
-			}
+			
 			rtw_free_recvframe(precvframe, pfree_recv_queue);
 			goto _exit_recvbuf2recvframe;
 		}
@@ -1106,6 +1106,9 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 				RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_read_port_complete:bDriverStopped=TRUE\n"));
 				break;
 			case -EPROTO:
+			case -EILSEQ:
+			case -ETIME:
+			case -ECOMM:
 			case -EOVERFLOW:
 				#ifdef DBG_CONFIG_ERROR_DETECT	
 				{	
@@ -1549,6 +1552,9 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 				RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_read_port_complete:bDriverStopped=TRUE\n"));
 				break;
 			case -EPROTO:
+			case -EILSEQ:
+			case -ETIME:
+			case -ECOMM:
 			case -EOVERFLOW:
 				#ifdef DBG_CONFIG_ERROR_DETECT	
 				{	

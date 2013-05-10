@@ -3104,7 +3104,7 @@ odm_RefreshRateAdaptiveMaskCE(
 			{
 				ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD, ("RSSI:%d, RSSI_LEVEL:%d\n", pstat->rssi_stat.UndecoratedSmoothedPWDB, pstat->rssi_level));
 				//printk("RSSI:%d, RSSI_LEVEL:%d\n", pstat->rssi_stat.UndecoratedSmoothedPWDB, pstat->rssi_level);
-				rtw_hal_update_ra_mask(pAdapter,i,pstat->rssi_level);
+				rtw_hal_update_ra_mask(pstat, pstat->rssi_level);
 			}
 		
 		}
@@ -4216,82 +4216,21 @@ IN	PADAPTER	pAdapter
 {	
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-	struct mlme_priv	*pmlmepriv = &pAdapter->mlmepriv;
+	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
 
 	//1 1.Determine the minimum RSSI 
 
-
-#ifdef CONFIG_CONCURRENT_MODE
-	//	FindMinimumRSSI()	per-adapter	
-	if(rtw_buddy_adapter_up(pAdapter)){		
-		PADAPTER pbuddy_adapter = pAdapter->pbuddy_adapter;
-		PHAL_DATA_TYPE	pbuddy_HalData = GET_HAL_DATA(pbuddy_adapter);
-		struct dm_priv *pbuddy_dmpriv = &pbuddy_HalData->dmpriv;
-	
-		if((pdmpriv->EntryMinUndecoratedSmoothedPWDB != 0) &&
-                  (pbuddy_dmpriv->EntryMinUndecoratedSmoothedPWDB != 0))
-      		{
-
-			if(pdmpriv->EntryMinUndecoratedSmoothedPWDB > pbuddy_dmpriv->EntryMinUndecoratedSmoothedPWDB)
-				pdmpriv->EntryMinUndecoratedSmoothedPWDB = pbuddy_dmpriv->EntryMinUndecoratedSmoothedPWDB;
-             }
-		else                         
-		{
-			if(pdmpriv->EntryMinUndecoratedSmoothedPWDB == 0)
-			      pdmpriv->EntryMinUndecoratedSmoothedPWDB = pbuddy_dmpriv->EntryMinUndecoratedSmoothedPWDB;
-			       
-		}
- 		#if 0
-		if((pdmpriv->UndecoratedSmoothedPWDB != (-1)) &&
-			 (pbuddy_dmpriv->UndecoratedSmoothedPWDB != (-1)))
-		{
-			
-			if((pdmpriv->UndecoratedSmoothedPWDB > pbuddy_dmpriv->UndecoratedSmoothedPWDB) &&
-				(pbuddy_dmpriv->UndecoratedSmoothedPWDB!=0))
-			            pdmpriv->UndecoratedSmoothedPWDB = pbuddy_dmpriv->UndecoratedSmoothedPWDB;
-		}
-		else                         
-		{
-			if((pdmpriv->UndecoratedSmoothedPWDB == (-1)) && (pbuddy_dmpriv->UndecoratedSmoothedPWDB!=0))
-			      pdmpriv->UndecoratedSmoothedPWDB = pbuddy_dmpriv->UndecoratedSmoothedPWDB;                               
-		}                      
-		#endif
-	}
-#endif
-
-	if((check_fwstate(pmlmepriv, _FW_LINKED) == _FALSE) &&
+	if((pDM_Odm->bLinked != _TRUE) &&
 		(pdmpriv->EntryMinUndecoratedSmoothedPWDB == 0))
 	{
 		pdmpriv->MinUndecoratedPWDBForDM = 0;
 		//ODM_RT_TRACE(pDM_Odm,COMP_BB_POWERSAVING, DBG_LOUD, ("Not connected to any \n"));
 	}
-	if(check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)	// Default port
+	else
 	{
-		#if 0
-		if((check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE) ||
-			(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == _TRUE) ||
-			(check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == _TRUE))
-		{
-			pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
-			//ODM_RT_TRACE(pDM_Odm,COMP_BB_POWERSAVING, DBG_LOUD, ("AP Client PWDB = 0x%x \n", pHalData->MinUndecoratedPWDBForDM));
-		}
-		else//for STA mode
-		{
-			pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->UndecoratedSmoothedPWDB;
-			//ODM_RT_TRACE(pDM_Odm,COMP_BB_POWERSAVING, DBG_LOUD, ("STA Default Port PWDB = 0x%x \n", pHalData->MinUndecoratedPWDBForDM));
-		}
-		#else
 		pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
-		#endif
 	}
-	else // associated entry pwdb
-	{	
-		pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
-		//ODM_RT_TRACE(pDM_Odm,COMP_BB_POWERSAVING, DBG_LOUD, ("AP Ext Port or disconnet PWDB = 0x%x \n", pHalData->MinUndecoratedPWDBForDM));
-	}
-	#if(RTL8192D_SUPPORT==1)
-	FindMinimumRSSI_Dmsp(pAdapter);
-	#endif
+
 	//DBG_8192C("%s=>MinUndecoratedPWDBForDM(%d)\n",__FUNCTION__,pdmpriv->MinUndecoratedPWDBForDM);
 	//ODM_RT_TRACE(pDM_Odm,COMP_DIG, DBG_LOUD, ("MinUndecoratedPWDBForDM =%d\n",pHalData->MinUndecoratedPWDBForDM));
 }
@@ -4311,30 +4250,17 @@ odm_RSSIMonitorCheckCE(
 	u8 	sta_cnt=0;
 	u32 PWDB_rssi[NUM_STA]={0};//[0~15]:MACID, [16~31]:PWDB_rssi
 
-	if(!check_fwstate(&Adapter->mlmepriv, _FW_LINKED) 
-		#ifdef CONFIG_CONCURRENT_MODE
-		&& !check_buddy_fwstate(Adapter, _FW_LINKED)
-		#endif
-	) {
+	if(pDM_Odm->bLinked != _TRUE)
 		return;
-	}
 
 	//if(check_fwstate(&Adapter->mlmepriv, WIFI_AP_STATE|WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE) == _TRUE)
 	{
 		#if 1
 		struct sta_info *psta;
-		struct sta_priv *pstapriv = &Adapter->stapriv;
-		u8 bcast_addr[ETH_ALEN]= {0xff,0xff,0xff,0xff,0xff,0xff};
 		
 		for(i=0; i<ODM_ASSOCIATE_ENTRY_NUM; i++) {
-			if (IS_STA_VALID(psta = pDM_Odm->pODM_StaInfo[i])
-				&& (psta->state & WIFI_ASOC_STATE)
-				&& _rtw_memcmp(psta->hwaddr, bcast_addr, ETH_ALEN) == _FALSE
-				&& _rtw_memcmp(psta->hwaddr, myid(&Adapter->eeprompriv), ETH_ALEN) == _FALSE
-				#ifdef CONFIG_CONCURRENT_MODE
-				&& (!Adapter->pbuddy_adapter || _rtw_memcmp(psta->hwaddr, myid(&Adapter->pbuddy_adapter->eeprompriv), ETH_ALEN) == _FALSE)
-				#endif
-				) {
+			if (IS_STA_VALID(psta = pDM_Odm->pODM_StaInfo[i]))
+                        {
 					if(psta->rssi_stat.UndecoratedSmoothedPWDB < tmpEntryMinPWDB)
 						tmpEntryMinPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
 
@@ -4446,26 +4372,12 @@ odm_RSSIMonitorCheckCE(
 		pdmpriv->EntryMinUndecoratedSmoothedPWDB = 0;
 	}
 
-#if 0
-	if(check_fwstate(&Adapter->mlmepriv, WIFI_STATION_STATE) == _TRUE)
-	{
-	
-		if(pHalData->fw_ractrl == _TRUE)
-		{
-			u32 param = (u32)(pdmpriv->UndecoratedSmoothedPWDB<<16);
-	printk("%s==> rssi(%d)\n",__FUNCTION__,pdmpriv->UndecoratedSmoothedPWDB);	
-			param |= 0;//macid=0 for sta mode;
-			
-			rtl8192c_set_rssi_cmd(Adapter, (u8*)&param);
-		}
-		else
-		{
-			rtw_write8(Adapter, 0x4fe, (u8)pdmpriv->UndecoratedSmoothedPWDB);
-			//DBG_8192C("0x4fe write %x %d\n", pdmpriv->UndecoratedSmoothedPWDB, pdmpriv->UndecoratedSmoothedPWDB);
-		}
-	}
-#endif		
-	FindMinimumRSSI(Adapter);
+	FindMinimumRSSI(Adapter);//get pdmpriv->MinUndecoratedPWDBForDM
+
+	#if(RTL8192D_SUPPORT==1)
+	FindMinimumRSSI_Dmsp(Adapter);
+	#endif
+
 	ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
 #endif//if (DM_ODM_SUPPORT_TYPE == ODM_CE)
 }
@@ -5140,7 +5052,7 @@ odm_SwAntDivChkAntSwitchNIC(
 			
 			for(index=0; index<ODM_ASSOCIATE_ENTRY_NUM; index++)
 			{					
-				pEntry =  pDM_Odm->pODM_StaInfo[i];
+				pEntry =  pDM_Odm->pODM_StaInfo[index];
 				if(IS_STA_VALID(pEntry) ) {
 					break;
 				}
@@ -5510,7 +5422,7 @@ odm_SwAntDivChkAntSwitchNIC(
 		}
 		else
 			//PlatformSetTimer( pAdapter, &pHalData->SwAntennaSwitchTimer, 500 ); //ms
-			ODM_SetTimer(pDM_Odm,&pDM_SWAT_Table->SwAntennaSwitchTimer, 100 ); //ms 
+			ODM_SetTimer(pDM_Odm,&pDM_SWAT_Table->SwAntennaSwitchTimer, 500 ); //ms 
 	}
 	}
 #endif	// #if (DM_ODM_SUPPORT_TYPE  & (ODM_MP|ODM_CE))

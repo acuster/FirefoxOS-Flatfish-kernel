@@ -223,6 +223,7 @@ struct registry_priv
 	u8 force_ant;//0 normal,1 main,2 aux
 	u8 force_igi;//0 normal
 #endif
+	u8 regulatory_tid;
 
 };
 
@@ -243,10 +244,36 @@ struct registry_priv
 #define INTF_DATA GSPI_DATA
 #endif
 
+#define GET_PRIMARY_ADAPTER(padapter) (((_adapter *)padapter)->dvobj->if1)
+
+#define GET_IFACE_NUMS(padapter) (((_adapter *)padapter)->dvobj->iface_nums)
+#define GET_ADAPTER(padapter, iface_id) (((_adapter *)padapter)->dvobj->padapters[iface_id])
+
+enum _IFACE_ID {
+	IFACE_ID0, //maping to PRIMARY_ADAPTER
+	IFACE_ID1, //maping to SECONDARY_ADAPTER
+	IFACE_ID2, 
+	IFACE_ID3, 
+	IFACE_ID_MAX,
+};
+
 struct dvobj_priv
 {
-	_adapter *if1;
-	_adapter *if2;
+	_adapter *if1; //PRIMARY_ADAPTER
+	_adapter *if2; //SECONDARY_ADAPTER
+
+	//for local/global synchronization
+	_mutex hw_init_mutex;
+	_mutex h2c_fwcmd_mutex;
+	_mutex setch_mutex;
+	_mutex setbw_mutex;
+
+	unsigned char	oper_channel; //saved channel info when call set_channel_bw
+	unsigned char	oper_bwmode;
+	unsigned char	oper_ch_offset;//PRIME_CHNL_OFFSET
+
+	_adapter *padapters[IFACE_ID_MAX];
+	u8 iface_nums; // total number of ifaces used runtime
 
 	//For 92D, DMDP have 2 interface.
 	u8	InterfaceNumber;
@@ -398,22 +425,6 @@ enum _ADAPTER_TYPE {
 	MAX_ADAPTER,
 };
 
-#ifdef CONFIG_CONCURRENT_MODE
-struct co_data_priv{
-
-	//george@20120518
-	//current operating channel/bw/ch_offset
-	//save the correct ch/bw/ch_offset whatever the inputted values are
-	//when calling set_channel_bwmode() at concurrent mode
-	//for debug check or reporting to layer app (such as wpa_supplicant for nl80211)
-	u8 co_ch;
-	u8 co_bw;
-	u8 co_ch_offset;
-	u8 rsvd;
-
-};
-#endif //CONFIG_CONCURRENT_MODE
-
 typedef enum _DRIVER_STATE{
 	DRIVER_NORMAL = 0,
 	DRIVER_DISAPPEAR = 1,
@@ -494,7 +505,7 @@ struct _ADAPTER{
 	struct cfg80211_wifidirect_info	cfg80211_wdinfo;
 #endif //CONFIG_P2P
 #endif //CONFIG_IOCTL_CFG80211
-
+	u32	setband;
 #ifdef CONFIG_P2P
 	struct wifidirect_info	wdinfo;
 #endif //CONFIG_P2P
@@ -602,19 +613,20 @@ struct _ADAPTER{
 
 	_adapter *pbuddy_adapter;
 
-	_mutex *hw_init_mutex;
 #if defined(CONFIG_CONCURRENT_MODE) || defined(CONFIG_DUALMAC_CONCURRENT)
 	u8 isprimary; //is primary adapter or not
-	u8 adapter_type;
-	u8 iface_type; //interface port type
-
-	//for global synchronization
-	_mutex *ph2c_fwcmd_mutex;
-	_mutex *psetch_mutex;
-	_mutex *psetbw_mutex;
-
-	struct co_data_priv *pcodatapriv;//data buffer shared among interfaces
+	//notes:
+	// if isprimary is true, the adapter_type value is 0, iface_id is IFACE_ID0 for PRIMARY_ADAPTER
+	// if isprimary is false, the adapter_type value is 1, iface_id is IFACE_ID1 for SECONDARY_ADAPTER
+	// refer to iface_id if iface_nums>2 and isprimary is false and the adapter_type value is 0xff.
+	u8 adapter_type;//used only in  two inteface case(PRIMARY_ADAPTER and SECONDARY_ADAPTER) .
+	u8 iface_type; //interface port type, it depends on HW port
 #endif
+
+	//extend to support multi interface
+	//IFACE_ID0 is equals to PRIMARY_ADAPTER
+	//IFACE_ID1 is equals to SECONDARY_ADAPTER
+	u8 iface_id;
 
 #ifdef CONFIG_DUALMAC_CONCURRENT
 	u8 DualMacConcurrent; // 1: DMSP 0:DMDP

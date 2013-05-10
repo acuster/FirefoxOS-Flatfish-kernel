@@ -63,6 +63,8 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_MLME_DISCONNECT,
 	HW_VAR_MLME_SITESURVEY,
 	HW_VAR_MLME_JOIN,
+	HW_VAR_ON_RCR_AM,
+       HW_VAR_OFF_RCR_AM,
 	HW_VAR_BEACON_INTERVAL,
 	HW_VAR_SLOT_TIME,
 	HW_VAR_RESP_SIFS,
@@ -120,6 +122,7 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_TX_RPT_MAX_MACID,	
 	HW_VAR_H2C_MEDIA_STATUS_RPT,
 	HW_VAR_CHK_HI_QUEUE_EMPTY,
+	HW_VAR_READ_LLT_TAB,
 }HW_VARIABLES;
 
 typedef enum _HAL_DEF_VARIABLE{
@@ -186,7 +189,9 @@ struct hal_ops {
 	void	(*enable_interrupt)(_adapter *padapter);
 	void	(*disable_interrupt)(_adapter *padapter);
 	s32	(*interrupt_handler)(_adapter *padapter);
-
+#ifdef CONFIG_WOWLAN
+    void    (*clear_interrupt)(_adapter *padapter);
+#endif
 	void	(*set_bwmode_handler)(_adapter *padapter, HT_CHANNEL_WIDTH Bandwidth, u8 Offset);
 	void	(*set_channel_handler)(_adapter *padapter, u8 channel);
 
@@ -219,6 +224,7 @@ struct hal_ops {
 
 	s32	(*hal_xmit)(_adapter *padapter, struct xmit_frame *pxmitframe);
 	s32 (*mgnt_xmit)(_adapter *padapter, struct xmit_frame *pmgntframe);
+	s32	(*hal_xmitframe_enqueue)(_adapter *padapter, struct xmit_frame *pxmitframe);
 
 	u32	(*read_bbreg)(_adapter *padapter, u32 RegAddr, u32 BitMask);
 	void	(*write_bbreg)(_adapter *padapter, u32 RegAddr, u32 BitMask, u32 Data);
@@ -245,6 +251,7 @@ struct hal_ops {
 	void (*sreset_xmit_status_check)(_adapter *padapter);
 	void (*sreset_linked_status_check) (_adapter *padapter);
 	u8 (*sreset_get_wifi_status)(_adapter *padapter);
+	bool (*sreset_inprogress)(_adapter *padapter);
 #endif
 
 #ifdef CONFIG_IOL
@@ -409,6 +416,7 @@ u32	rtw_hal_inirp_deinit(_adapter *padapter);
 
 u8	rtw_hal_intf_ps_func(_adapter *padapter,HAL_INTF_PS_FUNC efunc_id, u8* val);
 
+s32	rtw_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 s32	rtw_hal_xmit(_adapter *padapter, struct xmit_frame *pxmitframe);
 s32	rtw_hal_mgnt_xmit(_adapter *padapter, struct xmit_frame *pmgntframe);
 
@@ -418,7 +426,7 @@ void	rtw_hal_free_xmit_priv(_adapter *padapter);
 s32	rtw_hal_init_recv_priv(_adapter *padapter);
 void	rtw_hal_free_recv_priv(_adapter *padapter);
 
-void rtw_hal_update_ra_mask(_adapter *padapter, u32 mac_id, u8 rssi_level);
+void rtw_hal_update_ra_mask(struct sta_info *psta, u8 rssi_level);
 void	rtw_hal_add_ra_tid(_adapter *padapter, u32 bitmap, u8 arg, u8 rssi_level);
 void	rtw_hal_clone_data(_adapter *dst_padapter, _adapter *src_padapter);
 void	rtw_hal_start_thread(_adapter *padapter);
@@ -448,11 +456,12 @@ s32	rtw_hal_hostap_mgnt_xmit_entry(_adapter *padapter, _pkt *pkt);
 
 #ifdef DBG_CONFIG_ERROR_DETECT
 void rtw_hal_sreset_init(_adapter *padapter);
-void rtw_hal_sreset_reset(_adapter *padapter);	
+void rtw_hal_sreset_reset(_adapter *padapter);
 void rtw_hal_sreset_reset_value(_adapter *padapter);
 void rtw_hal_sreset_xmit_status_check(_adapter *padapter);
 void rtw_hal_sreset_linked_status_check (_adapter *padapter);
 u8   rtw_hal_sreset_get_wifi_status(_adapter *padapter);
+bool rtw_hal_sreset_inprogress(_adapter *padapter);
 #endif
 
 #ifdef CONFIG_IOL

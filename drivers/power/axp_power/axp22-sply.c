@@ -51,6 +51,7 @@
 #endif
 
 static int axp_debug = 0;
+static int vbus_curr_limit_debug = 1;
 struct axp_adc_res adc;
 struct delayed_work usbwork;
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -153,7 +154,30 @@ static ssize_t axpdebug_show(struct class *class,
 	return sprintf(buf, "bat-debug value is %d\n", axp_debug);
 }
 
+//static struct class_attribute axppower_class_attrs[] = {
+//	__ATTR(axpdebug,S_IRUGO|S_IWUSR,axpdebug_show,axpdebug_store),
+//	__ATTR_NULL
+//};
+static ssize_t vbuslimit_store(struct class *class,
+			struct class_attribute *attr,	const char *buf, size_t count)
+{
+	if(buf[0] == '1'){
+	   vbus_curr_limit_debug = 1;
+    }
+    else{
+	   vbus_curr_limit_debug = 0;
+    } 
+	return count;
+}
+
+static ssize_t vbuslimit_show(struct class *class,
+			struct class_attribute *attr,	char *buf)
+{
+	return sprintf(buf, "vbus curr limit value is %d\n", axp_debug);
+}
+
 static struct class_attribute axppower_class_attrs[] = {
+	__ATTR(vbuslimit,S_IRUGO|S_IWUSR,vbuslimit_show,vbuslimit_store),
 	__ATTR(axpdebug,S_IRUGO|S_IWUSR,axpdebug_show,axpdebug_store),
 	__ATTR_NULL
 };
@@ -487,7 +511,10 @@ static int axp_battery_get_property(struct power_supply *psy,
   	 */
   	axp_charger_update_state(charger);
     val->intval = charger->bat_current_direction;
-    printk("axp battery hardware current direction %d\n", charger->bat_current_direction);
+	if(axp_debug)
+	{
+		printk("axp battery hardware current direction %d\n", charger->bat_current_direction);
+	}
     break;
   }
   case POWER_SUPPLY_PROP_PRESENT:
@@ -568,12 +595,18 @@ static void axp_change(struct axp_charger *charger)
 {
   uint8_t val,tmp;
   int var;
-  DBG_PSY_MSG("battery state change\n");
+  if(axp_debug){
+ 	DBG_PSY_MSG("battery state change\n");
+	}
   axp_charger_update_state(charger);
   axp_charger_update(charger);
-  printk("charger->usb_valid = %d\n",charger->usb_valid);
+  if(axp_debug){
+	printk("charger->usb_valid = %d\n",charger->usb_valid);
+	}
 	if(!charger->usb_valid){
-		printk("set usb vol-lim to %d mV, cur-lim to %d mA\n",pmu_usbvol,pmu_usbcur);
+		if(axp_debug){
+			printk("set usb vol-lim to %d mV, cur-lim to %d mA\n",pmu_usbvol,pmu_usbcur);
+			}
         //cancel_delayed_work_sync(&usbwork);
 		//reset usb-ac after usb removed 
 		if((pmu_usbcur) && (pmu_usbcur_limit)){
@@ -589,8 +622,11 @@ static void axp_change(struct axp_charger *charger)
 				axp_clr_bits(charger->master, AXP22_CHARGE_VBUS, 0x01);
 				axp_set_bits(charger->master, AXP22_CHARGE_VBUS, 0x02);
 			}
-			else
-				printk("set usb limit current error,%d mA\n",pmu_usbcur);	
+			else{
+				if(axp_debug){
+					printk("set usb limit current error,%d mA\n",pmu_usbcur);	
+					}
+				}
 		}
 		else
 			axp_set_bits(charger->master, AXP22_CHARGE_VBUS, 0x03);
@@ -605,8 +641,11 @@ static void axp_change(struct axp_charger *charger)
 			    val |= tmp << 3;
 			    axp_write(charger->master, AXP22_CHARGE_VBUS,val);
 			}
-			else
-				printk("set usb limit voltage error,%d mV\n",pmu_usbvol);	
+			else{
+				if(axp_debug){
+					printk("set usb limit voltage error,%d mV\n",pmu_usbvol);	
+					}
+				}
 		}
 		else
 			axp_clr_bits(charger->master, AXP22_CHARGE_VBUS, 0x40);
@@ -739,8 +778,11 @@ static int axp_battery_event(struct notifier_block *nb, unsigned long event,
     	w[7] = AXP22_INTSTS5;
     	w[8] = (uint8_t) ((event) & 0xFF);;
 	}
-    DBG_PSY_MSG("event = 0x%x\n",(int) event);
-    axp_writes(charger->master,AXP22_INTSTS1,9,w);
+	if(axp_debug)
+	{
+		DBG_PSY_MSG("event = 0x%x\n",(int) event);
+	}
+	axp_writes(charger->master,AXP22_INTSTS1,9,w);
 
     return 0;
 }
@@ -1358,7 +1400,7 @@ static void axp_usb(struct work_struct *work)
 	{
 		printk("[axp_usb]axp_usbcurflag = %d\n",axp_usbcurflag);
 	}
-	if(axp_usbcurflag){
+	if(axp_usbcurflag && vbus_curr_limit_debug){
 		if(axp_debug)
 		{
 			printk("set usbcur_pc %d mA\n",pmu_usbcur_pc);
@@ -1373,7 +1415,10 @@ static void axp_usb(struct work_struct *work)
 				axp_set_bits(charger->master, AXP22_CHARGE_VBUS, 0x01);
 			}
 			else{
-				printk("set usb limit current error,%d mA\n",pmu_usbcur_pc);	
+				if(axp_debug)
+				{
+					printk("set usb limit current error,%d mA\n",pmu_usbcur_pc);	
+				}
 			} 				
 		}
 		else//not limit
@@ -1435,7 +1480,10 @@ static void axp_usb(struct work_struct *work)
 		    	axp_write(charger->master, AXP22_CHARGE_VBUS,val);
 		  	}
 		  	else
-		  		printk("set usb limit voltage error,%d mV\n",pmu_usbvol);	
+				if(axp_debug)
+				{
+					printk("set usb limit voltage error,%d mV\n",pmu_usbvol);	
+				}
 		}
 		else
 		    axp_clr_bits(charger->master, AXP22_CHARGE_VBUS, 0x40);

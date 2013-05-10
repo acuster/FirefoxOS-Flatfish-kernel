@@ -40,37 +40,9 @@ int rtw_p2p_is_channel_list_ok( u8 desired_ch, u8* ch_list, u8 ch_cnt )
 	return( found );
 }
 
-int	is_any_client_associated( _adapter *padapter )
+int is_any_client_associated(_adapter *padapter)
 {
-	_irqL irqL;
-	_list	*phead, *plist;
-	int	intFound = _FALSE;
-
-	struct sta_priv *pstapriv = &padapter->stapriv;
-
-	_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
-	phead = &pstapriv->asoc_list;
-	plist = get_next(phead);
-	
-	if ( rtw_end_of_queue_search(phead, plist) == _TRUE )
-	{
-		intFound = _FALSE;
-	}
-	else
-	{
-		intFound = _TRUE;
-	}
-
-	if ((intFound == _FALSE && pstapriv->asoc_list_cnt)
-		|| (intFound == _TRUE && !pstapriv->asoc_list_cnt)) {
-		DBG_871X("%s intFound:%d, asoc_list_cnt:%u mismatch\n", __func__
-			, intFound, pstapriv->asoc_list_cnt);
-	}
-
-	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
-
-	return( intFound );
-	
+	return padapter->stapriv.asoc_list_cnt ? _TRUE : _FALSE;
 }
 
 static u32 go_add_group_info_attr(struct wifidirect_info *pwdinfo, u8 *pbuf)
@@ -833,26 +805,26 @@ u32 build_probe_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf, u8 tunnel
 			{
 				if ( pwdinfo->wfd_tdls_enable )
 				{
-					//	WFD primary sink + TDLS mode + WSD ( WFD Service Discovery )
-					RTW_PUT_BE16(wfdie + wfdielen, WFD_DEVINFO_PSINK | WFD_DEVINFO_WSD | WFD_DEVINFO_PC_TDLS | WFD_DEVINFO_HDCP_SUPPORT);
+					//	TDLS mode + WSD ( WFD Service Discovery )
+					RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_WSD | WFD_DEVINFO_PC_TDLS | WFD_DEVINFO_HDCP_SUPPORT);
 				}
 				else
 				{
-					//	WFD primary sink + WiFi Direct mode + WSD ( WFD Service Discovery )
-					RTW_PUT_BE16(wfdie + wfdielen, WFD_DEVINFO_PSINK | WFD_DEVINFO_WSD | WFD_DEVINFO_HDCP_SUPPORT);
+					//	WiFi Direct mode + WSD ( WFD Service Discovery )
+					RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_WSD | WFD_DEVINFO_HDCP_SUPPORT);
 				}				
 			}
 			else
 			{
 				if ( pwdinfo->wfd_tdls_enable )
 				{
-					//	WFD primary sink + available for WFD session + TDLS mode + WSD ( WFD Service Discovery )
-					RTW_PUT_BE16(wfdie + wfdielen, WFD_DEVINFO_PSINK | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD | WFD_DEVINFO_PC_TDLS | WFD_DEVINFO_HDCP_SUPPORT);
+					//	available for WFD session + TDLS mode + WSD ( WFD Service Discovery )
+					RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD | WFD_DEVINFO_PC_TDLS | WFD_DEVINFO_HDCP_SUPPORT);
 				}
 				else
 				{
-					//	WFD primary sink + available for WFD session + WiFi Direct mode + WSD ( WFD Service Discovery )
-					RTW_PUT_BE16(wfdie + wfdielen, WFD_DEVINFO_PSINK | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD | WFD_DEVINFO_HDCP_SUPPORT);
+					//	available for WFD session + WiFi Direct mode + WSD ( WFD Service Discovery )
+					RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD | WFD_DEVINFO_HDCP_SUPPORT);
 				}				
 			}
 		}
@@ -860,14 +832,14 @@ u32 build_probe_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf, u8 tunnel
 		{
 			if ( pwdinfo->wfd_tdls_enable )
 			{
-				//	WFD primary sink + available for WFD session + WiFi Direct mode + WSD ( WFD Service Discovery )
-				RTW_PUT_BE16(wfdie + wfdielen, WFD_DEVINFO_PSINK | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD | WFD_DEVINFO_PC_TDLS | WFD_DEVINFO_HDCP_SUPPORT);
+				//	available for WFD session + WiFi Direct mode + WSD ( WFD Service Discovery )
+				RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD | WFD_DEVINFO_PC_TDLS | WFD_DEVINFO_HDCP_SUPPORT);
 			}
 			else
 			{
 
-				//	WFD primary sink + available for WFD session + WiFi Direct mode + WSD ( WFD Service Discovery )
-				RTW_PUT_BE16(wfdie + wfdielen, WFD_DEVINFO_PSINK | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD | WFD_DEVINFO_HDCP_SUPPORT);
+				//	available for WFD session + WiFi Direct mode + WSD ( WFD Service Discovery )
+				RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL | WFD_DEVINFO_WSD | WFD_DEVINFO_HDCP_SUPPORT);
 			}
 		}
 	}
@@ -875,11 +847,11 @@ u32 build_probe_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf, u8 tunnel
 	{
 		if ( pwdinfo->wfd_tdls_enable )
 		{
-			RTW_PUT_BE16(wfdie + wfdielen, WFD_DEVINFO_PSINK | WFD_DEVINFO_WSD |WFD_DEVINFO_PC_TDLS | WFD_DEVINFO_HDCP_SUPPORT);
+			RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_WSD |WFD_DEVINFO_PC_TDLS | WFD_DEVINFO_HDCP_SUPPORT);
 		}
 		else
 		{
-			RTW_PUT_BE16(wfdie + wfdielen, WFD_DEVINFO_PSINK | WFD_DEVINFO_WSD | WFD_DEVINFO_HDCP_SUPPORT);
+			RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_WSD | WFD_DEVINFO_HDCP_SUPPORT);
 		}
 
 	}
@@ -3522,7 +3494,7 @@ _func_exit_;
 #endif
 
 #ifdef CONFIG_IOCTL_CFG80211
-static void ro_ch_handler( _adapter*	padapter )
+static void ro_ch_handler(_adapter *padapter)
 {
 	struct cfg80211_wifidirect_info *pcfg80211_wdinfo = &padapter->cfg80211_wdinfo;
 	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
@@ -3564,10 +3536,11 @@ _func_enter_;
 
 	DBG_871X("cfg80211_remain_on_channel_expired\n");
 
-	cfg80211_remain_on_channel_expired(pcfg80211_wdinfo->remain_on_ch_dev, 
-										pcfg80211_wdinfo->remain_on_ch_cookie, 
-										&pcfg80211_wdinfo->remain_on_ch_channel,
-										pcfg80211_wdinfo->remain_on_ch_type, GFP_KERNEL);
+	rtw_cfg80211_remain_on_channel_expired(padapter, 
+		pcfg80211_wdinfo->remain_on_ch_cookie, 
+		&pcfg80211_wdinfo->remain_on_ch_channel,
+		pcfg80211_wdinfo->remain_on_ch_type, GFP_KERNEL);
+
 _func_exit_;
 }
 

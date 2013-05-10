@@ -1036,16 +1036,20 @@ static IMG_BOOL ProcessFlipV2(IMG_HANDLE hCmdCookie,
 							  setup_dispc_data_t *psDispcData,
 							  IMG_UINT32 ui32DispcDataLength)
 {
-    int i = 0;
-
+    int i = 0,ret = 0;
 
     for(i=0;i < psDispcData->post2_layers;i++)
     {
         IMG_CPU_PHYADDR phyAddr;
         
-        psDevInfo->sPVRJTable.pfnPVRSRVDCMemInfoGetCpuPAddr(ppsMemInfos[i], 0, &phyAddr);
-        
+        ret = psDevInfo->sPVRJTable.pfnPVRSRVDCMemInfoGetCpuPAddr(ppsMemInfos[i], 0, &phyAddr);
         psDispcData->layer_info[i].fb.addr[0] = phyAddr.uiAddr;
+        
+        if(ret != PVRSRV_OK)
+        {
+           psDispcData->layer_info[i].alpha_en = 1;
+           psDispcData->layer_info[i].alpha_val = 0x00;
+        }
     }
         
     dispc_gralloc_queue(psDispcData, ui32DispcDataLength, dispc_proxy_cmdcomplete, (void *)hCmdCookie);

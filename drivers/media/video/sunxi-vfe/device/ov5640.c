@@ -960,7 +960,7 @@ static struct regval_list sensor_1080p_regs[] = { //1080: 1920*1080
   //pll and clock setting
   {0x3034,0x18},
 #ifndef FPGA
-  {0x3035,0x11},  //0x11:30fps 0x21:15fps
+  {0x3035,0x21},  //0x11:30fps 0x21:15fps
 #else
   {0x3035,0x41},  //0x11:30fps 0x21:15fps 0x41:7.5fps
 #endif  
@@ -1035,7 +1035,7 @@ static struct regval_list sensor_1080p_regs[] = { //1080: 1920*1080
   {0x5001,0x83}, //ISP effect
 //  {0x3503,0x00},//AEC enable
   
-  {0x302c,0x82},//bit[7:6]: output drive capability
+  {0x302c,0xc2},//bit[7:6]: output drive capability
             //00: 1x   01: 2x  10: 3x  11: 4x 
   //power down release
 //  {0x3008,0x02},     
@@ -4270,7 +4270,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
   	info->capture_mode == V4L2_MODE_PREVIEW)
   {
     //video
-    	sensor_s_fps(sd);
+    	//sensor_s_fps(sd);
     	
 #ifdef AUTO_FPS		
 		if(info->capture_mode == V4L2_MODE_PREVIEW) {

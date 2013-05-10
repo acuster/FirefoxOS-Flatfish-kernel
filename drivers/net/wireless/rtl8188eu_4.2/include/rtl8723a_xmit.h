@@ -223,12 +223,14 @@ s32 rtl8723as_init_xmit_priv(PADAPTER padapter);
 void rtl8723as_free_xmit_priv(PADAPTER padapter);
 s32 rtl8723as_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 s32 rtl8723as_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+s32	rtl8723as_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 s32 rtl8723as_xmit_buf_handler(PADAPTER padapter);
 thread_return rtl8723as_xmit_thread(thread_context context);
 #define hal_xmit_handler rtl8723as_xmit_buf_handler
 #endif
 
 #ifdef CONFIG_USB_HCI
+s32	rtl8723au_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 s32 rtl8723au_xmit_buf_handler(PADAPTER padapter);
 #define hal_xmit_handler rtl8723au_xmit_buf_handler
 #endif

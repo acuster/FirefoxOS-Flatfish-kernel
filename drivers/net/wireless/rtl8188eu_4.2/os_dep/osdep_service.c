@@ -1063,7 +1063,7 @@ inline u32 rtw_ms_to_systime(u32 ms)
 	return ms /1000;
 #endif	
 #ifdef PLATFORM_WINDOWS
-	return ms / 10000 ; 
+	return ms * 10000 ; 
 #endif
 }
 

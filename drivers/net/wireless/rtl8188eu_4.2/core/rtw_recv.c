@@ -1643,8 +1643,10 @@ sint validate_recv_ctrl_frame(_adapter *padapter, union recv_frame *precv_frame)
 			_irqL irqL;	 
 			_list	*xmitframe_plist, *xmitframe_phead;
 			struct xmit_frame *pxmitframe=NULL;
+			struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 		
-			_enter_critical_bh(&psta->sleep_q.lock, &irqL);	
+			//_enter_critical_bh(&psta->sleep_q.lock, &irqL);
+			_enter_critical_bh(&pxmitpriv->lock, &irqL);
 
 			xmitframe_phead = get_list_head(&psta->sleep_q);
 			xmitframe_plist = get_next(xmitframe_phead);
@@ -1668,12 +1670,15 @@ sint validate_recv_ctrl_frame(_adapter *padapter, union recv_frame *precv_frame)
 
 	                        //DBG_871X("handling ps-poll, q_len=%d, tim=%x\n", psta->sleepq_len, pstapriv->tim_bitmap);
 
+#if 0
                                 _exit_critical_bh(&psta->sleep_q.lock, &irqL);	
 				if(rtw_hal_xmit(padapter, pxmitframe) == _TRUE)
 				{		
 					rtw_os_xmit_complete(padapter, pxmitframe);
 				}
                                 _enter_critical_bh(&psta->sleep_q.lock, &irqL);	
+#endif
+				rtw_hal_xmitframe_enqueue(padapter, pxmitframe);
 
 				if(psta->sleepq_len==0)
 				{
@@ -1686,9 +1691,15 @@ sint validate_recv_ctrl_frame(_adapter *padapter, union recv_frame *precv_frame)
 					update_beacon(padapter, _TIM_IE_, NULL, _FALSE);
 				}
 				
+				//_exit_critical_bh(&psta->sleep_q.lock, &irqL);
+				_exit_critical_bh(&pxmitpriv->lock, &irqL);
+				
 			}
 			else
 			{
+				//_exit_critical_bh(&psta->sleep_q.lock, &irqL);
+				_exit_critical_bh(&pxmitpriv->lock, &irqL);
+			
 				//DBG_871X("no buffered packets to xmit\n");
 				if(pstapriv->tim_bitmap&BIT(psta->aid))
 				{
@@ -1712,9 +1723,7 @@ sint validate_recv_ctrl_frame(_adapter *padapter, union recv_frame *precv_frame)
 					update_beacon(padapter, _TIM_IE_, NULL, _FALSE);
 				}
 				
-			}
-	
-			_exit_critical_bh(&psta->sleep_q.lock, &irqL);			
+			}				
 			
 		}
 		
@@ -3686,12 +3695,15 @@ int recv_indicatepkt_reorder(_adapter *padapter, union recv_frame *prframe)
 		#ifdef DBG_RX_DROP_FRAME
 		DBG_871X("DBG_RX_DROP_FRAME %s check_indicate_seq fail\n", __FUNCTION__);
 		#endif
-		
+#if 0		
 		rtw_recv_indicatepkt(padapter, prframe);
 
 		_exit_critical_bh(&ppending_recvframe_queue->lock, &irql);
 		
 		goto _success_exit;
+#else
+		goto _err_exit;
+#endif
 	}
 
 

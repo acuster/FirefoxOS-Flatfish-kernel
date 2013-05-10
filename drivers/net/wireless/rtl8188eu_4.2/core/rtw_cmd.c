@@ -359,6 +359,7 @@ _func_enter_;
 	cmd_obj->padapter = padapter;
 
 #ifdef CONFIG_CONCURRENT_MODE
+	//change pcmdpriv to primary's pcmdpriv
 	if (padapter->adapter_type != PRIMARY_ADAPTER && padapter->pbuddy_adapter)
 		pcmdpriv = &(padapter->pbuddy_adapter->cmdpriv);
 #endif	
@@ -548,8 +549,12 @@ post_process:
 	// free all cmd_obj resources
 	do{
 		pcmd = rtw_dequeue_cmd(pcmdpriv);
-		if(pcmd==NULL)
+		if(pcmd==NULL) {
+#ifdef CONFIG_LPS_LCLK
+			rtw_unregister_cmd_alive(padapter);
+#endif
 			break;
+		}
 
 		//DBG_871X("%s: leaving... drop cmdcode:%u\n", __FUNCTION__, pcmd->cmdcode);
 
@@ -2007,6 +2012,7 @@ static void traffic_status_watchdog(_adapter *padapter)
 #ifdef CONFIG_LPS
 	u8	bEnterPS;
 #endif
+	u16	BusyThreshold = 100;
 	u8	bBusyTraffic = _FALSE, bTxBusyTraffic = _FALSE, bRxBusyTraffic = _FALSE;
 	u8	bHigherBusyTraffic = _FALSE, bHigherBusyRxTraffic = _FALSE, bHigherBusyTxTraffic = _FALSE;
 #ifdef CONFIG_FTP_PROTECT
@@ -2028,8 +2034,11 @@ static void traffic_status_watchdog(_adapter *padapter)
 		if( pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > 50 ||
 			pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > 50 )
 #else // !CONFIG_BT_COEXIST
-		if( pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > 100 ||
-			pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > 100 )
+		// if we raise bBusyTraffic in last watchdog, using lower threshold.
+		if (pmlmepriv->LinkDetectInfo.bBusyTraffic)
+			BusyThreshold = 75;
+		if( pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > BusyThreshold ||
+			pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > BusyThreshold )
 #endif // !CONFIG_BT_COEXIST
 		{
 			bBusyTraffic = _TRUE;

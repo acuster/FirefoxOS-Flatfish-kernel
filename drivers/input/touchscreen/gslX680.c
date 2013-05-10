@@ -769,10 +769,7 @@ static void process_gslX680_data(struct gsl_ts *ts)
 		id = ts->touch_data[ts->dd->id_index + 4 * i] >> 4;
 
 		if(1 <=id && id <= MAX_CONTACTS){
-			if (4 == fw_index) {
-				stretch_frame(&x, &y);
-				filter_point(x, y ,id);
-			} else if (3 == fw_index)
+			if (3 == fw_index)
 				filter_point(x, y ,id);
 			else
 				record_point(x, y ,id);

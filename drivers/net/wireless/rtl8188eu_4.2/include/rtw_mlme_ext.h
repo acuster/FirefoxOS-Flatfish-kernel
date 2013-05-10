@@ -511,10 +511,6 @@ struct mlme_ext_priv
 	unsigned char	cur_bwmode;
 	unsigned char	cur_ch_offset;//PRIME_CHNL_OFFSET
 	unsigned char	cur_wireless_mode;	// NETWORK_TYPE
-
-	unsigned char	oper_channel; //saved channel info when call set_channel_bw
-	unsigned char	oper_bwmode;
-	unsigned char	oper_ch_offset;//PRIME_CHNL_OFFSET
 	
 	unsigned char	max_chan_nums;
 	RT_CHANNEL_INFO		channel_set[MAX_CHANNEL_NUM];
@@ -551,6 +547,9 @@ struct mlme_ext_priv
 #ifdef CONFIG_ACTIVE_KEEP_ALIVE_CHECK
 	u8 active_keep_alive_check;
 #endif
+#ifdef DBG_FIXED_CHAN
+	u8 fixed_chan;
+#endif
 	
 };
 
@@ -560,6 +559,7 @@ void free_mlme_ext_priv (struct mlme_ext_priv *pmlmeext);
 extern void init_mlme_ext_timer(_adapter *padapter);
 extern void init_addba_retry_timer(_adapter *padapter, struct sta_info *psta);
 extern struct xmit_frame *alloc_mgtxmitframe(struct xmit_priv *pxmitpriv);
+struct xmit_frame *alloc_mgtxmitframe_once(struct xmit_priv *pxmitpriv);
 
 //void fill_fwpriv(_adapter * padapter, struct fw_priv *pfwpriv);
 
@@ -646,7 +646,7 @@ void update_sta_info(_adapter *padapter, struct sta_info *psta);
 unsigned int update_basic_rate(unsigned char *ptn, unsigned int ptn_sz);
 unsigned int update_supported_rate(unsigned char *ptn, unsigned int ptn_sz);
 unsigned int update_MSC_rate(struct HT_caps_element *pHT_caps);
-void Update_RA_Entry(_adapter *padapter, u32 mac_id);
+void Update_RA_Entry(_adapter *padapter, struct sta_info *psta);
 void set_sta_rate(_adapter *padapter, struct sta_info *psta);
 
 unsigned int receive_disconnect(_adapter *padapter, unsigned char *MacAddr, unsigned short reason);

@@ -22,18 +22,14 @@
 #include <mach/memory.h>
 #include "sunxi_physmem_i.h"
 
-#define	BUFFER_PADDR        HW_RESERVED_MEM_BASE
-#define	BUFFER_VADDR        BUFFER_PADDR
-#define	BUFFER_SIZE         HW_RESERVED_MEM_SIZE
-
 #define	MEMORY_GAP_MIN      0x10000
 
 #define IS_LIST_EMPTY(listh)            ((bool)((listh)->next == listh))
 #define LIST_REACH_END(listh, entry)    ((bool)(listh == entry))
 #define NEXT_PHYS_ADDR(pnode)           (pnode->phys_addr + pnode->size)
 
-static struct sunxi_mem_allocator	*g_allocator = NULL;
-static DEFINE_SPINLOCK(sunxi_memlock);
+static struct sunxi_mem_allocator *g_allocator = NULL;
+DEFINE_SPINLOCK(sunxi_memlock);
 
 inline static void __sunxi_init_list_head(struct mem_list * listh)
 {
@@ -68,9 +64,7 @@ static u32 sunxi_init(struct sunxi_mem_allocator *this, u32 size, u32 va, u32 pa
 
 	this->normal_size = size;
 
-	//SXM_DBG_FUN_LINE_TODO;
 	//memset((void *)va, 0x00, this->normal_size);
-
 	this->node_free_listh = this->create_new_node(this, 0, 0, 0);
 	if(NULL == this->node_free_listh) {
 		uret = __LINE__;
@@ -100,8 +94,7 @@ static u32 sunxi_init(struct sunxi_mem_allocator *this, u32 size, u32 va, u32 pa
 
 end:
 	if(0 != uret)
-		SXM_ERR("%s err, line %d\n", __func__, uret);
-
+		pr_err("%s err, line %d\n", __func__, uret);
 	return uret;
 }
 
@@ -131,7 +124,7 @@ static struct mem_list * sunxi_create_new_node(struct sunxi_mem_allocator *this,
 	if((size == 0) || IS_LIST_EMPTY(this->node_free_listh))	{
 		pnode = (struct mem_list *)kmalloc(sizeof(*pnode), GFP_ATOMIC);
 		if(NULL == pnode) {
-			SXM_ERR_FUN_LINE;
+			WARN_ON(1);
 			return NULL;
 		}
 	} else {
@@ -243,7 +236,7 @@ static bool sunxi_free_list(struct sunxi_mem_allocator *this, struct mem_list **
 bool sunxi_allocate(struct sunxi_mem_allocator *this, const u32 size_to_alloc,
 		u32* const pvirt_adr, u32* const pphy_adr)
 {
-	u32 	size;
+	u32 size;
 	struct mem_list *pnode = NULL;
 
 	size = (size_to_alloc + (MEMORY_GAP_MIN - 1)) & (~(MEMORY_GAP_MIN - 1));
@@ -290,13 +283,13 @@ void sunxi_free(struct sunxi_mem_allocator *this, const u32 virtAddr, const u32 
 
 int __init sunxi_mem_allocator_init(void)
 {
-	u32 	buf_size = BUFFER_SIZE;
-	u32 	buf_vaddr = BUFFER_VADDR;
-	u32 	buf_paddr = BUFFER_PADDR;
+	u32 buf_size = HW_RESERVED_MEM_SIZE;
+	u32 buf_paddr = HW_RESERVED_MEM_BASE;
+	u32 buf_vaddr = buf_paddr;
 
 	g_allocator = kmalloc(sizeof(struct sunxi_mem_allocator), GFP_KERNEL);
 	if(NULL == g_allocator) {
-		SXM_ERR("%s err: out of memory, line %d\n", __func__, __LINE__);
+		pr_err("%s err: out of memory, line %d\n", __func__, __LINE__);
 		return -ENOMEM;
 	}
 
@@ -312,44 +305,42 @@ int __init sunxi_mem_allocator_init(void)
 	g_allocator->free_list 		= sunxi_free_list;
 
 	if(0 != g_allocator->init(g_allocator, buf_size, buf_vaddr, buf_paddr)) {
-		SXM_ERR("%s err, line %d, size 0x%08x, vaddr 0x%08x, paddr 0x%08x\n",
+		pr_err("%s err, line %d, size 0x%08x, vaddr 0x%08x, paddr 0x%08x\n",
 			__func__, __LINE__, buf_size, buf_vaddr, buf_paddr);
 		return -ENOMEM;
 	}
 
-	SXM_DBG("%s success, line %d\n", __func__, __LINE__);
+	pr_debug("%s success, line %d\n", __func__, __LINE__);
 	return 0;
 }
 arch_initcall(sunxi_mem_allocator_init);
 
-//bool sunxi_mem_alloc(u32 size, u32* virmem, u32* phymem)
 unsigned int sunxi_mem_alloc(unsigned int size)
 {
-	u32	vtemp = 0, ptemp = 0;
-	unsigned long	flags;
+	u32 vtemp = 0, ptemp = 0;
+	unsigned long flags;
 
 	spin_lock_irqsave(&sunxi_memlock, flags);
 	if(NULL != g_allocator) {
 		if(false == g_allocator->allocate(g_allocator, size, &vtemp, &ptemp)) {
-			SXM_ERR("%s err, line %d, allocate failed!\n", __func__, __LINE__);
+			pr_err("%s err, line %d, allocate failed!\n", __func__, __LINE__);
 			ptemp = 0;
 		}
 	} else
-		SXM_ERR("%s err, line %d, g_allocator not initailized yet!\n", __func__, __LINE__);
+		pr_err("%s err, line %d, g_allocator not initailized yet!\n", __func__, __LINE__);
 	spin_unlock_irqrestore(&sunxi_memlock, flags);
 
-	SXM_DBG("%s: size 0x%08x, ret 0x%08x!\n", __func__, size, ptemp);
+	pr_debug("%s: size 0x%08x, ret 0x%08x!\n", __func__, size, ptemp);
 	return ptemp;
 }
 EXPORT_SYMBOL(sunxi_mem_alloc);
 
-//void sunxi_mem_free(u32 virmem, u32 phymem)
 void sunxi_mem_free(unsigned int phymem)
 {
-	u32	vtemp = phymem; /* to check */
-	unsigned long	flags;
+	u32 vtemp = phymem;
+	unsigned long flags;
 
-	SXM_DBG("%s: phymem 0x%08x!\n", __func__, phymem);
+	pr_debug("%s: phymem 0x%08x!\n", __func__, phymem);
 
 	spin_lock_irqsave(&sunxi_memlock, flags);
 	if(NULL != g_allocator)
@@ -358,10 +349,10 @@ void sunxi_mem_free(unsigned int phymem)
 }
 EXPORT_SYMBOL(sunxi_mem_free);
 
-u32 sunxi_mem_get_rest_size(void)
+unsigned int sunxi_mem_get_rest_size(void)
 {
-	u32 	ret = 0;
-	unsigned long	flags;
+	u32 ret = 0;
+	unsigned long flags;
 
 	spin_lock_irqsave(&sunxi_memlock, flags);
 	if(NULL != g_allocator)
@@ -372,3 +363,52 @@ u32 sunxi_mem_get_rest_size(void)
 }
 EXPORT_SYMBOL(sunxi_mem_get_rest_size);
 
+unsigned int sunxi_get_largest_free(void)
+{
+	u32 largest_size = 0;
+	struct mem_list * pnode;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sunxi_memlock, flags);
+	pnode = __sunxi_first_node(g_allocator->free_listh);
+	while(!LIST_REACH_END(g_allocator->free_listh, pnode))	{
+		if (largest_size < pnode->size)
+			largest_size = pnode->size;
+		pnode = pnode->next;
+	}
+	spin_unlock_irqrestore(&sunxi_memlock, flags);
+
+	return largest_size;
+}
+EXPORT_SYMBOL(sunxi_get_largest_free);
+
+int sunxi_mem_get_memnode(u32 base_addr, struct mem_list *pnode_out)
+{
+	unsigned long flags;
+	struct mem_list *pnode;
+	int ret = -1;
+
+	spin_lock_irqsave(&sunxi_memlock, flags);
+	pnode = __sunxi_first_node(g_allocator->free_listh);
+	while(!LIST_REACH_END(g_allocator->free_listh, pnode))	{
+		if (base_addr == pnode->phys_addr) {
+			ret = 0;
+			*pnode_out = *pnode;
+			goto end;
+		}
+		pnode = pnode->next;
+	}
+
+	pnode = __sunxi_first_node(g_allocator->inuse_listh);
+	while(!LIST_REACH_END(g_allocator->inuse_listh, pnode))	{
+		if (base_addr == pnode->phys_addr) {
+			ret = 1;
+			*pnode_out = *pnode;
+			goto end;
+		}
+		pnode = pnode->next;
+	}
+end:
+	spin_unlock_irqrestore(&sunxi_memlock, flags);
+	return ret;
+}

@@ -401,6 +401,8 @@ enum {
 	MP_QueryDrvStats,
 	MP_SetBT,
 	CTA_TEST,
+	MP_DISABLE_BT_COEXIST,
+	MP_PwrCtlDM,
 	MP_NULL,
 };
 
@@ -652,6 +654,16 @@ typedef enum _ENCRY_CTRL_STATE_ {
 	SW_ENCRY_HW_DECRY	//sw encryption & hw decryption
 }ENCRY_CTRL_STATE;
 
+#define Mac_OFDM_OK 			0x00000000
+#define Mac_OFDM_Fail 			0x10000000
+#define Mac_OFDM_FasleAlarm 	0x20000000
+#define Mac_CCK_OK				0x30000000
+#define Mac_CCK_Fail			0x40000000
+#define Mac_CCK_FasleAlarm		0x50000000
+#define Mac_HT_OK 				0x60000000
+#define Mac_HT_Fail				0x70000000
+#define Mac_HT_FasleAlarm 		0x90000000
+#define Mac_DropPacket			0xA0000000
 
 //=======================================================================
 //extern struct mp_xmit_frame *alloc_mp_xmitframe(struct mp_priv *pmp_priv);
@@ -750,6 +762,7 @@ extern void Hal_SetOFDMContinuousTx(PADAPTER pAdapter, u8 bStart);
 extern void Hal_ProSetCrystalCap (PADAPTER pAdapter , u32 CrystalCapVal);
 extern void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv);
 extern void MP_PHY_SetRFPathSwitch(PADAPTER pAdapter ,BOOLEAN bMain);
+extern void MPT_PwrCtlDM(PADAPTER padapter, u32 bstart);
 
 #endif //_RTW_MP_H_
 

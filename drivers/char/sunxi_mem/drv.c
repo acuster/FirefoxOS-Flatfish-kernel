@@ -37,24 +37,18 @@ static struct class 	*g_class = NULL;
 struct device 		*g_dev = NULL;
 struct kmem_cache 	*g_pmem_cache = NULL; /* mem cache for struct sunxi_mem_des */
 
-/*
- * to sync sunmm_release and sunmm_ioctl, repetitive with SUNMM_LOCK, but any other better way?
- */
 static DEFINE_MUTEX(sunmm_mutex);
 
 int sunmm_mmap(struct file *file, struct vm_area_struct * vma)
 {
-	SXM_DBG("%s, vm_start 0x%08x, vm_end 0x%08x, vm_pgoff 0x%08x, vm_page_prot 0x%08x\n",
+	pr_debug("%s, vm_start 0x%08x, vm_end 0x%08x, vm_pgoff 0x%08x, vm_page_prot 0x%08x\n",
 		__func__, (u32)vma->vm_start, (u32)vma->vm_end, (u32)vma->vm_pgoff, (u32)vma->vm_page_prot);
 
-	//SXM_DBG_FUN_LINE_TODO; /* uncach or write combine or null? need check */
-	//vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot); /* NOTE: lys commit, for performance, 2012-12-3 */
-	//vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	if(remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 		vma->vm_end - vma->vm_start, vma->vm_page_prot))
 		return -EAGAIN;
 
-	SXM_DBG("%s success\n", __func__);
+	pr_debug("%s success\n", __func__);
 	return 0;
 }
 
@@ -87,7 +81,7 @@ static int sunmm_release(struct inode *inode, struct file *file)
 		list_for_each_safe(p, n, &pdata->list) {
 			pitem = list_entry(p, struct sunxi_mem_des, list);
 			phys_addr = pitem->phys_addr;
-			SXM_INF("%s: get un-freed phys_addr 0x%08x\n", __func__, phys_addr);
+			pr_info("%s: get un-freed phys_addr 0x%08x\n", __func__, phys_addr);
 			/* remove item from list */
 			list_del(&pitem->list);
 			SUNMM_UNLOCK(&pdata->lock, flags);
@@ -129,29 +123,27 @@ long sunmm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case SUNXI_MEM_ALLOC:
 		/* default return 0 indicate failed */
 		ret = 0;
-		/* check para */
 		if(NULL == pdata) {
-			SXM_ERR("%s err, line %d, private_data is NULL, cmd %d, arg %d\n", __func__,
-				__LINE__, cmd, (u32)arg);
+			pr_err("%s(%d) err, cmd %d, arg %d\n", __func__, __LINE__, cmd, (u32)arg);
 			goto end;
 		}
 		if(copy_from_user(&size_to_alloc, (u32 *)arg, sizeof(u32)) || NULL == g_pmem_cache) {
-			SXM_ERR("%s err, line %d, size_to_alloc 0x%08x, g_pmem_cache 0x%08x\n",
+			pr_err("%s err, line %d, size_to_alloc 0x%08x, g_pmem_cache 0x%08x\n",
 				__func__, __LINE__, size_to_alloc, (u32)g_pmem_cache);
 			goto end;
 		}
-		SXM_DBG("%s, SUNXI_MEM_ALLOC - get size_to_alloc 0x%08x\n", __func__, size_to_alloc);
+		pr_debug("%s, SUNXI_MEM_ALLOC - get size_to_alloc 0x%08x\n", __func__, size_to_alloc);
 
 		/* alloc from reserved mem */
 		uphysaddr = sunxi_mem_alloc(size_to_alloc);
 		if(0 == uphysaddr) {
-			SXM_ERR("%s err, line %d, sunxi_mem_alloc failed, size_to_alloc %d\n", __func__, __LINE__, size_to_alloc);
+			pr_err("%s err, line %d, sunxi_mem_alloc failed, size_to_alloc %d\n", __func__, __LINE__, size_to_alloc);
 			goto end;
 		}
 		/* alloc sunxi_mem_des struct */
 		pdes = (struct sunxi_mem_des *)kmem_cache_alloc(g_pmem_cache, GFP_KERNEL);
 		if(NULL == pdes) {
-			SXM_ERR("%s err, line %d, kmem_cache_alloc failed\n", __func__, __LINE__);
+			pr_err("%s err, line %d, kmem_cache_alloc failed\n", __func__, __LINE__);
 			sunxi_mem_free(uphysaddr); /* release buf */
 			goto end;
 		}
@@ -166,22 +158,21 @@ long sunmm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		list_add_tail(&pdes->list, &pdata->list);
 		SUNMM_UNLOCK(&pdata->lock, flags);
 		break;
-
 	case SUNXI_MEM_FREE:
 		/* check para */
 		if(NULL == pdata) {
-			SXM_ERR("%s err, line %d, private_data is NULL, cmd %d, arg %d\n", __func__,
+			pr_err("%s err, line %d, private_data is NULL, cmd %d, arg %d\n", __func__,
 				__LINE__, cmd, (u32)arg);
 			ret = -EINVAL;
 			goto end;
 		}
 		if(copy_from_user(&physaddr_to_free, (u32 *)arg, sizeof(u32)) || NULL == g_pmem_cache) {
-			SXM_ERR("%s err, line %d, physaddr_to_free %d, g_pmem_cache 0x%08x\n", __func__, __LINE__,
+			pr_err("%s err, line %d, physaddr_to_free %d, g_pmem_cache 0x%08x\n", __func__, __LINE__,
 				physaddr_to_free, (u32)g_pmem_cache);
 			ret = -EINVAL;
 			goto end;
 		}
-		SXM_DBG("%s, SUNXI_MEM_FREE - get physaddr_to_free 0x%08x\n", __func__, physaddr_to_free);
+		pr_debug("%s, SUNXI_MEM_FREE - get physaddr_to_free 0x%08x\n", __func__, physaddr_to_free);
 
 		/* find the sunxi_mem_des struct */
 		{
@@ -207,43 +198,37 @@ long sunmm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			}
 			if(false == bfind) {
 				SUNMM_UNLOCK(&pdata->lock, flags);
-				SXM_ERR("%s err, line %d, cannot find the allocated mem 0x%08x\n",
+				pr_err("%s err, line %d, cannot find the allocated mem 0x%08x\n",
 					__func__, __LINE__, physaddr_to_free);
 			}
 		}
-		/* return 0 on success */
-		ret = 0;
 		break;
-
 	case SUNXI_MEM_GET_REST_SZ:
 		ret = (long)sunxi_mem_get_rest_size();
-		SXM_DBG("%s, SUNXI_MEM_GET_REST_SZ - ret 0x%08x\n", __func__, (int)ret);
+		pr_debug("%s, SUNXI_MEM_GET_REST_SZ - ret 0x%08x\n", __func__, (int)ret);
 		break;
-
 	case SUNXI_MEM_FLUSH_CACHE:
 		if(copy_from_user(&cache_range, (u32 *)arg, sizeof(cache_range))) {
-			SXM_ERR("%s err, line %d\n", __func__, __LINE__);
+			pr_err("%s err, line %d\n", __func__, __LINE__);
 			ret = -EINVAL;
 			goto end;
 		}
-		SXM_DBG("%s, SUNXI_MEM_FLUSH_CACHE, start 0x%08x, end 0x%08x\n", __func__,
-			cache_range.start, cache_range.end);
+		pr_debug("%s, SUNXI_MEM_FLUSH_CACHE, start 0x%08x, end 0x%08x\n", __func__,
+				(u32)cache_range.start, (u32)cache_range.end);
 		temp = flush_clean_user_range(cache_range.start, cache_range.end);
 		if(0 != temp) {
-			SXM_INF("%s, SUNXI_MEM_FLUSH_CACHE return %d\n", __func__, temp);
+			pr_info("%s, SUNXI_MEM_FLUSH_CACHE return %d\n", __func__, temp);
 		}
 		break;
-
 	case SUNXI_MEM_FLUSH_CACHE_ALL:
-		SXM_DBG("%s, SUNXI_MEM_FLUSH_CACHE_ALL\n", __func__);
+		pr_debug("%s, SUNXI_MEM_FLUSH_CACHE_ALL\n", __func__);
 		temp = flush_dcache_all();
 		if(0 != temp) {
-			SXM_INF("%s, SUNXI_MEM_FLUSH_CACHE_ALL return %d\n", __func__, temp);
+			pr_info("%s, SUNXI_MEM_FLUSH_CACHE_ALL return %d\n", __func__, temp);
 		}
 		break;
-
 	default:
-		SXM_ERR_FUN_LINE;
+		pr_err("%s(%d) err!\n", __func__, __LINE__);
 		ret = -EINVAL;
 		goto end;
 	}
@@ -263,13 +248,13 @@ static struct file_operations sunxi_mem_fops = {
 
 static int sunmm_probe(struct platform_device *pdev)
 {
-	SXM_DBG_FUN_LINE;
+	pr_debug("%s(%d): enter\n", __func__, __LINE__);
 	return 0;
 }
 
 static int sunmm_remove(struct platform_device *pdev)
 {
-	SXM_DBG_FUN_LINE;
+	pr_debug("%s(%d): enter\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -277,8 +262,6 @@ struct platform_device sunxi_mem_device =
 {
 	.name		= "sunxi_mem",
 	.id		= -1,
-	//.num_resources  = ARRAY_SIZE(sunmm_resource),
-	//.resources	= sunmm_resource,
 };
 
 static struct platform_driver sunxi_mem_driver =
@@ -307,48 +290,48 @@ int __init sunmm_module_init(void)
 {
 	int 	ret = 0;
 
-	SXM_DBG("%s start, line %d\n", __func__, __LINE__);
+	pr_debug("%s start, line %d\n", __func__, __LINE__);
 
 	/* char device register */
 	ret = alloc_chrdev_region(&g_devid, 0, 1, "sunxi_mem");
 	if(ret) {
-		SXM_ERR_FUN_LINE;
+		pr_err("%s(%d) err!\n", __func__, __LINE__);
 		return ret;
 	}
 	g_cdev = cdev_alloc();
 	if(NULL == g_cdev) {
-		SXM_ERR_FUN_LINE;
+		pr_err("%s(%d) err!\n", __func__, __LINE__);
 		goto out1;
 	}
 	cdev_init(g_cdev, &sunxi_mem_fops);
 	g_cdev->owner = THIS_MODULE;
 	ret = cdev_add(g_cdev, g_devid, 1);
 	if(ret) {
-		SXM_ERR_FUN_LINE;
+		pr_err("%s(%d) err!\n", __func__, __LINE__);
 		goto out2;
 	}
 
 	/* class create and device register */
 	g_class = class_create(THIS_MODULE, "sunxi_mem");
 	if(IS_ERR(g_class)) {
-		SXM_ERR_FUN_LINE;
+		pr_err("%s(%d) err!\n", __func__, __LINE__);
 		goto out3;
 	}
 	g_dev = device_create(g_class, NULL, g_devid, NULL, "sunxi_mem");
 	if(IS_ERR(g_dev)) {
-		SXM_ERR_FUN_LINE;
+		pr_err("%s(%d) err!\n", __func__, __LINE__);
 		goto out4;
 	}
 
 	/* platform device register */
 	ret = platform_device_register(&sunxi_mem_device);
 	if(ret) {
-		SXM_ERR_FUN_LINE;
+		pr_err("%s(%d) err!\n", __func__, __LINE__);
 		goto out5;
 	}
 	ret = platform_driver_register(&sunxi_mem_driver);
 	if(ret) {
-		SXM_ERR_FUN_LINE;
+		pr_err("%s(%d) err!\n", __func__, __LINE__);
 		goto out6;
 	}
 
@@ -356,11 +339,11 @@ int __init sunmm_module_init(void)
 	g_pmem_cache = kmem_cache_create("sunxi_mem_des_cache", sizeof(struct sunxi_mem_des), 0,
 					SLAB_HWCACHE_ALIGN, mem_cache_ctor);
 	if(NULL == g_pmem_cache) {
-		SXM_ERR_FUN_LINE;
+		pr_err("%s(%d) err!\n", __func__, __LINE__);
 		goto out7;
 	}
 
-	SXM_DBG("%s success, line %d\n", __func__, __LINE__);
+	pr_debug("%s success, line %d\n", __func__, __LINE__);
 	return ret;
 
 out7:
@@ -386,7 +369,7 @@ out1:
 
 void __exit sunmm_module_exit(void)
 {
-	SXM_DBG("%s start\n", __func__);
+	pr_debug("%s start\n", __func__);
 
 	/* free mem_des struct pool */
 	if(NULL != g_pmem_cache) {
@@ -413,7 +396,7 @@ void __exit sunmm_module_exit(void)
 	unregister_chrdev_region(g_devid, 1);
 	g_devid = -1;
 
-	SXM_DBG("%s end\n", __func__);
+	pr_debug("%s end\n", __func__);
 }
 
 module_init(sunmm_module_init);

@@ -22,6 +22,8 @@
 
 #include <linux/mmc/sdio_func.h>
 
+#define SD_IO_TRY_CNT (8)
+
 static bool rtw_sdio_claim_host_needed(struct sdio_func *func)
 {
 	struct dvobj_priv *dvobj = sdio_get_drvdata(func);
@@ -275,7 +277,27 @@ _func_enter_;
 	v = sdio_readl(func, addr, err);
 
 	if (err && *err)
-		DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x\n", __func__, *err, addr);
+	{
+		int i;
+
+		DBG_871X(KERN_ERR "%s: (%d) addr=0x%05x, val=0x%x\n", __func__, *err, addr, v);
+
+		*err = 0;
+		for(i=0; i<SD_IO_TRY_CNT; i++)
+		{
+			//sdio_claim_host(func);
+			v = sdio_readl(func, addr, err);
+			//sdio_release_host(func);
+			if (*err == 0)
+				break;
+		}
+
+		if (i==SD_IO_TRY_CNT)
+			DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x, val=0x%x, try_cnt=%d\n", __func__, *err, addr, v, i);
+		else
+			DBG_871X(KERN_ERR "%s: (%d) addr=0x%05x, val=0x%x, try_cnt=%d\n", __func__, *err, addr, v, i);
+
+	}
 
 _func_exit_;
 
@@ -298,8 +320,29 @@ _func_enter_;
 	v = sdio_readl(func, addr, err);
 	if (claim_needed)
 		sdio_release_host(func);
+
 	if (err && *err)
-		DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x\n", __func__, *err, addr);
+	{
+		int i;
+
+		DBG_871X(KERN_ERR "%s: (%d) addr=0x%05x, val=0x%x\n", __func__, *err, addr, v);
+
+		*err = 0;
+		for(i=0; i<SD_IO_TRY_CNT; i++)
+		{
+			if (claim_needed) sdio_claim_host(func);
+			v = sdio_readl(func, addr, err);
+			if (claim_needed) sdio_release_host(func);
+			if (*err == 0)
+				break;
+		}
+
+		if (i==SD_IO_TRY_CNT)
+			DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x, val=0x%x, try_cnt=%d\n", __func__, *err, addr, v, i);
+		else
+			DBG_871X(KERN_ERR "%s: (%d) addr=0x%05x, val=0x%x, try_cnt=%d\n", __func__, *err, addr, v, i);
+
+	}
 
 _func_exit_;
 
@@ -359,7 +402,25 @@ _func_enter_;
 	sdio_writel(func, v, addr, err);
 
 	if (err && *err)
-		DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x val=0x%08x\n", __func__, *err, addr, v);
+	{
+		int i;
+
+		DBG_871X(KERN_ERR "%s: (%d) addr=0x%05x val=0x%08x\n", __func__, *err, addr, v);
+
+		*err = 0;
+		for(i=0; i<SD_IO_TRY_CNT; i++)
+		{
+			sdio_writel(func, v, addr, err);
+			if (*err == 0)
+				break;
+		}
+
+		if (i==SD_IO_TRY_CNT)
+			DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x val=0x%08x, try_cnt=%d\n", __func__, *err, addr, v, i);
+		else
+			DBG_871X(KERN_ERR "%s: (%d) addr=0x%05x val=0x%08x, try_cnt=%d\n", __func__, *err, addr, v, i);
+
+	}
 
 _func_exit_;
 }
@@ -379,8 +440,28 @@ _func_enter_;
 	sdio_writel(func, v, addr, err);
 	if (claim_needed)
 		sdio_release_host(func);
+
 	if (err && *err)
-		DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x val=0x%08x\n", __func__, *err, addr, v);
+	{
+		int i;
+
+		DBG_871X(KERN_ERR "%s: (%d) addr=0x%05x val=0x%08x\n", __func__, *err, addr, v);
+
+		*err = 0;
+		for(i=0; i<SD_IO_TRY_CNT; i++)
+		{
+			if (claim_needed) sdio_claim_host(func);
+			sdio_writel(func, v, addr, err);
+			if (claim_needed) sdio_release_host(func);
+			if (*err == 0)
+				break;
+		}
+
+		if (i==SD_IO_TRY_CNT)
+			DBG_871X(KERN_ERR "%s: FAIL!(%d) addr=0x%05x val=0x%08x, try_cnt=%d\n", __func__, *err, addr, v, i);
+		else
+			DBG_871X(KERN_ERR "%s: (%d) addr=0x%05x val=0x%08x, try_cnt=%d\n", __func__, *err, addr, v, i);
+	}
 
 _func_exit_;
 }

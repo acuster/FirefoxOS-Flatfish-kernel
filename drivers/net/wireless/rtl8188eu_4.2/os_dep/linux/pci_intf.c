@@ -85,14 +85,6 @@ struct pci_device_id rtw_pci_id_tbl[] = {
 struct pci_drv_priv {
 	struct pci_driver rtw_pci_drv;
 	int drv_registered;
-
-	_mutex hw_init_mutex;
-#if defined(CONFIG_CONCURRENT_MODE) || defined(CONFIG_DUALMAC_CONCURRENT)
-	//global variable
-	_mutex h2c_fwcmd_mutex;
-	_mutex setch_mutex;
-	_mutex setbw_mutex;
-#endif
 };
 
 
@@ -1161,6 +1153,11 @@ _func_enter_;
 	pcipriv = &(dvobj->pcipriv);
 	pci_set_drvdata(pdev, dvobj);
 
+	_rtw_mutex_init(&dvobj->hw_init_mutex);
+	_rtw_mutex_init(&dvobj->h2c_fwcmd_mutex);
+	_rtw_mutex_init(&dvobj->setch_mutex);
+	_rtw_mutex_init(&dvobj->setbw_mutex);
+
 
 	if ( (err = pci_enable_device(pdev)) != 0) {
 		DBG_871X(KERN_ERR "%s : Cannot enable new PCI device\n", pci_name(pdev));
@@ -1324,6 +1321,10 @@ disable_picdev:
 free_dvobj:
 	if (status != _SUCCESS && dvobj) {
 		pci_set_drvdata(pdev, NULL);
+		_rtw_mutex_free(&dvobj->hw_init_mutex);
+		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
+		_rtw_mutex_free(&dvobj->setch_mutex);
+		_rtw_mutex_free(&dvobj->setbw_mutex);
 		rtw_mfree((u8*)dvobj, sizeof(*dvobj));
 		dvobj = NULL;
 	}
@@ -1349,6 +1350,12 @@ _func_enter_;
 			pci_iounmap(pdev, (void *)dvobj->pci_mem_start);
 			dvobj->pci_mem_start = 0;
 		}
+
+		_rtw_mutex_free(&dvobj->hw_init_mutex);
+		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
+		_rtw_mutex_free(&dvobj->setch_mutex);
+		_rtw_mutex_free(&dvobj->setbw_mutex);
+		
 		rtw_mfree((u8*)dvobj, sizeof(*dvobj));
 	}
 
@@ -1633,6 +1640,9 @@ _adapter *rtw_pci_if1_init(struct dvobj_priv * dvobj, struct pci_dev *pdev, cons
 	
 	padapter->bDriverStopped=_TRUE;
 
+	dvobj->padapters[dvobj->iface_nums++] = padapter;
+	padapter->iface_id = IFACE_ID0;
+
 #if defined(CONFIG_CONCURRENT_MODE) || defined(CONFIG_DUALMAC_CONCURRENT)
 	//set adapter_type/iface type for primary padapter
 	padapter->isprimary = _TRUE;
@@ -1702,48 +1712,20 @@ _adapter *rtw_pci_if1_init(struct dvobj_priv * dvobj, struct pci_dev *pdev, cons
 		RT_TRACE(_module_hci_intfs_c_,_drv_err_,("Initialize PCI desc ring Failed!\n"));
 		goto free_hal_data;
 	}
-	rtw_init_netdev_name(pnetdev, padapter->registrypriv.ifname);
 	rtw_macaddr_cfg(padapter->eeprompriv.mac_addr);
 	rtw_init_wifidirect_addrs(padapter, padapter->eeprompriv.mac_addr, padapter->eeprompriv.mac_addr);
-
-	_rtw_memcpy(pnetdev->dev_addr, padapter->eeprompriv.mac_addr, ETH_ALEN);
-	DBG_871X("MAC Address from pnetdev->dev_addr= "MAC_FMT"\n", MAC_ARG(pnetdev->dev_addr));	
-
 
 	rtw_hal_disable_interrupt(padapter);
 
 	//step 6. Init pci related configuration
 	rtw_pci_initialize_adapter_common(padapter);
 
-	//step 7.
-	/* Tell the network stack we exist */
-	if (register_netdev(pnetdev) != 0) {
-		RT_TRACE(_module_hci_intfs_c_,_drv_err_,("register_netdev() failed\n"));
-		goto free_hal_data;
-	}
-
-	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("-drv_init - Adapter->bDriverStopped=%d, Adapter->bSurpriseRemoved=%d\n",padapter->bDriverStopped, padapter->bSurpriseRemoved));
-
-#ifdef CONFIG_HOSTAPD_MLME
-	hostapd_mode_init(padapter);
-#endif
-
-	padapter->hw_init_mutex = &pci_drvpriv.hw_init_mutex;
-#ifdef CONFIG_CONCURRENT_MODE
-	//set global variable to primary adapter
-	padapter->ph2c_fwcmd_mutex = &pci_drvpriv.h2c_fwcmd_mutex;
-	padapter->psetch_mutex = &pci_drvpriv.setch_mutex;
-	padapter->psetbw_mutex = &pci_drvpriv.setbw_mutex;	
-#endif
-
-#ifdef CONFIG_PLATFORM_RTD2880B
-	DBG_871X("wlan link up\n");
-	rtd2885_wlan_netlink_sendMsg("linkup", "8712");
-#endif
-
-#ifdef RTK_DMP_PLATFORM
-	rtw_proc_init_one(pnetdev);
-#endif
+	DBG_871X("bDriverStopped:%d, bSurpriseRemoved:%d, bup:%d, hw_init_completed:%d\n"
+		,padapter->bDriverStopped
+		,padapter->bSurpriseRemoved
+		,padapter->bup
+		,padapter->hw_init_completed
+	);
 
 	status = _SUCCESS;
 
@@ -1807,8 +1789,11 @@ static void rtw_pci_if1_deinit(_adapter *if1)
 	rtw_handle_dualmac(if1, 0);
 
 #ifdef CONFIG_IOCTL_CFG80211
-	rtw_wdev_unregister(if1->rtw_wdev);
-	rtw_wdev_free(if1->rtw_wdev);
+	if(if1->rtw_wdev)
+	{
+		rtw_wdev_unregister(if1->rtw_wdev);
+		rtw_wdev_free(if1->rtw_wdev);
+	}
 #endif //CONFIG_IOCTL_CFG80211
 
 	rtw_hal_inirp_deinit(if1);
@@ -1836,7 +1821,6 @@ static int rtw_drv_init(struct pci_dev *pdev, const struct pci_device_id *pdid)
 	int status;
 	_adapter *if1 = NULL, *if2 = NULL;
 	struct dvobj_priv *dvobj;
-	struct net_device *pnetdev;
 	
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_init\n"));
 	//DBG_871X("+rtw_drv_init\n");
@@ -1858,9 +1842,27 @@ static int rtw_drv_init(struct pci_dev *pdev, const struct pci_device_id *pdid)
 
 	/* Initialize if2 */
 #ifdef CONFIG_CONCURRENT_MODE
-	if((if2 = rtw_drv_if2_init(if1, NULL, pci_set_intf_ops)) == NULL) {
+	if((if2 = rtw_drv_if2_init(if1, pci_set_intf_ops)) == NULL) {
 		goto free_if1;
 	}
+#endif
+
+	//dev_alloc_name && register_netdev
+	if((status = rtw_drv_register_netdev(if1)) != _SUCCESS) {
+		goto free_if2;
+	}
+
+#ifdef CONFIG_HOSTAPD_MLME
+	hostapd_mode_init(if1);
+#endif
+
+#ifdef CONFIG_PLATFORM_RTD2880B
+	DBG_871X("wlan link up\n");
+	rtd2885_wlan_netlink_sendMsg("linkup", "8712");
+#endif
+
+#ifdef RTK_DMP_PLATFORM
+	rtw_proc_init_one(if1->pnetdev);
 #endif
 
 	/* alloc irq */
@@ -1965,13 +1967,6 @@ static int __init rtw_drv_entry(void)
 
 	rtw_suspend_lock_init();
 
-	_rtw_mutex_init(&pci_drvpriv.hw_init_mutex);
-#if defined(CONFIG_CONCURRENT_MODE) || defined(CONFIG_DUALMAC_CONCURRENT)
-	//init global variable
-	_rtw_mutex_init(&pci_drvpriv.h2c_fwcmd_mutex);
-	_rtw_mutex_init(&pci_drvpriv.setch_mutex);
-	_rtw_mutex_init(&pci_drvpriv.setbw_mutex);
-#endif
 	ret = pci_register_driver(&pci_drvpriv.rtw_pci_drv);
 	if (ret) {
 		RT_TRACE(_module_hci_intfs_c_, _drv_err_, (": No device found\n"));
@@ -1988,12 +1983,6 @@ static void __exit rtw_drv_halt(void)
 	rtw_suspend_lock_uninit();	
 	pci_drvpriv.drv_registered = _FALSE;
 	
-	_rtw_mutex_free(&pci_drvpriv.hw_init_mutex);
-#if defined(CONFIG_CONCURRENT_MODE) || defined(CONFIG_DUALMAC_CONCURRENT)
-	_rtw_mutex_free(&pci_drvpriv.h2c_fwcmd_mutex);
-	_rtw_mutex_free(&pci_drvpriv.setch_mutex);
-	_rtw_mutex_free(&pci_drvpriv.setbw_mutex);
-#endif
 	pci_unregister_driver(&pci_drvpriv.rtw_pci_drv);
 
 	DBG_871X("-rtw_drv_halt\n");

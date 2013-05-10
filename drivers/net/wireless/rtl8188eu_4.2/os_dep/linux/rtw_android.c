@@ -347,7 +347,7 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	}
 	
 	//DBG_871X("%s priv_cmd.buf=%p priv_cmd.total_len=%d  priv_cmd.used_len=%d\n",__func__,priv_cmd.buf,priv_cmd.total_len,priv_cmd.used_len);
-	command = kmalloc(priv_cmd.total_len, GFP_KERNEL);
+	command = rtw_zmalloc(priv_cmd.total_len);
 	if (!command)
 	{
 		DBG_871X("%s: failed to allocate memory\n", __FUNCTION__);
@@ -457,9 +457,15 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		break;
 		
 	case ANDROID_WIFI_CMD_SETBAND:
-		//uint band = *(command + strlen(CMD_SETBAND) + 1) - '0';
-		//bytes_written = wldev_set_band(net, band);
+	{
+		uint band = *(command + strlen("SETBAND") + 1) - '0';
+		_adapter*	padapter = ( _adapter * ) rtw_netdev_priv(net);
+
+		if (padapter->chip_type == RTL8192D)
+			padapter->setband = band;
+
 		break;
+	}
 	case ANDROID_WIFI_CMD_GETBAND:
 		//bytes_written = wl_android_get_band(net, command, priv_cmd.total_len);
 		break;

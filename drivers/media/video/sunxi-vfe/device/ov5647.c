@@ -699,9 +699,10 @@ static int sensor_s_exp(struct v4l2_subdev *sd, unsigned int exp_val)
 	//if(info->exp == exp_val && exp_val <= (1968)*16)
 	//	return 0;
   
+	sensor_write(sd, 0x3208, 0x00);//enter group write
 	sensor_write(sd, 0x3503, 0x13);
-	sensor_write(sd, 0x350d, 0x0);
-	sensor_write(sd, 0x350c, 0x0);
+	//sensor_write(sd, 0x350d, 0x0);
+	//sensor_write(sd, 0x350c, 0x0);
     exphigh = (unsigned char) ( (0x0f0000&exp_val)>>16);
     expmid  = (unsigned char) ( (0x00ff00&exp_val)>>8);
     explow  = (unsigned char) ( (0x0000ff&exp_val)   );
@@ -710,8 +711,8 @@ static int sensor_s_exp(struct v4l2_subdev *sd, unsigned int exp_val)
 	sensor_write(sd, 0x3502, explow);
 	sensor_write(sd, 0x3501, expmid);
 	sensor_write(sd, 0x3500, exphigh);	
-	//sensor_write(sd, 0x3208, 0x10);//end group write
-	//sensor_write(sd, 0x3208, 0xa0);//init group write
+	sensor_write(sd, 0x3208, 0x10);//end group write
+	sensor_write(sd, 0x3208, 0xa0);//init group write
 	//printk("5647 sensor_set_exp = %d, Done!\n", exp_val);
 	
 	info->exp = exp_val;
@@ -765,12 +766,13 @@ static int sensor_s_gain(struct v4l2_subdev *sd, int gain_val)
 //    info->current_wins->fps_fixed=2;
 //  }
 	
-	//sensor_write(sd, 0x3208, 0x00);//enter group write
+	sensor_write(sd, 0x3208, 0x00);//enter group write
+	
+	sensor_write(sd, 0x3503, 0x13);
 	sensor_write(sd, 0x350b, gainlow);
 	sensor_write(sd, 0x350a, gainhigh);
-	sensor_write(sd, 0x3503, 0x13);
-	//sensor_write(sd, 0x3208, 0x10);//end group write
-	//sensor_write(sd, 0x3208, 0xa0);//init group write
+	sensor_write(sd, 0x3208, 0x10);//end group write
+	sensor_write(sd, 0x3208, 0xa0);//init group write
 	
 	//printk("5647 sensor_set_gain = %d, Done!\n", gain_val);
 	info->gain = gain_val;
@@ -1171,7 +1173,7 @@ static struct sensor_win_size sensor_win_sizes[] = {
       .intg_min   = 1,
       .intg_max   = 800<<4,
       .gain_min   = 1<<4,
-      .gain_max   = 12<<4,
+      .gain_max   = 10<<4,
       .regs			  = sensor_720p_regs,//
       .regs_size	= ARRAY_SIZE(sensor_720p_regs),//
       .set_size		= NULL,

@@ -78,6 +78,7 @@ extern void UpdateInterruptMask8188ESdio(PADAPTER padapter, u32 AddMSR, u32 Remo
 
 #ifdef CONFIG_WOWLAN
 extern u8 RecvOnePkt(PADAPTER padapter, u32 size);
+extern void ClearInterrupt8189ESdio(PADAPTER padapter);
 #endif //CONFIG_WOWLAN
 #endif
 

@@ -670,6 +670,7 @@ void rtl8188e_InitializeFirmwareVars(PADAPTER padapter);
 
 
 s32 InitLLTTable(PADAPTER padapter, u8 txpktbuf_bndy);
+void Read_LLT_Tab(PADAPTER padapter);
 
 // EFuse
 u8 GetEEPROMSize8188E(PADAPTER padapter);

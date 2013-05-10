@@ -110,6 +110,9 @@ typedef struct
     __bool                  have_cfg_reg;
     __u32                   cache_flag;
     __u32                   cfg_cnt;
+#ifdef __LINUX_OSAL__
+    spinlock_t              flag_lock;
+#endif
     
     __u32                   screen_width;
     __u32                   screen_height;

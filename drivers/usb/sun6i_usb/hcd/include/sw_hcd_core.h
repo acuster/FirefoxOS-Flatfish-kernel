@@ -194,6 +194,7 @@ typedef struct sw_hcd{
 
 	sw_hcd_io_t	*sw_hcd_io;
 	u32 enable;
+	u32 init_controller;
 	u32 suspend;
        u32 session_req_flag;
        u32 reset_flag;

@@ -179,6 +179,8 @@ extern __s32 BSP_disp_de_flicker_enable(__u32 sel, __bool b_en);
 extern __s32 BSP_disp_store_image_reg(__u32 sel, __u32 addr);
 extern __s32 BSP_disp_restore_image_reg(__u32 sel, __u32 addr);
 extern __s32 BSP_disp_vsync_event_enable(__u32 sel, __bool enable);
+extern __s32 bsp_disp_cmd_cache_get(__u32 sel);
+extern __s32 bsp_disp_cfg_get(__u32 sel);
 
 extern __s32 BSP_disp_layer_request(__u32 sel, __disp_layer_work_mode_t mode);
 extern __s32 BSP_disp_layer_release(__u32 sel, __u32 hid);

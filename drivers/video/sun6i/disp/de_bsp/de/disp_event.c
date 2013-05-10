@@ -12,30 +12,65 @@ static unsigned long vint_time[2][VINT_TIME_LEN];//jiffies
 
 extern __panel_para_t gpanel_info[2];
 
+__s32 bsp_disp_cmd_cache_get(__u32 sel)
+{
+  return  gdisp.screen[sel].cache_flag;
+}
+
+__s32 bsp_disp_cfg_get(__u32 sel)
+{
+   return gdisp.screen[sel].cfg_cnt;
+}
+
 __s32 BSP_disp_cmd_cache(__u32 sel)
 {
-    gdisp.screen[sel].cache_flag = TRUE;
+#ifdef __LINUX_OSAL__
+    unsigned long flags;
+    spin_lock_irqsave(&gdisp.screen[sel].flag_lock, flags);
+#endif
+    gdisp.screen[sel].cache_flag = true;
+#ifdef __LINUX_OSAL__
+    spin_unlock_irqrestore(&gdisp.screen[sel].flag_lock, flags);
+#endif
     return DIS_SUCCESS;
 }
 
 __s32 BSP_disp_cmd_submit(__u32 sel)
 {
+#ifdef __LINUX_OSAL__
+    unsigned long flags;
+    spin_lock_irqsave(&gdisp.screen[sel].flag_lock, flags);
+#endif
     gdisp.screen[sel].cache_flag = FALSE;
-
+#ifdef __LINUX_OSAL__
+    spin_unlock_irqrestore(&gdisp.screen[sel].flag_lock, flags);
+#endif
     return DIS_SUCCESS;
 }
 
 __s32 BSP_disp_cfg_start(__u32 sel)
 {
+#ifdef __LINUX_OSAL__
+    unsigned long flags;
+    spin_lock_irqsave(&gdisp.screen[sel].flag_lock, flags);
+#endif
 	gdisp.screen[sel].cfg_cnt++;
-	
+#ifdef __LINUX_OSAL__
+    spin_unlock_irqrestore(&gdisp.screen[sel].flag_lock, flags);
+#endif
 	return DIS_SUCCESS;
 }
 
 __s32 BSP_disp_cfg_finish(__u32 sel)
 {
+#ifdef __LINUX_OSAL__
+    unsigned long flags;
+    spin_lock_irqsave(&gdisp.screen[sel].flag_lock, flags);
+#endif
 	gdisp.screen[sel].cfg_cnt--;
-	
+#ifdef __LINUX_OSAL__
+    spin_unlock_irqrestore(&gdisp.screen[sel].flag_lock, flags);
+#endif
 	return DIS_SUCCESS;
 }
 

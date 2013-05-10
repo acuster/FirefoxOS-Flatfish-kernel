@@ -449,59 +449,32 @@ void Set_MSR(_adapter *padapter, u8 type)
 
 inline u8 rtw_get_oper_ch(_adapter *adapter)
 {
-#ifdef CONFIG_CONCURRENT_MODE
-	if (adapter->pcodatapriv)
-		return adapter->pcodatapriv->co_ch;
-	else
-#endif
-	return adapter->mlmeextpriv.oper_channel;
+	return adapter_to_dvobj(adapter)->oper_channel;
 }
 
 inline void rtw_set_oper_ch(_adapter *adapter, u8 ch)
 {
-#ifdef CONFIG_CONCURRENT_MODE
-	if (adapter->pcodatapriv)
-		adapter->pcodatapriv->co_ch = ch;
-#endif
-	adapter->mlmeextpriv.oper_channel = ch;
+	adapter_to_dvobj(adapter)->oper_channel = ch;
 }
 
 inline u8 rtw_get_oper_bw(_adapter *adapter)
 {
-#ifdef CONFIG_CONCURRENT_MODE
-	if (adapter->pcodatapriv)
-		return adapter->pcodatapriv->co_bw;
-	else
-#endif
-	return adapter->mlmeextpriv.oper_bwmode;
+	return adapter_to_dvobj(adapter)->oper_bwmode;
 }
 
 inline void rtw_set_oper_bw(_adapter *adapter, u8 bw)
 {
-#ifdef CONFIG_CONCURRENT_MODE
-	if (adapter->pcodatapriv)
-		adapter->pcodatapriv->co_bw = bw;
-#endif
-	adapter->mlmeextpriv.oper_bwmode = bw;
+	adapter_to_dvobj(adapter)->oper_bwmode = bw;
 }
 
 inline u8 rtw_get_oper_choffset(_adapter *adapter)
 {
-#ifdef CONFIG_CONCURRENT_MODE
-	if (adapter->pcodatapriv)
-		return adapter->pcodatapriv->co_ch_offset;
-	else
-#endif
-	return adapter->mlmeextpriv.oper_ch_offset;
+	return adapter_to_dvobj(adapter)->oper_ch_offset;
 }
 
 inline void rtw_set_oper_choffset(_adapter *adapter, u8 offset)
 {
-#ifdef CONFIG_CONCURRENT_MODE
-	if (adapter->pcodatapriv)
-		adapter->pcodatapriv->co_ch_offset = offset;
-#endif
-	adapter->mlmeextpriv.oper_ch_offset = offset;
+	adapter_to_dvobj(adapter)->oper_ch_offset = offset;
 }
 
 void SelectChannel(_adapter *padapter, unsigned char channel)
@@ -514,20 +487,14 @@ void SelectChannel(_adapter *padapter, unsigned char channel)
 	dc_SelectChannel(padapter, channel);
 #else //CONFIG_DUALMAC_CONCURRENT
 
-	
-#ifdef CONFIG_CONCURRENT_MODE
-	_enter_critical_mutex(padapter->psetch_mutex, NULL);
-#endif
+	_enter_critical_mutex(&(adapter_to_dvobj(padapter)->setch_mutex), NULL);
 	
 	//saved channel info
 	rtw_set_oper_ch(padapter, channel);
 
 	rtw_hal_set_chan(padapter, channel);
 	
-
-#ifdef CONFIG_CONCURRENT_MODE
-	_exit_critical_mutex(padapter->psetch_mutex, NULL);
-#endif
+	_exit_critical_mutex(&(adapter_to_dvobj(padapter)->setch_mutex), NULL);
 		
 #endif // CONFIG_DUALMAC_CONCURRENT
 }
@@ -543,9 +510,7 @@ void SetBWMode(_adapter *padapter, unsigned short bwmode, unsigned char channel_
 	dc_SetBWMode(padapter, bwmode, channel_offset);
 #else //CONFIG_DUALMAC_CONCURRENT
 
-#ifdef CONFIG_CONCURRENT_MODE
-	_enter_critical_mutex(padapter->psetbw_mutex, NULL);
-#endif
+	_enter_critical_mutex(&(adapter_to_dvobj(padapter)->setbw_mutex), NULL);
 
 	//saved bw info
 	rtw_set_oper_bw(padapter, bwmode);
@@ -553,9 +518,7 @@ void SetBWMode(_adapter *padapter, unsigned short bwmode, unsigned char channel_
 
 	rtw_hal_set_bwmode(padapter, (HT_CHANNEL_WIDTH)bwmode, channel_offset);
 
-#ifdef CONFIG_CONCURRENT_MODE
-	_exit_critical_mutex(padapter->psetbw_mutex, NULL);
-#endif
+	_exit_critical_mutex(&(adapter_to_dvobj(padapter)->setbw_mutex), NULL);
 
 #endif // CONFIG_DUALMAC_CONCURRENT
 }
@@ -599,10 +562,7 @@ void set_channel_bwmode(_adapter *padapter, unsigned char channel, unsigned char
 	dc_SelectChannel(padapter, center_ch);// set center channel
 #else //CONFIG_DUALMAC_CONCURRENT
 
-	
-#ifdef CONFIG_CONCURRENT_MODE
-	_enter_critical_mutex(padapter->psetch_mutex, NULL);
-#endif
+	_enter_critical_mutex(&(adapter_to_dvobj(padapter)->setch_mutex), NULL);
 	
 	//saved channel/bw info
 	rtw_set_oper_ch(padapter, channel);
@@ -611,9 +571,7 @@ void set_channel_bwmode(_adapter *padapter, unsigned char channel, unsigned char
 
 	rtw_hal_set_chan(padapter, center_ch); // set center channel
 
-#ifdef CONFIG_CONCURRENT_MODE
-	_exit_critical_mutex(padapter->psetch_mutex, NULL);
-#endif
+        _exit_critical_mutex(&(adapter_to_dvobj(padapter)->setch_mutex), NULL);
 
 #endif // CONFIG_DUALMAC_CONCURRENT
 
@@ -2059,21 +2017,21 @@ unsigned char get_highest_mcs_rate(struct HT_caps_element *pHT_caps)
 	return i;
 }
 
-void Update_RA_Entry(_adapter *padapter, u32 mac_id)
+void Update_RA_Entry(_adapter *padapter, struct sta_info *psta)
 {
-	rtw_hal_update_ra_mask(padapter, mac_id,0);
+	rtw_hal_update_ra_mask(psta, 0);
 }
 
-void enable_rate_adaptive(_adapter *padapter, u32 mac_id);
-void enable_rate_adaptive(_adapter *padapter, u32 mac_id)
+void enable_rate_adaptive(_adapter *padapter, struct sta_info *psta);
+void enable_rate_adaptive(_adapter *padapter, struct sta_info *psta)
 {
-	Update_RA_Entry(padapter, mac_id);
+	Update_RA_Entry(padapter, psta);
 }
 
 void set_sta_rate(_adapter *padapter, struct sta_info *psta)
 {
 	//rate adaptive	
-	enable_rate_adaptive(padapter, psta->mac_id);
+	enable_rate_adaptive(padapter, psta);
 }
 
 // Update RRSR and Rate for USERATE

@@ -2486,8 +2486,32 @@ static PVRSRV_ERROR
 PVRSRVDCMemInfoGetCpuPAddr(PVRSRV_KERNEL_MEM_INFO *psKernelMemInfo,
 						   IMG_SIZE_T uByteOffset, IMG_CPU_PHYADDR *pPAddr)
 {
-	*pPAddr = OSMemHandleToCpuPAddr(psKernelMemInfo->sMemBlk.hOSMemHandle, uByteOffset);
-	return PVRSRV_OK;
+    if(psKernelMemInfo && psKernelMemInfo->psKernelSyncInfo && psKernelMemInfo->psKernelSyncInfo->psSyncDataMemInfoKM && 
+        psKernelMemInfo->psKernelSyncInfo->psSyncData)
+    {
+	    *pPAddr = OSMemHandleToCpuPAddr(psKernelMemInfo->sMemBlk.hOSMemHandle, uByteOffset);
+	    return PVRSRV_OK;
+	}
+	else
+	{
+	    if(!psKernelMemInfo)
+	    {
+            PVR_DPF((PVR_DBG_ERROR, "##PVRSRVDCMemInfoGetCpuPAddr fail, psKernelMemInfo is NULL"));
+        }
+        else if(!psKernelMemInfo->psKernelSyncInfo)
+        {
+            PVR_DPF((PVR_DBG_ERROR, "##PVRSRVDCMemInfoGetCpuPAddr fail, psKernelMemInfo->psKernelSyncInfo is NULL"));
+        }
+        else if(!psKernelMemInfo->psKernelSyncInfo->psSyncDataMemInfoKM)
+        {
+            PVR_DPF((PVR_DBG_ERROR, "##PVRSRVDCMemInfoGetCpuPAddr fail, psKernelMemInfo->psKernelSyncInfo->psSyncDataMemInfoKM is NULL"));
+        }
+        else if(!psKernelMemInfo->psKernelSyncInfo->psSyncData)
+        {
+            PVR_DPF((PVR_DBG_ERROR, "##PVRSRVDCMemInfoGetCpuPAddr fail, psKernelMemInfo->psKernelSyncInfo->psSyncData is NULL"));
+        }
+        return PVRSRV_ERROR_INVALID_PARAMS;
+	}
 }
 
 static PVRSRV_ERROR

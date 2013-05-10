@@ -140,7 +140,7 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
     }
 
 //fb0
-    init_para->buffer_num[0]= 5;
+    init_para->buffer_num[0]= 1;
 
     if(OSAL_Script_FetchParser_Data("disp_init", "fb0_format", &value, 1) < 0)
     {
@@ -178,7 +178,7 @@ __s32 parser_disp_init_para(__disp_init_t * init_para)
     init_para->fb_height[0]= value;
 
 //fb1
-    init_para->buffer_num[1]= 3;
+    init_para->buffer_num[1]= 1;
 
     if(OSAL_Script_FetchParser_Data("disp_init", "fb1_format", &value, 1) < 0)
     {
@@ -1138,7 +1138,7 @@ int dispc_gralloc_queue(setup_dispc_data_t *psDispcData, int ui32DispcDataLength
     __disp_layer_info_t         layer_info;
     int i,disp,hdl;
     int start_idx, layer_num = 0;
-    
+
     BSP_disp_cmd_cache(0);
     BSP_disp_cmd_cache(1);
     for(disp = 0; disp < 2; disp++)

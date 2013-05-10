@@ -100,6 +100,7 @@ struct sta_info {
 	//_list asoc_list; //20061114
 	//_list sleep_list;//sleep_q
 	//_list wakeup_list;//wakeup_q
+	_adapter *padapter;
 	
 	struct sta_xmit_priv sta_xmitpriv;
 	struct sta_recv_priv sta_recvpriv;
@@ -145,7 +146,6 @@ struct sta_info {
 	u16	TPK_count;
 	_timer	TPK_timer;
 	struct TDLS_PeerKey	tpk;
-	_adapter *padapter;
 	u16	stat_code;
 	u8	off_ch;
 	u16	ch_switch_time;

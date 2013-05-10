@@ -589,7 +589,7 @@ void getTxPowerWriteValByRegulatory88E(
 				{
 					if(pHalData->pwrGroupCnt == 1)
 						chnlGroup = 0;
-					if(pHalData->pwrGroupCnt >= pHalData->PGMaxGroup)
+					//if(pHalData->pwrGroupCnt >= pHalData->PGMaxGroup)
 					{
 						if (Channel < 3)			// Chanel 1-2
 							chnlGroup = 0;
@@ -602,7 +602,12 @@ void getTxPowerWriteValByRegulatory88E(
 						else if(Channel <14)		// Channel 12-13
 							chnlGroup = 4;
 						else if(Channel ==14)		// Channel 14
-							chnlGroup = 5;	
+							chnlGroup = 4;	
+						
+						if(pHalData->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
+							chnlGroup++;
+						else
+							chnlGroup+=6;
 				
 /*
 						if(Channel <= 3)

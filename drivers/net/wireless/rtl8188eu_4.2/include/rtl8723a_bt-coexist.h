@@ -1259,6 +1259,7 @@ HCI_STATUS BTHCI_HandleHCICMD(PADAPTER padapter, PPACKET_IRP_HCICMD_DATA pHciCmd
 
 #ifdef __HALBTC87231ANT_C__ // HAL/BTCoexist/HalBtc87231Ant.h
 // ===== Below this line is sync from SD7 driver HAL/BTCoexist/HalBtc87231Ant.h =====
+#define GET_BT_INFO(padapter)	(&GET_HAL_DATA(padapter)->BtInfo)
 
 #define	BTC_FOR_SCAN_START				1
 #define	BTC_FOR_SCAN_FINISH				0
@@ -1306,6 +1307,7 @@ typedef struct _BTDM_8723A_1ANT
 	u8		RSSI_BT_Last;
 
 	u8		bWiFiHalt;
+	u8		bRAChanged;
 } BTDM_8723A_1ANT, *PBTDM_8723A_1ANT;
 
 void BTDM_1AntSignalCompensation(PADAPTER padapter, u8 *rssi_wifi, u8 *rssi_bt);

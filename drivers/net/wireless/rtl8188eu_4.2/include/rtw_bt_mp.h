@@ -148,7 +148,10 @@ typedef enum _BT_SET_GENERAL{
 	BT_GSET_RESET											= 0x01, 
 	BT_GSET_TARGET_BD_ADDR									= 0x02, 
 	BT_GSET_TX_PWR_FINETUNE 								= 0x03,
-	BT_GSET_UPDATE_BT_PATCH 								= 0x04,
+	BT_SET_TRACKING_INTERVAL								= 0x04,
+	BT_SET_THERMAL_METER									= 0x05,
+	BT_ENABLE_CFO_TRACKING									= 0x06,									
+	BT_GSET_UPDATE_BT_PATCH 								= 0x07,
 	BT_GSET_MAX
 }BT_SET_GENERAL,*PBT_SET_GENERAL;
 
@@ -156,6 +159,8 @@ typedef enum _BT_GET_GENERAL{
 	BT_GGET_REG 											= 0x00, 
 	BT_GGET_STATUS											= 0x01,
 	BT_GGET_REPORT											= 0x02,
+	BT_GGET_AFH_MAP 										= 0x03,
+	BT_GGET_AFH_STATUS										= 0x04,
 	BT_GGET_MAX
 }BT_GET_GENERAL,*PBT_GET_GENERAL;
 
@@ -169,6 +174,15 @@ typedef enum _BT_REG_TYPE{
 	BT_REG_MAX
 }BT_REG_TYPE,*PBT_REG_TYPE;
 
+// definition for BT_LO_OP_GET_AFH_MAP
+typedef enum _BT_AFH_MAP_TYPE{
+	BT_AFH_MAP_RESULT						= 0,
+	BT_AFH_MAP_WIFI_PSD_ONLY				= 1,
+	BT_AFH_MAP_WIFI_CH_BW_ONLY				= 2,
+	BT_AFH_MAP_BT_PSD_ONLY					= 3,
+	BT_AFH_MAP_HOST_CLASSIFICATION_ONLY 	= 4,
+	BT_AFH_MAP_MAX
+}BT_AFH_MAP_TYPE,*PBT_AFH_MAP_TYPE;
 
 // definition for BT_UP_OP_BT_GET_GENERAL
 typedef enum _BT_REPORT_TYPE{
@@ -247,7 +261,6 @@ typedef struct _BT_EXT_C2H{
 	u1Byte	buf[100];
 }BT_EXT_C2H, *PBT_EXT_C2H;
 
-
 typedef enum _BT_OPCODE_STATUS{
 	BT_OP_STATUS_SUCCESS									= 0x00, // Success
 	BT_OP_STATUS_VERSION_MISMATCH							= 0x01,	
@@ -255,7 +268,6 @@ typedef enum _BT_OPCODE_STATUS{
 	BT_OP_STATUS_ERROR_PARAMETER							= 0x03,
 	BT_OP_STATUS_MAX
 }BT_OPCODE_STATUS,*PBT_OPCODE_STATUS;
-
 
 
 //OP codes definition between driver and bt fw
@@ -290,10 +302,15 @@ typedef enum _BT_CTRL_OPCODE_LOWER{
 	BT_LO_OP_GET_CFO_HDR_QUALITY_H								= 0x1b,
 	BT_LO_OP_GET_TARGET_BD_ADDR_L								= 0x1c,
 	BT_LO_OP_GET_TARGET_BD_ADDR_H								= 0x1d,
+	BT_LO_OP_GET_AFH_MAP_L										= 0x1e,
+	BT_LO_OP_GET_AFH_MAP_M										= 0x1f,
+	BT_LO_OP_GET_AFH_MAP_H										= 0x20,
+	BT_LO_OP_GET_AFH_STATUS 									= 0x21,
+	BT_LO_OP_SET_TRACKING_INTERVAL								= 0x22,
+	BT_LO_OP_SET_THERMAL_METER									= 0x23,
+	BT_LO_OP_ENABLE_CFO_TRACKING								= 0x24,
 	BT_LO_OP_MAX
 }BT_CTRL_OPCODE_LOWER,*PBT_CTRL_OPCODE_LOWER;
-
-
 
 #endif  /* #if(MP_DRIVER == 1) */
 

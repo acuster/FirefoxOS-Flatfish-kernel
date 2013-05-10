@@ -497,6 +497,11 @@ MPTBT_FwC2hBtMpCtrl(
 	PMPT_CONTEXT	pMptCtx=&(Adapter->mppriv.MptCtx);
 	PBT_EXT_C2H pExtC2h=(PBT_EXT_C2H)tmpBuf;
 	
+	if(Adapter->bBTFWReady == _FALSE || Adapter->registrypriv.mp_mode == 0 )
+	{	
+		DBG_8192C("[MPT], %s,bBTFWReady == _FALSE\n",__func__);
+		return;
+	}
 	//cancel_timeout for h2c handle
 	_cancel_timer_ex( &pMptCtx->MPh2c_timeout_timer);
 
@@ -513,6 +518,8 @@ MPTBT_FwC2hBtMpCtrl(
 		case EXT_C2H_WIFI_FW_ACTIVE_RSP:
 			DBG_8192C("[MPT], EXT_C2H_WIFI_FW_ACTIVE_RSP\n");
 			DBG_8192C("[MPT], pExtC2h->buf hex: \n");
+			if( length > 32 || length < 3 )
+					break ;
 			for(i=0;i<=(length-3);i++)
 				DBG_8192C(" 0x%x ",pExtC2h->buf[i]);
 				//PlatformSetEvent(&pMptCtx->MptH2cRspEvent);
@@ -1000,7 +1007,8 @@ mptbt_BtSetGeneral(
 				bdAddr[3] = pBtReq->pParamStart[3];
 				bdAddr[4] = pBtReq->pParamStart[2];
 				bdAddr[5] = pBtReq->pParamStart[1];
-				DBG_8192C ("[MPT], target BDAddr:%s", &bdAddr[0]);
+				DBG_8192C ("[MPT], target BDAddr:%x,%x,%x,%x,%x,%x\n", 
+							bdAddr[0],bdAddr[1],bdAddr[2],bdAddr[3],bdAddr[4],bdAddr[5]);
 			}
 			break;
 		case BT_GSET_TX_PWR_FINETUNE:
@@ -1017,6 +1025,25 @@ mptbt_BtSetGeneral(
 				}
 				DBG_8192C ("[MPT], calVal=%d\n", calVal);
 			}
+			break;
+		case BT_SET_TRACKING_INTERVAL:
+			DBG_871X("[MPT], [BT_SET_TRACKING_INTERVAL] setParaLen =%d \n",setParaLen);
+			
+			validParaLen = 1;	
+			if(setParaLen == validParaLen)	
+				calVal = pBtReq->pParamStart[1];
+			break;
+		case BT_SET_THERMAL_METER:
+			DBG_871X("[MPT], [BT_SET_THERMAL_METER] setParaLen =%d \n",setParaLen);
+			validParaLen = 1;	
+			if(setParaLen == validParaLen)	
+				calVal = pBtReq->pParamStart[1];
+			break;
+		case BT_ENABLE_CFO_TRACKING:
+			DBG_871X("[MPT], [BT_ENABLE_CFO_TRACKING] setParaLen =%d \n",setParaLen);
+			validParaLen = 1;	
+			if(setParaLen == validParaLen)	
+				calVal = pBtReq->pParamStart[1];
 			break;
 		case BT_GSET_UPDATE_BT_PATCH:
 			if(IS_HARDWARE_TYPE_8723AE(Adapter) && Adapter->bFWReady)
@@ -1150,6 +1177,51 @@ mptbt_BtSetGeneral(
 		{
 			pBtRsp->status = ((btOpcode<<8)|retStatus);
 			DBG_8192C("[MPT], Error!! status code=0x%x \n", pBtRsp->status);
+			return paraLen;
+		}
+	}
+	else if(BT_SET_TRACKING_INTERVAL == setType)
+	{
+		//	BT_LO_OP_SET_TRACKING_INTERVAL								= 0x22,
+		//	BT_LO_OP_SET_THERMAL_METER									= 0x23,
+		//	BT_LO_OP_ENABLE_CFO_TRACKING									= 0x24,
+				btOpcode = BT_LO_OP_SET_TRACKING_INTERVAL;
+				h2cParaBuf[0] = calVal;
+				h2cParaLen = 1;
+				retStatus = mptbt_BtFwOpCodeProcess(Adapter, btOpcode, btOpcodeVer, &h2cParaBuf[0], h2cParaLen);		
+				// ckeck bt return status.
+				if(BT_STATUS_BT_OP_SUCCESS != retStatus)
+				{
+					pBtRsp->status = ((btOpcode<<8)|retStatus);
+					DBG_8192C ("[MPT], Error!! status code=0x%x \n", pBtRsp->status);
+					return paraLen;
+				}
+	}
+	else if(BT_SET_THERMAL_METER == setType)
+	{
+				btOpcode = BT_LO_OP_SET_THERMAL_METER;
+				h2cParaBuf[0] = calVal;
+				h2cParaLen = 1;
+				retStatus = mptbt_BtFwOpCodeProcess(Adapter, btOpcode, btOpcodeVer, &h2cParaBuf[0], h2cParaLen);		
+				// ckeck bt return status.
+				if(BT_STATUS_BT_OP_SUCCESS != retStatus)
+				{
+					pBtRsp->status = ((btOpcode<<8)|retStatus);
+					DBG_8192C ("[MPT], Error!! status code=0x%x \n", pBtRsp->status);
+					return paraLen;
+				}
+	}
+	else if(BT_ENABLE_CFO_TRACKING == setType)
+	{
+				btOpcode = BT_LO_OP_ENABLE_CFO_TRACKING;
+				h2cParaBuf[0] = calVal;
+				h2cParaLen = 1;
+				retStatus = mptbt_BtFwOpCodeProcess(Adapter, btOpcode, btOpcodeVer, &h2cParaBuf[0], h2cParaLen);		
+				// ckeck bt return status.
+				if(BT_STATUS_BT_OP_SUCCESS != retStatus)
+				{
+					pBtRsp->status = ((btOpcode<<8)|retStatus);
+					DBG_8192C ("[MPT], Error!! status code=0x%x \n", pBtRsp->status);
 			return paraLen;
 		}
 	}

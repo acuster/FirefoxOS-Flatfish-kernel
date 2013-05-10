@@ -693,10 +693,18 @@ _func_enter_;
 		}
 		else
 		{
+			DBG_871X("%s, call rtw_get_stainfo()\n", __func__);
 			stainfo=rtw_get_stainfo(&padapter->stapriv ,&pattrib->ra[0] );
 		}	
 		
 		if (stainfo!=NULL){
+
+			if(!(stainfo->state &_FW_LINKED))
+			{
+				DBG_871X("%s, psta->state(0x%x) != _FW_LINKED\n", __func__, stainfo->state);
+				return _FAIL;
+			}
+			
 			RT_TRACE(_module_rtl871x_security_c_,_drv_err_,("rtw_tkip_encrypt: stainfo!=NULL!!!\n"));
 
 			if(IS_MCAST(pattrib->ra))
@@ -750,6 +758,7 @@ _func_enter_;
 		}
 		else{
 			RT_TRACE(_module_rtl871x_security_c_,_drv_err_,("rtw_tkip_encrypt: stainfo==NULL!!!\n"));
+                        DBG_871X("%s, psta==NUL\n", __func__);
 			res=_FAIL;
 		}
 						
@@ -1555,10 +1564,18 @@ _func_enter_;
 		}
 		else
 		{
+			DBG_871X("%s, call rtw_get_stainfo()\n", __func__);
 			stainfo=rtw_get_stainfo(&padapter->stapriv ,&pattrib->ra[0] );
 		}	
 		
 		if (stainfo!=NULL){
+
+			if(!(stainfo->state &_FW_LINKED))
+			{
+				DBG_871X("%s, psta->state(0x%x) != _FW_LINKED\n", __func__, stainfo->state);
+				return _FAIL;
+			}
+			
 			RT_TRACE(_module_rtl871x_security_c_,_drv_err_,("rtw_aes_encrypt: stainfo!=NULL!!!\n"));
 
 			if(IS_MCAST(pattrib->ra))
@@ -1605,6 +1622,7 @@ _func_enter_;
 		}
 		else{
 			RT_TRACE(_module_rtl871x_security_c_,_drv_err_,("rtw_aes_encrypt: stainfo==NULL!!!\n"));
+                        DBG_871X("%s, psta==NUL\n", __func__);
 			res=_FAIL;
 		}
 						

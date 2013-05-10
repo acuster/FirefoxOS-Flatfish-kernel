@@ -1384,6 +1384,7 @@ static int sw_hcd_init_controller(struct device *dev, int nIrq, void __iomem *ct
 	sw_hcd->set_clock         = plat->set_clock;
 	sw_hcd->min_power         = plat->min_power;
 	sw_hcd->board_set_vbus    = sw_hcd_board_set_vbus;
+	sw_hcd->init_controller = 1;
 
 	/* assume vbus is off */
 
@@ -1470,6 +1471,8 @@ static int sw_hcd_init_controller(struct device *dev, int nIrq, void __iomem *ct
 		}
     }
 
+	sw_hcd->init_controller = 0;
+
     return 0;
 
 fail2:
@@ -1484,6 +1487,8 @@ fail:
 
 	device_init_wakeup(dev, 0);
 	sw_hcd_free(sw_hcd);
+	
+	sw_hcd->init_controller = 0;
 
 	return status;
 }

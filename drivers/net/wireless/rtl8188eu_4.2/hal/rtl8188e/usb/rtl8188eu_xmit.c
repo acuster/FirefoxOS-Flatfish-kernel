@@ -1211,6 +1211,31 @@ s32 rtl8188eu_hal_xmit(_adapter *padapter, struct xmit_frame *pxmitframe)
 	return pre_xmitframe(padapter, pxmitframe);
 }
 
+s32	rtl8188eu_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe)
+{
+	struct xmit_priv 	*pxmitpriv = &padapter->xmitpriv;
+	s32 err;
+	
+	if ((err=rtw_xmitframe_enqueue(padapter, pxmitframe)) != _SUCCESS) 
+	{
+		rtw_free_xmitframe(pxmitpriv, pxmitframe);
+
+		// Trick, make the statistics correct
+		pxmitpriv->tx_pkts--;
+		pxmitpriv->tx_drop++;					
+	}
+	else
+	{
+#ifdef PLATFORM_LINUX
+		tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
+#endif
+	}
+	
+	return err;
+	
+}
+
+
 #ifdef  CONFIG_HOSTAPD_MLME
 
 static void rtl8188eu_hostap_mgnt_xmit_cb(struct urb *urb)

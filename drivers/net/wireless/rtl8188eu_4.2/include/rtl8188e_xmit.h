@@ -260,6 +260,7 @@ s32 rtl8188es_init_xmit_priv(PADAPTER padapter);
 void rtl8188es_free_xmit_priv(PADAPTER padapter);
 s32 rtl8188es_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 s32 rtl8188es_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+s32	rtl8188es_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 thread_return rtl8188es_xmit_thread(thread_context context);
 s32 rtl8188es_xmit_buf_handler(PADAPTER padapter);
 #define hal_xmit_handler rtl8188es_xmit_buf_handler
@@ -274,6 +275,7 @@ s32 rtl8188eu_init_xmit_priv(PADAPTER padapter);
 void rtl8188eu_free_xmit_priv(PADAPTER padapter);
 s32 rtl8188eu_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 s32 rtl8188eu_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+s32	rtl8188eu_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 s32 rtl8188eu_xmit_buf_handler(PADAPTER padapter);
 #define hal_xmit_handler rtl8188eu_xmit_buf_handler
 void rtl8188eu_xmit_tasklet(void *priv);

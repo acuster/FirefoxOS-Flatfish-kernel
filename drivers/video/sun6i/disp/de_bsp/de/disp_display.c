@@ -41,6 +41,9 @@ __s32 BSP_disp_init(__disp_bsp_init_para * para)
 
         gdisp.screen[screen_id].lcd_cfg.backlight_bright = 197;
         gdisp.screen[screen_id].lcd_cfg.backlight_dimming = 256;
+#ifdef __LINUX_OSAL__
+        spin_lock_init(&gdisp.screen[screen_id].flag_lock);
+#endif
     }
     memcpy(&gdisp.init_para,para,sizeof(__disp_bsp_init_para));
 
