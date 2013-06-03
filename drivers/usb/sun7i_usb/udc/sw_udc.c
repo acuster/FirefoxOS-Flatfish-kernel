@@ -2807,7 +2807,7 @@ static void sw_udc_reinit(struct sw_udc *dev)
 */
 static void sw_udc_enable(struct sw_udc *dev)
 {
-	DMSG_DBG_UDC("sw_udc_enable called\n");
+	DMSG_INFO_UDC("sw_udc_enable called\n");
 
 	/* dev->gadget.speed = USB_SPEED_UNKNOWN; */
 	dev->gadget.speed = USB_SPEED_UNKNOWN;
@@ -2970,6 +2970,9 @@ int sw_udc_start(struct usb_gadget_driver *driver,
 		device_del(&udc->gadget.dev);
 		goto register_error;
 	}
+
+    /* Enable udc */
+    sw_udc_enable(udc);
 
 	return 0;
 
@@ -3278,6 +3281,8 @@ static int sw_udc_probe_otg(struct platform_device *pdev)
 {
 	struct sw_udc  	*udc = &sw_udc;
 
+    DMSG_INFO_UDC("sw_udc_probe_otg start\n");
+
 	g_udc_pdev = pdev;
 
 	spin_lock_init (&udc->lock);
@@ -3291,6 +3296,7 @@ static int sw_udc_probe_otg(struct platform_device *pdev)
 	the_controller = udc;
 	platform_set_drvdata(pdev, udc);
 
+    DMSG_INFO_UDC("sw_udc_probe_otg calling usb_add_gadget_udc\n");
     return usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 }
 

@@ -560,8 +560,8 @@ static __s32 sw_hcd_io_init(__u32 usbc_no, struct platform_device *pdev, sw_hcd_
 	sw_hcd_io->usb_vbase  = (void __iomem *)SW_VA_USB0_IO_BASE;
 	sw_hcd_io->sram_vbase = (void __iomem *)SW_VA_SRAM_IO_BASE;
 
-//	DMSG_INFO_HCD0("[usb host]: usb_vbase    = 0x%x\n", (u32)sw_hcd_io->usb_vbase);
-//	DMSG_INFO_HCD0("[usb host]: sram_vbase   = 0x%x\n", (u32)sw_hcd_io->sram_vbase);
+	DMSG_INFO_HCD0("[usb host]: usb_vbase    = 0x%x\n", (u32)sw_hcd_io->usb_vbase);
+	DMSG_INFO_HCD0("[usb host]: sram_vbase   = 0x%x\n", (u32)sw_hcd_io->sram_vbase);
 
     /* open usb lock */
 	ret = usb_clock_init(sw_hcd_io);
@@ -989,7 +989,7 @@ static int sw_hcd_core_init(u16 sw_hcd_type, struct sw_hcd *sw_hcd)
 {
 	u8              reg         = 0;
 	char            *type       = NULL;
-	char            aInfo[78];
+	char            aInfo[128];
 	char            aRevision[32];
 	char            aDate[12];
 	void __iomem    *usbc_base  = sw_hcd->mregs;
@@ -1004,7 +1004,8 @@ static int sw_hcd_core_init(u16 sw_hcd_type, struct sw_hcd *sw_hcd)
 	sw_hcd_ep_select(usbc_base, 0);
 	reg = sw_hcd_read_configdata(usbc_base);
 
-    strcpy(aInfo, (reg & (1 << USBC_BP_CONFIGDATA_UTMI_DATAWIDTH)) ? "UTMI-16" : "UTMI-8");
+    strcpy(aInfo, (reg & (1 << USBC_BP_CONFIGDATA_UTMI_DATAWIDTH)) ?
+                "UTMI-16" : "UTMI-8");
 
 	if (reg & (1 << USBC_BP_CONFIGDATA_DYNFIFO_SIZING)){
 		strcat(aInfo, ", dyn FIFOs");
@@ -1036,7 +1037,7 @@ static int sw_hcd_core_init(u16 sw_hcd_type, struct sw_hcd *sw_hcd)
 		strcat(aInfo, ", SoftConn");
 	}
 
-//	DMSG_INFO_HCD0("%s: ConfigData=0x%02x (%s)\n", sw_hcd_driver_name, reg, aInfo);
+	DMSG_INFO_HCD0("%s: ConfigData=0x%02x (%s)\n", sw_hcd_driver_name, reg, aInfo);
 
 	aDate[0] = 0;
 
@@ -1145,8 +1146,8 @@ static const struct hc_driver sw_hcd_hc_driver = {
 	.description		= "sw_hcd-hcd",
 	.product_desc		= "sw_hcd host driver",
 	.hcd_priv_size		= sizeof(struct sw_hcd),
-//	.flags              = HCD_USB2 | HCD_MEMORY,
-	.flags				= HCD_USB11 | HCD_MEMORY,
+	.flags              = HCD_USB2 | HCD_MEMORY,
+//	.flags				= HCD_USB11 | HCD_MEMORY,
 
 	/* not using irq handler or reset hooks from usbcore, since
 	 * those must be shared with peripheral code for OTG configs
@@ -1341,6 +1342,7 @@ static int sw_hcd_init_controller(struct device *dev, int nIrq, void __iomem *ct
 	int                        	status  = 0;
 	struct sw_hcd              	*sw_hcd	= 0;
 	struct sw_hcd_platform_data	*plat   = dev->platform_data;
+    unsigned long   flags = 0;
 
 	/* The driver might handle more features than the board; OK.
 	 * Fail when the board needs a feature that's not enabled.
@@ -1352,20 +1354,23 @@ static int sw_hcd_init_controller(struct device *dev, int nIrq, void __iomem *ct
 
     switch (plat->mode) {
 	    case SW_HCD_HOST:
-            DMSG_INFO_HCD0("platform is usb host\n");
+            DMSG_INFO_HCD0("platform mode is usb host\n");
 		break;
 
 	default:
-		DMSG_PANIC("ERR: unkown platform mode(%d)\n", plat->mode);
+		DMSG_PANIC("ERR: unknown platform mode(%d)\n", plat->mode);
 		return -EINVAL;
 	}
 
+    DMSG_INFO_HCD0("allocate instance\n");
 	/* allocate */
 	sw_hcd = allocate_instance(dev, plat->config, ctrl);
 	if (!sw_hcd){
 	    DMSG_PANIC("ERR: allocate_instance failed\n");
 		return -ENOMEM;
 	}
+
+    DMSG_INFO_HCD0("spin lock init %p\n", sw_hcd);
 
 	spin_lock_init(&sw_hcd->lock);
 	sw_hcd->board_mode        = plat->mode;
@@ -1375,6 +1380,8 @@ static int sw_hcd_init_controller(struct device *dev, int nIrq, void __iomem *ct
 	sw_hcd->board_set_vbus    = sw_hcd_board_set_vbus;
 
 	/* assume vbus is off */
+
+    DMSG_INFO_HCD0("sw_hcd_platform_init\n");
 
 	/* platform adjusts sw_hcd->mregs and sw_hcd->isr if needed,
 	 * and activates clocks
@@ -1392,6 +1399,7 @@ static int sw_hcd_init_controller(struct device *dev, int nIrq, void __iomem *ct
 		goto fail2;
 	}
 
+    DMSG_INFO_HCD0("sw_hcd_support_dma\n");
     if (is_hcd_support_dma(sw_hcd->usbc_no)) {
 		status = sw_hcd_dma_probe(sw_hcd);
 		if (status < 0){
@@ -1400,10 +1408,14 @@ static int sw_hcd_init_controller(struct device *dev, int nIrq, void __iomem *ct
 		}
 	}
 
+    DMSG_INFO_HCD0("disable interrupts\n");
 	/* be sure interrupts are disabled before connecting ISR */
+    spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd_platform_disable(sw_hcd);
 	sw_hcd_generic_disable(sw_hcd);
+    spin_unlock_irqrestore(&sw_hcd->lock, flags);
 
+    DMSG_INFO_HCD0("core init\n");
 	/* setup sw_hcd parts of the core (especially endpoints) */
 	status = sw_hcd_core_init(plat->config->multipoint ? SW_HCD_CONTROLLER_MHDRC : SW_HCD_CONTROLLER_HDRC, sw_hcd);
 	if (status < 0){
@@ -1414,6 +1426,7 @@ static int sw_hcd_init_controller(struct device *dev, int nIrq, void __iomem *ct
 	/* Init IRQ workqueue before request_irq */
 	INIT_WORK(&sw_hcd->irq_work, sw_hcd_irq_work);
 
+    DMSG_INFO_HCD0("request irq\n");
 	/* attach to the IRQ */
 	if (request_irq(nIrq, sw_hcd->isr, 0, dev_name(dev), sw_hcd)) {
 		DMSG_PANIC("ERR: request_irq %d failed!\n", nIrq);
@@ -1423,6 +1436,7 @@ static int sw_hcd_init_controller(struct device *dev, int nIrq, void __iomem *ct
 
 	sw_hcd->nIrq = nIrq;
 
+    DMSG_INFO_HCD0("enable irq\n");
     /* FIXME this handles wakeup irqs wrong */
 	if (enable_irq_wake(nIrq) == 0) {
 		sw_hcd->irq_wake = 1;
@@ -1656,6 +1670,8 @@ static int sw_hcd_probe_otg(struct platform_device *pdev)
 	int             irq     = AW_IRQ_USB0; //platform_get_irq(pdev, 0);
 	__s32 			ret 	= 0;
 	__s32 			status	= 0;
+
+    DMSG_INFO("sw_hcd_probe_otg start\n");
 
 	if (irq == 0){
 	    DMSG_PANIC("ERR: platform_get_irq failed\n");
