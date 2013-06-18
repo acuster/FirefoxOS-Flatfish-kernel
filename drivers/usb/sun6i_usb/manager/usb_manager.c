@@ -54,12 +54,11 @@
 
 static struct usb_cfg g_usb_cfg;
 
-
 #ifdef CONFIG_USB_SW_SUN6I_USB0_OTG
 static __u32 thread_run_flag = 1;
 static __u32 thread_stopped_flag = 1;
+atomic_t thread_suspend_flag;
 #endif
-
 
 #define BUFLEN 32
 
@@ -234,12 +233,16 @@ static int usb_hardware_scan_thread(void * pArg)
 	while(thread_run_flag){
 		DMSG_DBG_MANAGER("\n\n");
 
+		msleep(1000);  /* 1s */
+
+		if(atomic_read(&thread_suspend_flag))
+			continue;
+
 		usb_hw_scan(cfg);
 		usb_msg_center(cfg);
 
 		DMSG_DBG_MANAGER("\n\n");
 
-		msleep(1000);  /* 1s */
 
 		if(cfg->port[0].usb_restrict_flag){
 			if(cfg->port[0].restrict_gpio_set.valid){
@@ -768,6 +771,7 @@ static int __init usb_manager_init(void)
        && g_usb_cfg.port[0].detect_type == USB_DETECT_TYPE_VBUS_ID){
     	usb_hw_scan_init(&g_usb_cfg);
 
+	atomic_set(&thread_suspend_flag, 0);
     	thread_run_flag = 1;
     	thread_stopped_flag = 0;
     	th = kthread_create(usb_hardware_scan_thread, &g_usb_cfg, "usb-hardware-scan");

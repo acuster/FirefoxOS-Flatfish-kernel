@@ -38,7 +38,7 @@ int ar100_hwmsgbox_init(void)
 	
 	/* register msgbox interrupt */
 	ret = request_irq(AW_IRQ_MBOX, ar100_hwmsgbox_int_handler, 
-			IRQF_DISABLED, "ar100_hwmsgbox_irq", NULL);
+			IRQF_NO_SUSPEND, "ar100_hwmsgbox_irq", NULL);
 	if (ret) {
 		AR100_ERR("request_irq error, return %d\n", ret);
 		return ret;

@@ -474,6 +474,20 @@ __s32 video_config(__s32 vic)
     return 0;
 }
 
+__s32 video_en(__u32 enable)
+{
+	if(enable == 0)
+	{
+		u8 reg_val;
+		reg_val = HDMI_RUINT8 (0x013);
+		reg_val &= 0x7f;
+		HDMI_WUINT8 (0x013,reg_val);
+	}
+
+	return 0;
+
+}
+
 __s32 audio_config(void)
 {
 	__s32 i;

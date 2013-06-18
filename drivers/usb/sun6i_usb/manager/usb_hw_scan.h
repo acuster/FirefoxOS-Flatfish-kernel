@@ -24,6 +24,8 @@
 #define  USB_SCAN_INSMOD_DEVICE_DRIVER_DELAY	2
 #define  USB_SCAN_INSMOD_HOST_DRIVER_DELAY		1
 
+extern int g_msc_read_debug;
+
 /* ubs id */
 typedef enum usb_id_state{
 	USB_HOST_MODE = 0,

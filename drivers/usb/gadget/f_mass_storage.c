@@ -309,7 +309,14 @@ static const char fsg_string_interface[] = "Mass Storage";
 #define FSG_NO_OTG               1
 #define FSG_NO_INTR_EP           1
 
+#define DO_VFS_STAT              1
+#define DO_VFS_END               2
+
 #include "storage_common.c"
+
+extern atomic_t vfs_read_flag;
+extern atomic_t vfs_write_flag;
+extern int g_msc_write_debug;
 
 
 /*-------------------------------------------------------------------------*/
@@ -825,9 +832,13 @@ static int do_read(struct fsg_common *common)
                 nread = amount;
             }
         }else{
+			if(g_msc_write_debug)
+				atomic_set(&vfs_read_flag, DO_VFS_STAT);
             nread = vfs_read(curlun->filp,
                      (char __user *)bh->buf,
                      amount, &file_offset_tmp);
+			if(g_msc_write_debug)
+				atomic_set(&vfs_read_flag, DO_VFS_END);
         }
 #else
         nread = vfs_read(curlun->filp,
@@ -1032,9 +1043,13 @@ static int do_write(struct fsg_common *common)
 								if(amount <= 512){
 									msleep(1);
 								}
+				if(g_msc_write_debug)
+					atomic_set(&vfs_write_flag, DO_VFS_STAT);
                 nwritten = vfs_write(curlun->filp,
                              (char __user *)bh->buf,
                              amount, &file_offset_tmp);
+				if(g_msc_write_debug)
+					atomic_set(&vfs_write_flag, DO_VFS_END);
             }
 #else
             nwritten = vfs_write(curlun->filp,

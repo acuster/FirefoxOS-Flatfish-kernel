@@ -52,31 +52,15 @@
     #define FANTASY_ERR(format,args...)     printk(KERN_ERR "[fantasy] err "format,##args)
 #endif
 
-
-#define DEF_FREQUENCY_DOWN_DIFFERENTIAL (5)
-#define DEF_FREQUENCY_UP_THRESHOLD      (85)
-
-#define DEF_CPU_UP_RATE                 (10)    /* check cpu up period is 10*sample_rate=0.5 second */
-#define DEF_CPU_DOWN_RATE               (40)    /* check cpu down period is 40*sample_rate=2 second */
-#define DEF_FREQ_UP_RATE                (20)    /* check cpu frequency up period is 20*sample_rate=1 second     */
-#define DEF_FREQ_DOWN_RATE              (40)    /* check cpu frequency down period is 40*sample_rate=2 second   */
+#define DEF_CPU_UP_RATE                 (10)    /* check cpu up period is n*sample_rate=0.5 second */
+#define DEF_CPU_DOWN_RATE               (10)    /* check cpu down period is n*sample_rate=0.5 second */
 #define MAX_HOTPLUG_RATE                (80)    /* array size for save history sample data          */
 
 #define DEF_MAX_CPU_LOCK                (0)
 #define DEF_START_DELAY                 (0)
 
-#define MIN_FREQUENCY_UP_THRESHOLD      (11)
-#define MAX_FREQUENCY_UP_THRESHOLD      (100)
 #define DEF_SAMPLING_RATE               (50000) /* check cpu frequency sample rate is 50ms */
 
-#define MAX_CPU_QUICK_RESPONSE_RATE     DEF_CPU_UP_RATE
-#define DEF_CPU_QUICK_RESPONSE_RATE     (3)
-#define SINGLE_CPU_QUICK_RESPONSE_LOAD  (90)
-#define SINGLE_CPU_RQ_LOADING           (60)
-#define SINGLE_CPU_QUICK_RESPONSE_RQ    (200)
-#define SINGLE_CPU_QUICK_RESPONSE_IO    (40)
-#define SINGLE_CPU_DOWN_LOADING         (30)
-#define SINGLE_CPU_DOWN_RUNNING         (200)
 #define CPU_STATE_DEBUG_TOTAL_MASK      (0x1)
 #define CPU_STATE_DEBUG_CORES_MASK      (0x2)
 
@@ -121,43 +105,55 @@ static unsigned int get_rq_avg_cpu(int cpu)
 
 
 /*
- ----------------------------------------------------------
- define policy table for cpu-hotplug
- ----------------------------------------------------------
- */
-/*
  * define thread loading policy table for cpu hotplug
- * if(rq > hotplug_rq[x][1]) cpu hotplug in;
- * if(rq < hotplug_rq[x][0]) cpu hotplug out;
+ * if(rq > hotplug_rq[1][1]) cpu need plug in, run 4 cores;
+ * if(rq < hotplug_rq[3][0]) cpu can plug out, run 2 cores;
  */
 static int hotplug_rq_def[4][2] = {
-    {0  , 200},
-    {150, 300},
-    {250, 400},
-    {350, 0  },
+    {0  , 0  },
+    {0  , 350},
+    {0  , 0  },
+    {300, 0  },
 };
 
 /*
  * define frequncy loading policy table for cpu hotplug
+ * if(freq > policy->cur * hotplug_freq[1][1]) cpu need hotplug in, run 4 cores;
+ * if(freq < policy->cur * hotplug_freq[3][0]) cpu can hotplug out, run 2 cores;
  */
 static int hotplug_freq_def[4][2] = {
-    {0 , 80},    /* if(freq > policy->cur * 80%) cpu hotplug in */
-    {40, 80},    /* if(freq > policy->cur * 80%) cpu hotplug in, if(freq < policy->cur * 40%) cpu hotplug out */
-    {50, 80},    /* if(freq > policy->cur * 80%) cpu hotplug in, if(freq < policy->cur * 50%) cpu hotplug out */
-    {60, 0 },    /* if(freq < policy->cur * 60%) cpu hotplug out */
+    {0 , 0 },
+    {0 , 60},
+    {0 , 0 },
+    {40, 0 },
 };
 
 #ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
 /*
  * define frequency policy table for user event triger
+ * switch cpu frequency to policy->max * 100% if dule core currently
+ * switch cpu frequency to policy->max * 80% if quad core currently
  */
 static int usrevent_freq_def[4] = {
-    100,        /* switch cpu frequency to policy->max * 100% if single core currently */
-    90 ,        /* switch cpu frequency to policy->max * 90% if dule core currently    */
-    80 ,        /* switch cpu frequency to policy->max * 80% if triple core currently  */
-    80 ,        /* switch cpu frequency to policy->max * 80% if quad core currently    */
+    0 ,
+    80,
+    0 ,
+    80,
 };
 #endif
+
+static int cpu_up_weight_tbl[10] = {
+    25,
+    20,
+    15,
+    10,
+     5,
+     5,
+     5,
+     5,
+     5,
+     5,
+};
 
 
 static int hotplug_rq[NR_CPUS][2];
@@ -167,9 +163,7 @@ static int hotplug_freq[NR_CPUS][2];
 static int usrevent_freq[NR_CPUS];
 #endif
 
-static int quick_response_load_hist[NR_CPUS][MAX_CPU_QUICK_RESPONSE_RATE];
-static int quick_response_rq_hist[NR_CPUS][MAX_CPU_QUICK_RESPONSE_RATE];
-static int quick_response_iowait_hist[NR_CPUS][MAX_CPU_QUICK_RESPONSE_RATE];
+static int cpu_up_rq_hist[DEF_CPU_UP_RATE];
 
 /*
  * define data structure for dbs
@@ -178,13 +172,11 @@ struct cpu_dbs_info_s {
     u64 prev_cpu_idle;          /* previous idle time statistic */
     u64 prev_cpu_iowait;        /* previous iowait time stat    */
     u64 prev_cpu_wall;          /* previous total time stat     */
-    u64 prev_cpu_nice;          /* previous nice time           */
     struct cpufreq_policy *cur_policy;
     struct delayed_work work;
     struct work_struct up_work;     /* cpu plug-in processor    */
     struct work_struct down_work;   /* cpu plug-out processer   */
     struct cpufreq_frequency_table *freq_table;
-    unsigned int rate_mult;
     int cpu;                    /* current cpu number           */
     /*
      * percpu mutex that serializes governor limit change with
@@ -204,6 +196,11 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int even
 /* number of CPUs using this policy */
 static unsigned int dbs_enable;
 
+/* cpu which to be reserved */
+static int cpu_to_be_reserved;
+/* suspend flag  */
+static int is_suspended = false;
+
 /*
  * dbs_mutex protects dbs_enable in governor start/stop.
  */
@@ -212,38 +209,22 @@ static DEFINE_MUTEX(dbs_mutex);
 
 static struct dbs_tuners {
     unsigned int sampling_rate;     /* dvfs sample rate                             */
-    unsigned int up_threshold;      /* cpu freq up threshold, up freq if higher     */
-    unsigned int down_threshold;    /* cpu freq down threshold, down freq if lower  */
-    unsigned int ignore_nice;       /* flag to mark if need calculate the nice time */
     unsigned int io_is_busy;        /* flag to mark if iowait calculate as cpu busy */
-
-    /* pegasusq tuners */
     unsigned int cpu_up_rate;       /* history sample rate for cpu up               */
-    unsigned int cpu_up_rate_adj;   /* sample rate adjusted value for cpu up        */
     unsigned int cpu_down_rate;     /* history sample rate for cpu down             */
-    unsigned int freq_up_rate;      /* history sample rate for cpu frequency up     */
-    unsigned int freq_down_rate;    /* history sample rate for cpu frequency down   */
     unsigned int freq_down_delay;   /* delay sample rate for cpu frequency down     */
     unsigned int max_cpu_lock;      /* max count of online cpu, user limit          */
     atomic_t hotplug_lock;          /* lock cpu online number, disable plug-in/out  */
     unsigned int dvfs_debug;        /* dvfs debug flag, print dbs information       */
     unsigned int cpu_state_debug;   /* cpu status debug flag, print cpu detail info */
-    unsigned int quick_response_rate;/* history sample rate for cpu quick response  */
 } dbs_tuners_ins = {
-    .up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
-    .down_threshold = DEF_FREQUENCY_DOWN_DIFFERENTIAL,
-    .ignore_nice = 0,
     .cpu_up_rate = DEF_CPU_UP_RATE,
-    .cpu_up_rate_adj = DEF_CPU_UP_RATE,
     .cpu_down_rate = DEF_CPU_DOWN_RATE,
-    .freq_up_rate = DEF_FREQ_UP_RATE,
-    .freq_down_rate = DEF_FREQ_DOWN_RATE,
     .freq_down_delay = 0,
     .max_cpu_lock = DEF_MAX_CPU_LOCK,
     .hotplug_lock = ATOMIC_INIT(0),
     .dvfs_debug = 0,
     .cpu_state_debug = 0,
-    .quick_response_rate = DEF_CPU_QUICK_RESPONSE_RATE,
 };
 
 
@@ -351,14 +332,11 @@ static ssize_t show_##file_name                        \
 }
 show_one(sampling_rate, sampling_rate);
 show_one(io_is_busy, io_is_busy);
-show_one(up_threshold, up_threshold);
-show_one(down_threshold, down_threshold);
 show_one(cpu_up_rate, cpu_up_rate);
 show_one(cpu_down_rate, cpu_down_rate);
 show_one(max_cpu_lock, max_cpu_lock);
 show_one(dvfs_debug, dvfs_debug);
 show_one(cpu_state_debug, cpu_state_debug);
-show_one(quick_response_rate, quick_response_rate);
 static ssize_t show_hotplug_lock(struct kobject *kobj, struct attribute *attr, char *buf)
 {
     return sprintf(buf, "%d\n", atomic_read(&g_hotplug_lock));
@@ -371,11 +349,15 @@ static ssize_t show_max_power(struct kobject *kobj, struct attribute *attr, char
 
 static ssize_t show_pulse(struct kobject *kobj, struct attribute *attr, char *buf)
 {
-    int nr_up, cpu;
+    int nr_up, cpu, hotplug_lock;
     struct cpu_dbs_info_s *dbs_info;
 
     dbs_info = &per_cpu(od_cpu_dbs_info, 0);
     mutex_lock(&dbs_info->timer_mutex);
+
+    hotplug_lock = atomic_read(&g_hotplug_lock);
+    if (hotplug_lock)
+        goto unlock;
 
     __cpufreq_driver_target(dbs_info->cur_policy, dbs_info->cur_policy->max, CPUFREQ_RELATION_H);
     nr_up = nr_cpu_ids - num_online_cpus();
@@ -391,7 +373,10 @@ static ssize_t show_pulse(struct kobject *kobj, struct attribute *attr, char *bu
 
     /* avoid plug out cpu in the current cycle, reset the stat cycle */
     hotplug_history->num_hist = 0;
+    /* delay 10 sampling cycle for frequency down */
+    dbs_tuners_ins.freq_down_delay = 10;
 
+unlock:
     mutex_unlock(&dbs_info->timer_mutex);
 
     return sprintf(buf, "pulse\n");
@@ -421,32 +406,6 @@ static ssize_t store_io_is_busy(struct kobject *a, struct attribute *b, const ch
     return count;
 }
 
-static ssize_t store_up_threshold(struct kobject *a, struct attribute *b,
-                  const char *buf, size_t count)
-{
-    unsigned int input;
-    int ret;
-    ret = sscanf(buf, "%u", &input);
-
-    if (ret != 1 || input > MAX_FREQUENCY_UP_THRESHOLD ||
-        input < MIN_FREQUENCY_UP_THRESHOLD) {
-        return -EINVAL;
-    }
-    dbs_tuners_ins.up_threshold = input;
-    return count;
-}
-
-static ssize_t store_down_threshold(struct kobject *a, struct attribute *b,
-                       const char *buf, size_t count)
-{
-    unsigned int input;
-    int ret;
-    ret = sscanf(buf, "%u", &input);
-    if (ret != 1)
-        return -EINVAL;
-    dbs_tuners_ins.down_threshold = min(input, 100u);
-    return count;
-}
 
 static ssize_t store_cpu_up_rate(struct kobject *a, struct attribute *b,
                  const char *buf, size_t count)
@@ -480,7 +439,13 @@ static ssize_t store_max_cpu_lock(struct kobject *a, struct attribute *b,
     ret = sscanf(buf, "%u", &input);
     if (ret != 1)
         return -EINVAL;
-    dbs_tuners_ins.max_cpu_lock = min(input, num_possible_cpus());
+    input = min(input, num_possible_cpus());
+    if ((input == 1) || (input == 2))
+        input = 2;
+
+    if ((input == 3) || (input == 4))
+        input = 4;
+    dbs_tuners_ins.max_cpu_lock = input;
     return count;
 }
 
@@ -504,6 +469,12 @@ static ssize_t store_hotplug_lock(struct kobject *a, struct attribute *b,
         atomic_set(&dbs_tuners_ins.hotplug_lock, 0);
         return count;
     }
+
+    if ((input == 1) || (input == 2))
+        input = 2;
+
+    if ((input == 3) || (input == 4))
+        input = 4;
 
     ret = cpufreq_fantasys_cpu_lock(input);
     if (ret) {
@@ -545,18 +516,6 @@ static ssize_t store_cpu_state_debug(struct kobject *a, struct attribute *b,
         dbs_tuners_ins.cpu_state_debug = input;
     }
 
-    return count;
-}
-
-static ssize_t store_quick_response_rate(struct kobject *a, struct attribute *b,
-                const char *buf, size_t count)
-{
-    unsigned int input;
-    int ret;
-    ret = sscanf(buf, "%u", &input);
-    if (ret != 1)
-        return -EINVAL;
-    dbs_tuners_ins.quick_response_rate = (unsigned int)min((int)input, (int)MAX_CPU_QUICK_RESPONSE_RATE);
     return count;
 }
 
@@ -603,30 +562,24 @@ static ssize_t store_max_power(struct kobject *a, struct attribute *b,
 
 define_one_global_rw(sampling_rate);
 define_one_global_rw(io_is_busy);
-define_one_global_rw(up_threshold);
-define_one_global_rw(down_threshold);
 define_one_global_rw(cpu_up_rate);
 define_one_global_rw(cpu_down_rate);
 define_one_global_rw(max_cpu_lock);
 define_one_global_rw(hotplug_lock);
 define_one_global_rw(dvfs_debug);
 define_one_global_rw(cpu_state_debug);
-define_one_global_rw(quick_response_rate);
 define_one_global_rw(max_power);
 define_one_global_ro(pulse);
 
 static struct attribute *dbs_attributes[] = {
     &sampling_rate.attr,
-    &up_threshold.attr,
     &io_is_busy.attr,
-    &down_threshold.attr,
     &cpu_up_rate.attr,
     &cpu_down_rate.attr,
     &max_cpu_lock.attr,
     &hotplug_lock.attr,
     &dvfs_debug.attr,
     &cpu_state_debug.attr,
-    &quick_response_rate.attr,
     &max_power.attr,
     &pulse.attr,
     NULL
@@ -639,7 +592,7 @@ static struct attribute_group dbs_attr_group = {
 
 
 /*
- * cpu hotplug, just plug in one cpu
+ * cpu hotplug, just plug in 2 cpu
  */
 static void cpu_up_work(struct work_struct *work)
 {
@@ -654,7 +607,7 @@ static void cpu_up_work(struct work_struct *work)
     if (hotplug_lock) {
         nr_up = (hotplug_lock - online) > 0? (hotplug_lock-online) : 0;
     } else {
-        nr_up = 1;
+        nr_up = 2;
     }
 
     for_each_cpu_not(cpu, cpu_online_mask) {
@@ -668,27 +621,6 @@ static void cpu_up_work(struct work_struct *work)
         cpu_up(cpu);
     }
     mutex_unlock(&dbs_info->timer_mutex);
-}
-
-/*
- * cpu quick response handler, cpu run max power
- */
-static void quick_response_handler(struct cpu_dbs_info_s *dbs_info)
-{
-    int nr_up, cpu;
-
-    __cpufreq_driver_target(dbs_info->cur_policy, dbs_info->cur_policy->max, CPUFREQ_RELATION_H);
-    nr_up = nr_cpu_ids - num_online_cpus();
-    for_each_cpu_not(cpu, cpu_online_mask) {
-        if (cpu == 0)
-            continue;
-
-        if (nr_up-- == 0)
-            break;
-
-        cpu_up(cpu);
-    }
-    return;
 }
 
 /*
@@ -707,7 +639,20 @@ static void cpu_down_work(struct work_struct *work)
     if (hotplug_lock) {
         nr_down = (online - hotplug_lock) > 0? (online-hotplug_lock) : 0;
     } else {
-        nr_down = 1;
+        nr_down = 2;
+        if ((cpu_to_be_reserved > 0) && (cpu_to_be_reserved < nr_cpu_ids)) {
+            for_each_online_cpu(cpu) {
+                if ((cpu == 0) || (cpu == cpu_to_be_reserved))
+                    continue;
+
+                if (nr_down-- == 0)
+                    break;
+
+                FANTASY_DBG("cpu down:%d\n", cpu);
+                cpu_down(cpu);
+            }
+        }
+        goto unlock;
     }
 
     for_each_online_cpu(cpu) {
@@ -720,31 +665,23 @@ static void cpu_down_work(struct work_struct *work)
         FANTASY_DBG("cpu down:%d\n", cpu);
         cpu_down(cpu);
     }
+
+unlock:
     mutex_unlock(&dbs_info->timer_mutex);
 }
 
-/*
- * check if need plug in one cpu core
- */
-static int check_up(struct cpufreq_policy *policy)
+/* check cpu if need to run max power according to one core's loading/running/iowait */
+static int check_up(int num_hist)
 {
-    struct cpu_usage *usage;
-    int i, online, freq, rq_avg, up_freq, up_rq, up_rate;
-    int avg_freq = 0, avg_rq = 0;
-    int num_hist = hotplug_history->num_hist;
+    unsigned int cpu_rq_avg = 0;
+    int i, online, index_mod, index_cur, up_rq;
     int hotplug_lock = atomic_read(&g_hotplug_lock);
-
-    if(dbs_tuners_ins.cpu_up_rate_adj != dbs_tuners_ins.cpu_up_rate)
-        up_rate = dbs_tuners_ins.cpu_up_rate_adj;
-    else
-        up_rate = dbs_tuners_ins.cpu_up_rate;
 
     /* hotplug has been locked, do nothing */
     if (hotplug_lock > 0)
         return 0;
 
     online = num_online_cpus();
-    up_freq = policy->cur * hotplug_freq[online-1][1];
     up_rq = hotplug_rq[online-1][1];
 
     /* check if count of the cpu reached the max value */
@@ -754,47 +691,24 @@ static int check_up(struct cpufreq_policy *policy)
     if (dbs_tuners_ins.max_cpu_lock != 0 && online >= dbs_tuners_ins.max_cpu_lock)
         return 0;
 
-    /* check if reached the switch point */
-    if (num_hist == 0 || num_hist % up_rate)
-        return 0;
+    index_mod = num_hist%dbs_tuners_ins.cpu_up_rate;
+    cpu_up_rq_hist[index_mod] = hotplug_history->usage[num_hist].running_avg;
 
-    /* clear adjust value */
-    dbs_tuners_ins.cpu_up_rate_adj = dbs_tuners_ins.cpu_up_rate;
-
-    /* check system average loading */
-    for (i = num_hist - 1; i >= num_hist - up_rate; --i) {
-        usage = &hotplug_history->usage[i];
-
-        freq = usage->freq * usage->loading_avg;
-        avg_freq += freq;
-        rq_avg = usage->running_avg;
-        avg_rq += rq_avg;
+    for (i=0; i<dbs_tuners_ins.cpu_up_rate ;i++) {
+        index_cur = index_mod - i;
+        index_cur = index_cur < 0 ? index_cur + dbs_tuners_ins.cpu_up_rate : index_cur;
+        cpu_rq_avg += cpu_up_rq_hist[index_cur] * cpu_up_weight_tbl[i];
     }
 
-    avg_freq /= up_rate;
-    avg_rq /= up_rate;
-
+    cpu_rq_avg /= 100;
     if (dbs_tuners_ins.dvfs_debug) {
-        printk("%s: avg_freq:%u, up_freq:%u, avg_rq:%u, up_rq:%u\n",    \
-                __func__, avg_freq, up_freq, avg_rq, up_rq);
+        printk("%s: cpu_rq_avg:%u, up_rq:%u\n", __func__, cpu_rq_avg, up_rq);
     }
 
-    if (avg_freq >= up_freq && avg_rq > up_rq) {
-        FANTASY_WRN("cpu need plugin, freq: %d>=%d && rq: %d>%d\n", avg_freq, up_freq, avg_rq, up_rq);
-
-        for (i=online; i<num_possible_cpus(); i++) {
-            if (avg_rq > hotplug_rq[i-1][1]) {
-                /* check next quickly */
-                dbs_tuners_ins.cpu_up_rate_adj >>= 1;
-            }
-        }
-
-        if (!dbs_tuners_ins.cpu_up_rate_adj)
-            dbs_tuners_ins.cpu_up_rate_adj = 1;
-
-        /* need plug in cpu, reset the stat cycle */
+    if (cpu_rq_avg > up_rq) {
+        FANTASY_WRN("quick response, cpu_rq_avg: %d>%d\n", cpu_rq_avg, up_rq);
         hotplug_history->num_hist = 0;
-
+        memset(cpu_up_rq_hist, 0, sizeof(cpu_up_rq_hist));
         return 1;
     }
 
@@ -807,23 +721,24 @@ static int check_up(struct cpufreq_policy *policy)
 static int check_down(struct cpufreq_policy *policy)
 {
     struct cpu_usage *usage;
-    int i, cpu, online, freq, rq_avg, down_freq, down_rq;
-    int max_freq = 0, max_rq_avg = 0;
-    unsigned int cpus_load_max[NR_CPUS], cpus_rq_max[NR_CPUS];
+    int i, cpu, online, down_rq;
+    int avg_rq = 0,  max_rq_avg = 0;
     int down_rate = dbs_tuners_ins.cpu_down_rate;
     int num_hist = hotplug_history->num_hist;
     int hotplug_lock = atomic_read(&g_hotplug_lock);
+    unsigned int cpu_down_freq, cpus_load_avg[NR_CPUS];
+    unsigned long rate = 0;
 
     /* hotplug has been locked, do nothing */
     if (hotplug_lock > 0)
         return 0;
 
     online = num_online_cpus();
-    down_freq = policy->cur * hotplug_freq[online-1][0];
     down_rq = hotplug_rq[online-1][0];
+    cpu_down_freq = policy->max * hotplug_freq[online-1][0];
 
-    /* just one cpu, can't be plug out */
-    if (online == 1)
+    /* just 2 cores, can't be plug out */
+    if (online == 2)
         return 0;
 
     /* if count of online cpu is larger than the max value, plug out cpu */
@@ -835,55 +750,41 @@ static int check_down(struct cpufreq_policy *policy)
         return 0;
 
     for_each_online_cpu(cpu) {
-        cpus_load_max[cpu] = 0;
-        cpus_rq_max[cpu] = 0;
+        cpus_load_avg[cpu] = 0;
     }
 
     /* check system average loading */
     for (i = num_hist - 1; i >= num_hist - down_rate; --i) {
         usage = &hotplug_history->usage[i];
-
-        freq = usage->freq * usage->loading_avg;
-        rq_avg = usage->running_avg;
-
-        max_freq = max(max_freq, freq);
-        max_rq_avg = max(max_rq_avg, rq_avg);
+        avg_rq = usage->running_avg;
+        max_rq_avg = max(max_rq_avg, avg_rq);
 
         for_each_online_cpu(cpu) {
-            cpus_load_max[cpu] = max(cpus_load_max[cpu], usage->loading[cpu]);
-            cpus_rq_max[cpu] = max(cpus_rq_max[cpu], usage->running[cpu]);
+            cpus_load_avg[cpu] += usage->loading[cpu];
         }
     }
 
     if (dbs_tuners_ins.dvfs_debug) {
+        printk("%s: max_rq_avg:%u, down_rq:%u\n", __func__, max_rq_avg, down_rq);
         for_each_online_cpu(cpu) {
-            printk("%s:%d, cpu:%d, load_max:%d, rq_max:%d\n", __func__, __LINE__,  \
-                cpu, cpus_load_max[cpu], cpus_rq_max[cpu]);
+            printk("%s: cpus_load_avg[%d]:%u\n", __func__, cpu, cpus_load_avg[cpu]);
         }
     }
 
-    if (dbs_tuners_ins.dvfs_debug) {
-        printk("%s: max_freq:%u, down_freq:%u, max_rq_avg:%u, down_rq:%u\n", __func__,     \
-                    max_freq, down_freq, max_rq_avg, down_rq);
-    }
+    if (max_rq_avg <= down_rq) {
+        FANTASY_WRN("cpu need plugout, max_rq_avg: %d<%d\n", max_rq_avg, down_rq);
+        for_each_online_cpu(cpu) {
+            if (cpu == 0)
+                continue;
 
-    if (max_freq <= down_freq && max_rq_avg <= down_rq) {
-        FANTASY_WRN("cpu need plugout, freq: %d<=%d && rq: %d<%d\n", max_freq, down_freq, max_rq_avg, down_rq);
+            if (rate < cpus_load_avg[cpu]) {
+                cpu_to_be_reserved = cpu;
+                rate = cpus_load_avg[cpu];
+            }
+        }
         hotplug_history->num_hist = 0;
-        /* need plug in cpu, reset the stat cycle */
+        /* need plug out cpu, reset the stat cycle */
         return 1;
-    }
-
-    /* check loading and running for spec cpu */
-    for_each_online_cpu(cpu) {
-        if (((cpus_load_max[cpu] < SINGLE_CPU_DOWN_LOADING) || (max_freq <= down_freq))  \
-            && (cpus_rq_max[cpu] < SINGLE_CPU_DOWN_RUNNING)) {
-            FANTASY_WRN("cpu need plugout, (cpus_load_max:%d<%d || max_freq:%d<=%d) && cpus_rq_max: %d<%d\n",    \
-                    cpus_load_max[cpu], SINGLE_CPU_DOWN_LOADING, max_freq, down_freq, cpus_rq_max[cpu], \
-                    SINGLE_CPU_DOWN_RUNNING);
-            hotplug_history->num_hist = 0;
-            return 1;
-        }
     }
 
     return 0;
@@ -892,14 +793,20 @@ static int check_down(struct cpufreq_policy *policy)
 
 /* idle rate coarse adjust for cpu frequency down */
 #define FANTASY_CPUFREQ_LOAD_MIN_RATE(freq)         \
-    (freq<100000? 30 : (freq<200000? 40 : (freq<600000? 50 : (freq<900000? 60 : 70))))
+        (freq<100000? 30 : (freq<200000? 40 : (freq<600000? 60 : (freq<900000? 70 : 70))))
 
 /*
  * minimum rate for idle task, if idle rate is less than this
  * value, cpu frequency should be adjusted to the mauximum value
 */
 #define FANTASY_CPUFREQ_LOAD_MAX_RATE(freq)         \
-    (freq<100000? 60 : (freq<200000? 70 : (freq<600000? 80 : (freq<900000? 90 : 100))))
+        (freq<100000? 70 : (freq<200000? 70 : (freq<600000? 80 : (freq<900000? 90 : 95))))
+
+#define FANTASY_CPUFREQ_LOAD_BURST_RATE(freq)         \
+    (freq<100000? 80 : (freq<200000? 80 : (freq<600000? 90 : (freq<900000? 90 : 90))))
+
+#define FANTASY_CPUFREQ_BURST_FREQ(freq)         \
+    (freq<200000? 40 : (freq<400000? 60 : (freq<600000? 80 : 100)))
 
 /*
  * define frequency limit for io-wait rate, cpu frequency should be limit to higher if io-wait higher
@@ -907,109 +814,49 @@ static int check_down(struct cpufreq_policy *policy)
 #define FANTASY_CPUFREQ_IOW_LIMIT_RATE(iow)         \
     (iow<10? (iow>0? 20 : 0) : (iow<20? 40 : (iow<40? 60 : (iow<60? 80 : 100))))
 
-#define DECRASE_FREQ_STEP_LIMIT1    (300000)   /* decrase frequency limited to 300Mhz when frequency is [900Mhz, 1008Mhz] */
-#define DECRASE_FREQ_STEP_LIMIT2    (200000)   /* decrase frequency limited to 200Mhz when frequency is [600Mhz,  900Mhz) */
-#define DECRASE_FREQ_STEP_LIMIT3    (100000)   /* decrase frequency limited to 100Mhz when frequency is [200Mhz,  600Mhz) */
-#define DECRASE_FREQ_STEP_LIMIT4    (30000)    /* decrase frequency limited to  30Mhz when frequency is [60Mhz,   200Mhz) */
-
-static int check_freq_up(struct cpufreq_policy *policy, unsigned int *target)
+static int check_freq_up_down(struct cpu_dbs_info_s *this_dbs_info, unsigned int *target, int num_hist)
 {
-    int i, cpu;
-    struct cpu_usage *usage;
-    unsigned int avg_load[NR_CPUS], max_load;
-    int up_rate = dbs_tuners_ins.freq_up_rate;
-    int num_hist = hotplug_history->num_hist;
+    int cpu;
+    unsigned int max_load = 0, max_iow = 0;
+    unsigned int freq_load, freq_iow, index;
+    struct cpufreq_policy *policy = this_dbs_info->cur_policy;
 
-    /* check if reached the switch point */
-    if (num_hist == 0 || num_hist % up_rate)
+    if (dbs_tuners_ins.freq_down_delay) {
+        dbs_tuners_ins.freq_down_delay--;
+        *target = policy->cur;
         return 0;
-
-    for_each_online_cpu(cpu) {
-        avg_load[cpu] = 0;
     }
 
-    /* check cpu loading */
-    for (i = num_hist - 1; i >= num_hist - up_rate; --i) {
-        usage = &hotplug_history->usage[i];
-        for_each_online_cpu(cpu) {
-            avg_load[cpu] += usage->loading[cpu];
-        }
-    }
-
-    max_load = 0;
     for_each_online_cpu(cpu) {
-        avg_load[cpu] /= up_rate;
-        max_load = max(max_load, avg_load[cpu]);
+        max_load = max(max_load, hotplug_history->usage[num_hist].loading[cpu]);
+        max_iow = max(max_iow, hotplug_history->usage[num_hist].iowait[cpu]);
     }
 
     if (max_load > FANTASY_CPUFREQ_LOAD_MAX_RATE(policy->cur)) {
+        if(max_load > FANTASY_CPUFREQ_LOAD_BURST_RATE(policy->cur)) {
+            if (dbs_tuners_ins.dvfs_debug) {
+                printk("%s(%d): max_load=%d, cur_freq=%d, burst_rate=%d\n",  \
+                    __func__, __LINE__, max_load, policy->cur, FANTASY_CPUFREQ_LOAD_BURST_RATE(policy->cur));
+            }
+            *target = policy->max * FANTASY_CPUFREQ_BURST_FREQ(policy->cur) / 100;
+            return 1;
+        }
+
         if (dbs_tuners_ins.dvfs_debug) {
             printk("%s(%d): max_load=%d, cur_freq=%d, load_rate=%d\n",  \
-                __func__, __LINE__, max_load, policy->cur, FANTASY_CPUFREQ_LOAD_MAX_RATE(policy->cur));
+                __func__, __LINE__, max_load, policy->cur, FANTASY_CPUFREQ_LOAD_BURST_RATE(policy->cur));
         }
-
-        *target = policy->max;
-        return 1;
-    }
-
-    return 0;
-}
-
-
-static int check_freq_down(struct cpufreq_policy *policy, unsigned int *target)
-{
-    int i, cpu;
-    struct cpu_usage *usage;
-    unsigned int avg_load[NR_CPUS], avg_iow[NR_CPUS], max_load, max_iow, freq_load, freq_iow;
-    unsigned int freq_cur, freq_target;
-    int down_rate = dbs_tuners_ins.freq_down_rate;
-    int num_hist = hotplug_history->num_hist;
-
-    if (dbs_tuners_ins.freq_down_delay) {
-        if (!(num_hist % down_rate)) {
-            dbs_tuners_ins.freq_down_delay = 0;
-        }
+    } else if (max_load >= FANTASY_CPUFREQ_LOAD_MIN_RATE(policy->cur)) {
+        *target = policy->cur;
         return 0;
     }
-
-    /* check if reached the switch point */
-    if (num_hist == 0 || num_hist % down_rate)
-        return 0;
-
-    for_each_online_cpu(cpu) {
-        avg_load[cpu] = 0;
-        avg_iow[cpu] = 0;
-    }
-
-    /* check cpu loading */
-    for (i = num_hist - 1; i >= num_hist - down_rate; --i) {
-        usage = &hotplug_history->usage[i];
-        for_each_online_cpu(cpu) {
-            avg_load[cpu] += usage->loading[cpu];
-            avg_iow[cpu] += usage->iowait[cpu];
-        }
-    }
-
-    max_load = 0;
-    max_iow  = 0;
-    for_each_online_cpu(cpu) {
-        avg_load[cpu] /= down_rate;
-        max_load = max(max_load, avg_load[cpu]);
-
-        avg_iow[cpu] /= down_rate;
-        max_iow = max(max_iow, avg_iow[cpu]);
-    }
-
-    /* check cpu loading */
-    if (max_load >= FANTASY_CPUFREQ_LOAD_MIN_RATE(policy->cur))
-        return 0;
 
     /*
      * calculate freq load
-     * freq_load = (cur_freq * max_load) / ((max_rate + min_rate)/2)
+     * freq_load = (cur_freq * max_load) / ((min_rate + max_rate)/2)
      */
     freq_load = (policy->cur * max_load)/100;
-    freq_load = (FANTASY_CPUFREQ_LOAD_MAX_RATE(freq_load) + FANTASY_CPUFREQ_LOAD_MIN_RATE(freq_load))>>1;
+    freq_load = (FANTASY_CPUFREQ_LOAD_MIN_RATE(freq_load) + FANTASY_CPUFREQ_LOAD_MAX_RATE(freq_load)) >> 1;
     freq_load = (policy->cur * max_load) / freq_load;
 
     /* check cpu io-waiting */
@@ -1023,92 +870,16 @@ static int check_freq_down(struct cpufreq_policy *policy, unsigned int *target)
     }
 
     /* select target frequency */
-    freq_target = max(freq_load, freq_iow);
-    freq_cur = policy->cur;
-    if (freq_cur >= 900000) {
-        if (freq_cur - freq_target > DECRASE_FREQ_STEP_LIMIT1) {
-            freq_target = freq_cur - DECRASE_FREQ_STEP_LIMIT1;
-        }
+    *target = max(freq_load, freq_iow);
+
+    if (cpufreq_frequency_table_target(policy, this_dbs_info->freq_table, *target, CPUFREQ_RELATION_L, &index)) {
+        FANTASY_ERR("%s: failed to get next lowest frequency\n", __func__);
+        *target = policy->max;
+        return 1;
     }
-    else if (freq_cur >= 600000) {
-        if(freq_cur - freq_target > DECRASE_FREQ_STEP_LIMIT2){
-            freq_target = freq_cur - DECRASE_FREQ_STEP_LIMIT2;
-        }
-    }
-    else if (freq_cur >= 200000) {
-        if(freq_cur - freq_target > DECRASE_FREQ_STEP_LIMIT3){
-            freq_target = freq_cur - DECRASE_FREQ_STEP_LIMIT3;
-        }
-    }
-    else if (freq_cur >= 60000) {
-        if(freq_cur - freq_target > DECRASE_FREQ_STEP_LIMIT4){
-            freq_target = freq_cur - DECRASE_FREQ_STEP_LIMIT4;
-        }
-    }
-    *target = freq_target;
+    *target = this_dbs_info->freq_table[index].frequency;
 
     return 1;
-}
-
-/* check cpu if need to run max power according to one core's loading/running/iowait */
-static int check_quick_response(int num_hist)
-{
-    unsigned int cpux_load_avg[NR_CPUS] = {0};
-    unsigned int cpux_rq_avg[NR_CPUS] = {0};
-    unsigned int cpux_iowait_avg[NR_CPUS] = {0};
-    int i, online, cpu;
-    int hotplug_lock = atomic_read(&g_hotplug_lock);
-
-    /* hotplug has been locked, do nothing */
-    if (hotplug_lock > 0)
-        return 0;
-
-    online = num_online_cpus();
-
-    /* check if count of the cpu reached the max value */
-    if (online == num_possible_cpus())
-        return 0;
-
-    if (dbs_tuners_ins.max_cpu_lock != 0 && online >= dbs_tuners_ins.max_cpu_lock)
-        return 0;
-
-    for_each_online_cpu(cpu) {
-        quick_response_load_hist[cpu][num_hist%dbs_tuners_ins.quick_response_rate] = \
-                            hotplug_history->usage[num_hist].loading[cpu];
-        quick_response_rq_hist[cpu][num_hist%dbs_tuners_ins.quick_response_rate] = \
-                            hotplug_history->usage[num_hist].running[cpu];
-        quick_response_iowait_hist[cpu][num_hist%dbs_tuners_ins.quick_response_rate] = \
-                            hotplug_history->usage[num_hist].iowait[cpu];
-        for (i=0; i<dbs_tuners_ins.quick_response_rate ;i++) {
-            cpux_load_avg[cpu] += quick_response_load_hist[cpu][i];
-            cpux_rq_avg[cpu] += quick_response_rq_hist[cpu][i];
-            cpux_iowait_avg[cpu] += quick_response_iowait_hist[cpu][i];
-        }
-
-        cpux_load_avg[cpu] /= dbs_tuners_ins.quick_response_rate;
-        cpux_rq_avg[cpu] /= dbs_tuners_ins.quick_response_rate;
-        cpux_iowait_avg[cpu] /= dbs_tuners_ins.quick_response_rate;
-
-        if (cpux_load_avg[cpu] > SINGLE_CPU_QUICK_RESPONSE_LOAD) {
-            FANTASY_WRN("cpu%d notify max power, cpux_load_avg: %d>%d\n", \
-                    cpu, cpux_load_avg[cpu], SINGLE_CPU_QUICK_RESPONSE_LOAD);
-            return 1;
-        }
-
-        if ((cpux_load_avg[cpu] > SINGLE_CPU_RQ_LOADING) && (cpux_rq_avg[cpu] > SINGLE_CPU_QUICK_RESPONSE_RQ)) {
-            FANTASY_WRN("cpu%d notify max power, cpux_load_avg: %d>%d && cpux_rq_avg: %d>%d\n", \
-                    cpu, cpux_load_avg[cpu], SINGLE_CPU_RQ_LOADING, cpux_rq_avg[cpu], SINGLE_CPU_QUICK_RESPONSE_RQ);
-            return 1;
-        }
-
-        if (cpux_iowait_avg[cpu] > SINGLE_CPU_QUICK_RESPONSE_IO) {
-            FANTASY_WRN("cpu%d notify max power, cpux_iowait_avg: %d>%d\n", \
-                    cpu, cpux_iowait_avg[cpu], SINGLE_CPU_QUICK_RESPONSE_IO);
-            return 1;
-        }
-    }
-
-    return 0;
 }
 
 
@@ -1206,13 +977,10 @@ static inline cputime64_t get_cpu_iowait_time(unsigned int cpu, cputime64_t *wal
  */
 static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 {
-    unsigned int index, cpu, freq_target;
+    unsigned int cpu, freq_target = 0;
     struct cpufreq_policy *policy;
     int num_hist = hotplug_history->num_hist;
     int max_hotplug_rate = max((int)dbs_tuners_ins.cpu_up_rate, (int)dbs_tuners_ins.cpu_down_rate);
-
-    max_hotplug_rate = max(max_hotplug_rate, (int)dbs_tuners_ins.freq_up_rate);
-    max_hotplug_rate = max(max_hotplug_rate, (int)dbs_tuners_ins.freq_down_rate);
 
     policy = this_dbs_info->cur_policy;
 
@@ -1289,55 +1057,23 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
         printk("%u\n", hotplug_history->usage[num_hist].iowait_avg);
     }
 
-    /* Check for every core is in high loading/running/iowait  */
-    if (check_quick_response(num_hist)) {
-        quick_response_handler(this_dbs_info);
-        hotplug_history->num_hist = 0;
-        memset(quick_response_load_hist, 0, sizeof(quick_response_load_hist));
-        memset(quick_response_rq_hist, 0, sizeof(quick_response_rq_hist));
-        memset(quick_response_iowait_hist, 0, sizeof(quick_response_iowait_hist));
-        return;
-    }
-
-    /* Check for CPU hotplug */
-    if (check_up(policy)) {
+    /* Check for every core is in high loading/running/iowait */
+    if (check_up(num_hist)) {
         __cpufreq_driver_target(this_dbs_info->cur_policy, this_dbs_info->cur_policy->max, CPUFREQ_RELATION_H);
         queue_work_on(this_dbs_info->cpu, dvfs_workqueue, &this_dbs_info->up_work);
+        return;
     } else if (check_down(policy)) {
         queue_work_on(this_dbs_info->cpu, dvfs_workqueue, &this_dbs_info->down_work);
     }
 
-    /*
-     * The optimal frequency is the frequency that is the lowest that
-     * can support the current CPU usage without triggering the up
-     * policy. To be safe, we focus 10 points under the threshold.
-     */
-    if(check_freq_up(policy, &freq_target)) {
-        /* should switch cpu frequency to the max value */
-    } else if(check_freq_down(policy, &freq_target)) {
-        /* down cpu frequency, set target frequency */
-    } else {
-        /* need do nothing */
-        freq_target = policy->cur;
+    if (check_freq_up_down(this_dbs_info, &freq_target, num_hist)) {
+        FANTASY_WRN("%s, %d : try to switch cpu freq to %d \n", __func__, __LINE__, freq_target);
+        __cpufreq_driver_target(policy, freq_target, CPUFREQ_RELATION_L);
     }
 
     /* check if history array is out of range */
     if (hotplug_history->num_hist == max_hotplug_rate)
         hotplug_history->num_hist = 0;
-
-    if (cpufreq_frequency_table_target(policy, this_dbs_info->freq_table, freq_target, CPUFREQ_RELATION_L, &index)) {
-        FANTASY_ERR("%s: failed to get next lowest frequency\n", __func__);
-        return;
-    }
-    freq_target = this_dbs_info->freq_table[index].frequency;
-
-    if (policy->cur != freq_target) {
-        /* set target frequency */
-        FANTASY_WRN("%s, %d : try to switch cpu freq to %d \n", __func__, __LINE__, freq_target);
-        __cpufreq_driver_target(policy, freq_target, CPUFREQ_RELATION_L);
-    }
-
-    return;
 }
 
 
@@ -1345,22 +1081,26 @@ static void do_dbs_timer(struct work_struct *work)
 {
     struct cpu_dbs_info_s *dbs_info = container_of(work, struct cpu_dbs_info_s, work.work);
     unsigned int cpu = dbs_info->cpu;
-    int delay, max_power_flag;
+    int delay;
 
     mutex_lock(&dbs_info->timer_mutex);
 
-    max_power_flag = atomic_read(&g_max_power_flag);
-    if (!max_power_flag) {
-        dbs_check_cpu(dbs_info);
+    if (is_suspended)
+        goto unlock;
 
-        /* We want all CPUs to do sampling nearly on
-         * same jiffy
-         */
-        delay = usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
+    if (atomic_read(&g_max_power_flag))
+        goto unlock;
 
-        queue_delayed_work_on(cpu, dvfs_workqueue, &dbs_info->work, delay);
-    }
+    dbs_check_cpu(dbs_info);
 
+    /* We want all CPUs to do sampling nearly on
+     * same jiffy
+     */
+    delay = usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
+
+    queue_delayed_work_on(cpu, dvfs_workqueue, &dbs_info->work, delay);
+
+unlock:
     mutex_unlock(&dbs_info->timer_mutex);
 }
 
@@ -1385,6 +1125,31 @@ static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
     cancel_work_sync(&dbs_info->down_work);
 }
 
+
+static int fantasys_pm_notify(struct notifier_block *nb, unsigned long event, void *dummy)
+{
+    struct cpu_dbs_info_s *dbs_info;
+    dbs_info = &per_cpu(od_cpu_dbs_info, 0);
+    mutex_lock(&dbs_info->timer_mutex);
+
+    if (event == PM_SUSPEND_PREPARE) {
+        is_suspended = true;
+        printk("sunxi cpufreq suspend ok\n");
+    } else if (event == PM_POST_SUSPEND) {
+        is_suspended = false;
+        if (atomic_read(&g_max_power_flag))
+            __cpufreq_driver_target(dbs_info->cur_policy, dbs_info->cur_policy->max, CPUFREQ_RELATION_H);
+        queue_delayed_work_on(dbs_info->cpu, dvfs_workqueue, &dbs_info->work, 0);
+        printk("sunxi cpufreq resume ok\n");
+    }
+
+    mutex_unlock(&dbs_info->timer_mutex);
+    return NOTIFY_OK;
+}
+
+static struct notifier_block fantasys_pm_notifier = {
+    .notifier_call = fantasys_pm_notify,
+};
 
 /*
  * cpufreq dbs governor
@@ -1430,6 +1195,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int even
 
             mutex_init(&this_dbs_info->timer_mutex);
             dbs_timer_init(this_dbs_info);
+            cpu_to_be_reserved = nr_cpu_ids;
 
             break;
         }
@@ -1449,14 +1215,11 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int even
 
         case CPUFREQ_GOV_LIMITS:
         {
-            mutex_lock(&this_dbs_info->timer_mutex);
-
             if (policy->max < this_dbs_info->cur_policy->cur)
                 __cpufreq_driver_target(this_dbs_info->cur_policy, policy->max, CPUFREQ_RELATION_H);
             else if (policy->min > this_dbs_info->cur_policy->cur)
                 __cpufreq_driver_target(this_dbs_info->cur_policy, policy->min, CPUFREQ_RELATION_L);
 
-            mutex_unlock(&this_dbs_info->timer_mutex);
             break;
         }
 
@@ -1471,15 +1234,15 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int even
             }
 
             freq_trig = (this_dbs_info->cur_policy->max*usrevent_freq[num_online_cpus() - 1])/100;
-            if(!cpufreq_frequency_table_target(policy, this_dbs_info->freq_table, freq_trig, CPUFREQ_RELATION_H, &index)) {
+            if(!cpufreq_frequency_table_target(policy, this_dbs_info->freq_table, freq_trig, CPUFREQ_RELATION_L, &index)) {
                 freq_trig = this_dbs_info->freq_table[index].frequency;
                 if(this_dbs_info->cur_policy->cur < freq_trig) {
                     /* set cpu frequenc to the max value, and reset state machine */
                     FANTASY_DBG("CPUFREQ_GOV_USREVENT\n");
-                    __cpufreq_driver_target(this_dbs_info->cur_policy, freq_trig, CPUFREQ_RELATION_H);
+                    __cpufreq_driver_target(this_dbs_info->cur_policy, freq_trig, CPUFREQ_RELATION_L);
                 }
             }
-            dbs_tuners_ins.freq_down_delay = 1;
+            dbs_tuners_ins.freq_down_delay = 6;
             mutex_unlock(&this_dbs_info->timer_mutex);
             break;
         }
@@ -1537,6 +1300,8 @@ static int __init cpufreq_gov_dbs_init(void)
         goto err_governor;
     }
 
+    register_pm_notifier(&fantasys_pm_notifier);
+
     return ret;
 
 err_governor:
@@ -1554,6 +1319,7 @@ err_hist:
  */
 static void __exit cpufreq_gov_dbs_exit(void)
 {
+    unregister_pm_notifier(&fantasys_pm_notifier);
     cpufreq_unregister_governor(&cpufreq_gov_fantasys);
     destroy_workqueue(dvfs_workqueue);
     kfree(hotplug_history);

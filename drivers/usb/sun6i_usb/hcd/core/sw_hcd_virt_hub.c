@@ -57,9 +57,8 @@ void sw_hcd_port_suspend_ex(struct sw_hcd *sw_hcd)
     if (sw_hcd->is_active) {
     	/* suspend usb port */
     	USBC_Host_SuspendPort(sw_hcd->sw_hcd_io->usb_bsp_hdle);
-
-    	/* delay for 1000ms */
-    	mdelay(1000);
+		
+    	//mdelay(1000);
     }
 
 	return;
@@ -87,7 +86,7 @@ void sw_hcd_port_resume_ex(struct sw_hcd *sw_hcd)
 {
 	/* resume port */
 	USBC_Host_RusumePort(sw_hcd->sw_hcd_io->usb_bsp_hdle);
-	mdelay(500);
+	//mdelay(500);
 	USBC_Host_ClearRusumePortFlag(sw_hcd->sw_hcd_io->usb_bsp_hdle);
 
 	return;
@@ -118,9 +117,9 @@ void sw_hcd_port_reset_ex(struct sw_hcd *sw_hcd)
 
 	/* reset port */
 	USBC_Host_ResetPort(sw_hcd->sw_hcd_io->usb_bsp_hdle);
-	mdelay(50);
+	//mdelay(50);
 	USBC_Host_ClearResetPortFlag(sw_hcd->sw_hcd_io->usb_bsp_hdle);
-	mdelay(500);
+	//mdelay(500);
 
 	return;
 }
@@ -149,10 +148,12 @@ static void sw_hcd_port_suspend(struct sw_hcd *sw_hcd, bool do_suspend)
     u8 power = 0;
 	void __iomem *usbc_base = sw_hcd->mregs;
 
-	if (!is_host_active(sw_hcd)){
+	if (!is_host_active(sw_hcd) || !sw_hcd->enable){
 	    DMSG_PANIC("ERR: usb host is not active\n");
 	    return;
 	}
+
+	sw_hcd->is_suspend = do_suspend;
 
 	/* NOTE:  this doesn't necessarily put PHY into low power mode,
 	 * turning off its clock; that's a function of PHY integration and
@@ -224,9 +225,20 @@ static void sw_hcd_port_reset(struct sw_hcd *sw_hcd, bool do_reset)
 	void __iomem *usbc_base = sw_hcd->mregs;
 
 	if (!is_host_active(sw_hcd) || !sw_hcd->enable){
-	    DMSG_PANIC("ERR: usb host is not active\n");
+	    DMSG_PANIC("ERR: sw_hcd_port_reset, usb host is not active, do_reset=%d\n", do_reset);
+		/* clean status */
+        if(!do_reset){
+			DMSG_PANIC("sw_hcd_port_reset clean status\n");
+	        sw_hcd->port1_status &= ~USB_PORT_STAT_RESET;
+			sw_hcd->port1_status |= USB_PORT_STAT_ENABLE
+						| (USB_PORT_STAT_C_RESET << 16)
+						| (USB_PORT_STAT_C_ENABLE << 16);
+			usb_hcd_poll_rh_status(sw_hcd_to_hcd(sw_hcd));
+		}
 	    return;
 	}
+
+	sw_hcd->is_reset = do_reset;
 
 	/* NOTE:  caller guarantees it will turn off the reset when
 	 * the appropriate amount of time has passed
@@ -252,7 +264,7 @@ static void sw_hcd_port_reset(struct sw_hcd *sw_hcd, bool do_reset)
 			msleep(1);
 		}
 
-		sw_hcd->ignore_disconnect = true;
+		//sw_hcd->ignore_disconnect = true;
 		power &= 0xf0;
 		power |= (1 << USBC_BP_POWER_H_RESET);
         USBC_Writeb(power, USBC_REG_PCTL(usbc_base));
@@ -329,6 +341,23 @@ static void sw_hcd_port_reset(struct sw_hcd *sw_hcd, bool do_reset)
 */
 void sw_hcd_root_disconnect(struct sw_hcd *sw_hcd)
 {
+	/* clean pctrl reg, when disconnect happened during reseting or suspending */
+	if((sw_hcd->port1_status & USB_PORT_STAT_SUSPEND)
+		|| (sw_hcd->port1_status & USB_PORT_STAT_RESET)
+		|| (sw_hcd->port1_status & SW_HCD_PORT_STAT_RESUME)){
+	    u8 power = 0;
+		void __iomem *usbc_base = sw_hcd->mregs;
+
+        DMSG_INFO("[sw_hcd]: clean pctrl reg, when disconnect happen during reseting or suspending,"
+				  "status =0x%x\n", sw_hcd->port1_status);
+
+		power = USBC_Readb(USBC_REG_PCTL(usbc_base));
+		power &= ~(1 << USBC_BP_POWER_H_SUSPEND);
+		power &= ~(1 << USBC_BP_POWER_H_RESUME);
+		power &= ~(1 << USBC_BP_POWER_H_RESET);
+		USBC_Writeb(power, USBC_REG_PCTL(usbc_base));
+	}
+
 	sw_hcd->port1_status = (1 << USB_PORT_FEAT_POWER)
 	                      | (1 << USB_PORT_FEAT_C_CONNECTION);
 
@@ -407,19 +436,19 @@ int sw_hcd_hub_control(struct usb_hcd	*hcd,
     if(hcd == NULL){
         DMSG_PANIC("ERR: invalid argment\n");
 
-        return -ESHUTDOWN;
+        return -ENODEV;
     }
-
+/*
 	if (!is_host_active(sw_hcd) || !sw_hcd->enable){
-	    DMSG_PANIC("ERR: usb host is not active\n");
-	    return -ESHUTDOWN;
+	    DMSG_PANIC("ERR: sw_hcd_hub_control, usb host is not active\n");
+	    return -ENOTCONN;
 	}
-
+*/
 	spin_lock_irqsave(&sw_hcd->lock, flags);
 
     if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))) {
 		spin_unlock_irqrestore(&sw_hcd->lock, flags);
-		return -ESHUTDOWN;
+		return -ENODEV;
 	}
 
     DMSG_DBG_HCD("sw_hcd_hub_control: typeReq = %x, wValue = 0x%x, wIndex = 0x%x\n",
@@ -519,9 +548,11 @@ int sw_hcd_hub_control(struct usb_hcd	*hcd,
     				&& time_after_eq(jiffies, sw_hcd->rh_timer)) {
     			u8 power = 0;
 
-    			power = USBC_Readb(USBC_REG_PCTL(usbc_base));
-				power &= ~(1 << USBC_BP_POWER_H_RESUME);
-    			USBC_Writeb(power, USBC_REG_PCTL(usbc_base));
+				if (!sw_hcd->enable){
+					power = USBC_Readb(USBC_REG_PCTL(usbc_base));
+					power &= ~(1 << USBC_BP_POWER_H_RESUME);
+					USBC_Writeb(power, USBC_REG_PCTL(usbc_base));
+				}
 
     			DMSG_DBG_HCD("DBG: root port resume stopped, power %02x\n", power);
 

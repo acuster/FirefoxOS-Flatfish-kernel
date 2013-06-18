@@ -25,6 +25,8 @@
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/workqueue.h>
+#include <linux/gpio.h>
+#include <linux/scenelock.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <mach/irqs-sun6i.h>
@@ -112,6 +114,14 @@ static int headphone_state = 0;
 #define CIRCLE_COUNT			1
 static void switch_resume_events(struct work_struct *work);
 static struct workqueue_struct *resume_switch_work_queue = NULL;
+
+static void codec_resume_events(struct work_struct *work);
+struct workqueue_struct *resume_work_queue;
+static DECLARE_WORK(codec_resume_work, codec_resume_events);
+
+static int req_mute_status;
+static script_item_u item_mute;
+//static script_item_value_type_e  type;
 
 enum headphone_mode_u {
 	HEADPHONE_IDLE,
@@ -294,9 +304,42 @@ SWITCH_DBG("%s,line:%d,tmp:%x\n", __func__, __LINE__, tmp);
 	return IRQ_HANDLED;
 }
 
+static void codec_resume_events(struct work_struct *work)
+{
+	int headphone_mute_used = 0;
+	script_item_u val;
+	script_item_value_type_e  type;
+   	/*fix the resume blaze blaze noise*/
+	hmic_wr_control(SUN6I_ADDAC_TUNE, 0x1, PA_SLOPE_SECECT, 0x1);
+	hmic_wr_control(SUN6I_PA_CTRL, 0x1, HPPAEN, 0x1);
+	msleep(450);
+	type = script_get_item("audio_para", "headphone_mute_used", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[audiocodec] headphone_mute_used type err!\n");
+    }
+	headphone_mute_used = val.val;
+	if (headphone_mute_used) {
+		item_mute.gpio.data = 1;
+		/*config gpio info of headphone_mute_used, the default pa config is close(check sys_config.fex).*/
+		if (0 != sw_gpio_setall_range(&item_mute.gpio, 1)) {
+			printk("sw_gpio_setall_range failed\n");
+		}
+	}
+	msleep(200);
+	/*audio codec hardware bug. the HBIASADCEN bit must be enable in init*/
+	hmic_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASADCEN, 0x1);
+	hmic_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASEN, 0x1);
+
+	printk("====codec_resume_events===\n");
+}
+
 static void switch_resume_events(struct work_struct *work)
 {
 	int tmp = 0,tmp1 = 0;
+	int headphone_mute_used = 0;
+	script_item_u val;
+	script_item_value_type_e  type;
+
 	struct gpio_switch_data *switch_data = container_of(work,
 				struct gpio_switch_data, resume_work);
 
@@ -307,7 +350,21 @@ static void switch_resume_events(struct work_struct *work)
    	/*fix the resume blaze blaze noise*/
 	hmic_wr_control(SUN6I_ADDAC_TUNE, 0x1, PA_SLOPE_SECECT, 0x1);
 	hmic_wr_control(SUN6I_PA_CTRL, 0x1, HPPAEN, 0x1);
-	msleep(650);
+	msleep(450);
+	type = script_get_item("audio_para", "headphone_mute_used", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[audiocodec] headphone_mute_used type err!\n");
+    }
+	headphone_mute_used = val.val;
+	if (headphone_mute_used) {
+		item_mute.gpio.data = 1;
+		/*config gpio info of headphone_mute_used, the default pa config is close(check sys_config.fex).*/
+		if (0 != sw_gpio_setall_range(&item_mute.gpio, 1)) {
+			printk("sw_gpio_setall_range failed\n");
+		}
+	}
+	msleep(200);
+
 	/*audio codec hardware bug. the HBIASADCEN bit must be enable in init*/
 	hmic_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASADCEN, 0x1);
 	hmic_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASEN, 0x1);
@@ -363,6 +420,7 @@ static ssize_t print_headset_name(struct switch_dev *sdev, char *buf)
 
 static int gpio_switch_probe(struct platform_device *pdev)
 {
+	int headphone_mute_used = 0;
 	struct gpio_switch_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_switch_data *switch_data;
 	int ret = 0;
@@ -449,7 +507,37 @@ static int gpio_switch_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_switch_work_queue;
 	}
-	
+
+	resume_work_queue = create_singlethread_workqueue("codec_resume");
+	if (resume_work_queue == NULL) {
+		printk("[sun4i-codec] try to create workqueue for codec failed!\n");
+		ret = -ENOMEM;
+		goto err_switch_work_queue;
+	}
+
+	type = script_get_item("audio_para", "headphone_mute_used", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[audiocodec] headphone_mute_used type err!\n");
+    }
+	headphone_mute_used = val.val;
+	if (headphone_mute_used) {
+		/*get the default headphone mute val(close)*/
+		type = script_get_item("audio_para", "audio_mute_ctrl", &item_mute);
+		if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
+			printk("script_get_item return type err\n");
+			return -EFAULT;
+		}
+		/*request gpio*/
+		req_mute_status = gpio_request(item_mute.gpio.gpio, NULL);
+		if (0 != req_mute_status) {
+			printk("request gpio headphone mute failed!\n");
+		}
+		/*config gpio info of headphone_mute_used, the default pa config is close(check sys_config.fex).*/
+		if (0 != sw_gpio_setall_range(&item_mute.gpio, 1)) {
+			printk("sw_gpio_setall_range failed\n");
+		}
+	}
+	queue_work(resume_work_queue, &codec_resume_work);
 	return 0;
 
 err_switch_work_queue:
@@ -472,6 +560,34 @@ err_switch_dev_register:
 
 static int switch_suspend(struct platform_device *pdev,pm_message_t state)
 {
+	int headphone_mute_used = 0;
+	script_item_u val;
+	script_item_value_type_e  type;
+
+	/* check if called in talking standby */
+	if (check_scene_locked(SCENE_TALKING_STANDBY) == 0) {
+		printk("In talking standby, do not suspend!!\n");
+		return 0;
+	}
+	type = script_get_item("audio_para", "headphone_mute_used", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[audiocodec] headphone_mute_used type err!\n");
+    }
+	headphone_mute_used = val.val;
+	if (headphone_mute_used) {
+		item_mute.gpio.data = 0;
+		/*config gpio info of headphone_mute_used, the default pa config is close(check sys_config.fex).*/
+		if (0 != sw_gpio_setall_range(&item_mute.gpio, 1)) {
+			printk("sw_gpio_setall_range failed\n");
+		}
+	}
+	msleep(150);
+	/*fix the resume blaze blaze noise*/
+	hmic_wr_control(SUN6I_ADDAC_TUNE, 0x1, PA_SLOPE_SECECT, 0x1);
+	/*disable pa*/
+	hmic_wr_control(SUN6I_PA_CTRL, 0x1, HPPAEN, 0x0);
+	msleep(350);
+
 	return 0;
 }
 
@@ -479,21 +595,47 @@ static int switch_resume(struct platform_device *pdev)
 {
 	struct gpio_switch_data *switch_data;
 
-	hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_M, 0xf);						/*0xf should be get from hw_debug 28*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_N, 0x1);						/*0xf should be get from hw_debug 24*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_OUT_IRQ_EN, 0x1); 	/*20*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_IN_IRQ_EN, 0x1); 	/*19*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x3, HMIC_DS_SAMP, 0x1); 				/*14*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH2_KEY, 0x8);				/*0xf should be get from hw_debug 8*/
-	hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH1_EARPHONE, 0x1);			/*0x1 should be get from hw_debug 0*/
-
+	if (check_scene_locked(SCENE_TALKING_STANDBY) != 0) {
+		hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_M, 0xf);						/*0xf should be get from hw_debug 28*/
+		hmic_wr_control(SUN6I_HMIC_CTL, 0xf, HMIC_N, 0x1);						/*0xf should be get from hw_debug 24*/
+		hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_OUT_IRQ_EN, 0x1); 	/*20*/
+		hmic_wr_control(SUN6I_HMIC_CTL, 0x1, HMIC_EARPHONE_IN_IRQ_EN, 0x1); 	/*19*/
+		hmic_wr_control(SUN6I_HMIC_CTL, 0x3, HMIC_DS_SAMP, 0x1); 				/*14*/
+		hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH2_KEY, 0x8);				/*0xf should be get from hw_debug 8*/
+		hmic_wr_control(SUN6I_HMIC_CTL, 0x1f, HMIC_TH1_EARPHONE, 0x1);			/*0x1 should be get from hw_debug 0*/
+	}
 	switch_data = (struct gpio_switch_data *)platform_get_drvdata(pdev);
 
-	SWITCH_DBG("%s,line:%d\n", __func__, __LINE__);
 	if (switch_data != NULL) {
 		queue_work(resume_switch_work_queue, &switch_data->resume_work);
 	}
 	return 0;
+}
+
+static void switch_shutdown(struct platform_device *devptr)
+{
+	int headphone_mute_used = 0;
+	script_item_u val;
+	script_item_value_type_e  type;
+
+	type = script_get_item("audio_para", "headphone_mute_used", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+        printk("[audiocodec] headphone_mute_used type err!\n");
+    }
+	headphone_mute_used = val.val;
+	if (headphone_mute_used) {
+		item_mute.gpio.data = 0;
+		/*config gpio info of headphone_mute_used, the default pa config is close(check sys_config.fex).*/
+		if (0 != sw_gpio_setall_range(&item_mute.gpio, 1)) {
+			printk("sw_gpio_setall_range failed\n");
+		}
+	}
+	msleep(150);
+	/*fix the resume blaze blaze noise*/
+	hmic_wr_control(SUN6I_ADDAC_TUNE, 0x1, PA_SLOPE_SECECT, 0x1);
+	/*disable pa*/
+	hmic_wr_control(SUN6I_PA_CTRL, 0x1, HPPAEN, 0x0);
+	msleep(450);
 }
 
 static int __devexit gpio_switch_remove(struct platform_device *pdev)
@@ -526,6 +668,7 @@ static struct platform_driver gpio_switch_driver = {
 	},
 	.suspend	= switch_suspend,
 	.resume		= switch_resume,
+	.shutdown   = switch_shutdown,
 };
 
 static struct gpio_switch_platform_data headset_switch_data = { 

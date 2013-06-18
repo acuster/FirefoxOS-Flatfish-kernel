@@ -96,6 +96,8 @@ typedef struct _PVRSRV_KERNEL_MEM_INFO_
 	/* Kernel Mode CPU Virtual address */
 	IMG_PVOID				pvLinAddrKM;
 
+	IMG_PVOID				ppLinAddrKM;//aw
+
 	/* Device Virtual Address */
 	IMG_DEV_VIRTADDR		sDevVAddr;
 

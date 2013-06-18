@@ -1437,10 +1437,10 @@ dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 	else {
 		dhd_os_wlfc_unblock(dhdp);
 		/* non-proptxstatus way */
-		ret = dhd_bus_txdata(dhdp->bus, pktbuf);
+		ret = dhd_bus_txdata(dhdp->bus, pktbuf, FALSE);
 	}
 #else
-	ret = dhd_bus_txdata(dhdp->bus, pktbuf);
+	ret = dhd_bus_txdata(dhdp->bus, pktbuf, FALSE);
 #endif /* PROP_TXSTATUS */
 
 	return ret;
@@ -3642,7 +3642,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 #endif /* defined(AP) && !defined(WLP2P) */
 
-	if (dhd_bus_chip_id(dhd) == BCM43341_CHIP_ID) {
+	if (dhd_bus_chip_id(dhd) == BCM43341_CHIP_ID || dhd_bus_chip_id(dhd) == BCM4324_CHIP_ID) {
 		/* Turn on HT40 in 2.4 GHz */
 		bcm_mkiovar("mimo_bw_cap", (char *)&mimo_bw_cap, 4, iovbuf, sizeof(iovbuf));
 		dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
@@ -5540,6 +5540,7 @@ void dhd_set_version_info(dhd_pub_t *dhdp, char *fw)
 
 	i = snprintf(info_string, sizeof(info_string),
 		"  Driver: %s\n  Firmware: %s ", EPI_VERSION_STR, fw);
+	printf("%s\n", info_string);
 
 	if (!dhdp)
 		return;

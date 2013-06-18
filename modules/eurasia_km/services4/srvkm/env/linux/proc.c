@@ -99,7 +99,9 @@ static struct seq_operations pvr_proc_seq_operations =
 	.show =		pvr_proc_seq_show,
 };
 
+#if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
 static struct proc_dir_entry* g_pProcQueue;
+#endif
 static struct proc_dir_entry* g_pProcVersion;
 static struct proc_dir_entry* g_pProcSysNodes;
 
@@ -1051,11 +1053,17 @@ IMG_INT CreateProcEntries(IMG_VOID)
         return -ENOMEM;
     }
 
+#if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
 	g_pProcQueue = CreateProcReadEntrySeq("queue", NULL, NULL, ProcSeqShowQueue, ProcSeqOff2ElementQueue, NULL);
+#endif
 	g_pProcVersion = CreateProcReadEntrySeq("version", NULL, NULL, ProcSeqShowVersion, ProcSeq1ElementHeaderOff2Element, NULL);
 	g_pProcSysNodes = CreateProcReadEntrySeq("nodes", NULL, NULL, ProcSeqShowSysNodes, ProcSeqOff2ElementSysNodes, NULL);
 
-	if(!g_pProcQueue || !g_pProcVersion || !g_pProcSysNodes)
+	if(!g_pProcVersion || !g_pProcSysNodes
+#if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
+		|| !g_pProcQueue
+#endif
+		)
     {
         PVR_DPF((PVR_DBG_ERROR, "CreateProcEntries: couldn't make /proc/%s files", PVRProcDirRoot));
 
@@ -1209,7 +1217,9 @@ IMG_VOID RemoveProcEntries(IMG_VOID)
 #endif /* PVR_MANUAL_POWER_CONTROL */
 #endif
 
+#if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
 	RemoveProcEntrySeq(g_pProcQueue);
+#endif
 	RemoveProcEntrySeq(g_pProcVersion);
 	RemoveProcEntrySeq(g_pProcSysNodes);
 

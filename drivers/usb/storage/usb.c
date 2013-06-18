@@ -741,6 +741,8 @@ static int usb_stor_acquire_resources(struct us_data *us)
 		p = us->unusual_dev->initFunction(us);
 		if (p)
 			return p;
+	}else{
+		usb_stor_dongle_change_command(us);
 	}
 
 	/* Start up our control thread */

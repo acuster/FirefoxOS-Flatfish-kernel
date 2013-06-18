@@ -40,7 +40,6 @@ int ar100_set_debug_level(unsigned int level)
 	
 	/* initialize message */
 	pmessage->type     = AR100_SET_DEBUG_LEVEL;
-	pmessage->attr     = 0;
 	pmessage->paras[0] = level;
 	pmessage->state    = AR100_MESSAGE_INITIALIZED;
 	

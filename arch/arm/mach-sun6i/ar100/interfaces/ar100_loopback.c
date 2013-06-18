@@ -35,7 +35,6 @@ int ar100_message_loopback(void)
 	
 	/* initialize message */
 	pmessage->type       = AR100_MESSAGE_LOOPBACK;
-	pmessage->attr       = AR100_MESSAGE_ATTR_HARDSYN;
 	pmessage->state      = AR100_MESSAGE_INITIALIZED;
 	pmessage->cb.handler = NULL;
 	pmessage->cb.arg     = NULL;
@@ -65,7 +64,6 @@ int ar100_set_uart_baudrate(u32 baudrate)
 	
 	/* initialize message */
 	pmessage->type       = AR100_SET_UART_BAUDRATE;
-	pmessage->attr       = AR100_MESSAGE_ATTR_HARDSYN;
 	pmessage->state      = AR100_MESSAGE_INITIALIZED;
 	pmessage->paras[0]   = baudrate;
 	pmessage->cb.handler = NULL;

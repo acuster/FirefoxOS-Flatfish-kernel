@@ -999,5 +999,6 @@ typedef enum{
 
 
 void anx6345_init(__panel_para_t * info);
+void anx6345_exit(__panel_para_t * info);
 #endif
 

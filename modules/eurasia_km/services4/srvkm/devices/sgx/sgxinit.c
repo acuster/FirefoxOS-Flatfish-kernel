@@ -1345,10 +1345,13 @@ IMG_VOID SGXDumpDebugInfo (PVRSRV_SGXDEV_INFO	*psDevInfo,
 		}
 	#endif
 	}
+
+#if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
 	/*
 		Dump out the outstanding queue items.
 	*/
 	QueueDumpDebugInfo();
+#endif
 
 	{
 		/*

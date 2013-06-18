@@ -20,3 +20,4 @@ pm_tmp-y += ./pm.o
 pm_tmp-y += ./standby/super/super_power.o
 pm_tmp-y += ./standby/super/super_twi.o
 pm_tmp-y += ./standby/super/super_clock.o
+obj-y += ./extended_standby.o

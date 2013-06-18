@@ -22,7 +22,7 @@
 #define __ASM_ARCH_MEMORY_H
 
 #define PLAT_PHYS_OFFSET        UL(0x40000000)
-#define PLAT_MEM_SIZE           (CONFIG_SUNXI_MEMORY_SIZE * SZ_1G)
+#define PLAT_MEM_SIZE           (CONFIG_SUNXI_MEMORY_SIZE * SZ_1M)
 
 #define SYS_CONFIG_MEMBASE      (PLAT_PHYS_OFFSET + SZ_32M + SZ_16M)      /* 0x43000000 */
 #define SYS_CONFIG_MEMSIZE      (SZ_64K)                                  /* 0x00010000 */

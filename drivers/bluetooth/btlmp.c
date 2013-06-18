@@ -155,7 +155,11 @@ static inline int bluesleep_can_sleep(void)
 {
 	/* check if HOST_WAKE_BT_GPIO and BT_WAKE_HOST_GPIO are both deasserted */
 	return !__gpio_get_value(bsi->ext_wake) &&
+#ifndef CONFIG_BT_LOW_LEVEL_TRIGGER
 		!__gpio_get_value(bsi->host_wake) &&
+#else
+		__gpio_get_value(bsi->host_wake) &&
+#endif // CONFIG_BT_LOW_LEVEL_TRIGGER
 		(bsi->uport != NULL);
 }
 
@@ -215,7 +219,11 @@ static void bluesleep_hostwake_task(unsigned long data)
 {
 	spin_lock(&rw_lock);
 
+#ifndef CONFIG_BT_LOW_LEVEL_TRIGGER
 	if (__gpio_get_value(bsi->host_wake))
+#else
+	if (!__gpio_get_value(bsi->host_wake))
+#endif // CONFIG_BT_LOW_LEVEL_TRIGGER
 		bluesleep_rx_busy();
 	else
 		bluesleep_rx_idle();
@@ -406,8 +414,12 @@ static int bluesleep_start(void)
 
 	/* assert BT_WAKE */
 	__gpio_set_value(bsi->ext_wake, 1);
-		
+
+#ifndef CONFIG_BT_LOW_LEVEL_TRIGGER
 	irq_handle = sw_gpio_irq_request(bsi->host_wake, TRIG_EDGE_POSITIVE,
+#else
+	irq_handle = sw_gpio_irq_request(bsi->host_wake, TRIG_EDGE_NEGATIVE,
+#endif // CONFIG_BT_LOW_LEVEL_TRIGGER
 						 btlpm_irq_handle, NULL);
 
 	if (irq_handle == 0) {

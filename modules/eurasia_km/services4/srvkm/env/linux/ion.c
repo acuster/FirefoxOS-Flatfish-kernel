@@ -179,12 +179,12 @@ IMG_VOID IonDeinit(IMG_VOID)
 
 static struct ion_heap **gapsIonHeaps;
 struct ion_device *gpsIonDev;
-extern struct ion_heap *ion_heap_create(struct ion_platform_heap *);
-extern void ion_heap_destroy(struct ion_heap *);
+extern struct ion_heap *ion_heap_create(struct ion_platform_heap *);//aw
+extern void ion_heap_destroy(struct ion_heap *);//aw
 
 static struct ion_platform_data gsGenericConfig =
 {
-	.nr = 3,
+	.nr = 3,//aw
 	.heaps =
 	{
 		{
@@ -197,6 +197,7 @@ static struct ion_platform_data gsGenericConfig =
 			.name = "System",
 			.id   = ION_HEAP_TYPE_SYSTEM,
 		},
+		//aw
 		{
 			.type = ION_HEAP_TYPE_CARVEOUT,
 			.name = "carveout",
@@ -326,19 +327,70 @@ PVRSRV_ERROR IonImportBufferAndAcquirePhysAddr(IMG_HANDLE hIonDev,
 	for(i = 0; i < ui32NumFDs; i++)
 	{
 		int fd = (int)pai32BufferFDs[i];
+		struct sg_table *psSgTable;
 
-		psImportData->apsIonHandle[i] = ion_import_fd(psIonClient, fd);
+		psImportData->apsIonHandle[i] = ion_import_dma_buf(psIonClient, fd);
 		if (psImportData->apsIonHandle[i] == IMG_NULL)
 		{
 			eError = PVRSRV_ERROR_BAD_MAPPING;
 			goto exitFailImport;
 		}
 
-		psScatterList[i] = ion_map_dma(psIonClient, psImportData->apsIonHandle[i]);
+		psSgTable = ion_sg_table(psIonClient, psImportData->apsIonHandle[i]);
+		psScatterList[i] = psSgTable->sgl;
 		if (psScatterList[i] == NULL)
 		{
 			eError = PVRSRV_ERROR_INVALID_PARAMS;
 			goto exitFailImport;
+		}
+
+		//aw
+		/* Although all heaps will provide an sg_table, the tables cannot
+		 * always be trusted because sg_lists are just pointers to "struct
+		 * page" values, and some memory e.g. carveout may not have valid
+		 * "struct page" values. In particular, on ARM, carveout is
+		 * generally reserved with memblock_remove(), which leaves the
+		 * "struct page" entries uninitialized when SPARSEMEM is enabled.
+		 * The effect of this is that page_to_pfn(pfn_to_page(pfn)) != pfn.
+		 *
+		 * There's more discussion on this mailing list thread:
+		 * http://lists.linaro.org/pipermail/linaro-mm-sig/2012-August/002440.html
+		 *
+		 * If the heap this buffer comes from implements ->phys(), it's
+		 * probably a contiguous allocator. If the phys() function is
+		 * implemented, we'll use it to check sg_table->sgl[0]. If we find
+		 * they don't agree, we'll assume phys() is more reliable and use
+		 * that.
+		 *
+		 * Unfortunately, although phys() should not be implemented on
+		 * non-contiguous heaps, we need to work with broken legacy heaps that
+		 * do implement both. Therefore we _will_ use the sg_table if the
+		 * phys() and first sg_table entry match, even though it may possibly
+		 * still be the case that the sg_table is corrupt. (This is unlikely
+		 * because the sg_table for most contiguous allocators should be a
+		 * single span from 'start' to 'start+size'.)
+		 *
+		 * Also, ion prints out an error message if the heap doesn't implement
+		 * ->phys(), which we want to avoid, so only use ->phys() if the
+		 * sg_table contains a single span and therefore could plausibly
+		 * be a contiguous allocator.
+		 */
+		if(!sg_next(psScatterList[i]))
+		{
+			ion_phys_addr_t sPhyAddr;
+			size_t sLength;
+
+			if(!ion_phys(psIonClient, psImportData->apsIonHandle[i],
+						 &sPhyAddr, &sLength))
+			{
+				BUG_ON(sLength & ~PAGE_MASK);
+
+				if(sg_phys(psScatterList[i]) != sPhyAddr)
+				{
+					psScatterList[i] = IMG_NULL;
+					ui32PageCount += sLength / PAGE_SIZE;
+				}
+			}
 		}
 
 		for(psTemp = psScatterList[i]; psTemp; psTemp = sg_next(psTemp))
@@ -361,12 +413,29 @@ PVRSRV_ERROR IonImportBufferAndAcquirePhysAddr(IMG_HANDLE hIonDev,
 
 	for(i = 0, k = 0; i < ui32NumFDs; i++)
 	{
-		for(psTemp = psScatterList[i]; psTemp; psTemp = sg_next(psTemp))
+		if(psScatterList[i])//aw
 		{
-			IMG_UINT32 j;
-			for (j = 0; j < psTemp->length; j += PAGE_SIZE)
+			for(psTemp = psScatterList[i]; psTemp; psTemp = sg_next(psTemp))
 			{
-				psImportData->psSysPhysAddr[k].uiAddr = sg_phys(psTemp) + j;
+				IMG_UINT32 j;
+				for (j = 0; j < psTemp->length; j += PAGE_SIZE)
+				{
+					psImportData->psSysPhysAddr[k].uiAddr = sg_phys(psTemp) + j;
+					k++;//aw
+				}
+			}
+		}
+		else//aw
+		{
+			ion_phys_addr_t sPhyAddr;
+			size_t sLength, j;
+
+			ion_phys(psIonClient, psImportData->apsIonHandle[i],
+					 &sPhyAddr, &sLength);
+
+			for(j = 0; j < sLength; j += PAGE_SIZE)
+			{
+				psImportData->psSysPhysAddr[k].uiAddr = sPhyAddr + j;
 				k++;
 			}
 		}
@@ -401,8 +470,6 @@ PVRSRV_ERROR IonImportBufferAndAcquirePhysAddr(IMG_HANDLE hIonDev,
 exitFailImport:
 	for(i = 0; psImportData->apsIonHandle[i] != NULL; i++)
 	{
-		if(psScatterList[i])
-			ion_unmap_dma(psIonClient, psImportData->apsIonHandle[i]);
 		ion_free(psIonClient, psImportData->apsIonHandle[i]);
 	}
 	kfree(psImportData);
@@ -422,7 +489,6 @@ IMG_VOID IonUnimportBufferAndReleasePhysAddr(IMG_HANDLE hPriv)
 
 	for(i = 0; i < psImportData->ui32NumIonHandles; i++)
 	{
-		ion_unmap_dma(psImportData->psIonClient, psImportData->apsIonHandle[i]);
 		ion_free(psImportData->psIonClient, psImportData->apsIonHandle[i]);
 	}
 

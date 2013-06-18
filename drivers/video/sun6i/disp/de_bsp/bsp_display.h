@@ -67,8 +67,8 @@ typedef unsigned int __hdle;
 #define __inf(msg...)       do{if(bsp_disp_get_print_level()){printk(KERN_WARNING "[DISP] ");printk(msg);}}while(0)
 #define __msg(msg...)       do{if(bsp_disp_get_print_level()){printk(KERN_WARNING "[DISP] file:%s,line:%d:    ",__FILE__,__LINE__);printk(msg);}}while(0)
 #define __wrn(msg...)       {printk(KERN_WARNING "[DISP WRN] file:%s,line:%d:    ",__FILE__,__LINE__);printk(msg);}
-#define __here__            do{if(bsp_disp_get_print_level()){printk(KERN_WARNING "[DISP] file:%s,line:%d\n",__FILE__,__LINE__);}}while(0)
-#define __debug(msg...)     do{if(bsp_disp_get_print_level()){printk(KERN_WARNING "[DISP] ");printk(msg);}}while(0)
+#define __here__            do{if(bsp_disp_get_print_level()==2){printk(KERN_WARNING "[DISP] file:%s,line:%d\n",__FILE__,__LINE__);}}while(0)
+#define __debug(msg...)     do{if(bsp_disp_get_print_level()==2){printk(KERN_WARNING "[DISP] ");printk(msg);}}while(0)
 #endif
 
 
@@ -128,7 +128,6 @@ typedef struct
     __s32 (*hdmi_late_resume)(void);
 	__s32 (*disp_int_process)(__u32 sel);
 	__s32 (*vsync_event)(__u32 sel);
-    __s32 (*take_effect) (__u32 sel);
 	__u32 hdmi_cts_compatibility;//0:force hdmi; 1: auto output hdmi/dvi
 }__disp_bsp_init_para;
 
@@ -277,8 +276,6 @@ extern __s32 BSP_disp_open_lcd_backlight(__u32 sel);
 extern __s32 BSP_disp_lcd_set_bright_dimming(__u32 sel, __u32 bright_dimming);  //for drc 
 extern __s32 BSP_disp_lcd_used(__u32 sel);
 extern __s32 BSP_disp_restore_lcdc_reg(__u32 sel);
-extern __s32 bsp_disp_lcd_get_bright_curve_en(__u32 sel);
-extern __s32 bsp_disp_lcd_set_bright_curve_en(__u32 sel, __u32 en);
 extern __s32 bsp_disp_get_fps(__u32 sel);
 extern __s32 BSP_disp_lcd_set_fps(__u32 sel, __u32 fps);
 extern __s32 BSP_disp_lcd_get_size(__u32 sel, char *lcd_size);

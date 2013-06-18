@@ -328,8 +328,10 @@ static void sw_uart_force_lcr(struct sw_uart_port *sw_uport, unsigned msecs)
 	serial_out(port, sw_uport->lcr, SW_UART_LCR);
 	serial_out(port, SW_UART_HALT_FORCECFG|SW_UART_HALT_LCRUP, SW_UART_HALT);
 	while (jiffies < expire && (serial_in(port, SW_UART_HALT) & SW_UART_HALT_LCRUP));
+	/* do not call printk here, yemao 2013-5-20 15:00:38
 	if (serial_in(port, SW_UART_HALT) & SW_UART_HALT_LCRUP)
 		SERIAL_MSG("uart%d, Force LCR failed\n", sw_uport->id);
+	*/
 	serial_out(port, 0, SW_UART_HALT);
 }
 
@@ -348,7 +350,7 @@ static irqreturn_t sw_uart_irq(int irq, void *dev_id)
 
 	if (iir == SW_UART_IIR_IID_BUSBSY) {
 		/* handle busy */
-		SERIAL_MSG("uart%d busy...\n", sw_uport->id);
+		//SERIAL_MSG("uart%d busy...\n", sw_uport->id);
 		serial_in(port, SW_UART_USR);
 
 		#ifdef CONFIG_SW_UART_FORCE_LCR

@@ -98,6 +98,40 @@ int ar100_axp_read_reg(unsigned char *addr, unsigned char *data, unsigned long l
 int ar100_axp_write_reg(unsigned char *addr, unsigned char *data, unsigned long len);
 
 /**
+ * clear axp register bits sync.
+ * addr :     point of registers address;
+ * mask :     point of mask bits data;
+ * delay:     point of delay times;
+ * len  :     number of write registers, max len:8;
+ *
+ * return: result, 0 - clear register successed,
+ *                !0 - clear register failed, or the len more then max len;
+ *
+ * clear axp register bits internal:
+ * data = read_axp_reg(addr);
+ * data = data & (~mask);
+ * write_axp_reg(addr, data);
+ *
+ */
+int ar100_axp_clr_regs_bits_sync(unsigned char *addr, unsigned char *mask, unsigned char *delay, unsigned long len);
+
+/**
+ * set axp register bits sync.
+ * addr :     point of registers address;
+ * mask :     point of mask bits data;
+ * delay:     point of delay times;
+ * len  :     number of write registers, max len:8;
+ *
+ * return: result, 0 - clear register successed,
+ *                !0 - clear register failed, or the len more then max len;
+ * clear axp register bits internal:
+ * data = read_axp_reg(addr);
+ * data = data | mask;
+ * write_axp_reg(addr, data);
+ */
+int ar100_axp_set_regs_bits_sync(unsigned char *addr, unsigned char *mask, unsigned char *delay, unsigned long len);
+
+/**
  * register call-back function, call-back function is for ar100 notify some event to ac327,
  * axp interrupt for ex.
  * func:  call-back function;

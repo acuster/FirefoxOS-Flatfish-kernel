@@ -453,14 +453,15 @@ __s32 LCD_parse_panel_para(__u32 sel, __panel_para_t * info)
         info->lcd_cmap_en = value;
     }
 
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_bright_curve_en", &value, 1);
-    if(ret == 0)
-    {
-        info->lcd_bright_curve_en = value;
-    }
 
     ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_size", (int*)info->lcd_size, 2);
     ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_model_name", (int*)info->lcd_model_name, 2);
+
+	ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_xtal_freq", &value, 1);
+	if(ret == 0)
+	{
+		info->lcd_xtal_freq = value;
+	}
 
     return 0;
 }
@@ -540,7 +541,7 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
     }
 
 //lcd_gpio
-    for(i=0; i<4; i++)
+    for(i=0; i<LCD_GPIO_NUM-2; i++)
     {
         sprintf(sub_name, "lcd_gpio_%d", i);
         
@@ -577,12 +578,22 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
         }
     }
 
-    lcd_cfg->backlight_max_limit = 150;
-    ret = OSAL_Script_FetchParser_Data(primary_key, "lcd_pwm_max_limit", &value, 1);
-    if(ret == 0)
-    {
-        lcd_cfg->backlight_max_limit = (value > 255)? 255:value;
-    }
+ //backlight adjust
+    for(i = 0; i < 101; i++) {
+        sprintf(sub_name, "lcd_bl_%d_percent", i);
+        lcd_cfg->backlight_curve_adjust[i] = 0;
+
+        if(i == 100)
+            lcd_cfg->backlight_curve_adjust[i] = 255;
+
+        ret = OSAL_Script_FetchParser_Data(primary_key, sub_name, &value, 1);
+        if(ret == 0) {
+            value = (value > 100)? 100:value;
+            value = value * 255 / 100;
+            lcd_cfg->backlight_curve_adjust[i] = value;
+            }
+        }
+
 
 //init_bright
     sprintf(primary_key, "disp_init");
@@ -957,7 +968,7 @@ __s32 pwm_set_duty_ns(__u32 channel, __u32 duty_ns)
 
     gdisp.pwm[channel].duty_ns = duty_ns;
 
-    DE_INF("[PWM]: duty_ns=%d,period_ns=%d,active_cycle=%d,entire_cycle=%d\n", duty_ns, gdisp.pwm[channel].period_ns, active_cycle, gdisp.pwm[channel].entire_cycle);
+    DE_DBG("[PWM]: duty_ns=%d,period_ns=%d,active_cycle=%d,entire_cycle=%d\n", duty_ns, gdisp.pwm[channel].period_ns, active_cycle, gdisp.pwm[channel].entire_cycle);
     return 0;
 }
 
@@ -1013,6 +1024,8 @@ __s32 LCD_POWER_ELDO3_EN(__u32 sel, __bool b_en, __u32 voltage)
     __u8 data;
     __u32 ret;
     __u8 addr;
+    __u8 delay;
+    __u8 mask;
 
     voltage = (voltage < 7)? 7 :voltage;
     voltage = (voltage > 33)?33:voltage;
@@ -1023,6 +1036,7 @@ __s32 LCD_POWER_ELDO3_EN(__u32 sel, __bool b_en, __u32 voltage)
     {
         DE_WRN("set eldo3 to %d.%dv fail\n", voltage/10, voltage%10);
     }
+#if 0
     addr = 0x12;
     ret = ar100_axp_read_reg(&addr, &data, 1);
     if(ret != 0)
@@ -1036,6 +1050,19 @@ __s32 LCD_POWER_ELDO3_EN(__u32 sel, __bool b_en, __u32 voltage)
     {
         DE_WRN("%s eldo3 fail\n", (b_en)? "enable":"disable");
     }
+#else
+    addr = 0x12;
+    mask = 0x04;
+    delay = 0x00;
+
+    if(b_en)
+    {
+        ar100_axp_set_regs_bits_sync(&addr, &mask, &delay, 1);
+    }else
+    {
+        ar100_axp_clr_regs_bits_sync(&addr, &mask, &delay, 1);
+    }
+#endif
 
     return 0;
 }
@@ -1102,10 +1129,11 @@ __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
 	        
 	        if((gpanel_info[sel].lcd_if == LCD_IF_EDP) && (gpanel_info[sel].lcd_edp_tx_ic == 0))
 	        {
-				__u8 data;
+#if 0
+                __u8 data;
 				__u32 ret;
 				__u8 addr;
-				
+
 				addr = 0x1b;
 				data = 0x0b;
 				ret = ar100_axp_write_reg(&addr, &data, 1); //set eldo3 to 1.8v
@@ -1126,59 +1154,52 @@ __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
 				{
 					DE_WRN("enable eldo3 fail\n");	
 				}
+#else
+                LCD_POWER_ELDO3_EN(sel, 1, 18);
+#endif
 	        }
             else if((gpanel_info[sel].lcd_if == LCD_IF_EDP) && (gpanel_info[sel].lcd_edp_tx_ic == 1))
 	        {
-				__u8 data;
+				__u8 data[2];
 				__u32 ret;
-				__u8 addr;
+				__u8 addr[2];
+				__u8 delay[2];
+				__u8 mask[2];
 
-				addr = 0x15;
-				data = 0x12;
-				ret = ar100_axp_write_reg(&addr, &data, 1); //set dldo1 to 2.5v
+                /* set dldo1 to 2.5v */
+                addr[0] = 0x15;
+                data[0] = 0x12;
+				ret = ar100_axp_write_reg(&addr[0], &data[0], 1);
 				if(ret != 0)
 				{
 					DE_WRN("set dldo1 to 2.5v fail\n");
 				}
-				addr = 0x12;
-				ret = ar100_axp_read_reg(&addr, &data, 1);
-				if(ret != 0)
-				{
-					DE_WRN("axp read reg fail\n");
-				}
-				addr = 0x12;
-				data |= 0x08;
-				ar100_axp_write_reg(&addr, &data, 1); //enable dldo1
-				if(ret != 0)
-				{
-					DE_WRN("enable dldo1 fail\n");
-				}
 
-                addr = 0x1b;
-				data = 0x05;
-				ret = ar100_axp_write_reg(&addr, &data, 1); //set eldo3 to 1.2v
+                /* set eldo3 to 1.2v */
+                addr[0] = 0x1b;
+                data[0] = 0x05;
+                ret = ar100_axp_write_reg(&addr[0], &data[0], 1);
 				if(ret != 0)
 				{
 					DE_WRN("set eldo3 to 1.2v fail\n");
 				}
-				addr = 0x12;
-				ret = ar100_axp_read_reg(&addr, &data, 1);
-				if(ret != 0)
-				{
-					DE_WRN("axp read reg fail\n");
-				}
-				addr = 0x12;
-				data |= 0x04;
-				ar100_axp_write_reg(&addr, &data, 1); //enable eldo3
-				if(ret != 0)
-				{
-					DE_WRN("enable eldo3 fail\n");
-				}
-	        }
-            msleep(50);
+
+				/* enable dldo1/eldo3 power_on bit */
+				addr[0] = 0x12;
+				mask[0] = 0x08;
+				delay[0] = 7;
+
+				addr[1] = 0x12;
+				mask[1] = 0x04;
+				delay[1] = 0;
+
+                /* enable dldo1 and eldo3 with hardware sync */
+                ar100_axp_set_regs_bits_sync(addr, mask, delay, 2);
+	      }
+            msleep(30);
         }
         Disp_lcdc_pin_cfg(sel, DISP_OUTPUT_TYPE_LCD, 1);
-        msleep(2);
+        msleep(10);
 	}
 	else
 	{
@@ -1188,6 +1209,7 @@ __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
         {
             if((gpanel_info[sel].lcd_if == LCD_IF_EDP) && (gpanel_info[sel].lcd_edp_tx_ic == 0))
             {
+#if 0
     			__u8 data;
     			__u32 ret;
     			__u8 addr;
@@ -1204,38 +1226,27 @@ __s32 LCD_POWER_EN(__u32 sel, __bool b_en)
     			{
                     DE_WRN("disable eldo3 fail\n");
     			}
+#else
+                LCD_POWER_ELDO3_EN(sel, 0, 7);
+#endif
            }
            else if((gpanel_info[sel].lcd_if == LCD_IF_EDP) && (gpanel_info[sel].lcd_edp_tx_ic == 1))
            {
-                __u8 data;
-                __u32 ret;
-                __u8 addr;
+				__u8 addr[2];
+				__u8 delay[2];
+				__u8 mask[2];
 
-                addr = 0x12;
-                ret = ar100_axp_read_reg(&addr, &data, 1);
-                if(ret != 0)
-                {
-                    DE_WRN("axp read reg fail\n");
-                }
-                data &= 0xfb;
-                ar100_axp_write_reg(&addr, &data, 1); //disable eldo3
-                if(ret != 0)
-                {
-                    DE_WRN("disable eldo3 fail\n");
-                }
+                /* enable dldo1/eldo3 power_on bit */
+				addr[0] = 0x12;
+				mask[0] = 0x08;
+				delay[0] = 7;
 
-                addr = 0x12;
-                ret = ar100_axp_read_reg(&addr, &data, 1);
-                if(ret != 0)
-                {
-                    DE_WRN("axp read reg fail\n");
-                }
-                data &= 0xf7;
-                ar100_axp_write_reg(&addr, &data, 1); //disable dldo1
-                if(ret != 0)
-                {
-                    DE_WRN("disable dldo1 fail\n");
-                }
+				addr[1] = 0x12;
+				mask[1] = 0x04;
+				delay[1] = 0;
+
+                /* enable dldo1 and eldo3 with hardware sync */
+                ar100_axp_clr_regs_bits_sync(addr, mask, delay, 2);
            }
 
     		udelay(200);
@@ -1270,33 +1281,51 @@ __s32 LCD_GPIO_release(__u32 sel,__u32 io_index)
 
 __s32 LCD_GPIO_set_attr(__u32 sel,__u32 io_index, __bool b_output)
 {
-    char gpio_name[20];
+	char gpio_name[20];
 
-    sprintf(gpio_name, "lcd_gpio_%d", io_index);
-    return  OSAL_GPIO_DevSetONEPIN_IO_STATUS(gdisp.screen[sel].gpio_hdl[io_index], b_output, gpio_name);
+	if(gdisp.screen[sel].lcd_cfg.lcd_gpio_used[io_index])
+	{
+		sprintf(gpio_name, "lcd_gpio_%d", io_index);
+		return  OSAL_GPIO_DevSetONEPIN_IO_STATUS(gdisp.screen[sel].gpio_hdl[io_index], b_output, gpio_name);
+	}else
+	{
+		return 0;
+	}
 }
 
 __s32 LCD_GPIO_read(__u32 sel,__u32 io_index)
 {
-    char gpio_name[20];
+	char gpio_name[20];
 
-    sprintf(gpio_name, "lcd_gpio_%d", io_index);
-    return OSAL_GPIO_DevREAD_ONEPIN_DATA(gdisp.screen[sel].gpio_hdl[io_index], gpio_name);
+	if(gdisp.screen[sel].lcd_cfg.lcd_gpio_used[io_index])
+	{
+		sprintf(gpio_name, "lcd_gpio_%d", io_index);
+		return OSAL_GPIO_DevREAD_ONEPIN_DATA(gdisp.screen[sel].gpio_hdl[io_index], gpio_name);
+	}else
+	{
+		return 0;
+	}
 }
 
 __s32 LCD_GPIO_write(__u32 sel,__u32 io_index, __u32 data)
 {
-    char gpio_name[20];
+	char gpio_name[20];
 
-    sprintf(gpio_name, "lcd_gpio_%d", io_index);
-    return OSAL_GPIO_DevWRITE_ONEPIN_DATA(gdisp.screen[sel].gpio_hdl[io_index], data, gpio_name);
+	if(gdisp.screen[sel].lcd_cfg.lcd_gpio_used[io_index])
+	{
+		sprintf(gpio_name, "lcd_gpio_%d", io_index);
+		return OSAL_GPIO_DevWRITE_ONEPIN_DATA(gdisp.screen[sel].gpio_hdl[io_index], data, gpio_name);
+	}else
+	{
+		return 0;
+	}
 }
 
 __s32 LCD_GPIO_init(__u32 sel)
 {
     __u32 i = 0;
 
-    for(i=0; i<6; i++)
+    for(i=0; i<LCD_GPIO_NUM; i++)
     {
         gdisp.screen[sel].gpio_hdl[i] = 0;
 
@@ -1316,7 +1345,7 @@ __s32 LCD_GPIO_exit(__u32 sel)
 {
     __u32 i = 0;
 
-    for(i=0; i<6; i++)
+    for(i=0; i<LCD_GPIO_NUM; i++)
     {
         if(gdisp.screen[sel].gpio_hdl[i])
         {
@@ -1484,6 +1513,7 @@ __s32 Disp_lcdc_event_proc(void *parg)
     return OSAL_IRQ_RETURN;
 }
 
+__s32 __disp_lcd_bright_curve_init(__u32 sel);
 __s32 Disp_lcdc_init(__u32 sel)
 {
     LCD_get_sys_config(sel, &(gdisp.screen[sel].lcd_cfg));
@@ -1497,6 +1527,7 @@ __s32 Disp_lcdc_init(__u32 sel)
         {
             lcd_panel_fun[sel].cfg_panel_info(&gpanel_info[sel].lcd_extend_para);
         }
+        __disp_lcd_bright_curve_init(sel);
         gpanel_info[sel].tcon_index = 0;
     }
     lcdc_clk_init(sel);
@@ -2087,25 +2118,48 @@ __lcd_flow_t * BSP_disp_lcd_get_close_flow(__u32 sel)
 
 __s32 __disp_lcd_bright_get_adjust_value(__u32 sel, __u32 bright)
 {
-    if(gpanel_info[sel].lcd_bright_curve_en)
-    {
         bright = (bright > 255)? 255:bright;
-    
         return gpanel_info[sel].lcd_extend_para.lcd_bright_curve_tbl[bright];
-    }
 
     return bright;
 
 }
 
-__s32 bsp_disp_lcd_get_bright_curve_en(__u32 sel)
+__s32 __disp_lcd_bright_curve_init(__u32 sel)
 {
-    return gpanel_info[sel].lcd_bright_curve_en;
-}
+    __u32 i = 0, j=0;
+    __u32 items = 0;
+    __u32 lcd_bright_curve_tbl[101][2];
 
-__s32 bsp_disp_lcd_set_bright_curve_en(__u32 sel, __u32 en)
-{
-    gpanel_info[sel].lcd_bright_curve_en = en;
+    for(i = 0; i < 101; i++) {
+        if(gdisp.screen[sel].lcd_cfg.backlight_curve_adjust[i] == 0) {
+            if(i == 0) {
+                lcd_bright_curve_tbl[items][0] = 0;
+                lcd_bright_curve_tbl[items][1] = 0;
+                items++;
+                }
+            }
+
+        else {
+            lcd_bright_curve_tbl[items][0] = 255 * i / 100;
+            lcd_bright_curve_tbl[items][1] = gdisp.screen[sel].lcd_cfg.backlight_curve_adjust[i];
+            items++;
+            }
+        }
+
+    for(i=0; i<items-1; i++)
+    {
+        __u32 num = lcd_bright_curve_tbl[i+1][0] - lcd_bright_curve_tbl[i][0];
+
+        for(j=0; j<num; j++)
+        {
+            __u32 value = 0;
+
+            value = lcd_bright_curve_tbl[i][1] + ((lcd_bright_curve_tbl[i+1][1] - lcd_bright_curve_tbl[i][1]) * j)/num;
+            gpanel_info[sel].lcd_extend_para.lcd_bright_curve_tbl[lcd_bright_curve_tbl[i][0] + j] = value;
+        }
+    }
+    gpanel_info[sel].lcd_extend_para.lcd_bright_curve_tbl[255] = lcd_bright_curve_tbl[items-1][1];
 
     return 0;
 }
@@ -2135,14 +2189,13 @@ __s32 BSP_disp_lcd_set_bright(__u32 sel, __u32  bright, __u32 from_iep)
         }
 
         bright = __disp_lcd_bright_get_adjust_value(sel, bright);
-        bright = bright * gdisp.screen[sel].lcd_cfg.backlight_max_limit / 256;
 
         backlight_bright = bright;
         backlight_dimming = gdisp.screen[sel].lcd_cfg.backlight_dimming;
         period_ns = gdisp.pwm[gdisp.screen[sel].lcd_cfg.lcd_pwm_ch].period_ns;
         duty_ns = (backlight_bright * backlight_dimming *  period_ns/256 + 128) / 256;
 
-        DE_INF("[PWM]bright=%d,backlight_dimming=%d, period_ns=%d, duty_ns=%d\n",
+        DE_DBG("[PWM]bright=%d,backlight_dimming=%d, period_ns=%d, duty_ns=%d\n",
             bright,gdisp.screen[sel].lcd_cfg.backlight_dimming,  gdisp.pwm[gdisp.screen[sel].lcd_cfg.lcd_pwm_ch].period_ns,duty_ns);
         pwm_set_duty_ns(gdisp.screen[sel].lcd_cfg.lcd_pwm_ch, duty_ns);
    }

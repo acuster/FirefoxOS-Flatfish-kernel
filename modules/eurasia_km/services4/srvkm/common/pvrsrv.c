@@ -1429,11 +1429,13 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVGetMiscInfoKM(PVRSRV_MISC_INFO *psMiscInfo)
 	}
 #endif /* #if defined(PVRSRV_RESET_ON_HWTIMEOUT) */
 
+#if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
 	if ((psMiscInfo->ui32StateRequest & PVRSRV_MISC_INFO_FORCE_SWAP_TO_SYSTEM_PRESENT) != 0UL)
 	{
 		PVRSRVSetDCState(DC_STATE_FORCE_SWAP_TO_SYSTEM);
 		psMiscInfo->ui32StatePresent |= PVRSRV_MISC_INFO_FORCE_SWAP_TO_SYSTEM_PRESENT;
 	}
+#endif /* defined(SUPPORT_PVRSRV_DEVICE_CLASS) */
 
 	return PVRSRV_OK;
 }
@@ -1591,11 +1593,13 @@ IMG_VOID IMG_CALLCONV PVRSRVMISR(IMG_VOID *pvSysData)
 	List_PVRSRV_DEVICE_NODE_ForEach(psSysData->psDeviceNodeList,
 									&PVRSRVMISR_ForEachCb);
 
+#if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
 	/* Process the queues. */
 	if (PVRSRVProcessQueues(IMG_FALSE) == PVRSRV_ERROR_PROCESSING_BLOCKED)
 	{
 		PVRSRVProcessQueues(IMG_FALSE);
 	}
+#endif /* defined(SUPPORT_PVRSRV_DEVICE_CLASS) */
 
 	/* signal global event object */
 	if (psSysData->psGlobalEventObject)

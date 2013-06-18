@@ -3558,6 +3558,160 @@ static void ro_ch_timer_process (void *FunctionContext)
 	p2p_protocol_wk_cmd( adapter, P2P_RO_CH_WK);
 }
 
+static void rtw_change_p2pie_op_ch(_adapter *padapter, const u8 *frame_body, u32 len, u8 ch)
+{
+	u8 *ies, *p2p_ie;
+	u32 ies_len, p2p_ielen;
+	PADAPTER pbuddy_adapter = padapter->pbuddy_adapter;
+	struct mlme_ext_priv *pbuddy_mlmeext = &pbuddy_adapter->mlmeextpriv;
+
+	ies = (u8*)(frame_body + _PUBLIC_ACTION_IE_OFFSET_);
+	ies_len = len - _PUBLIC_ACTION_IE_OFFSET_;
+
+	p2p_ie = rtw_get_p2p_ie( ies, ies_len, NULL, &p2p_ielen );
+
+	while ( p2p_ie ) {
+		u32	attr_contentlen = 0;
+		u8 *pattr = NULL;
+
+		//Check P2P_ATTR_OPERATING_CH
+		attr_contentlen = 0;
+		pattr = NULL;
+		if((pattr = rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_OPERATING_CH, NULL, (uint*)&attr_contentlen))!=NULL)
+		{
+			*(pattr+4) = ch;
+		}
+
+		//Get the next P2P IE
+		p2p_ie = rtw_get_p2p_ie(p2p_ie+p2p_ielen, ies_len -(p2p_ie -ies + p2p_ielen), NULL, &p2p_ielen);
+	}
+}
+
+static void rtw_change_p2pie_ch_list(_adapter *padapter, const u8 *frame_body, u32 len, u8 ch)
+{
+	u8 *ies, *p2p_ie;
+	u32 ies_len, p2p_ielen;
+	PADAPTER pbuddy_adapter = padapter->pbuddy_adapter;
+	struct mlme_ext_priv *pbuddy_mlmeext = &pbuddy_adapter->mlmeextpriv;
+
+	ies = (u8*)(frame_body + _PUBLIC_ACTION_IE_OFFSET_);
+	ies_len = len - _PUBLIC_ACTION_IE_OFFSET_;
+
+	p2p_ie = rtw_get_p2p_ie( ies, ies_len, NULL, &p2p_ielen );
+
+	while (p2p_ie) {
+		u32	attr_contentlen = 0;
+		u8 *pattr = NULL;
+
+		//Check P2P_ATTR_CH_LIST
+		if ((pattr=rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_CH_LIST, NULL, (uint*)&attr_contentlen))!=NULL) {
+			int i;
+			u32 num_of_ch;
+			u8 *pattr_temp = pattr + 3 ;
+
+			attr_contentlen -= 3;
+			
+			while (attr_contentlen>0) {
+				num_of_ch = *(pattr_temp+1);
+
+				for(i=0; i<num_of_ch; i++)
+					*(pattr_temp+2+i) = ch;
+
+				pattr_temp += (2+num_of_ch);
+				attr_contentlen -= (2+num_of_ch);
+			}
+		}
+
+		//Get the next P2P IE
+		p2p_ie = rtw_get_p2p_ie(p2p_ie+p2p_ielen, ies_len -(p2p_ie -ies + p2p_ielen), NULL, &p2p_ielen);
+	}
+}
+
+static bool rtw_chk_p2pie_ch_list_with_buddy(_adapter *padapter, const u8 *frame_body, u32 len)
+{
+	bool fit = _FALSE;
+#ifdef CONFIG_CONCURRENT_MODE
+	u8 *ies, *p2p_ie;
+	u32 ies_len, p2p_ielen;
+	PADAPTER pbuddy_adapter = padapter->pbuddy_adapter;
+	struct mlme_ext_priv *pbuddy_mlmeext = &pbuddy_adapter->mlmeextpriv;
+	u8 buddy_ch = pbuddy_mlmeext->cur_channel;
+
+	ies = (u8*)(frame_body + _PUBLIC_ACTION_IE_OFFSET_);
+	ies_len = len - _PUBLIC_ACTION_IE_OFFSET_;
+
+	p2p_ie = rtw_get_p2p_ie( ies, ies_len, NULL, &p2p_ielen );
+
+	while (p2p_ie) {
+		u32	attr_contentlen = 0;
+		u8 *pattr = NULL;
+
+		//Check P2P_ATTR_CH_LIST
+		if ((pattr=rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_CH_LIST, NULL, (uint*)&attr_contentlen))!=NULL) {
+			int i;
+			u32 num_of_ch;
+			u8 *pattr_temp = pattr + 3 ;
+
+			attr_contentlen -= 3;
+
+			while (attr_contentlen>0) {
+				num_of_ch = *(pattr_temp+1);
+
+				for(i=0; i<num_of_ch; i++) {
+					if (*(pattr_temp+2+i) == buddy_ch) {
+						DBG_871X(FUNC_ADPT_FMT" ch_list fit buddy_ch:%u\n", FUNC_ADPT_ARG(padapter), buddy_ch);
+						fit = _TRUE;
+						break;
+					}
+				}
+
+				pattr_temp += (2+num_of_ch);
+				attr_contentlen -= (2+num_of_ch);
+			}
+		}
+
+		//Get the next P2P IE
+		p2p_ie = rtw_get_p2p_ie(p2p_ie+p2p_ielen, ies_len -(p2p_ie -ies + p2p_ielen), NULL, &p2p_ielen);
+	}
+#endif
+	return fit;
+}
+
+static bool rtw_chk_p2pie_op_ch_with_buddy(_adapter *padapter, const u8 *frame_body, u32 len)
+{
+	bool fit = _FALSE;
+#ifdef CONFIG_CONCURRENT_MODE
+	u8 *ies, *p2p_ie;
+	u32 ies_len, p2p_ielen;
+	PADAPTER pbuddy_adapter = padapter->pbuddy_adapter;
+	struct mlme_ext_priv *pbuddy_mlmeext = &pbuddy_adapter->mlmeextpriv;
+	u8 buddy_ch = pbuddy_mlmeext->cur_channel;
+
+	ies = (u8*)(frame_body + _PUBLIC_ACTION_IE_OFFSET_);
+	ies_len = len - _PUBLIC_ACTION_IE_OFFSET_;
+
+	p2p_ie = rtw_get_p2p_ie( ies, ies_len, NULL, &p2p_ielen );
+
+	while (p2p_ie) {
+		u32	attr_contentlen = 0;
+		u8 *pattr = NULL;
+
+		//Check P2P_ATTR_OPERATING_CH
+		attr_contentlen = 0;
+		pattr = NULL;
+		if((pattr = rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_OPERATING_CH, NULL, (uint*)&attr_contentlen))!=NULL) {
+			if (*(pattr+4) == buddy_ch) {
+				DBG_871X(FUNC_ADPT_FMT" op_ch fit buddy_ch:%u\n", FUNC_ADPT_ARG(padapter), buddy_ch);
+			}
+		}
+
+		//Get the next P2P IE
+		p2p_ie = rtw_get_p2p_ie(p2p_ie+p2p_ielen, ies_len -(p2p_ie -ies + p2p_ielen), NULL, &p2p_ielen);
+	}
+#endif
+	return fit;
+}
+
 static void rtw_cfg80211_adjust_p2pie_channel(_adapter *padapter, const u8 *frame_body, u32 len)
 {
 #ifdef CONFIG_CONCURRENT_MODE
@@ -3730,6 +3884,57 @@ void rtw_append_wfd_ie(_adapter *padapter, u8 *buf, u32* len)
 }
 #endif
 
+u8 *dump_p2p_attr_ch_list(u8 *p2p_ie, uint p2p_ielen, u8 *buf, u32 buf_len)
+{
+	uint attr_contentlen = 0;
+	u8 *pattr = NULL;
+	int w_sz = 0;
+	u8 ch_cnt = 0;
+	u8 ch_list[40];
+	bool continuous = _FALSE;
+
+	if ((pattr=rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_CH_LIST, NULL, &attr_contentlen))!=NULL) {
+		int i, j;
+		u32 num_of_ch;
+		u8 *pattr_temp = pattr + 3 ;
+
+		attr_contentlen -= 3;
+
+		_rtw_memset(ch_list, 0, 40);
+
+		while (attr_contentlen>0) {
+			num_of_ch = *(pattr_temp+1);
+							
+			for(i=0; i<num_of_ch; i++) {
+				for (j=0;j<ch_cnt;j++) {
+					if (ch_list[j] == *(pattr_temp+2+i))
+						break;
+				}
+				if (j>=ch_cnt)
+					ch_list[ch_cnt++] = *(pattr_temp+2+i);
+
+			}
+
+			pattr_temp += (2+num_of_ch);
+			attr_contentlen -= (2+num_of_ch);
+		}
+
+		
+		for (j=0;j<ch_cnt;j++) {
+			if (j == 0) {
+				w_sz += snprintf(buf+w_sz, buf_len-w_sz, "%u", ch_list[j]);
+			} else if (ch_list[j] - ch_list[j-1] != 1) {
+				w_sz += snprintf(buf+w_sz, buf_len-w_sz, ", %u", ch_list[j]);
+			} else if (j != ch_cnt-1 && ch_list[j+1] - ch_list[j] == 1) {
+				/* empty */
+			} else {
+				w_sz += snprintf(buf+w_sz, buf_len-w_sz, "-%u", ch_list[j]);
+			}
+		}
+	}
+	return buf;
+}
+
 int rtw_p2p_check_frames(_adapter *padapter, const u8 *buf, u32 len, u8 tx)
 {
 	int is_p2p_frame = (-1);
@@ -3738,6 +3943,10 @@ int rtw_p2p_check_frames(_adapter *padapter, const u8 *buf, u32 len, u8 tx)
 	u8 *p2p_ie = NULL;
 	uint p2p_ielen = 0;
 	struct rtw_wdev_priv *pwdev_priv = wdev_to_priv(padapter->rtw_wdev);
+	int status = -1;
+	u8 ch_list_buf[128] = {'\0'};
+	int op_ch = -1;
+	u8 intent = 0;
 	
 	frame_body = (unsigned char *)(buf + sizeof(struct rtw_ieee80211_hdr_3addr));	
 	category = frame_body[0];
@@ -3767,60 +3976,97 @@ int rtw_p2p_check_frames(_adapter *padapter, const u8 *buf, u32 len, u8 tx)
 				u8 *cont;
 				uint cont_len;
 				case P2P_GO_NEGO_REQ:
-					DBG_871X("RTW_%s:P2P_GO_NEGO_REQ, dialogToken=%d\n", (tx==_TRUE)?"Tx":"Rx", dialogToken);
-	
-					if(tx)
-					{
-#ifdef CONFIG_DRV_ISSUE_PROV_REQ // IOT FOR S2
+					if (tx) {
+						#ifdef CONFIG_DRV_ISSUE_PROV_REQ // IOT FOR S2
 						if(pwdev_priv->provdisc_req_issued == _FALSE)
 							rtw_cfg80211_issue_p2p_provision_request(padapter, buf, len);
-#endif //CONFIG_DRV_ISSUE_PROV_REQ					
+						#endif //CONFIG_DRV_ISSUE_PROV_REQ
 
 						//pwdev_priv->provdisc_req_issued = _FALSE;
-						
-#ifdef CONFIG_CONCURRENT_MODE
+
+						#ifdef CONFIG_CONCURRENT_MODE
 						if(check_buddy_fwstate(padapter, _FW_LINKED))
 							rtw_cfg80211_adjust_p2pie_channel(padapter, frame_body, len-sizeof(struct rtw_ieee80211_hdr_3addr));
-#endif
+						#endif
 					}
-						
+
+					if ((cont = rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_OPERATING_CH, NULL, &cont_len)))
+						op_ch = *(cont+4);
+					if ((cont = rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_GO_INTENT, NULL, &cont_len)))
+						intent = *cont;
+					dump_p2p_attr_ch_list(p2p_ie, p2p_ielen, ch_list_buf, 128);
+					DBG_871X("RTW_%s:P2P_GO_NEGO_REQ, dialogToken=%d, intent:%u%s, op_ch:%d, ch_list:%s\n",
+							(tx==_TRUE)?"Tx":"Rx", dialogToken, (intent>>1), intent&0x1 ? "+" : "-", op_ch, ch_list_buf);
+
+					if (!tx) {
+						#ifdef CONFIG_CONCURRENT_MODE
+						if(check_buddy_fwstate(padapter, _FW_LINKED)
+							&& rtw_chk_p2pie_ch_list_with_buddy(padapter, frame_body, len-sizeof(struct rtw_ieee80211_hdr_3addr)) == _FALSE)
+						{
+							DBG_871X(FUNC_ADPT_FMT" ch_list has no intersect with buddy\n", FUNC_ADPT_ARG(padapter));
+							rtw_change_p2pie_ch_list(padapter, frame_body, len-sizeof(struct rtw_ieee80211_hdr_3addr), 0);
+						}
+						#endif
+					}
+
 					break;
 				case P2P_GO_NEGO_RESP:
-					cont = rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_STATUS, NULL, &cont_len);
-					DBG_871X("RTW_%s:P2P_GO_NEGO_RESP, dialogToken=%d, status:%d\n", (tx==_TRUE)?"Tx":"Rx", dialogToken, cont?*cont:-1);
+					if (tx) {
+						#ifdef CONFIG_CONCURRENT_MODE
+						if(check_buddy_fwstate(padapter, _FW_LINKED))
+							rtw_cfg80211_adjust_p2pie_channel(padapter, frame_body, len-sizeof(struct rtw_ieee80211_hdr_3addr));
+						#endif
+					}
 
-					if(!tx)
-					{
+					if ((cont = rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_OPERATING_CH, NULL, &cont_len)))
+						op_ch = *(cont+4);
+					if ((cont = rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_GO_INTENT, NULL, &cont_len)))
+						intent = *cont;
+					if ((cont = rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_STATUS, NULL, &cont_len)))
+						status = *cont;
+					dump_p2p_attr_ch_list(p2p_ie, p2p_ielen, ch_list_buf, 128);
+					DBG_871X("RTW_%s:P2P_GO_NEGO_RESP, dialogToken=%d, intent:%u%s, status:%d, op_ch:%d, ch_list:%s\n",
+							(tx==_TRUE)?"Tx":"Rx", dialogToken, (intent>>1), intent&0x1 ? "+" : "-", status, op_ch, ch_list_buf);
+
+					if (!tx) {
 						pwdev_priv->provdisc_req_issued = _FALSE;
-					}	
-#ifdef CONFIG_CONCURRENT_MODE			
-					else
-					{
-						if(check_buddy_fwstate(padapter, _FW_LINKED))
-							rtw_cfg80211_adjust_p2pie_channel(padapter, frame_body, len-sizeof(struct rtw_ieee80211_hdr_3addr));
+						#ifdef CONFIG_CONCURRENT_MODE
+						if(check_buddy_fwstate(padapter, _FW_LINKED)
+							&& rtw_chk_p2pie_ch_list_with_buddy(padapter, frame_body, len-sizeof(struct rtw_ieee80211_hdr_3addr)) == _FALSE)
+						{
+							DBG_871X(FUNC_ADPT_FMT" ch_list has no intersect with buddy\n", FUNC_ADPT_ARG(padapter));
+							rtw_change_p2pie_ch_list(padapter, frame_body, len-sizeof(struct rtw_ieee80211_hdr_3addr), 0);
+						}
+						#endif
 					}
-#endif
-					break;				
-				case P2P_GO_NEGO_CONF:
-					cont = rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_STATUS, NULL, &cont_len);
-					DBG_871X("RTW_%s:P2P_GO_NEGO_CONF, dialogToken=%d, status:%d\n", (tx==_TRUE)?"Tx":"Rx", dialogToken, cont?*cont:-1);
 
-#ifdef CONFIG_CONCURRENT_MODE
-					if(tx)
-					{
+					break;
+				case P2P_GO_NEGO_CONF:
+					if (tx) {
+						#ifdef CONFIG_CONCURRENT_MODE
 						if(check_buddy_fwstate(padapter, _FW_LINKED))
 							rtw_cfg80211_adjust_p2pie_channel(padapter, frame_body, len-sizeof(struct rtw_ieee80211_hdr_3addr));
+						#endif
 					}
-#endif			
-					break;				
+
+					if ((cont = rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_OPERATING_CH, NULL, &cont_len)))
+						op_ch = *(cont+4);
+					if ((cont = rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_STATUS, NULL, &cont_len)))
+						status = *cont;
+					dump_p2p_attr_ch_list(p2p_ie, p2p_ielen, ch_list_buf, 128);
+					DBG_871X("RTW_%s:P2P_GO_NEGO_CONF, dialogToken=%d, status:%d, op_ch:%d, ch_list:%s\n",
+						(tx==_TRUE)?"Tx":"Rx", dialogToken, status, op_ch, ch_list_buf);
+
+					if (!tx) {
+					}
+
+					break;
 				case P2P_INVIT_REQ:
 				{
 					struct rtw_wdev_invit_info* invit_info = &pwdev_priv->invit_info;
 					int flags = -1;
-					int op_ch = 0;
 
-					if(tx)
-					{
+					if (tx) {
 						#ifdef CONFIG_CONCURRENT_MODE
 						if(check_buddy_fwstate(padapter, _FW_LINKED))
 							rtw_cfg80211_adjust_p2pie_channel(padapter, frame_body, len-sizeof(struct rtw_ieee80211_hdr_3addr));
@@ -3839,17 +4085,28 @@ int rtw_p2p_check_frames(_adapter *padapter, const u8 *buf, u32 len, u8 tx)
 					invit_info->flags = (flags==-1) ? 0x0 : flags;
 					invit_info->req_op_ch= op_ch;
 
-					DBG_871X("RTW_%s:P2P_INVIT_REQ, dialogToken=%d, flags:0x%02x, op_ch:%d\n", (tx==_TRUE)?"Tx":"Rx", dialogToken, flags, op_ch);
+					dump_p2p_attr_ch_list(p2p_ie, p2p_ielen, ch_list_buf, 128);
+					DBG_871X("RTW_%s:P2P_INVIT_REQ, dialogToken=%d, flags:0x%02x, op_ch:%d, ch_list:%s\n",
+							(tx==_TRUE)?"Tx":"Rx", dialogToken, flags, op_ch, ch_list_buf);
+
+					if (!tx) {
+						#ifdef CONFIG_CONCURRENT_MODE
+						if(check_buddy_fwstate(padapter, _FW_LINKED)
+							&& rtw_chk_p2pie_ch_list_with_buddy(padapter, frame_body, len-sizeof(struct rtw_ieee80211_hdr_3addr)) == _FALSE)
+						{
+							DBG_871X(FUNC_ADPT_FMT" ch_list has no intersect with buddy\n", FUNC_ADPT_ARG(padapter));
+							rtw_change_p2pie_ch_list(padapter, frame_body, len-sizeof(struct rtw_ieee80211_hdr_3addr), 0);
+						}
+						#endif
+					}
+
 					break;
 				}
 				case P2P_INVIT_RESP:
 				{
 					struct rtw_wdev_invit_info* invit_info = &pwdev_priv->invit_info;
-					int status = -1;
-					int op_ch = 0;
 
-					if(tx)
-					{
+					if (tx) {
 						#ifdef CONFIG_CONCURRENT_MODE
 						if(check_buddy_fwstate(padapter, _FW_LINKED))
 							rtw_cfg80211_adjust_p2pie_channel(padapter, frame_body, len-sizeof(struct rtw_ieee80211_hdr_3addr));
@@ -3869,7 +4126,13 @@ int rtw_p2p_check_frames(_adapter *padapter, const u8 *buf, u32 len, u8 tx)
 						invit_info->rsp_op_ch= op_ch;
 					}
 
-					DBG_871X("RTW_%s:P2P_INVIT_RESP, dialogToken=%d, status:%d, op_ch:%d\n", (tx==_TRUE)?"Tx":"Rx", dialogToken, status, op_ch);
+					dump_p2p_attr_ch_list(p2p_ie, p2p_ielen, ch_list_buf, 128);
+					DBG_871X("RTW_%s:P2P_INVIT_RESP, dialogToken=%d, status:%d, op_ch:%d, ch_list:%s\n",
+							(tx==_TRUE)?"Tx":"Rx", dialogToken, status, op_ch, ch_list_buf);
+
+					if (!tx) {
+					}
+
 					break;
 				}
 				case P2P_DEVDISC_REQ:

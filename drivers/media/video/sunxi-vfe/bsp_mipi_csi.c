@@ -53,7 +53,7 @@ void bsp_mipi_csi_det_mipi_clk(unsigned int sel, unsigned int *mipi_bps,unsigned
   unsigned int freq_cnt;
   
   dphy_rx_freq_cnt_enable(sel);
-  mdelay(1);
+  usleep_range(1000,2000);
   freq_cnt = dphy_rx_get_freq_cnt(sel);
   if(freq_cnt == 0)
     return; 
@@ -64,7 +64,7 @@ void bsp_mipi_csi_det_mipi_clk(unsigned int sel, unsigned int *mipi_bps,unsigned
 void bsp_mipi_csi_set_rx_dly(unsigned int sel, unsigned int mipi_bps,unsigned int dphy_clk)
 {
   unsigned short rx_dly_cnt;
-  unsigned int mipi_byte_clk;
+//  unsigned int mipi_byte_clk;
   
   if(mipi_bps == 0)
     return;

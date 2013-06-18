@@ -7,10 +7,17 @@
 
 #include "config.h"
 #include "cfg_op.h"
+#include "camera_detector/camera_detector.h"
 
 #define SIZE_OF_LSC_TBL     7*768*2
 #define SIZE_OF_HDR_TBL     4*256*2
 #define SIZE_OF_GAMMA_TBL   256*2
+
+#define _SUNXI_CAM_DETECT_
+
+#ifdef _SUNXI_CAM_DETECT_
+extern void camera_export_info(char *module_name, int *i2c_addr, int index);
+#endif
 
 struct isp_init_config isp_init_def_cfg = {
  /*isp test param */
@@ -264,10 +271,12 @@ int fetch_config(struct vfe_dev *dev)
     type = script_get_item(vfe_para, dev_para, &val);
     if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
       dev->ccm_cfg[i]->gpio.flash_en_io.gpio = GPIO_INDEX_INVALID;
+      dev->ccm_cfg[i]->flash_used=0;
       vfe_dbg(0,"fetch vip_dev%d_flash_en from sys_config failed\n", i);
     } else {
       dev->ccm_cfg[i]->gpio.flash_en_io.gpio=val.gpio.gpio;
       dev->ccm_cfg[i]->gpio.flash_en_io.mul_sel=val.gpio.mul_sel;
+      dev->ccm_cfg[i]->flash_used=1;
     }
 
     sprintf(dev_para, "vip_dev%d_flash_mode", i);
@@ -324,7 +333,32 @@ int fetch_config(struct vfe_dev *dev)
   		  dev->ccm_cfg[i]->act_slave=val.val;
   		}
 	  }
+	  else
+	  {
+	    dev->ccm_cfg[i]->act_used=1;//manual set used
+	  }
+	  
+#ifdef _SUNXI_CAM_DETECT_
+	  /*fetch cam detect para*/
+		type = script_get_item("camera_list_para", "camera_list_para_used", &val);
+    if ((SCIRPT_ITEM_VALUE_TYPE_INT == type) && (val.val == 1)) 
+	{
+      //camera_export_info(dev->ccm_cfg[i]->ccm, &dev->ccm_cfg[i]->i2c_addr,i);
+		unsigned char cam_name[20];
+		unsigned int address;
+		camera_export_info(cam_name, &address,i);
 
+		if( (strcmp(cam_name,"")!=0)&&(address!=0) )
+		{
+			strcpy(dev->ccm_cfg[i]->ccm, cam_name);
+			dev->ccm_cfg[i]->i2c_addr=address;
+		}
+		else
+		{
+			vfe_warn("detect none sensor in list, use sysconfig setting!\n");
+		}
+    }
+#endif
   //vfe_dbg(0,"act_used=%d, name=%s, slave=0x%x\n",dev->ccm_cfg[0]->act_used,
   //	dev->ccm_cfg[0]->act_name, dev->ccm_cfg[0]->act_slave);
   }
@@ -664,6 +698,33 @@ int fetch_isp_cfg(struct vfe_dev *dev, struct cfg_section *cfg_section)
     dev->isp_gen_set[isp_id].isp_ini_cfg.sharpness_level =subkey.value->val;
 	vfe_dbg(0,"isp_ini_cfg.sharpness_level = %d\n",dev->isp_gen_set[isp_id].isp_ini_cfg.sharpness_level);
   }
+
+  /* fetch defog_value! */
+  type = cfg_get_one_subkey(cfg_section,"isp_func","defog_value",&subkey);
+  if (CFG_ITEM_VALUE_TYPE_INT != type)
+  {
+    vfe_err("fetch defog_value from camera.ini failed,apply default value!\n");
+    dev->isp_gen_set[isp_id].isp_ini_cfg.defog_value = 60;
+  }
+  else
+  {
+    dev->isp_gen_set[isp_id].isp_ini_cfg.defog_value =subkey.value->val;
+	vfe_dbg(0,"isp_ini_cfg.sharpness_level = %d\n",dev->isp_gen_set[isp_id].isp_ini_cfg.defog_value);
+  }
+
+  /* fetch gain_delay_frame! */
+  type = cfg_get_one_subkey(cfg_section,"isp_func","gain_delay_frame",&subkey);
+  if (CFG_ITEM_VALUE_TYPE_INT != type)
+  {
+    vfe_err("fetch gain_delay_frame from camera.ini failed,apply default value!\n");
+    dev->isp_gen_set[isp_id].isp_ini_cfg.gain_delay_frame = 1;
+  }
+  else
+  {
+    dev->isp_gen_set[isp_id].isp_ini_cfg.gain_delay_frame =subkey.value->val;
+	vfe_dbg(0,"isp_ini_cfg.sharpness_level = %d\n",dev->isp_gen_set[isp_id].isp_ini_cfg.gain_delay_frame);
+  }
+
   
   /* fetch ISP table! */
   

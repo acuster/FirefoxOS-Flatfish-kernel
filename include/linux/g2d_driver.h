@@ -230,6 +230,11 @@ typedef struct {
 
 #endif /*__G2D_BSP_DRV_H*/
 
+typedef struct {
+	long 	start;
+	long 	end;
+}g2d_cache_range;
+
 typedef enum
 {
 	G2D_CMD_BITBLT			=	0x50,
@@ -242,6 +247,7 @@ typedef enum
 	G2D_CMD_MEM_RELEASE		=	0x5A,
 	G2D_CMD_MEM_GETADR		=	0x5B,
 	G2D_CMD_MEM_SELIDX		=	0x5C,
+	G2D_CMD_MEM_FLUSH_CACHE	=	0x5D,
 }g2d_cmd;
 
 #endif	/* __G2D_DRIVER_H */

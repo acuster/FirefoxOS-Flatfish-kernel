@@ -1296,10 +1296,6 @@ static OMAPLFB_ERROR OMAPLFBInitFBDev(OMAPLFB_DEVINFO *psDevInfo)
 	psPVRFBInfo->ulByteStride =  psLINFBInfo->fix.line_length;
 #endif /* defined(CONFIG_DSSCOMP) */
 
-	printk(KERN_WARNING 
-			"#####: Device %u: Framebuffer physical address: 0x%x\n",
-			psDevInfo->uiFBDevID, psPVRFBInfo->sSysAddr.uiAddr);
-
 	if (psPVRFBInfo->sCPUVAddr != NULL)
 	{
 		DEBUG_PRINTK((KERN_WARNING DRIVER_PREFIX

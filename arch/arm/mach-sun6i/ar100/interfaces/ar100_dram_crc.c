@@ -42,7 +42,6 @@ int ar100_set_dram_crc_paras(unsigned int dram_crc_en, unsigned int dram_crc_src
 	
 	/* initialize message */
 	pmessage->type     = AR100_SET_DEBUG_DRAM_CRC_PARAS;
-	pmessage->attr     = 0;
 	pmessage->paras[0] = dram_crc_en;
 	pmessage->paras[1] = dram_crc_srcaddr;
 	pmessage->paras[2] = dram_crc_len;

@@ -16,7 +16,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/module.h>
-
+#include <mach/ar100.h>
 #include "axp-regu.h"
 
 static inline struct device *to_axp_dev(struct regulator_dev *rdev)
@@ -41,7 +41,7 @@ static int axp_set_voltage(struct regulator_dev *rdev,
 	struct axp_regulator_info *info = rdev_get_drvdata(rdev);
 	struct device *axp_dev = to_axp_dev(rdev);
 	uint8_t val, mask;
-	
+
 
 	if (check_range(info, min_uV, max_uV)) {
 		pr_err("invalid voltage range (%d, %d) uV\n", min_uV, max_uV);
@@ -64,30 +64,42 @@ static int axp_get_voltage(struct regulator_dev *rdev)
 	ret = axp_read(axp_dev, info->vol_reg, &val);
 	if (ret)
 		return ret;
-  
+
 	mask = ((1 << info->vol_nbits) - 1)  << info->vol_shift;
 	val = (val & mask) >> info->vol_shift;
 
 	return info->min_uV + info->step_uV * val;
-	
+
 }
 
 static int axp_enable(struct regulator_dev *rdev)
 {
 	struct axp_regulator_info *info = rdev_get_drvdata(rdev);
-	struct device *axp_dev = to_axp_dev(rdev);
+	//struct device *axp_dev = to_axp_dev(rdev);
 
-	return axp_set_bits(axp_dev, info->enable_reg,
-					1 << info->enable_bit);
+	//modify by sunny at 2013-4-23 19:18:52.
+	uint8_t addr = info->enable_reg;
+	uint8_t mask = (1 << info->enable_bit);
+	uint8_t delay = 0;
+
+	return ar100_axp_set_regs_bits_sync(&addr, &mask, &delay, 1);
+	//return axp_set_bits(axp_dev, info->enable_reg,
+	//				1 << info->enable_bit);
 }
 
 static int axp_disable(struct regulator_dev *rdev)
 {
 	struct axp_regulator_info *info = rdev_get_drvdata(rdev);
-	struct device *axp_dev = to_axp_dev(rdev);
+	//struct device *axp_dev = to_axp_dev(rdev);
 
-	return axp_clr_bits(axp_dev, info->enable_reg,
-					1 << info->enable_bit);
+	//modify by sunny at 2013-4-23 19:18:52.
+	uint8_t addr = info->enable_reg;
+	uint8_t mask = (1 << info->enable_bit);
+	uint8_t delay = 0;
+
+	return ar100_axp_clr_regs_bits_sync(&addr, &mask, &delay, 1);
+	//return axp_clr_bits(axp_dev, info->enable_reg,
+	//				1 << info->enable_bit);
 }
 
 static int axp_is_enabled(struct regulator_dev *rdev)
@@ -120,7 +132,7 @@ static int axp_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 #if 0
 	int ldo = rdev_get_id(rdev);
 
-	switch (ldo) {	
+	switch (ldo) {
 	case AXP22_ID_LDO1 ... AXP22_LDO12:
 		return axp_set_voltage(rdev, uV, uV);
 	case AXP22_ID_DCDC1 ... AXP22_ID_DCDC5:
@@ -199,7 +211,7 @@ static struct regulator_ops axp22_ldoio01_ops = {
 
 static struct axp_regulator_info axp_regulator_info[] = {
 	AXP22_LDO(	1,	AXP22LDO1,	AXP22LDO1,	0,		LDO1,	0,	0,	LDO1EN,	0),//ldo1 for rtc
-	AXP22_LDO(	2,	700,		3300,		100,	LDO2,	0,	5,	LDO2EN,	6),//ldo2 for aldo1 
+	AXP22_LDO(	2,	700,		3300,		100,	LDO2,	0,	5,	LDO2EN,	6),//ldo2 for aldo1
 	AXP22_LDO(	3,	700,		3300,		100,	LDO3,	0,	5,	LDO3EN,	7),//ldo3 for aldo2
 	AXP22_LDO(	4,	700,		3300,		100,	LDO4,	0,	5,	LDO4EN,	7),//ldo3 for aldo3
 	AXP22_LDO(	5,	700,		3300,		100,	LDO5,	0,	5,	LDO5EN,	3),//ldo5 for dldo1
@@ -207,7 +219,7 @@ static struct axp_regulator_info axp_regulator_info[] = {
 	AXP22_LDO(	7,	700,		3300,		100,	LDO7,	0,	5,	LDO7EN,	5),//ldo7 for dldo3
 	AXP22_LDO(	8,	700,		3300,		100,	LDO8,	0,	5,	LDO8EN,	6),//ldo8 for dldo4
 	AXP22_LDO(	9,	700,		3300,		100,	LDO9,	0,	5,	LDO9EN,	0),//ldo9 for eldo1
-	AXP22_LDO(	10,	700,		3300,		100,	LDO10,	0,	5,	LDO10EN,1),//ldo10 for eldo2 
+	AXP22_LDO(	10,	700,		3300,		100,	LDO10,	0,	5,	LDO10EN,1),//ldo10 for eldo2
 	AXP22_LDO(	11,	700,		3300,		100,	LDO11,	0,	5,	LDO11EN,2),//ldo11 for eldo3
 	AXP22_LDO(	12,	700,		3300,		100,	LDO12,	0,	3,	LDO12EN,0),//ldo12 for dc5ldo
 	AXP22_DCDC(1,	1600,		3400,		100,	DCDC1,	0,	5,	DCDC1EN,1),//buck1 for io
@@ -215,7 +227,7 @@ static struct axp_regulator_info axp_regulator_info[] = {
 	AXP22_DCDC(3,	600,		1860,		20,		DCDC3,	0,	6,	DCDC3EN,3),//buck3 for gpu
 	AXP22_DCDC(4,	600,		1540,		20,		DCDC4,	0,	6,	DCDC4EN,4),//buck4 for core
 	AXP22_DCDC(5,	1000,		2550,		50,		DCDC5,	0,	5,	DCDC5EN,5),//buck5 for ddr
-	AXP22_LDO(	IO0,700,		3300,		100,	LDOIO0,	0,	5,	LDOIO0EN,0),//ldoio0 
+	AXP22_LDO(	IO0,700,		3300,		100,	LDOIO0,	0,	5,	LDOIO0EN,0),//ldoio0
 	AXP22_LDO(	IO1,700,		3300,		100,	LDOIO1,	0,	5,	LDOIO1EN,0),//ldoio1
 };
 
@@ -230,7 +242,7 @@ static ssize_t workmode_show(struct device *dev,
 	ret = axp_read(axp_dev, AXP22_BUCKMODE, &val);
 	if (ret)
 		return sprintf(buf, "IO ERROR\n");
-	
+
 	if(info->desc.id == AXP22_ID_DCDC1){
 		switch (val & 0x04) {
 			case 0:return sprintf(buf, "AUTO\n");
@@ -272,7 +284,7 @@ static ssize_t workmode_show(struct device *dev,
 
 static ssize_t workmode_store(struct device *dev,
 				struct device_attribute *attr, const char *buf, size_t count)
-{	
+{
 	struct regulator_dev *rdev = dev_get_drvdata(dev);
 	struct axp_regulator_info *info = rdev_get_drvdata(rdev);
 	struct device *axp_dev = to_axp_dev(rdev);
@@ -282,7 +294,7 @@ static ssize_t workmode_store(struct device *dev,
 		mode = buf[0];
 	else
 		mode = buf[1];
-	
+
 	switch(mode){
 	 case 'U':
 	 case 'u':
@@ -293,9 +305,9 @@ static ssize_t workmode_store(struct device *dev,
 	 case '2':
 	 	val = 1;break;
 	 default:
-	    val =0;	
+	    val =0;
 	}
-	
+
 	if(info->desc.id == AXP22_ID_DCDC1){
 		if(val)
 			axp_set_bits(axp_dev, AXP22_BUCKMODE,0x01);
@@ -345,7 +357,7 @@ static ssize_t frequency_show(struct device *dev,
 
 static ssize_t frequency_store(struct device *dev,
 				struct device_attribute *attr, const char *buf, size_t count)
-{	
+{
 	struct regulator_dev *rdev = dev_get_drvdata(dev);
 	struct device *axp_dev = to_axp_dev(rdev);
 	uint8_t val,tmp;
@@ -355,10 +367,10 @@ static ssize_t frequency_store(struct device *dev,
 		var = 750;
 	if(var > 1875)
 		var = 1875;
-		
+
 	val = (var -750)/75;
 	val &= 0x0F;
-	
+
 	axp_read(axp_dev, AXP22_BUCKFREQ, &tmp);
 	tmp &= 0xF0;
 	val |= tmp;
@@ -381,7 +393,7 @@ int axp_regu_create_attrs(struct platform_device *pdev)
 			goto sysfs_failed;
 	}
     goto succeed;
-	
+
 sysfs_failed:
 	while (j--)
 		device_remove_file(&pdev->dev,&axp_regu_attrs[j]);
@@ -407,7 +419,7 @@ static int __devinit axp_regulator_probe(struct platform_device *pdev)
 	struct axp_regulator_info *ri = NULL;
 	struct regulator_dev *rdev;
 	int ret;
-	
+
 	ri = find_regulator_info(pdev->id);
 	if (ri == NULL) {
 		dev_err(&pdev->dev, "invalid regulator ID specified\n");
@@ -436,7 +448,7 @@ static int __devinit axp_regulator_probe(struct platform_device *pdev)
 		return PTR_ERR(rdev);
 	}
 	platform_set_drvdata(pdev, rdev);
-	
+
 	if(ri->desc.id == AXP22_ID_DCDC1 ||ri->desc.id == AXP22_ID_DCDC2 \
 		|| ri->desc.id == AXP22_ID_DCDC3 ||ri->desc.id == AXP22_ID_DCDC4 \
 		|| ri->desc.id == AXP22_ID_DCDC5){
@@ -445,7 +457,7 @@ static int __devinit axp_regulator_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
-	
+
 	return 0;
 }
 

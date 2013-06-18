@@ -28,11 +28,22 @@ config OVIPHONE_EM55
     boolean "Oviphone em55"
     help
         Oviphone em55 modem support.
+config SPREADWIN_G3
+    boolean "Spreadwin G3"
+    select SW_USB_3G_MODULE
+    help
+        Spreadwin g3 modem support.
 
 config LONGCHEER_WM5608
     boolean "longcheer wm5608"
     help
         longcheer wm5608 modem support.
+
+config USI_MT6276MA
+    boolean "Usi MT6276MA"
+    select SW_USB_3G_MODULE
+    help
+        Usi MT6276MA modem support.
 endchoice
 
 choice

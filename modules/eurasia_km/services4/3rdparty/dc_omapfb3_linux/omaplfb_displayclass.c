@@ -1587,8 +1587,10 @@ static OMAPLFB_DEVINFO *OMAPLFBInitDev(unsigned uiFBDevID)
 #if defined(CONFIG_ION_OMAP)
 	psDevInfo->psIONClient =
 		ion_client_create(omap_ion_device,
+#if defined(SUPPORT_OLD_ION_API)
 						  1 << ION_HEAP_TYPE_CARVEOUT |
 						  1 << OMAP_ION_HEAP_TYPE_TILER,
+#endif
 						  "dc_omapfb3_linux");
 	if (IS_ERR_OR_NULL(psDevInfo->psIONClient))
 	{

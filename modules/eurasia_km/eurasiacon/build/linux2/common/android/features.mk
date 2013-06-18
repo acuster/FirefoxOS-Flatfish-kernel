@@ -205,10 +205,12 @@ PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC := 1
 endif
 
 ##############################################################################
-# JB MR1 introduces new usage bits for the camera HAL.
+# JB MR1 introduces new usage bits for the camera HAL and some new formats.
 #
 ifeq ($(is_at_least_jellybean_mr1),1)
 PVR_ANDROID_HAS_GRALLOC_USAGE_HW_CAMERA := 1
+PVR_ANDROID_HAS_HAL_PIXEL_FORMAT_RAW_SENSOR := 1
+PVR_ANDROID_HAS_HAL_PIXEL_FORMAT_BLOB := 1
 endif
 
 # Placeholder for future version handling

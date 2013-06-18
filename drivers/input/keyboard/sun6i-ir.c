@@ -83,8 +83,8 @@ static struct gpio_hdle {
 #ifdef FPGA_SIM_CONFIG
 #define IR_RXFILT_VAL    (16)             /* Filter Threshold = 8*42.7 = ~341us < 500us */
 #define IR_RXIDLE_VAL    (5)              /* Idle Threshold = (2+1)*128*42.7 = ~16.4ms > 9ms */
-#define IR_ACTIVE_T      (0)              /* Active Threshold */
-#define IR_ACTIVE_T_C    (1)              /* Active Threshold */
+#define IR_ACTIVE_T      (99)             /* Active Threshold */
+#define IR_ACTIVE_T_C    (0)              /* Active Threshold */
 
 #define IR_L1_MIN        (160)            /* 80*42.7 = ~3.4ms, Lead1(4.5ms) > IR_L1_MIN */
 #define IR_L0_MIN        (80)             /* 40*42.7 = ~1.7ms, Lead0(4.5ms) Lead0R(2.25ms)> IR_L0_MIN */ 
@@ -95,8 +95,8 @@ static struct gpio_hdle {
 #else
 #define IR_RXFILT_VAL    (8)              /* Filter Threshold = 8*42.7 = ~341us	< 500us */	
 #define IR_RXIDLE_VAL    (2)              /* Idle Threshold = (2+1)*128*42.7 = ~16.4ms > 9ms */
-#define IR_ACTIVE_T      (0)              /* Active Threshold */
-#define IR_ACTIVE_T_C    (1)              /* Active Threshold */
+#define IR_ACTIVE_T      (99)             /* Active Threshold */
+#define IR_ACTIVE_T_C    (0)              /* Active Threshold */
 
 #define IR_L1_MIN        (80)             /* 80*42.7 = ~3.4ms, Lead1(4.5ms) > IR_L1_MIN */
 #define IR_L0_MIN        (40)             /* 40*42.7 = ~1.7ms, Lead0(4.5ms) Lead0R(2.25ms)> IR_L0_MIN */
@@ -412,7 +412,8 @@ static unsigned long ir_packet_handler(unsigned char *buf, unsigned long dcnt)
 	active_delay = (IR_ACTIVE_T+1)*(IR_ACTIVE_T_C ? 128:1);
 	dprintk(DEBUG_DATA_INFO, "%d active_delay = %d\n", __LINE__, active_delay);
 	len = 0;
-	len += (active_delay>>1);
+	if (128 <= active_delay)
+		len += (active_delay>>1);
 	for (i=0; i<dcnt; i++) {
 		val = buf[i];
 		if (val & 0x80) {

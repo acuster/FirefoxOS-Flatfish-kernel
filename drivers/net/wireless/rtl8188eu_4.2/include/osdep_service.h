@@ -1564,9 +1564,9 @@ extern void rtw_suspend_lock_init(void);
 extern void rtw_suspend_lock_uninit(void);
 extern void rtw_lock_suspend(void);
 extern void rtw_unlock_suspend(void);
-#ifdef CONFIG_WOWLAN
+#if defined(CONFIG_WOWLAN) || defined(CONFIG_TRAFFIC_PROTECT)
 extern void rtw_lock_suspend_timeout(long timeout);
-#endif //CONFIG_WOWLAN
+#endif //CONFIG_WOWLAN || CONFIG_TRAFFIC_PROTECT
 
 //Atomic integer operations
 #ifdef PLATFORM_LINUX

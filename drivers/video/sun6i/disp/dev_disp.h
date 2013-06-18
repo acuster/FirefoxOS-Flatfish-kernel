@@ -52,7 +52,7 @@ typedef struct
 	unsigned long           wait_count[2];
     struct timer_list      disp_timer[2];
     struct work_struct      vsync_work[2];
-    struct work_struct      post2_cb_work;
+    struct work_struct      post2_cb_work[2];
 	struct work_struct      resume_work[2];
     struct work_struct      lcd_open_work[2];
     ktime_t                 vsync_timestamp[2];
@@ -105,9 +105,9 @@ extern __s32 Display_Fb_Release(__u32 fb_id);
 extern __s32 Display_Fb_get_para(__u32 fb_id, __disp_fb_create_para_t *fb_para);
 extern __s32 Display_get_disp_init_para(__disp_init_t * init_para);
 
-extern __s32 DRV_disp_int_process(__u32 sel);
+extern __s32 DRV_disp_line_int_event(__u32 sel);
 extern __s32 DRV_disp_vsync_event(__u32 sel);
-extern __s32 DRV_disp_take_effect_event(__u32 sel);
+extern void imp_finish_cb(int force_all);
 
 
 extern __s32 DRV_DISP_Init(void);

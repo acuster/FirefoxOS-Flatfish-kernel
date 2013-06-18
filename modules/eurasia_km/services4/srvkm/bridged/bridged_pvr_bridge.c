@@ -1037,7 +1037,7 @@ PVRSRVUnmapDeviceMemoryBW(IMG_UINT32 ui32BridgeID,
 	return 0;
 }
 
-
+#if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
 
 static IMG_INT
 PVRSRVMapDeviceClassMemoryBW(IMG_UINT32 ui32BridgeID,
@@ -1204,6 +1204,8 @@ PVRSRVUnmapDeviceClassMemoryBW(IMG_UINT32 ui32BridgeID,
 
 	return 0;
 }
+
+#endif /* defined(SUPPORT_PVRSRV_DEVICE_CLASS) */
 
 
 #if defined(OS_PVRSRV_WRAP_EXT_MEM_BW)
@@ -1442,6 +1444,7 @@ PVRSRVMapIonHandleBW(IMG_UINT32 ui32BridgeID,
 	psMapIonOUT->sClientMemInfo.sDevVAddr = psKernelMemInfo->sDevVAddr;
 	psMapIonOUT->sClientMemInfo.ui32Flags = psKernelMemInfo->ui32Flags;
 	psMapIonOUT->sClientMemInfo.uAllocSize = psKernelMemInfo->uAllocSize;
+	psMapIonOUT->sClientMemInfo.ppLinAddrKM = psKernelMemInfo->ppLinAddrKM;//aw
 
 	/* No mapping info, we map through ion */
 	psMapIonOUT->sClientMemInfo.hMappingInfo = IMG_NULL;
@@ -2260,6 +2263,8 @@ PVRSRVDisconnectBW(IMG_UINT32 ui32BridgeID,
 	return 0;
 }
 
+#if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
+
 static IMG_INT
 PVRSRVEnumerateDCBW(IMG_UINT32 ui32BridgeID,
 					PVRSRV_BRIDGE_IN_ENUMCLASS *psEnumDispClassIN,
@@ -2864,13 +2869,13 @@ PVRSRVSwapToDCBuffer2BW(IMG_UINT32 ui32BridgeID,
 	IMG_UINT32 i;
 
 #if defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC)
-     int iReleaseFd = get_unused_fd();
-     if(iReleaseFd < 0)
-     {
-             PVR_DPF((PVR_DBG_ERROR, "%s: Failed to find unused fd (%d)",
-                                      __func__, iReleaseFd));
-             return 0;
-     }
+	int iReleaseFd = get_unused_fd();
+	if(iReleaseFd < 0)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to find unused fd (%d)",
+								__func__, iReleaseFd));
+		return 0;
+	}
 #endif /* defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC) */
 
 	PVRSRV_BRIDGE_ASSERT_CMD(ui32BridgeID, PVRSRV_BRIDGE_SWAP_DISPCLASS_TO_BUFFER2);
@@ -2996,7 +3001,6 @@ PVRSRVSwapToDCBuffer2BW(IMG_UINT32 ui32BridgeID,
 	if(hFence)
 	{
 		struct sync_fence *psFence = hFence;
-
 		sync_fence_install(psFence, iReleaseFd);
 		psSwapDispClassBufferOUT->hFence = (IMG_HANDLE)iReleaseFd;
 	}
@@ -3005,10 +3009,8 @@ PVRSRVSwapToDCBuffer2BW(IMG_UINT32 ui32BridgeID,
 		psSwapDispClassBufferOUT->hFence = (IMG_HANDLE)-1;
 		put_unused_fd(iReleaseFd);
 	}
-#else
-	{
-		psSwapDispClassBufferOUT->hFence = (IMG_HANDLE)-1;
-	}
+#else /* defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC) */
+	psSwapDispClassBufferOUT->hFence = (IMG_HANDLE)-1;
 #endif /* defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC) */
 
     return 0;
@@ -3205,6 +3207,7 @@ PVRSRVGetBCBufferBW(IMG_UINT32 ui32BridgeID,
 	return 0;
 }
 
+#endif /* defined(SUPPORT_PVRSRV_DEVICE_CLASS) */
 
 static IMG_INT
 PVRSRVAllocSharedSysMemoryBW(IMG_UINT32 ui32BridgeID,
@@ -4436,8 +4439,6 @@ CommonBridgeInit(IMG_VOID)
 	SetDispatchTableEntry(PVRSRV_BRIDGE_UNMAP_EXT_MEMORY, DummyBW);
 	SetDispatchTableEntry(PVRSRV_BRIDGE_MAP_DEV_MEMORY, PVRSRVMapDeviceMemoryBW);
 	SetDispatchTableEntry(PVRSRV_BRIDGE_UNMAP_DEV_MEMORY, PVRSRVUnmapDeviceMemoryBW);
-	SetDispatchTableEntry(PVRSRV_BRIDGE_MAP_DEVICECLASS_MEMORY, PVRSRVMapDeviceClassMemoryBW);
-	SetDispatchTableEntry(PVRSRV_BRIDGE_UNMAP_DEVICECLASS_MEMORY, PVRSRVUnmapDeviceClassMemoryBW);
 	SetDispatchTableEntry(PVRSRV_BRIDGE_MAP_MEM_INFO_TO_USER, DummyBW);
 	SetDispatchTableEntry(PVRSRV_BRIDGE_UNMAP_MEM_INFO_FROM_USER, DummyBW);
 	SetDispatchTableEntry(PVRSRV_BRIDGE_EXPORT_DEVICEMEM, PVRSRVExportDeviceMemBW);
@@ -4498,6 +4499,10 @@ CommonBridgeInit(IMG_VOID)
 	/* DisplayClass APIs */
 	SetDispatchTableEntry(PVRSRV_BRIDGE_GET_OEMJTABLE, DummyBW);
 
+#if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
+	SetDispatchTableEntry(PVRSRV_BRIDGE_MAP_DEVICECLASS_MEMORY, PVRSRVMapDeviceClassMemoryBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_UNMAP_DEVICECLASS_MEMORY, PVRSRVUnmapDeviceClassMemoryBW);
+
 	/* device class enum */
 	SetDispatchTableEntry(PVRSRV_BRIDGE_ENUM_CLASS, PVRSRVEnumerateDCBW);
 
@@ -4528,6 +4533,37 @@ CommonBridgeInit(IMG_VOID)
 	SetDispatchTableEntry(PVRSRV_BRIDGE_CLOSE_BUFFERCLASS_DEVICE, PVRSRVCloseBCDeviceBW);
 	SetDispatchTableEntry(PVRSRV_BRIDGE_GET_BUFFERCLASS_INFO, PVRSRVGetBCInfoBW);
 	SetDispatchTableEntry(PVRSRV_BRIDGE_GET_BUFFERCLASS_BUFFER, PVRSRVGetBCBufferBW);
+#else /* defined(SUPPORT_PVRSRV_DEVICE_CLASS) */
+	SetDispatchTableEntry(PVRSRV_BRIDGE_MAP_DEVICECLASS_MEMORY, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_UNMAP_DEVICECLASS_MEMORY, DummyBW);
+
+	/* device class enum */
+	SetDispatchTableEntry(PVRSRV_BRIDGE_ENUM_CLASS, DummyBW);
+
+	/* display class API */
+	SetDispatchTableEntry(PVRSRV_BRIDGE_OPEN_DISPCLASS_DEVICE, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_CLOSE_DISPCLASS_DEVICE, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_ENUM_DISPCLASS_FORMATS, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_ENUM_DISPCLASS_DIMS, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_GET_DISPCLASS_SYSBUFFER, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_GET_DISPCLASS_INFO, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_CREATE_DISPCLASS_SWAPCHAIN, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_DESTROY_DISPCLASS_SWAPCHAIN, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_SET_DISPCLASS_DSTRECT, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_SET_DISPCLASS_SRCRECT, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_SET_DISPCLASS_DSTCOLOURKEY, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_SET_DISPCLASS_SRCCOLOURKEY, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_GET_DISPCLASS_BUFFERS, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_SWAP_DISPCLASS_TO_BUFFER, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_SWAP_DISPCLASS_TO_BUFFER2, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_SWAP_DISPCLASS_TO_SYSTEM, DummyBW);
+
+	/* buffer class API */
+	SetDispatchTableEntry(PVRSRV_BRIDGE_OPEN_BUFFERCLASS_DEVICE, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_CLOSE_BUFFERCLASS_DEVICE, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_GET_BUFFERCLASS_INFO, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_GET_BUFFERCLASS_BUFFER, DummyBW);
+#endif /* defined(SUPPORT_PVRSRV_DEVICE_CLASS) */
 
 	/* Wrap/Unwrap external memory */
 	SetDispatchTableEntry(PVRSRV_BRIDGE_WRAP_EXT_MEMORY, PVRSRVWrapExtMemoryBW);

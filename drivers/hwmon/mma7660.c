@@ -404,7 +404,7 @@ static int mma7660_init_client(struct i2c_client *client)
 		 */
 		result = i2c_smbus_write_byte_data(client, MMA7660_MODE,MK_MMA7660_MODE(0, 0, 0, 0, 0, 1, 0));
 		assert(result==0);
-		mdelay(MODE_CHANGE_DELAY_MS);
+		msleep(MODE_CHANGE_DELAY_MS);
 
 		result = i2c_smbus_write_byte_data(client, MMA7660_XOUT, 0x2a);
 		assert(result==0);
@@ -444,7 +444,7 @@ static int mma7660_init_client(struct i2c_client *client)
 	assert(result==0);
 	mutex_unlock(&mma7660_data.init_mutex);
 
-	mdelay(MODE_CHANGE_DELAY_MS);
+	msleep(MODE_CHANGE_DELAY_MS);
 
 	mma7660_idev->input->open(mma7660_idev->input);
 

@@ -1543,21 +1543,7 @@ static int option_probe(struct usb_serial *serial,
 		serial->interface->cur_altsetting->desc.bInterfaceClass != USB_CLASS_CDC_DATA)
 		return -ENODEV;
 
-	if (serial->dev->descriptor.idVendor == ZTE_VENDOR_ID &&
-		serial->dev->descriptor.idProduct == 0x0079 &&
-		serial->interface->cur_altsetting->desc.bInterfaceClass == 0xff &&
-		serial->interface->cur_altsetting->desc.bInterfaceSubClass == 0xff &&
-		serial->interface->cur_altsetting->desc.bInterfaceProtocol == 0xff){
-		zte_a355_init(serial->interface);
-	}
-
-	if (serial->dev->descriptor.idVendor == ZTE_VENDOR_ID &&
-		serial->dev->descriptor.idProduct == 0x0003 &&
-		serial->interface->cur_altsetting->desc.bInterfaceClass == 0xff &&
-		serial->interface->cur_altsetting->desc.bInterfaceSubClass == 0xff &&
-		serial->interface->cur_altsetting->desc.bInterfaceProtocol == 0xff){
-		zte_mu350_init(serial->interface);
-	}
+    sw_dongle_init(serial, serial->interface);
 
 	data = serial->private = kzalloc(sizeof(struct usb_wwan_intf_private), GFP_KERNEL);
 	if (!data)

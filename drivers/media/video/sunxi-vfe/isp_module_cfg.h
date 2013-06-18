@@ -290,7 +290,7 @@ enum isp_features_flags
   ISP_FEATURES_AFS               = (1 << 0),
   ISP_FEATURES_SAP               = (1 << 1),
   ISP_FEATURES_CONTRAST          = (1 << 2),
-  ISP_FEATURES_BNDF              = (1 << 3),
+  ISP_FEATURES_BDNF              = (1 << 3),
   ISP_FEATURES_RGB_DRC           = (1 << 4),
   ISP_FEATURES_LUT_DPC           = (1 << 5),
   ISP_FEATURES_LSC               = (1 << 6),

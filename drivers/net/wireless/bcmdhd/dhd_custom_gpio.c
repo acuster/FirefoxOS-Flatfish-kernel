@@ -144,7 +144,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 		type = script_get_item("wifi_para", "wifi_sdc_id", &val);
 		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
 			WL_ERROR(("failed to fetch sdio card's sdcid\n"));
-			return -1;
+			return ;
 		}
 		sdc_id = val.val;
 		first = 0;
@@ -191,9 +191,9 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 #ifdef CUSTOMER_HW
 			wifi_pm_power(1);
 			sw_mci_rescan_card(sdc_id, 1);
-			/* Lets customer power to get stable */
-			OSL_DELAY(200);
 #endif /* CUSTOMER_HW */
+			/* Lets customer power to get stable */
+			mdelay(100);
 			WL_ERROR(("=========== WLAN placed in POWER ON ========\n"));
 		break;
 	}

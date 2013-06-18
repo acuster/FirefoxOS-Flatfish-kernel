@@ -243,14 +243,6 @@ config CPU_FREQ_USR_EVNT_NOTIFY
 
 	  If in doubt, say N.
 
-config CPU_FREQ_EARLYSUSPEND
-	bool "CPU frequency early-suspend support"
-	depends on WAKELOCK && EARLYSUSPEND
-	help
-	  This will allow cpufreq sub-system support early-suspend.
-
-	  If in doubt, say N.
-
 config CPU_FREQ_SETFREQ_DEBUG
 	bool "cpu setget frequency debug"
 	default y

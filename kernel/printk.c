@@ -1309,7 +1309,8 @@ void console_unlock(void)
 	unsigned long flags;
 	unsigned _con_start, _log_end;
 	unsigned wake_klogd = 0;
-	bool retry = 0;
+	bool retry = 0, time_over = 0;
+	unsigned long timeout;
 
 	if (console_suspended) {
 		up(&console_sem);
@@ -1317,16 +1318,29 @@ void console_unlock(void)
 	}
 
 	console_may_schedule = 0;
+	timeout = jiffies + HZ;
 
 again:
 	for ( ; ; ) {
 		raw_spin_lock_irqsave(&logbuf_lock, flags);
+		if (!time_before(jiffies, timeout)){
+			time_over = 1;
+			break;
+		}
+
 		wake_klogd |= log_start - log_end;
 		if (con_start == log_end)
 			break;			/* Nothing to print */
+
 		_con_start = con_start;
-		_log_end = log_end;
-		con_start = log_end;		/* Flush */
+		if (log_end - con_start > SZ_1K){
+			_log_end = _con_start + SZ_1K;
+			con_start = _log_end;
+		} else {
+			_log_end = log_end;
+			con_start = log_end;		/* Flush */
+		}
+
 		raw_spin_unlock(&logbuf_lock);
 		stop_critical_timings();	/* don't trace print latency */
 		call_console_drivers(_con_start, _log_end);
@@ -1353,7 +1367,7 @@ again:
 		retry = (con_start != log_end);
 	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
 
-	if (retry && console_trylock())
+	if (!time_over && retry && console_trylock())
 		goto again;
 
 	if (wake_klogd)

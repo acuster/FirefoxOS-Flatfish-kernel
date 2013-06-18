@@ -20,7 +20,6 @@
  */
 
 #include "ar100_i.h"
-#include <mach/sys_config.h>
 
 /* local functions */
 static int     ar100_wait_ready(unsigned int timeout);
@@ -38,9 +37,10 @@ unsigned int ar100_debug_dram_crc_error = 0;
 unsigned int ar100_debug_dram_crc_total_count = 0;
 unsigned int ar100_debug_dram_crc_error_count = 0;
 unsigned int ar100_debug_level = 2;
+static atomic_t ar100_suspend_flag;
 
-
-ssize_t ar100_debug_mask_show(struct class *class, struct class_attribute *attr, char *buf)
+static ssize_t ar100_debug_mask_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
 	ssize_t size = 0;
 	
@@ -49,8 +49,8 @@ ssize_t ar100_debug_mask_show(struct class *class, struct class_attribute *attr,
 	return size;
 }
 
-ssize_t ar100_debug_mask_store(struct class *class, struct class_attribute *attr,
-			const char *buf, size_t size)
+static ssize_t ar100_debug_mask_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t size)
 {
 	u32 value = 0;
 	
@@ -67,7 +67,8 @@ ssize_t ar100_debug_mask_store(struct class *class, struct class_attribute *attr
 	return size;
 }
 
-ssize_t ar100_debug_baudrate_show(struct class *class, struct class_attribute *attr, char *buf)
+static ssize_t ar100_debug_baudrate_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
 	ssize_t size = 0;
 	
@@ -76,8 +77,8 @@ ssize_t ar100_debug_baudrate_show(struct class *class, struct class_attribute *a
 	return size;
 }
 
-ssize_t ar100_debug_baudrate_store(struct class *class, struct class_attribute *attr,
-			const char *buf, size_t size)
+static ssize_t ar100_debug_baudrate_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t size)
 {
 	u32 value = 0;
 	
@@ -94,7 +95,8 @@ ssize_t ar100_debug_baudrate_store(struct class *class, struct class_attribute *
 	return size;
 }
 
-ssize_t ar100_dram_crc_paras_show(struct class *class, struct class_attribute *attr, char *buf)
+static ssize_t ar100_dram_crc_paras_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
 	ssize_t size = 0;
 	
@@ -104,8 +106,8 @@ ssize_t ar100_dram_crc_paras_show(struct class *class, struct class_attribute *a
 	return size;
 }
 
-ssize_t ar100_dram_crc_paras_store(struct class *class, struct class_attribute *attr,
-			const char *buf, size_t size)
+static ssize_t ar100_dram_crc_paras_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t size)
 {
 	u32 dram_crc_en      = 0;
 	u32 dram_crc_srcaddr = 0;
@@ -134,7 +136,8 @@ ssize_t ar100_dram_crc_paras_store(struct class *class, struct class_attribute *
 	return size;
 }
 
-ssize_t ar100_dram_crc_result_show(struct class *class, struct class_attribute *attr, char *buf)
+static ssize_t ar100_dram_crc_result_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
 	ssize_t size = 0;
 	
@@ -147,8 +150,8 @@ ssize_t ar100_dram_crc_result_show(struct class *class, struct class_attribute *
 	return size;
 }
 
-ssize_t ar100_dram_crc_result_store(struct class *class, struct class_attribute *attr,
-			const char *buf, size_t size)
+static ssize_t ar100_dram_crc_result_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t size)
 {
 	u32 error = 0;
 	u32 total_count = 0;
@@ -172,8 +175,40 @@ ssize_t ar100_dram_crc_result_store(struct class *class, struct class_attribute 
 	return size;
 }
 
+#ifdef CONFIG_PM
+static int sun6i_ar100_suspend(struct device *dev)
+{
+	atomic_set(&ar100_suspend_flag, 1);
+	while (ar100_semaphore_used_num_query()) {
+			msleep(1);
+	}
+	
+	return 0;
+}
 
-static struct class_attribute ar100_class_attrs[] = {
+static int sun6i_ar100_resume(struct device *dev)
+{
+	atomic_set(&ar100_suspend_flag, 0);
+
+	return 0;
+}
+
+int ar100_suspend_flag_query(void)
+{
+	return atomic_read(&ar100_suspend_flag);
+}
+
+static const struct dev_pm_ops sun6i_ar100_dev_pm_ops = {
+	.suspend = sun6i_ar100_suspend,
+	.resume = sun6i_ar100_resume,
+};
+
+#define SUN6I_AR100_DEV_PM_OPS (&sun6i_ar100_dev_pm_ops)
+#else
+#define SUN6I_AR100_DEV_PM_OPS NULL
+#endif
+
+static struct device_attribute sun6i_ar100_attrs[] = {
 	__ATTR(debug_mask, 	    0644, ar100_debug_mask_show,      ar100_debug_mask_store),
 	__ATTR(debug_baudrate,	0644, ar100_debug_baudrate_show,  ar100_debug_baudrate_store),
 	__ATTR(dram_crc_paras,	0644, ar100_dram_crc_paras_show,  ar100_dram_crc_paras_store),
@@ -181,16 +216,78 @@ static struct class_attribute ar100_class_attrs[] = {
 	__ATTR_NULL,
 };
 
-static struct class ar100_class = {
-	.name		 = "ar100",
-	.owner		 = THIS_MODULE,
-	.class_attrs = ar100_class_attrs,
-};
+static void sun6i_ar100_sysfs(struct platform_device *pdev)
+{
+	unsigned int i;
+	for (i = 0; i < 4; i++) {
+		device_create_file(&pdev->dev, &sun6i_ar100_attrs[i]);
+	}
+}
 
-int ar100_init(void)
+static int ar100_wait_ready(unsigned int timeout)
+{
+	unsigned long          expire;
+	
+	expire = msecs_to_jiffies(timeout) + jiffies;
+	
+	/* wait ar100 startup ready */
+	while (1) {
+		/*
+		 * linux cpu interrupt is disable now, 
+		 * we should query message by hand.
+		 */
+		struct ar100_message *pmessage = ar100_hwmsgbox_query_message();
+		if (pmessage == NULL) {
+			if (time_is_before_eq_jiffies(expire)) {
+				return -ETIMEDOUT;
+			}
+			/* try to query again */
+			continue;
+		}
+		/* query valid message */
+		if (pmessage->type == AR100_STARTUP_NOTIFY) {
+			/* check ar100 software and driver version match or not */
+			if (pmessage->paras[0] != AR100_VERSIONS) {
+				AR100_ERR("ar100 firmware and driver version not matched\n");
+				return -EINVAL;
+			}
+			/* received ar100 startup ready message */
+			AR100_INF("ar100 startup ready\n");
+			if ((pmessage->attr & AR100_MESSAGE_ATTR_SOFTSYN) ||
+				(pmessage->attr & AR100_MESSAGE_ATTR_HARDSYN)) {
+				/* synchronous message, just feedback it */
+				AR100_INF("ar100 startup notify message feedback\n");
+				pmessage->paras[0] = virt_to_phys((void *)&ar100_binary_start);
+				ar100_hwmsgbox_feedback_message(pmessage, AR100_SEND_MSG_TIMEOUT);
+			} else {
+				/* asyn message, free message directly */
+				AR100_INF("ar100 startup notify message free directly\n");
+				ar100_message_free(pmessage);
+			}
+			break;
+		}
+		/* 
+		 * invalid message detected, ignore it.
+		 * by sunny at 2012-7-6 18:34:38.
+		 */
+		AR100_WRN("ar100 startup waiting ignore message\n");
+		if ((pmessage->attr & AR100_MESSAGE_ATTR_SOFTSYN) ||
+			(pmessage->attr & AR100_MESSAGE_ATTR_HARDSYN)) {
+			/* synchronous message, just feedback it */
+			ar100_hwmsgbox_send_message(pmessage, AR100_SEND_MSG_TIMEOUT);
+		} else {
+			/* asyn message, free message directly */
+			ar100_message_free(pmessage);
+		}
+		/* we need waiting continue */
+	}
+	
+	return 0;
+}
+
+static int  sun6i_ar100_probe(struct platform_device *pdev)
 {
 	int binary_len;
-	int ret;
 	script_item_u script_val;
 	script_item_value_type_e type;
 	
@@ -220,9 +317,9 @@ int ar100_init(void)
 	memset((void *)ar100_sram_a2_vbase, 0, AW_SRAM_A2_SIZE);
 	
 	/* load ar100 system binary data to sram_a2 */
-	binary_len = (int)(&ar100_binary_end) - (int)(&ar100_binary_start);
+	binary_len = 0x13000;
 	memcpy((void *)ar100_sram_a2_vbase, (void *)(&ar100_binary_start), binary_len);
-	AR100_INF("move ar100 binary data [addr = %x, len = %x] to sram_a2 finished\n", 
+	printk("move ar100 binary data [addr = %x, len = %x] to sram_a2 finished\n",
 	         (unsigned int)(&ar100_binary_start), (unsigned int)binary_len);
 	
 	/* initialize hwspinlock */
@@ -268,75 +365,82 @@ int ar100_init(void)
 		AR100_WRN("config dram paras failed\n");
 	}
 	
-	/* register ar100 debug device node */
-	ret = class_register(&ar100_class);
-	if (ret) {
-		AR100_WRN("register ar100 class failed\n");
-	}
+#ifdef CONFIG_PM
+	atomic_set(&ar100_suspend_flag, 0);
+#endif
 	
 	/* ar100 initialize succeeded */
 	AR100_INF("ar100 startup succeeded, driver version : %d\n", AR100_VERSIONS);
 	
 	return 0;
 }
-subsys_initcall(ar100_init);
 
-static int ar100_wait_ready(unsigned int timeout)
+/* msgbox irq no */
+static struct resource sun6i_ar100_resource[] = {
+	[0] = {
+		.start = AW_IRQ_MBOX,
+		.end   = AW_IRQ_MBOX,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sun6i_ar100_device = {
+	.name           = DEV_NAME,
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(sun6i_ar100_resource),
+	.resource       = sun6i_ar100_resource,
+};
+
+static struct platform_driver sun6i_ar100_driver = {
+	.probe      = sun6i_ar100_probe,
+	.driver     = {
+		.name   = DRV_NAME,
+		.owner  = THIS_MODULE,
+		.pm     = SUN6I_AR100_DEV_PM_OPS,
+	},
+};
+
+static int __init ar100_init(void)
 {
-	unsigned long          expire;
+	int ret;
 	
-	expire = msecs_to_jiffies(timeout) + jiffies;
-	
-	/* wait ar100 startup ready */
-	while (1) {
-		/*
-		 * linux cpu interrupt is disable now, 
-		 * we should query message by hand.
-		 */
-		struct ar100_message *pmessage = ar100_hwmsgbox_query_message();
-		if (pmessage == NULL) {
-			if (time_is_before_eq_jiffies(expire)) {
-				return -ETIMEDOUT;
-			}
-			/* try to query again */
-			continue;
-		}
-		/* query valid message */
-		if (pmessage->type == AR100_STARTUP_NOTIFY) {
-			/* check ar100 software and driver version match or not */
-			if (pmessage->paras[0] != AR100_VERSIONS) {
-				AR100_ERR("ar100 firmware and driver version not matched\n");
-				return -EINVAL;
-			}
-			/* received ar100 startup ready message */
-			AR100_INF("ar100 startup ready\n");
-			if ((pmessage->attr & AR100_MESSAGE_ATTR_SOFTSYN) ||
-				(pmessage->attr & AR100_MESSAGE_ATTR_HARDSYN)) {
-				/* synchronous message, just feedback it */
-				AR100_INF("ar100 startup notify message feedback\n");
-				ar100_hwmsgbox_feedback_message(pmessage, AR100_SEND_MSG_TIMEOUT);
-			} else {
-				/* asyn message, free message directly */
-				AR100_INF("ar100 startup notify message free directly\n");
-				ar100_message_free(pmessage);
-			}
-			break;
-		}
-		/* 
-		 * invalid message detected, ignore it.
-		 * by sunny at 2012-7-6 18:34:38.
-		 */
-		AR100_WRN("ar100 startup waiting ignore message\n");
-		if ((pmessage->attr & AR100_MESSAGE_ATTR_SOFTSYN) ||
-			(pmessage->attr & AR100_MESSAGE_ATTR_HARDSYN)) {
-			/* synchronous message, just feedback it */
-			ar100_hwmsgbox_send_message(pmessage, AR100_SEND_MSG_TIMEOUT);
-		} else {
-			/* asyn message, free message directly */
-			ar100_message_free(pmessage);
-		}
-		/* we need waiting continue */
+	AR100_LOG("sun6i ar100 driver v%s\n", DRV_VERSION);
+
+	ret = platform_driver_register(&sun6i_ar100_driver);
+	if (IS_ERR_VALUE(ret)) {
+		AR100_ERR("register sun6i ar100 platform driver failed\n");
+		goto err_platform_driver_register;
+	}
+	ret = platform_device_register(&sun6i_ar100_device);
+	if (IS_ERR_VALUE(ret)) {
+		AR100_ERR("register sun6i ar100 platform device failed\n");
+		goto err_platform_device_register;
 	}
 	
+	sun6i_ar100_sysfs(&sun6i_ar100_device);
+		
 	return 0;
+	
+err_platform_device_register:
+	platform_device_unregister(&sun6i_ar100_device);
+err_platform_driver_register:
+	platform_driver_unregister(&sun6i_ar100_driver);
+	return -EINVAL;
 }
+
+static void __exit ar100_exit(void)
+{
+	platform_device_unregister(&sun6i_ar100_device);
+	platform_driver_unregister(&sun6i_ar100_driver);
+	AR100_LOG("module unloaded\n");
+}
+
+subsys_initcall(ar100_init);
+module_exit(ar100_exit);
+MODULE_DESCRIPTION("sun6i ar100 driver");
+MODULE_AUTHOR("Superm Wu <superm@allwinnertech.com>");
+MODULE_LICENSE("GPL");
+MODULE_VERSION(DRV_VERSION);
+MODULE_ALIAS("platform:sun6i ar100 driver");
+
+

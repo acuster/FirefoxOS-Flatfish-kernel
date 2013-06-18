@@ -500,92 +500,43 @@ static void check_mem_data(struct i2c_client *client)
 		init_chip(client);
 	}
 }
-#ifdef STRETCH_FRAME
-static void stretch_frame(u16 *x, u16 *y)
+
+#if 1
+static const u16 coordinate_adjust_x_left[] = {
+/*0, 1,  2,   3,   4,  5,   6,   7,  8,   9*/
+16, 16, 16, 16, 16, 16, 16, 16, 17, 18,
+19, 21, 23, 28, 33, 38, 40, 42, 43, 43,
+44, 44, 44, 44, 44, 45, 45, 45, 45, 45,
+46, 46, 46, 46, 46, 47, 47, 47, 47, 47,
+48, 48, 48, 48, 48, 49, 49, 49, 49, 49,
+50, 50, 51, 51, 52, 52, 53, 53, 54, 54,
+55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
+65, 66, 67, 68, 69, 70, 71, 72, 73, 74,
+76, 77, 79, 80, 81, 82, 83, 85, 86, 87,
+88, 90, 91, 92, 93, 94, 96, 97, 98, 99
+};
+
+static const u16 coordinate_adjust_x_right[] = {
+
+};
+
+static void adjust_edge(u16 *x)
 {
 	u16 temp_x = *x;
-	u16 temp_y = *y;
-	u16 temp_0, temp_1, temp_2;
 
-	if(temp_x < X_STRETCH_MAX + X_STRETCH_CUST)
+	if(0 <= temp_x && temp_x < 100)
 	{
-		temp_0 = temp_1 = temp_2 = 0;
-		temp_0 = X_STRETCH_MAX + X_STRETCH_CUST - temp_x;
-		temp_0 = temp_0 > X_STRETCH_CUST ? X_STRETCH_CUST : temp_0;
-		temp_0 = temp_0*(100 + X_RATIO_CUST)/100;
-		if(temp_x < X_STRETCH_MAX)
-		{
-			temp_1 = X_STRETCH_MAX - temp_x;
-			temp_1 = temp_1 > X_STRETCH_MAX/4 ? X_STRETCH_MAX/4 : temp_1;
-			temp_1 = temp_1*(100 + 2*XL_RATIO_1)/100;
-		}
-		if(temp_x < 3*X_STRETCH_MAX/4)
-		{
-			temp_2 = 3*X_STRETCH_MAX/4 - temp_x;
-			temp_2 = temp_2*(100 + 2*XL_RATIO_2)/100;
-		}
-		*x = (temp_0 + temp_1 +temp_2) < (X_STRETCH_MAX + X_STRETCH_CUST) ? ((X_STRETCH_MAX + X_STRETCH_CUST) - (temp_0 + temp_1 +temp_2)) : 1;
+		temp_x = coordinate_adjust_x_left[temp_x];
 	}
-	else if(temp_x > (CTP_MAX_X -X_STRETCH_MAX - X_STRETCH_CUST))
+	if((SCREEN_MAX_X - 100) <= temp_x && temp_x < SCREEN_MAX_X)
 	{
-		temp_0 = temp_1 = temp_2 = 0;
-		temp_0 = temp_x - (CTP_MAX_X -X_STRETCH_MAX - X_STRETCH_CUST);
-		temp_0 = temp_0 > X_STRETCH_CUST ? X_STRETCH_CUST : temp_0;
-		temp_0 = temp_0*(100 + X_RATIO_CUST)/100;
-		if(temp_x > (CTP_MAX_X -X_STRETCH_MAX))
-		{
-			temp_1 = temp_x - (CTP_MAX_X -X_STRETCH_MAX);
-			temp_1 = temp_1 > X_STRETCH_MAX/4 ? X_STRETCH_MAX/4 : temp_1;
-			temp_1 = temp_1*(100 + 2*XR_RATIO_1)/100;
-		}
-		if(temp_x > (CTP_MAX_X -3*X_STRETCH_MAX/4))
-		{
-			temp_2 = temp_x - (CTP_MAX_X -3*X_STRETCH_MAX/4);
-			temp_2 = temp_2*(100 + 2*XR_RATIO_2)/100;
-		}
-		*x = (temp_0 + temp_1 +temp_2) < (X_STRETCH_MAX + X_STRETCH_CUST) ? ((CTP_MAX_X -X_STRETCH_MAX - X_STRETCH_CUST) + (temp_0 + temp_1 +temp_2)) : (CTP_MAX_X - 1);
+		temp_x = SCREEN_MAX_X - coordinate_adjust_x_left[SCREEN_MAX_X - temp_x];
 	}
 
-	if(temp_y < Y_STRETCH_MAX + Y_STRETCH_CUST)
-	{
-		temp_0 = temp_1 = temp_2 = 0;
-		temp_0 = Y_STRETCH_MAX + Y_STRETCH_CUST - temp_y;
-		temp_0 = temp_0 > Y_STRETCH_CUST ? Y_STRETCH_CUST : temp_0;
-		temp_0 = temp_0*(100 + Y_RATIO_CUST)/100;
-		if(temp_y < Y_STRETCH_MAX)
-		{
-			temp_1 = Y_STRETCH_MAX - temp_y;
-			temp_1 = temp_1 > Y_STRETCH_MAX/4 ? Y_STRETCH_MAX/4 : temp_1;
-			temp_1 = temp_1*(100 + 2*YL_RATIO_1)/100;
-		}
-		if(temp_y < 3*Y_STRETCH_MAX/4)
-		{
-			temp_2 = 3*Y_STRETCH_MAX/4 - temp_y;
-			temp_2 = temp_2*(100 + 2*YL_RATIO_2)/100;
-		}
-		*y = (temp_0 + temp_1 +temp_2) < (Y_STRETCH_MAX + Y_STRETCH_CUST) ? ((Y_STRETCH_MAX + Y_STRETCH_CUST) - (temp_0 + temp_1 +temp_2)) : 1;
-	}
-	else if(temp_y > (CTP_MAX_Y -Y_STRETCH_MAX - Y_STRETCH_CUST))
-	{
-		temp_0 = temp_1 = temp_2 = 0;
-		temp_0 = temp_y - (CTP_MAX_Y -Y_STRETCH_MAX - Y_STRETCH_CUST);
-		temp_0 = temp_0 > Y_STRETCH_CUST ? Y_STRETCH_CUST : temp_0;
-		temp_0 = temp_0*(100 + Y_RATIO_CUST)/100;
-		if(temp_y > (CTP_MAX_Y -Y_STRETCH_MAX))
-		{
-			temp_1 = temp_y - (CTP_MAX_Y -Y_STRETCH_MAX);
-			temp_1 = temp_1 > Y_STRETCH_MAX/4 ? Y_STRETCH_MAX/4 : temp_1;
-			temp_1 = temp_1*(100 + 2*YR_RATIO_1)/100;
-		}
-		if(temp_y > (CTP_MAX_Y -3*Y_STRETCH_MAX/4))
-		{
-			temp_2 = temp_y - (CTP_MAX_Y -3*Y_STRETCH_MAX/4);
-			temp_2 = temp_2*(100 + 2*YR_RATIO_2)/100;
-		}
-		*y = (temp_0 + temp_1 +temp_2) < (Y_STRETCH_MAX + Y_STRETCH_CUST) ? ((CTP_MAX_Y -Y_STRETCH_MAX - Y_STRETCH_CUST) + (temp_0 + temp_1 +temp_2)) : (CTP_MAX_Y - 1);
-	}
+	*x = temp_x;
 }
 #endif
+
 #ifdef FILTER_POINT
 static void filter_point(u16 x, u16 y , u8 id)
 {
@@ -769,7 +720,12 @@ static void process_gslX680_data(struct gsl_ts *ts)
 		id = ts->touch_data[ts->dd->id_index + 4 * i] >> 4;
 
 		if(1 <=id && id <= MAX_CONTACTS){
-			if (3 == fw_index)
+			if (4 == fw_index)
+			{
+				adjust_edge(&x);
+			}
+
+			if (3 == fw_index || 4 == fw_index)
 				filter_point(x, y ,id);
 			else
 				record_point(x, y ,id);
@@ -948,7 +904,8 @@ static void glsX680_resume_events (struct work_struct *work)
 	msleep(10);
         reset_chip(glsX680_i2c);
         startup_chip(glsX680_i2c);
-        check_mem_data(glsX680_i2c);
+        if (ts_init->is_suspended == true)
+		check_mem_data(glsX680_i2c);
 	gls_ts_irq_onoff(1);
 }
 
@@ -984,6 +941,7 @@ static int gsl_ts_resume(struct i2c_client *client)
 	struct gsl_ts *ts = i2c_get_clientdata(client);
 
   	dprintk(DEBUG_SUSPEND,"CONFIG_HAS_EARLYSUSPEND:%s,start\n",__func__);
+	ts->is_suspended = true;
 	queue_work(gslX680_resume_wq, &glsX680_resume_work);
 
 #ifdef GSL_TIMER
@@ -992,7 +950,6 @@ static int gsl_ts_resume(struct i2c_client *client)
 	ts->gsl_timer.expires = jiffies + msecs_to_jiffies(100);
 	add_timer(&ts->gsl_timer);
 #endif
-        ts->is_suspended = true;
 
 	return 0;
 }
@@ -1024,13 +981,9 @@ static void gsl_ts_late_resume(struct early_suspend *h)
 #ifndef CONFIG_PM
         gsl_ts_resume(ts->client);
 #else
-      if(ts->is_suspended == false){
-                gslX680_shutdown_high();
-	        msleep(10);
-	        reset_chip(glsX680_i2c);
-	        startup_chip(glsX680_i2c);
-	        gls_ts_irq_onoff(1);
-      }
+	if(ts->is_suspended == false){
+		queue_work(gslX680_resume_wq, &glsX680_resume_work);
+	}
 #endif
 
 	printk("ts->is_suspended:%d\n",ts->is_suspended);

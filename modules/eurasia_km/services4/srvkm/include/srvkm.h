@@ -63,7 +63,9 @@ extern "C" {
 
 	IMG_IMPORT IMG_VOID PVRSRVScheduleDevicesKM(IMG_VOID);
 
+#if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
 	IMG_VOID IMG_CALLCONV PVRSRVSetDCState(IMG_UINT32 ui32State);
+#endif
 
 	PVRSRV_ERROR IMG_CALLCONV PVRSRVSaveRestoreLiveSegments(IMG_HANDLE hArena, IMG_PBYTE pbyBuffer, IMG_SIZE_T *puiBufSize, IMG_BOOL bSave);
 

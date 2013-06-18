@@ -282,7 +282,6 @@ __s32 BSP_disp_deu_enable(__u8 sel, __u32 hid,  __u32 enable)
         }
         else if((enable == 0) && (gdisp.scaler[layer_man->scaler_index].deu.enable))
         {
-            //pr_warn("BSP_disp_deu_disable, ====2======sel=%d,hid=%d,enable=%d\n", sel, hid, enable);
             BSP_disp_cfg_start(sel);
             //Scaler_Set_Para(layer_man->scaler_index,scaler);
             {

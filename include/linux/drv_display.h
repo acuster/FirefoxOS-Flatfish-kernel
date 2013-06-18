@@ -613,6 +613,7 @@ typedef struct
 	__u32   lcd_y; //vertical resolution
     __u32   lcd_width; //width of lcd in mm
     __u32   lcd_height;//height of lcd in mm
+    __u32   lcd_xtal_freq;//unit: Mhz
 
 	__u32  	lcd_pwm_freq;
 	__u32  	lcd_pwm_pol;
@@ -767,6 +768,8 @@ typedef struct
     __disp_rect_t       fb_scn_win;
 
     int                 primary_display_layer_num;
+    int                 show_black[2];
+    int                 time_stamp;
 }setup_dispc_data_t;
 
 typedef enum tag_DISP_CMD

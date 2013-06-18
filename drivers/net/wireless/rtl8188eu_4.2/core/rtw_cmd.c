@@ -426,6 +426,18 @@ _func_enter_;
 _func_exit_;		
 }
 
+
+void rtw_stop_cmd_thread(_adapter *adapter)
+{
+	if(adapter->cmdThread && adapter->cmdpriv.cmdthd_running == _TRUE
+		&& adapter->cmdpriv.stop_req == 0)
+	{
+		adapter->cmdpriv.stop_req = 1;
+		_rtw_up_sema(&adapter->cmdpriv.cmd_queue_sema);
+		_rtw_down_sema(&adapter->cmdpriv.terminate_cmdthread_sema);
+	}
+}
+
 thread_return rtw_cmd_thread(thread_context context)
 {
 	u8 ret;
@@ -443,6 +455,7 @@ _func_enter_;
 	pcmdbuf = pcmdpriv->cmd_buf;
 	prspbuf = pcmdpriv->rsp_buf;
 
+	pcmdpriv->stop_req = 0;
 	pcmdpriv->cmdthd_running=_TRUE;
 	_rtw_up_sema(&pcmdpriv->terminate_cmdthread_sema);
 
@@ -450,13 +463,20 @@ _func_enter_;
 
 	while(1)
 	{
-		if (_rtw_down_sema(&pcmdpriv->cmd_queue_sema) == _FAIL)
+		if (_rtw_down_sema(&pcmdpriv->cmd_queue_sema) == _FAIL) {
+			DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" _rtw_down_sema(&pcmdpriv->cmd_queue_sema) return _FAIL, break\n", FUNC_ADPT_ARG(padapter));
 			break;
+		}
 
 		if ((padapter->bDriverStopped == _TRUE)||(padapter->bSurpriseRemoved == _TRUE))
 		{
-			DBG_871X("%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
+			DBG_871X_LEVEL(_drv_always_, "%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
 				__FUNCTION__, padapter->bDriverStopped, padapter->bSurpriseRemoved, __LINE__);
+			break;
+		}
+
+		if (pcmdpriv->stop_req) {
+			DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" stop_req:%u, break\n", FUNC_ADPT_ARG(padapter), pcmdpriv->stop_req);
 			break;
 		}
 
@@ -472,7 +492,7 @@ _func_enter_;
 _next:
 		if ((padapter->bDriverStopped == _TRUE)||(padapter->bSurpriseRemoved== _TRUE))
 		{
-			DBG_871X("%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
+			DBG_871X_LEVEL(_drv_always_, "%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
 				__FUNCTION__, padapter->bDriverStopped, padapter->bSurpriseRemoved, __LINE__);
 			break;
 		}
@@ -2076,7 +2096,22 @@ static void traffic_status_watchdog(_adapter *padapter)
 			rtw_unlock_suspend();
 		}
 #endif //CONFIG_KEEP_FTP_TRANSMIT
-		
+
+#ifdef CONFIG_TRAFFIC_PROTECT
+#define TX_ACTIVE_TH 2
+#define RX_ACTIVE_TH 1
+#define TRAFFIC_PROTECT_PERIOD_MS 4500
+    if (pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > TX_ACTIVE_TH
+            || pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod > RX_ACTIVE_TH) {
+        //DBG_871X(FUNC_ADPT_FMT"accqiure wake_lock for %u ms\n", FUNC_ADPT_ARG(padapter), TRAFFIC_PROTECT_PERIOD_MS);
+        printk("acqiure wake_lock for %u ms(tx-%d,rx-%d)\n",
+                    TRAFFIC_PROTECT_PERIOD_MS,
+                    pmlmepriv->LinkDetectInfo.NumTxOkInPeriod,
+                    pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod);
+        rtw_lock_suspend_timeout(msecs_to_jiffies(TRAFFIC_PROTECT_PERIOD_MS));
+    }
+#endif
+
 #ifdef CONFIG_TDLS
 #ifdef CONFIG_TDLS_AUTOSETUP
 		if( ( ptdlsinfo->watchdog_count % TDLS_WATCHDOG_PERIOD ) == 0 )	//10 * 2sec, periodically sending

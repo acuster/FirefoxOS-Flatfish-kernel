@@ -23,7 +23,7 @@
 
 #ifdef  CONFIG_USB_SW_SUN6I_USB_DEBUG
 
-#define usb_printk		pr_debug
+#define usb_printk		printk
 
 #define  DMSG_INFO_UDC(format,args...)   			usb_printk("[sw_udc]: "format,##args)
 #define  DMSG_INFO_HCD0(format,args...)   		usb_printk("[sw_hcd0]: "format,##args)
@@ -42,8 +42,8 @@
 
 #endif
 
-#define  DMSG_PRINT(format,args...)   	  pr_debug("[sun6i_usb]: "format,##args)
-#define  DMSG_ERR(format,args...)   			pr_debug("[sun6i_usb]: "format,##args)
+#define  DMSG_PRINT(format,args...)   	  		printk("[sun6i_usb]: "format,##args)
+#define  DMSG_ERR(format,args...)   			printk("[sun6i_usb]: "format,##args)
 
 
 /* ≤‚ ‘ */

@@ -38,7 +38,6 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ### ###########################################################################
-############
 TARGET_PRODUCT := fiber-w02
 ANDROID_ROOT = ../../../../../../../../android
 DISCIMAGE =$(ANDROID_ROOT)/out/target/product/$(TARGET_PRODUCT)
@@ -49,50 +48,36 @@ CROSS_COMPILE := arm-linux-gnueabi-
 KERNEL_CROSS_COMPILE :=arm-linux-gnueabi-
 ARCH=arm
 
-#
-#
-#export ANDROID_ROOT DISCIMAGE CROSS_COMPILE TARGET_PRODUCT ARCH 
 KERNELDIR = $(LICHEE_KDIR)
 TOP = $(KERNELDIR)/modules/eurasia_km/
-########33
-# This isn't ideal, as there might be other 4470 products. The
-# blaze/blaze_tablet products support the 4470 SOM so handle those.
-#
 
 SGXCORE := 544
 SGX_CORE_REV := 115
-TARGET_PRODUCT ?= fiber-w02
-
-SGX_DYNAMIC_TIMING_INFO := 0
-
-SUPPORT_LINUX_USING_WORKQUEUES := 1
-
-DISPLAY_CONTROLLER := dc_sunxi
-
-PVR_SYSTEM := sunxi
-#HAL_VARIANT := $(PVR_SYSTEM)
-HAL_VARIANT := sun6i
-
-#####user define##
-PVR_NO_OMAP_TIMER :=1
 SGX_FEATURE_MP :=1
 SGX_FEATURE_MP_CORE_COUNT :=2
-SYS_OMAP4_HAS_DVFS_FRAMEWORK :=0
-BUILD := release
-PVR_NO_OMAP_TIMER :=1
-SUPPORT_SLC :=1
-LDM_PLATFORM :=1
+HAL_VARIANT := sun6i
+PVR_SYSTEM := sunxi
+DISPLAY_CONTROLLER := dc_sunxi
 LINUX :=1
 __linux__ :=1
+
+BUILD := release
 SUPPORT_MEMINFO_IDS :=0
-PVRSRV_DUMP_MK_TRACE :=0
-PVRSRV_USSE_EDM_STATUS_DEBUG := 0
-SUPPORT_ACTIVE_POWER_MANAGEMENT :=1
-SUPPORT_SGX_LOW_LATENCY_SCHEDULING :=1
+PVRSRV_DUMP_MK_TRACE :=1
+PVRSRV_USSE_EDM_STATUS_DEBUG := 1
 PVRSRV_NEED_PVR_DPF =: 1
 PVRSRV_NEW_PVR_DPF =: 1
+#PVR_ANDROID_HAL_FENCE_DEBUG =: 0
 
+PVR_NO_OMAP_TIMER :=1
+SYS_OMAP4_HAS_DVFS_FRAMEWORK :=0
+SUPPORT_SLC :=1
+LDM_PLATFORM :=1
+SGX_DYNAMIC_TIMING_INFO := 0
+SUPPORT_LINUX_USING_WORKQUEUES := 1
 SUPPORT_ION := 1
+SUPPORT_ACTIVE_POWER_MANAGEMENT :=1
+SUPPORT_SGX_LOW_LATENCY_SCHEDULING :=1
 ##################
 
 # We have more memory on OMAP platforms, so we can spare to make the
@@ -118,8 +103,7 @@ ifneq ($(strip $(KERNELDIR)),)
  ifeq ($(is_at_least_icecream_sandwich),1)
   ifeq ($(call kernel-version-at-least,3,0),true)
    SUPPORT_DC_CMDCOMPLETE_WHEN_NO_LONGER_DISPLAYED := 1
-   PVR_ANDROID_NEEDS_ACCUM_SYNC_WORKAROUND := 1
-   SYS_OMAP4_HAS_DVFS_FRAMEWORK := 0
+   SYS_OMAP_HAS_DVFS_FRAMEWORK := 1
   endif
  endif
 else
@@ -127,8 +111,7 @@ else
   $(warning "KERNELDIR is not set, so can't feature check DVFS or dsscomp.")
   $(warning "Assuming we want DVFS and dsscomp support.")
   SUPPORT_DC_CMDCOMPLETE_WHEN_NO_LONGER_DISPLAYED := 1
-  PVR_ANDROID_NEEDS_ACCUM_SYNC_WORKAROUND := 1
-  SYS_OMAP4_HAS_DVFS_FRAMEWORK := 0
+  SYS_OMAP_HAS_DVFS_FRAMEWORK := 1
  endif
 endif
 
@@ -136,12 +119,16 @@ ifneq ($(LDM_PLATFORM),1)
 SUPPORT_LINUX_USING_WORKQUEUES := 0
 SUPPORT_LINUX_USING_SHARED_WORKQUEUES := 1
 SUPPORT_ACTIVE_POWER_MANAGEMENT := 0
+ifneq ($(SUPPORT_PVRSRV_DEVICE_CLASS),0)
 DISPLAY_CONTROLLER := pvrlfb
 DISPLAY_CONTROLLER_COMPONENT := linux_framebuffer
 OMAP_NON_FLIP_DISPLAY := 1
-else
+endif
+else # LDM_PLATFORM != 1
+ifneq ($(SUPPORT_PVRSRV_DEVICE_CLASS),0)
 DISPLAY_CONTROLLER_COMPONENT := dc_sunxi
 endif
+endif # LDM_PLATFORM != 1
 
 ifeq ($(SUPPORT_DRI_DRM),1)
 ifeq ($(PVR_LDM_PLATFORM_PRE_REGISTERED),1)
@@ -152,32 +139,35 @@ else
 PVR_DRI_DRM_NOT_PCI := 1
 KERNEL_COMPONENTS += linux_drm
 endif
+ifneq ($(SUPPORT_PVRSRV_DEVICE_CLASS),0)
 EXTRA_PVRSRVKM_COMPONENTS += $(DISPLAY_CONTROLLER_COMPONENT)
+endif
 EXTRA_KBUILD_SOURCE := $(KERNELDIR)
 # FIXME: Only required for comparison with X's KM
 PVR_SECURE_DRM_AUTH_EXPORT := 1
 ifneq ($(OMAP_NON_FLIP_DISPLAY),1)
 PVR_DISPLAY_CONTROLLER_DRM_IOCTL := 1
 endif
-else
+else # SUPPORT_DRI_DRM == 1
+ifneq ($(SUPPORT_PVRSRV_DEVICE_CLASS),0)
 KERNEL_COMPONENTS += $(DISPLAY_CONTROLLER_COMPONENT)
 endif
+endif # SUPPORT_DRI_DRM == 1
 
 SUPPORT_ANDROID_OMAP_NV12 := 1
 
-ifeq ($(is_at_least_icecream_sandwich),1)
-ifeq ($(SUPPORT_ANDROID_COMPOSER_HAL),1)
 PVR_ANDROID_USE_WINDOW_TRANSFORM_HINT := 1
-endif
-endif
 
 PVR_ANDROID_PLATFORM_HAS_LINUX_FBDEV := 1
 
-# FIXME: Remove this once vsync issues are resolved
-PVR_ANDROID_COMPOSITOR_WAIT_FOR_RENDER := 1
-
-ifeq ($(is_at_least_icecream_sandwich),1)
--include products.mk
+# Handle Google's OMAP-based products
+#
+ifneq ($(filter tuna maguro toro mysid yakju,$(TARGET_DEVICE)),)
+# These default on in tuna_defconfig
+PVRSRV_USSE_EDM_STATUS_DEBUG ?= 1
+PVRSRV_DUMP_MK_TRACE ?= 1
+# Go back to the old compiler for tuna kernel modules
+KERNEL_CROSS_COMPILE := arm-eabi-
 endif
 
 ifeq ($(NO_HARDWARE),1)
@@ -185,10 +175,14 @@ ifeq ($(SUPPORT_DC_CMDCOMPLETE_WHEN_NO_LONGER_DISPLAYED),1)
 $(info WARNING: SUPPORT_DC_CMDCOMPLETE_WHEN_NO_LONGER_DISPLAYED=1 is incompatible with NO_HARDWARE=1)
 $(info WARNING: Setting SUPPORT_DC_CMDCOMPLETE_WHEN_NO_LONGER_DISPLAYED=0 and switching to dc_nohw)
 override SUPPORT_DC_CMDCOMPLETE_WHEN_NO_LONGER_DISPLAYED := 0
+ifneq ($(SUPPORT_PVRSRV_DEVICE_CLASS),0)
 override DISPLAY_CONTROLLER := dcnohw
 KERNEL_COMPONENTS += dc_nohw
 endif
-endif
+endif # SUPPORT_DC_CMDCOMPLETE_WHEN_NO_LONGER_DISPLAYED == 1
+endif # NO_HARDWARE == 1
+
+FORCE_ENABLE_GROW_SHRINK ?= 1
 
 include ../config/core.mk
 include ../common/android/extra_config.mk
@@ -196,13 +190,13 @@ include ../common/dridrm.mk
 include ../common/opencl.mk
 include ../common/omap4.mk
 
-# Not all OMAP4 kernels have a compatible DVFS framework
+# Not all OMAP kernels have a compatible DVFS framework
 #
-$(eval $(call TunableKernelConfigC,SYS_OMAP4_HAS_DVFS_FRAMEWORK,))
+$(eval $(call TunableKernelConfigC,SYS_OMAP_HAS_DVFS_FRAMEWORK,))
 
 # If set, services allows two flips to enter the processing queue,
 # and does not add read dependencies to the set of buffers last
-# flipped to. This is necessary for DSS composition on OMAP4.
+# flipped to. This is necessary for DSS composition on OMAP.
 # 
 $(eval $(call TunableKernelConfigC,SUPPORT_DC_CMDCOMPLETE_WHEN_NO_LONGER_DISPLAYED,))
 

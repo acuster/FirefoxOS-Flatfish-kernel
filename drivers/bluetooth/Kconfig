@@ -84,6 +84,14 @@ config BT_LPM
 	  Say Y here to compile support for bt lmp support into the kernel
 	  or say M to compile it as module (btlmp).
 
+config BT_LOW_LEVEL_TRIGGER
+	tristate "An inverter between bt hostwake pin and cpu"
+	depends on BT_LPM
+	default n
+	help
+	  This macro is needed while an inverter between bt_host_wake pin and cpu.
+	  Please check PCB to confirm whether define this macro, default is no.
+
 config BT_HCIUART_ATH3K
 	bool "Atheros AR300x serial support"
 	depends on BT_HCIUART

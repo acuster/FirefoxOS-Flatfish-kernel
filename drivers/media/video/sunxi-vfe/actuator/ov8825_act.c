@@ -23,7 +23,7 @@ static int subdev_i2c_write(struct actuator_ctrl_t *act_ctrl, unsigned short hal
 {
 	int ret=0;
 	struct i2c_client *client;
-	struct i2c_msg msg;
+//	struct i2c_msg msg;
 	unsigned char data[2];
 	
 	client = act_ctrl->i2c_client;
@@ -159,7 +159,7 @@ static int subdev_move_pos(struct actuator_ctrl_t *act_ctrl,
 		ret=subdev_set_code(act_ctrl,act_ctrl->step_position_table[dir+2*target_pos],0);
 		if(ret==0)
 		{
-			msleep(1);
+			usleep_range(1000,1200);;
 			act_ctrl->curr_pos = target_pos;
 		}
 		else
@@ -193,7 +193,7 @@ static int subdev_set_pos(struct actuator_ctrl_t *act_ctrl,
 	ret=subdev_set_code(act_ctrl,act_ctrl->step_position_table[2*target_pos],0);
 	if(ret==0)
 	{
-		msleep(1);
+		usleep_range(1000,1200);;
 		act_ctrl->curr_pos = target_pos;
 	}
 	else

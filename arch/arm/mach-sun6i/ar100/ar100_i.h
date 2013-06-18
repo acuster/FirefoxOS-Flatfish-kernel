@@ -29,9 +29,18 @@
 #include <linux/device.h>
 #include <linux/gpio.h>
 #include <linux/module.h>
+#include <linux/delay.h>
+#include <linux/platform_device.h>
+#include <mach/sys_config.h>
+#include <asm/atomic.h>
+
+#define DRV_NAME	"sun6i-ar100"
+#define DEV_NAME	"sun6i-ar100"
+#define DRV_VERSION "1.00"
 
 
 //local functions
 extern int ar100_config_dram_paras(void);
+extern int ar100_suspend_flag_query(void);
 
 #endif	//__AR100_I_H__

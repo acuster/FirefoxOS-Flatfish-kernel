@@ -39,6 +39,12 @@ struct kmem_cache 	*g_pmem_cache = NULL; /* mem cache for struct sunxi_mem_des *
 
 static DEFINE_MUTEX(sunmm_mutex);
 
+int flush_dcache_all(void);
+EXPORT_SYMBOL(flush_dcache_all);
+
+int flush_clean_user_range(long start, long end);
+EXPORT_SYMBOL(flush_clean_user_range);
+
 int sunmm_mmap(struct file *file, struct vm_area_struct * vma)
 {
 	pr_debug("%s, vm_start 0x%08x, vm_end 0x%08x, vm_pgoff 0x%08x, vm_page_prot 0x%08x\n",

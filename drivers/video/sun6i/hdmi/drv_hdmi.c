@@ -219,7 +219,14 @@ __s32 Hdmi_mode_support(__disp_tv_mode_t mode)
 
 __s32 Hdmi_get_HPD_status(void)
 {
-	return Hdmi_hal_get_HPD();
+	if(b_hdmi_suspend == 1)
+    {
+        return 0;
+    }
+    else
+    {
+        return Hdmi_hal_get_HPD();
+    }
 }
 
 

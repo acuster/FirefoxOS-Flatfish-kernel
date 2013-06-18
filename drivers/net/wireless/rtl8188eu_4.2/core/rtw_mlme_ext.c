@@ -6105,7 +6105,11 @@ void dump_mgntframe(_adapter *padapter, struct xmit_frame *pmgntframe)
 {
 	if(padapter->bSurpriseRemoved == _TRUE ||
 		padapter->bDriverStopped == _TRUE)
+	{
+		rtw_free_xmitbuf(&padapter->xmitpriv, pmgntframe->pxmitbuf);
+		rtw_free_xmitframe(&padapter->xmitpriv, pmgntframe);
 		return;
+	}
 
 	rtw_hal_mgnt_xmit(padapter, pmgntframe);
 }
@@ -6120,7 +6124,11 @@ s32 dump_mgntframe_and_wait(_adapter *padapter, struct xmit_frame *pmgntframe, i
 
 	if(padapter->bSurpriseRemoved == _TRUE ||
 		padapter->bDriverStopped == _TRUE)
-		return ret;
+        {
+                rtw_free_xmitbuf(&padapter->xmitpriv, pmgntframe->pxmitbuf);
+                rtw_free_xmitframe(&padapter->xmitpriv, pmgntframe);
+                return ret;
+        }
 
 	rtw_sctx_init(&sctx, timeout_ms);
 	pxmitbuf->sctx = &sctx;

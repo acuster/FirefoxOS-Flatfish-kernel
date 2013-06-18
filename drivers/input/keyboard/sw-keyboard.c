@@ -29,6 +29,9 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <linux/timer.h> 
+#include <linux/wakelock.h> 
+#include <linux/scenelock.h> 
+#include <linux/extended_standby.h> 
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
@@ -169,6 +172,7 @@ struct dev_pm_domain keyboard_pm_domain;
 static volatile unsigned int key_val;
 static struct input_dev *sun6ikbd_dev;
 static unsigned char scancode;
+static struct wake_lock lradc_lock;
 
 static unsigned char key_cnt = 0;
 static unsigned char compare_buffer[REPORT_START_NUM] = {0};
@@ -203,8 +207,12 @@ static void sun6i_keyboard_early_suspend(struct early_suspend *h)
 	if (NORMAL_STANDBY == standby_type) {
 		writel(0,KEY_BASSADDRESS + LRADC_CTRL);
 	/* process for super standby */	
-	} else if (SUPER_STANDBY == standby_type)
-		;
+	} else if (SUPER_STANDBY == standby_type) {
+		if (check_scene_locked(SCENE_TALKING_STANDBY) == 0) {
+			printk("lradc-key: talking standby, enable wakeup source lradc!!\n");
+			enable_wakeup_src(CPUS_LRADC_SRC, 0);
+		}
+	}
 	
 	return ;
 }
@@ -223,12 +231,17 @@ static void sun6i_keyboard_late_resume(struct early_suspend *h)
 			|LRADC_SAMPLE_250HZ|LRADC_EN,KEY_BASSADDRESS + LRADC_CTRL);
 	/* process for super standby */	
 	} else if (SUPER_STANDBY == standby_type) {
+		if (check_scene_locked(SCENE_TALKING_STANDBY) != 0) {
 #ifdef ONE_CHANNEL
 		writel(LRADC_ADC0_DOWN_EN|LRADC_ADC0_UP_EN|LRADC_ADC0_DATA_EN,KEY_BASSADDRESS + LRADC_INTC);	
 		writel(FIRST_CONCERT_DLY|LEVELB_VOL|KEY_MODE_SELECT|LRADC_HOLD_EN|ADC_CHAN_SELECT \
 			|LRADC_SAMPLE_250HZ|LRADC_EN,KEY_BASSADDRESS + LRADC_CTRL);
 #else
 #endif
+		} else {
+			disable_wakeup_src(CPUS_LRADC_SRC, 0);
+			printk("lradc-key: resume from talking standby!!\n");
+		}
 	}
 	
 	return ; 
@@ -290,6 +303,10 @@ static irqreturn_t sun6i_isr_key(int irq, void *dummy)
 	
 	reg_val  = readl(KEY_BASSADDRESS + LRADC_INT_STA);
 	//writel(reg_val,KEY_BASSADDRESS + LRADC_INT_STA);
+
+	if (check_scene_locked(SCENE_TALKING_STANDBY) == 0) {
+		wake_lock_timeout(&lradc_lock, msecs_to_jiffies(1000));
+	}
 
 	if (reg_val & LRADC_ADC0_DOWNPEND) {	
 		dprintk(DEBUG_INT, "key down\n");
@@ -445,6 +462,8 @@ static int __init sun6ikbd_init(void)
 	keyboard_data->early_suspend.resume	= sun6i_keyboard_late_resume;
 	register_early_suspend(&keyboard_data->early_suspend);
 #endif
+	wake_lock_init(&lradc_lock, WAKE_LOCK_SUSPEND, "lradc_wakelock");
+
 	dprintk(DEBUG_INIT, "sun6ikbd_init end\n");
 
 	return 0;
@@ -463,6 +482,7 @@ fail1:
 
 static void __exit sun6ikbd_exit(void)
 {	
+	wake_lock_destroy(&lradc_lock);
 #ifdef CONFIG_HAS_EARLYSUSPEND	
 	unregister_early_suspend(&keyboard_data->early_suspend);	
 #endif

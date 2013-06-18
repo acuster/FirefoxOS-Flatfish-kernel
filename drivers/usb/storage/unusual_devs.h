@@ -58,6 +58,39 @@
 #define NO_SDDR09
 #endif
 
+//-----------------------------------------------------------------------------
+//   CD-ROM change to serail
+//-----------------------------------------------------------------------------
+/*
+#define UNUSUAL_DEV(idVendor, idProduct, bcdDeviceMin, bcdDeviceMax, \
+		    vendor_name, product_name, use_protocol, use_transport, \
+		    init_function, Flags) \
+{ \
+	.vendorName = vendor_name,	\
+	.productName = product_name,	\
+	.useProtocol = use_protocol,	\
+	.useTransport = use_transport,	\
+	.initFunction = init_function,	\
+}
+*/
+
+/*----------------------Qualcomm---------------------------------*/
+UNUSUAL_DEV(0x8888, 0x6500, 0x0, 0x0,
+			"Qualcomm, Incorporated",
+			"Qualcomm CDMA Technologies MSM",
+			USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_dongle_not_report_disk,
+			0),
+
+#if 0
+
+/*----------------------huawei---------------------------------*/
+HW_UNUSUAL_DEV( 0x12d1, 0x08, 0x06, 0x50,
+			"HUAWEI",
+			"HUAWEI MOBILE Mass Storage",
+			USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_huawei_init,
+			0),
+#endif
+
 /* patch submitted by Vivian Bregier <Vivian.Bregier@imag.fr>
  */
 UNUSUAL_DEV(  0x03eb, 0x2002, 0x0100, 0x0100,
@@ -1877,12 +1910,6 @@ UNUSUAL_DEV(  0x12d1, 0x1da1, 0x0100, 0x0100,
 		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_huawei_e220_init,
 		0),
 
-
-UNUSUAL_DEV(  0x05c6, 0x6000, 0x0000, 0x0000,
-		"HUAWEI MOBILE",
-		"Mass Storage",
-		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_huawei_e220_init,
-		0),
 //MU350--ZTE--	0x19D20003->0x19D20003	don't report disk device
 UNUSUAL_DEV(0x19D2,0x0003,0x0100,0x0100,
 		"ZTE MOBILE-TD",
@@ -2256,6 +2283,39 @@ UNUSUAL_DEV(0x1c9e,0x6061,0x0,0x0,
 		"HSUPA USB MODEM ",
 		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_people_init,
 		0),
+
+
+//-----------------------------------------------------------------------------
+//   don't report disk device
+//-----------------------------------------------------------------------------
+
+/*
+#define UNUSUAL_DEV(idVendor, idProduct, bcdDeviceMin, bcdDeviceMax, \
+		    vendor_name, product_name, use_protocol, use_transport, \
+		    init_function, Flags) \
+{ \
+	.vendorName = vendor_name,	\
+	.productName = product_name,	\
+	.useProtocol = use_protocol,	\
+	.useTransport = use_transport,	\
+	.initFunction = init_function,	\
+}
+*/
+
+/*----------------------Qualcomm---------------------------------*/
+UNUSUAL_DEV(0x05c6, 0x6000, 0x0, 0x0,
+			"Qualcomm, Incorporated",
+			"Qualcomm CDMA Technologies MSM",
+			USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_dongle_not_report_disk,
+			0),
+
+/*----------------------ZTE---------------------------------*/
+UNUSUAL_DEV(0x19D2, 0x0015, 0x0000, 0x0000,
+			"Qualcomm, Incorporated",
+			"ZTE CDMA Technologies MSM",
+			USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_dongle_not_report_disk,
+			0),
+
 
 /* Control/Bulk transport for all SubClass values */
 USUAL_DEV(USB_SC_RBC, USB_PR_CB, USB_US_TYPE_STOR),

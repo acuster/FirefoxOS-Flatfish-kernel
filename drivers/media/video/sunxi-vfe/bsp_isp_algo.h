@@ -46,14 +46,7 @@
 #define ISP_AE_HIGH_BRI_TH_MAX  
 #define ISP_AE_LOW_BRI_TH_MAX    
 
-//#define ISP_AE_DIGITAL_GAIN_INTER  1
-//#define ISP_AE_ANALOG_GAIN_INTER   1
-//#define ISP_AE_SENSOR_EXP_INTER    3
-//#define ISP_AE_SENSOR_GAIN_INTER   2
-
-
 #define ISP_AE_EXP_CHANGE_INTER    2
-#define ISP_AE_ANG_CHANGE_INTER    1//1
 #define ISP_AE_DIG_CHANGE_INTER    0
 
 
@@ -234,8 +227,8 @@ enum flash_mode
 {
   FLASH_MODE_OFF      = 0,
   FLASH_MODE_ON       = 1,
-  FLASH_MODE_AUTO     = 2,
-  FLASH_MODE_TORCH    = 3,
+  FLASH_MODE_TORCH    = 2,
+  FLASH_MODE_AUTO     = 3,
   FLASH_MODE_RED_EYE  = 4,
 };
 
@@ -352,18 +345,18 @@ struct isp_3a_result
   int flash_on;
   int hdr_req;
 
-  int iso_value;                  /* 真实iso，用于照片显示信息 */
+  int iso_value;                  /* ISO*/
   int exp_time;                   /* us */
-  unsigned int exp_cal_gain;      /* AE算法计算得来的相对增益，AF算法与AFS要用到 */
+  unsigned int exp_cal_gain;      /* AE_GAIN */
 
   /* Flicker Output */
   
-  unsigned int ae_exp_time;         /* 由flicker算法得到曝光时间，曝光算法需要用到 */ 
-  unsigned int band_step;           /* 由flicker算法得到，曝光算法需要用到 */
-  unsigned int auto_afs_flag;       /* 由auto flicker标志，在处理hal层传来的参数为自动时，将该标志置1 */
+  unsigned int ae_exp_time;        
+  unsigned int band_step;           
+  unsigned int auto_afs_flag;
   
-  enum detected_flicker_type flicker_type;     /* flicker 类型，暂时分三种: 无, 50Hz, 60Hz */
-  unsigned int band_step_50;                   /* flicker算法中间计算结果，曝光算法要用到 */
+  enum detected_flicker_type flicker_type;
+  unsigned int band_step_50;
   unsigned int band_step_60;
   
   /* AF Output */
@@ -408,9 +401,8 @@ struct isp_driver_to_3a_stat
   unsigned int scale_ratio;
   struct vcm_para vcm_cfg;
 
-  /*可以由驱动读sensor，或者由算法保存上次的计算结果 */
-  unsigned int curr_exp_line;         /* 曝光行数*16 */
-  unsigned int curr_ang_gain;         /* 模拟增益*16 */
+  unsigned int curr_exp_line;         /* Q4 */
+  unsigned int curr_ang_gain;         /* Q4 */
   unsigned int curr_dig_gain;
 
   /* v4l2 drivers fill */
@@ -422,7 +414,6 @@ struct isp_driver_to_3a_stat
   
   
   /* ISP drivers fill */
-  /* 窗口信息需从saved读 */
   struct isp_h3a_reg_win ae_reg_win_saved;
   struct isp_white_balance_gain wb_gain_saved;
   struct isp_wb_diff_threshold diff_th_saved;
@@ -440,8 +431,7 @@ struct exposure_settings
 {
   int exp_compensation;
   int exp_priorty;
-  
-  /*手动曝光要用到绝对曝光值，需要算法计算出相应的曝光行数以及增益去改变sensor的配置*/
+
   unsigned int exp_absolute;
   int iso_sensitivity;
   
@@ -493,7 +483,7 @@ struct drc_gen_ctrl
 
 /*
 *
-*struct isp_alg_para - 读ini文件调节相应算法的可配置参数.
+*struct isp_alg_para.
 *
 */
 struct isp_alg_para
@@ -513,7 +503,6 @@ struct isp_alg_para
   unsigned int ae_max_exp_line;
   unsigned int ae_max_analog_gain;
   
-  /* AE算法间隔帧数 */
   unsigned int awb_interval_frame;
   unsigned int af_interval_frame;
 
@@ -562,6 +551,8 @@ struct isp_init_config
   /*isp tune param */
   int denoise_level;
   int sharpness_level;
+  int defog_value;
+  int gain_delay_frame;
   int pri_contrast;  
   int lsc_center[2];
   int vcm_min_code;
@@ -622,11 +613,9 @@ struct isp_gen_settings
   struct isp_module_config module_cfg;
   //unsigned int isp_module_update_flags;
   
-  /* 读ini文件调节相应算法的可配置参数. */
   struct isp_alg_para alg_para;
   struct isp_init_config isp_ini_cfg;
 
-  /* 调试等级 */
   unsigned alg_frame_cnt;
   unsigned take_pic_start_cnt;
   int take_picture_flag;
@@ -655,7 +644,6 @@ enum e3a_settings_flags
   SET_EXP_WIN_MODE           = 1 << 8,
   SET_LENS                   = 1 << 9,
   SET_HUE                    = 1 << 10,
-  //SET_E                      = 1 << 11,
 
   ISP_SETTING_MAX,
   
@@ -667,6 +655,7 @@ enum e3a_settings_flags
  *  ISP Module API
  */
 
+void isp_param_init(struct isp_gen_settings *isp_gen);
 int  isp_module_init(struct isp_gen_settings *isp_gen, struct isp_3a_result *isp_result);
 void isp_module_cleanup(struct isp_gen_settings *isp_gen);
 void isp_isr(struct isp_gen_settings *isp_gen, struct isp_3a_result *isp_result);
@@ -720,12 +709,6 @@ void bsp_isp_s_auto_focus_start(struct isp_gen_settings *isp_gen, int value);
 void bsp_isp_s_auto_focus_stop(struct isp_gen_settings *isp_gen, int value);
 void bsp_isp_s_auto_focus_status(struct isp_gen_settings *isp_gen, int value);
 void bsp_isp_s_auto_focus_range(struct isp_gen_settings *isp_gen, int value);
-
-
-/*
- *  ISP DEBUG API
- */
-
 
 #endif //__BSP__ISP__ALGO__H
 

@@ -71,14 +71,14 @@ u32  open_usb_clock(sw_udc_io_t *sw_udc_io)
 
 	if(sw_udc_io->ahb_otg && sw_udc_io->mod_usbotg && sw_udc_io->mod_usbphy && !sw_udc_io->clk_is_open){
 	   	clk_enable(sw_udc_io->ahb_otg);
-		mdelay(10);
+		udelay(100);
 
 	    //clk_enable(sw_udc_io->mod_usbotg); /*NO SCLK_GATING_OTG */
 		clk_reset(sw_udc_io->mod_usbotg, AW_CCU_CLK_NRESET);
 
 	    clk_enable(sw_udc_io->mod_usbphy);
 	    clk_reset(sw_udc_io->mod_usbphy, AW_CCU_CLK_NRESET);
-		mdelay(10);
+		udelay(100);
 
 		sw_udc_io->clk_is_open = 1;
 	}else{

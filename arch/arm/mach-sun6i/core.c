@@ -137,7 +137,7 @@ void __init sun6i_reserve(void)
 
 #if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
 	/* reserve for ION */
-	memblock_reserve(ion_mem.start, ion_mem.size);
+	memblock_remove(ion_mem.start, ion_mem.size);
 #endif
 }
 

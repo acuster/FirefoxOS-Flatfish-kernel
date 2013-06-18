@@ -64,12 +64,16 @@ typedef struct ar100_message
 #define	AR100_MESSAGE_BASE	(0x10)
 
 //standby commands
-#define	AR100_SSTANDBY_ENTER_REQ	 	(AR100_MESSAGE_BASE + 0x00)  //request to enter(ac327 to ar100)
-#define	AR100_SSTANDBY_RESTORE_NOTIFY   (AR100_MESSAGE_BASE + 0x01)  //restore finished(ac327 to ar100)
-#define	AR100_NSTANDBY_ENTER_REQ	 	(AR100_MESSAGE_BASE + 0x02)  //request to enter(ac327 to ar100)
-#define	AR100_NSTANDBY_WAKEUP_NOTIFY    (AR100_MESSAGE_BASE + 0x03)  //wakeup notify   (ar100 to ac327)
-#define	AR100_NSTANDBY_RESTORE_REQ      (AR100_MESSAGE_BASE + 0x04)  //request to restore    (ac327 to ar100)
-#define	AR100_NSTANDBY_RESTORE_COMPLETE (AR100_MESSAGE_BASE + 0x05)  //ar100 restore complete(ar100 to ac327)
+#define	AR100_SSTANDBY_ENTER_REQ	 (AR100_MESSAGE_BASE + 0x00)  /* request to enter(ac327 to ar100)	*/
+#define	AR100_SSTANDBY_RESTORE_NOTIFY    (AR100_MESSAGE_BASE + 0x01)  /* restore finished(ac327 to ar100)	*/
+#define	AR100_NSTANDBY_ENTER_REQ	 (AR100_MESSAGE_BASE + 0x02)  /* request to enter(ac327 to ar100)	*/
+#define	AR100_NSTANDBY_WAKEUP_NOTIFY     (AR100_MESSAGE_BASE + 0x03)  /* wakeup notify   (ar100 to ac327)	*/
+#define	AR100_NSTANDBY_RESTORE_REQ       (AR100_MESSAGE_BASE + 0x04)  /* request to restore    (ac327 to ar100)	*/
+#define	AR100_NSTANDBY_RESTORE_COMPLETE  (AR100_MESSAGE_BASE + 0x05)  /* ar100 restore complete(ar100 to ac327)	*/
+#define	AR100_ESSTANDBY_ENTER_REQ        (AR100_MESSAGE_BASE + 0x06)  /* request to enter       (ac327 to ar100)*/
+#define	AR100_FAKE_POWER_OFF_REQ         (AR100_MESSAGE_BASE + 0x07)  /* request to enter(ac327 to ar100)	*/
+#define AR100_TSTANDBY_ENTER_REQ         (AR100_MESSAGE_BASE + 0x08)  /* request to enter(ac327 to ar100)       */
+#define AR100_TSTANDBY_RESTORE_NOTIFY    (AR100_MESSAGE_BASE + 0x09)  /* restore finished(ac327 to ar100)       */
 
 //dvfs commands
 #define	AR100_CPUX_DVFS_REQ		 	(AR100_MESSAGE_BASE + 0x20)  //request dvfs    (ac327 to ar100)

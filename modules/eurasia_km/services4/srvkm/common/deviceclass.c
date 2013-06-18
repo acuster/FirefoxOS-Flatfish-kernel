@@ -1338,7 +1338,7 @@ PVRSRV_ERROR PVRSRVCreateDCSwapChainKM (PVRSRV_PER_PROCESS_DATA	*psPerProc,
 	OSMemSet (psSwapChain, 0, sizeof(PVRSRV_DC_SWAPCHAIN));
 
 	/* Create a command queue for the swapchain	*/
-	eError = PVRSRVCreateCommandQueueKM(2048, &psQueue);
+	eError = PVRSRVCreateCommandQueueKM(2048, &psQueue);//aw
 	if(eError != PVRSRV_OK)
 	{
 		PVR_DPF((PVR_DBG_ERROR,"PVRSRVCreateDCSwapChainKM: Failed to create CmdQueue"));
@@ -1829,7 +1829,7 @@ PVRSRV_ERROR PVRSRVSwapToDCBuffer2KM(IMG_HANDLE	hDeviceKM,
 	SYS_DATA *psSysData;
 
 #if defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC)
-	struct sync_fence *apsFence[SGX_MAX_SRC_SYNCS_TA];
+	struct sync_fence *apsFence[SGX_MAX_SRC_SYNCS_TA] = {};//CL2503319
 #endif /* defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC) */
 
 	if(!hDeviceKM || !hSwapChain || !ppsMemInfos || !ppsSyncInfos || ui32NumMemSyncInfos < 1)
@@ -1936,9 +1936,8 @@ PVRSRV_ERROR PVRSRVSwapToDCBuffer2KM(IMG_HANDLE	hDeviceKM,
 					  sizeof(IMG_BOOL) * psSwapChain->ui32LastNumSyncInfos,
 					  (IMG_VOID *)abUnique, IMG_NULL);
 #if defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC)
-			for(i = 0; apsFence[i]; i++)
-				if(apsFence[i])
-					sync_fence_put(apsFence[i]);
+			for(i = 0; i < SGX_MAX_SRC_SYNCS_TA && apsFence[i]; i++)//CL2503319
+				sync_fence_put(apsFence[i]);
 #endif
 			goto Exit;
 		}
@@ -1999,9 +1998,8 @@ PVRSRV_ERROR PVRSRVSwapToDCBuffer2KM(IMG_HANDLE	hDeviceKM,
 			{
 				PVR_DPF((PVR_DBG_ERROR,"PVRSRVSwapToDCBuffer2KM: Failed to allocate space for meminfo list"));
 #if defined(PVR_ANDROID_NATIVE_WINDOW_HAS_SYNC)
-				for(i = 0; apsFence[i]; i++)
-					if(apsFence[i])
-						sync_fence_put(apsFence[i]);
+				for(i = 0; i < SGX_MAX_SRC_SYNCS_TA && apsFence[i]; i++)//CL2503319
+					sync_fence_put(apsFence[i]);
 #endif
 				goto Exit;
 			}
@@ -2023,7 +2021,13 @@ PVRSRV_ERROR PVRSRVSwapToDCBuffer2KM(IMG_HANDLE	hDeviceKM,
 				if(j == ui32NumSyncInfos)
 				{
 					/* Insert the unique one */
+//aw
+#ifdef DEBUG
+					if(k >= ui32NumCompiledSyncInfos)
+						PVR_DPF((PVR_DBG_ERROR,"PVRSRVSwapToDCBuffer2KM: ASSERT Failed!(k < ui32NumCompiledSyncInfos)"));
+#else
 					PVR_ASSERT(k < ui32NumCompiledSyncInfos);
+#endif
 					ppsCompiledSyncInfos[k] = ppsMemInfos[i]->psKernelSyncInfo;
 					k++;
 				}
@@ -2055,9 +2059,8 @@ PVRSRV_ERROR PVRSRVSwapToDCBuffer2KM(IMG_HANDLE	hDeviceKM,
 	 * can put the fences now. Even if the fences are deleted, the syncs
 	 * will persist.
 	 */
-	for(i = 0; apsFence[i]; i++)
-		if(apsFence[i])
-			sync_fence_put(apsFence[i]);
+	for(i = 0; i < SGX_MAX_SRC_SYNCS_TA && apsFence[i]; i++)//CL2503319
+		sync_fence_put(apsFence[i]);
 #endif
 
 	if (ppsCompiledSyncInfos != ppsSyncInfos)
@@ -2486,13 +2489,12 @@ static PVRSRV_ERROR
 PVRSRVDCMemInfoGetCpuPAddr(PVRSRV_KERNEL_MEM_INFO *psKernelMemInfo,
 						   IMG_SIZE_T uByteOffset, IMG_CPU_PHYADDR *pPAddr)
 {
-    if(psKernelMemInfo && psKernelMemInfo->psKernelSyncInfo && psKernelMemInfo->psKernelSyncInfo->psSyncDataMemInfoKM && 
-        psKernelMemInfo->psKernelSyncInfo->psSyncData)
+    if(psKernelMemInfo && psKernelMemInfo->psKernelSyncInfo && (psKernelMemInfo->ui32RefCount > 0))//aw
     {
 	    *pPAddr = OSMemHandleToCpuPAddr(psKernelMemInfo->sMemBlk.hOSMemHandle, uByteOffset);
 	    return PVRSRV_OK;
 	}
-	else
+	else//aw
 	{
 	    if(!psKernelMemInfo)
 	    {
@@ -2502,13 +2504,9 @@ PVRSRVDCMemInfoGetCpuPAddr(PVRSRV_KERNEL_MEM_INFO *psKernelMemInfo,
         {
             PVR_DPF((PVR_DBG_ERROR, "##PVRSRVDCMemInfoGetCpuPAddr fail, psKernelMemInfo->psKernelSyncInfo is NULL"));
         }
-        else if(!psKernelMemInfo->psKernelSyncInfo->psSyncDataMemInfoKM)
+        else if(psKernelMemInfo->ui32RefCount <= 0)
         {
-            PVR_DPF((PVR_DBG_ERROR, "##PVRSRVDCMemInfoGetCpuPAddr fail, psKernelMemInfo->psKernelSyncInfo->psSyncDataMemInfoKM is NULL"));
-        }
-        else if(!psKernelMemInfo->psKernelSyncInfo->psSyncData)
-        {
-            PVR_DPF((PVR_DBG_ERROR, "##PVRSRVDCMemInfoGetCpuPAddr fail, psKernelMemInfo->psKernelSyncInfo->psSyncData is NULL"));
+            PVR_DPF((PVR_DBG_ERROR, "##PVRSRVDCMemInfoGetCpuPAddr fail, psKernelMemInfo->ui32RefCount <= 0"));
         }
         return PVRSRV_ERROR_INVALID_PARAMS;
 	}

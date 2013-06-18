@@ -227,7 +227,7 @@ static struct regval_list sensor_default_regs[] = {
 {0x7A,0x27},//--;
 {0x7B,0x00},//--;
 {0x7C,0x1F},//--;
-{0x7D,0x8F},//LSSCON ///(4)/;
+{0x7D,0x0F},//LSSCON ///(4)/;
 {0x7E,0x00},//LSHGA[3:0] / LSVGA[3:0];
 {0x7F,0x00},//LSHOFS[7:0] // H Center position;
 {0x80,0x00},//LSVOFS[7:0] // V Center position;
@@ -379,6 +379,25 @@ static struct regval_list sensor_default_regs[] = {
 //{0xB4,0xFF},//--;
 //{0xB5,0xFF},//--;
 //{0xB6,0xCE},//--;
+
+{0xFE,0x20},//--Suzuki20121222;
+{0x6A,0x40},//--Suzuki20121222;
+{0x6B,0x20},//--Suzuki20121222;
+{0x6C,0xC4},//--Suzuki20121222;
+{0xB7,0x0C},//--Suzuki20121222;
+{0xB8,0x1A},//--Suzuki20121222;
+{0xEA,0x00},//--Suzuki20121222;
+{0xEB,0x00},//--Suzuki20121222;
+{0xEC,0xEE},//--Suzuki20121222;
+{0xED,0x00},//--Suzuki20121222;
+{0xEE,0x80},//--Suzuki20121222;
+{0xEF,0x28},//--Suzuki20121222;
+//{0xF9,0x88},//--Suzuki20121222;
+//{0xFA,0x58},//--Suzuki20121222;
+//{0xFB,0x33},//--Suzuki20121222;
+//{0xFC,0x08},//--Suzuki20121222;
+//{0xFD,0x68},//--Suzuki20121222;
+{0xFF,0x80},//--Suzuki20121222;
 
 {0xFE,0x1A},//enable NR
 
@@ -685,7 +704,7 @@ static int sensor_s_hflip(struct v4l2_subdev *sd, int value)
   
   LOG_ERR_RET(sensor_write(sd, 0x3821, rdval))
   
-  mdelay(10);
+  usleep_range(10000,12000);
   info->hflip = value;
   return 0;
 }
@@ -728,7 +747,7 @@ static int sensor_s_vflip(struct v4l2_subdev *sd, int value)
 
   LOG_ERR_RET(sensor_write(sd, 0x3820, rdval))
   
-  mdelay(10);
+  usleep_range(10000,12000);
   info->vflip = value;
   return 0;
 }
@@ -756,8 +775,6 @@ static int sensor_s_exp(struct v4l2_subdev *sd, unsigned int exp_val)
 	exp_val=(exp_val+8)>>4;//rounding to 1
 	
 	vfe_dev_dbg("sensor_set_exposure real= %d\n", exp_val);
-	if(info->exp == exp_val)
-		return 0;
   
     exphigh = (unsigned char) ( (0xff00&exp_val)>>8);
     explow  = (unsigned char) ( (0x00ff&exp_val) );
@@ -787,12 +804,8 @@ static int sensor_s_gain(struct v4l2_subdev *sd, int gain_val)
 	
 	if(gain_val<16)
 	  gain_val=16;
-	if(info->gain == gain_val)
-		return 0;
 	
-	printk("org gain=%d\n",gain_val);
 	gain_tmp=((gain_val)*26)>>4;//round to 1/26 step
-	printk("re gain=%d\n",gain_tmp);
 	
 	gainlow=(unsigned char)(gain_tmp&0xff);
 	gainhigh=(unsigned char)((gain_tmp>>8)&0xff);
@@ -851,7 +864,7 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       ret = sensor_s_sw_stby(sd, CSI_STBY_ON);
       if(ret < 0)
         vfe_dev_err("soft stby falied!\n");
-      mdelay(10);
+      usleep_range(10000,12000);
       //make sure that no device can access i2c bus during sensor initial or power down
       //when using i2c_lock_adpater function, the following codes must not access i2c bus before calling i2c_unlock_adapter
       i2c_lock_adapter(client->adapter);
@@ -870,17 +883,17 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       //active mclk before stadby out
       vfe_set_mclk_freq(sd,MCLK);
       vfe_set_mclk(sd,ON);
-      mdelay(10);
+      usleep_range(10000,12000);
       //standby off io
       vfe_gpio_write(sd,PWDN,CSI_STBY_OFF);
-      mdelay(10);
+      usleep_range(10000,12000);
       //remember to unlock i2c adapter, so the device can access the i2c bus again
       i2c_unlock_adapter(client->adapter);        
       //software standby
       ret = sensor_s_sw_stby(sd, CSI_STBY_OFF);
       if(ret < 0)
         vfe_dev_err("soft stby off falied!\n");
-      mdelay(10);
+      usleep_range(10000,12000);
 //      vfe_dev_print("enable oe!\n");
 //      ret = sensor_write_array(sd, sensor_oe_enable_regs);
 //      if(ret < 0)
@@ -898,11 +911,11 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       vfe_gpio_write(sd,PWDN,CSI_STBY_ON);
       //reset on io
       vfe_gpio_write(sd,RESET,CSI_RST_ON);
-      mdelay(1);
+      usleep_range(1000,1200);
       //active mclk before power on
       vfe_set_mclk_freq(sd,MCLK);
       vfe_set_mclk(sd,ON);
-      mdelay(10);
+      usleep_range(10000,12000);
       //power supply
       vfe_gpio_write(sd,POWER_EN,CSI_PWR_ON);
       vfe_set_pmu_channel(sd,IOVDD,ON);
@@ -911,10 +924,10 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       vfe_set_pmu_channel(sd,AFVDD,ON);
       //standby off io
       vfe_gpio_write(sd,PWDN,CSI_STBY_OFF);
-      mdelay(10);
+      usleep_range(10000,12000);
       //reset after power on
       vfe_gpio_write(sd,RESET,CSI_RST_OFF);
-      mdelay(30);
+      usleep_range(30000,31000);
       //remember to unlock i2c adapter, so the device can access the i2c bus again
       i2c_unlock_adapter(client->adapter);  
       break;
@@ -932,7 +945,7 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       vfe_set_pmu_channel(sd,AVDD,OFF);
       vfe_set_pmu_channel(sd,IOVDD,OFF);  
       //standby and reset io
-      mdelay(10);
+      usleep_range(10000,12000);
       vfe_gpio_write(sd,POWER_EN,CSI_STBY_OFF);
       vfe_gpio_write(sd,RESET,CSI_RST_ON);
       //set the io to hi-z
@@ -954,11 +967,11 @@ static int sensor_reset(struct v4l2_subdev *sd, u32 val)
   {
     case 0:
       vfe_gpio_write(sd,RESET,CSI_RST_OFF);
-      mdelay(10);
+      usleep_range(10000,12000);
       break;
     case 1:
       vfe_gpio_write(sd,RESET,CSI_RST_ON);
-      mdelay(10);
+      usleep_range(10000,12000);
       break;
     default:
       return -EINVAL;

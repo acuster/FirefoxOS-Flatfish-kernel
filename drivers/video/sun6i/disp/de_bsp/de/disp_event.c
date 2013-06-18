@@ -28,7 +28,7 @@ __s32 BSP_disp_cmd_cache(__u32 sel)
     unsigned long flags;
     spin_lock_irqsave(&gdisp.screen[sel].flag_lock, flags);
 #endif
-    gdisp.screen[sel].cache_flag = true;
+    gdisp.screen[sel].cache_flag = TRUE;
 #ifdef __LINUX_OSAL__
     spin_unlock_irqrestore(&gdisp.screen[sel].flag_lock, flags);
 #endif
@@ -168,9 +168,6 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
         }
 
 		gdisp.screen[sel].have_cfg_reg = TRUE;
-
-		gdisp.init_para.take_effect(sel);
-
     }
 
 #if 0

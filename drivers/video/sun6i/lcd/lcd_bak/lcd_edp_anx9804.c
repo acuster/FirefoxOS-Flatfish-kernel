@@ -25,7 +25,7 @@ void anx9804_init(__panel_para_t * info)
 
      //HW reset
 	lcd_iic_write(0x72, DP_TX_RST_CTRL_REG, DP_TX_RST_HW_RST);
-	LCD_delay_ms(100);
+	LCD_delay_ms(10);
 	lcd_iic_write(0x72, DP_TX_RST_CTRL_REG, 0x00);
 	//Power on total and select DP mode
   lcd_iic_write(0x72, DP_POWERD_CTRL_REG, 0x00 );
@@ -149,6 +149,22 @@ void anx9804_init(__panel_para_t * info)
 	lcd_iic_write(0x70, DP_TX_HDCP_CONTROL_0_REG, 0x00 );
 	lcd_iic_write(0x70, 0xA7, 0x00 );//Spread spectrum 30 kHz
 	//end
+
+  /* enable ssc function */
+  lcd_iic_write(0x70, 0xa7, 0x00);                   // disable SSC first
+  lcd_iic_write(0x70, 0xa0, 0x00);                   //disable speed first
+  lcd_iic_write(0x72, 0xde, 0x99);                   //set duty cycle
+  lcd_iic_read(0x70, 0xc7, &c);                      //reset DP PLL
+  lcd_iic_write(0x70, 0xc7, c & (~0x40));
+  lcd_iic_read(0x70, 0xd8, &c);                      //M value select, select clock with downspreading
+  lcd_iic_write(0x70, 0xd8, (c | 0x01));
+  lcd_iic_write(0x70, 0xc7, 0x02);                   //PLL power 1.7V
+  lcd_iic_write(0x70, 0xd0, 0xb8);                   // ssc d 0.5%
+  lcd_iic_write(0x70, 0xd1, 0x6D);                   // ctrl_th 30.4237K
+  lcd_iic_write(0x70, 0xa7, 0x10);                   // enable SSC
+  lcd_iic_read(0x72, 0x07, &c);                      //ssc reset
+  lcd_iic_write(0x72, 0x07, c | 0x80);
+  lcd_iic_write(0x72, 0x07, c & (~0x80));
 
 	//Select 2.7G
 	//lcd_iic_write(0x70, DP_TX_LINK_BW_SET_REG, 0x0a);

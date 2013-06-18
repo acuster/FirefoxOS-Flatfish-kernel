@@ -840,7 +840,7 @@ typedef struct dhd_pkttag {
 	(dstn_MAC_ea), ETHER_ADDR_LEN)
 #define DHD_PKTTAG_DSTN(tag)	((dhd_pkttag_t*)(tag))->dstn_ether
 
-typedef int (*f_commitpkt_t)(void* ctx, void* p);
+typedef int (*f_commitpkt_t)(void* ctx, void* p, bool wlfc_locked);
 
 #ifdef PROP_TXSTATUS_DEBUG
 #define DHD_WLFC_CTRINC_MAC_CLOSE(entry)	do { (entry)->closed_ct++; } while (0)

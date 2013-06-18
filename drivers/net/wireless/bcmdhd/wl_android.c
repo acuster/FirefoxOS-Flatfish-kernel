@@ -453,10 +453,14 @@ int wl_android_wifi_on(struct net_device *dev)
 			goto exit;
 		}
 		ret = dhd_dev_reset(dev, FALSE);
+		if (ret)
+			goto err;
 		sdioh_start(NULL, 1);
 		if (!ret) {
-			if (dhd_dev_init_ioctl(dev) < 0)
+			if (dhd_dev_init_ioctl(dev) < 0) {
 				ret = -EFAULT;
+				goto err;
+			}
 		}
 #if defined(PROP_TXSTATUS) && !defined(PROP_TXSTATUS_VSDB)
 		dhd_wlfc_init(bcmsdh_get_drvdata());
@@ -466,6 +470,15 @@ int wl_android_wifi_on(struct net_device *dev)
 
 exit:
 	dhd_net_if_unlock(dev);
+	printk("%s: Success\n", __FUNCTION__);
+	return ret;
+
+err:
+	dhd_dev_reset(dev, TRUE);
+	sdioh_stop(NULL);
+	dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
+	dhd_net_if_unlock(dev);
+	printk("%s: Failed\n", __FUNCTION__);
 
 	return ret;
 }

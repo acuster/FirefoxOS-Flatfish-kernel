@@ -132,6 +132,7 @@ static irqreturn_t VideoEngineInterupt(int irq, void *dev)
     unsigned int status;
     volatile int val;
     int modual_sel;
+	unsigned int interrupt_enable;
     struct iomap_para addrs = cedar_devp->iomap_addrs;
     
     modual_sel = readl(addrs.regs_macc + 0);
@@ -141,6 +142,7 @@ static irqreturn_t VideoEngineInterupt(int irq, void *dev)
     	{
     		ve_int_status_reg = (unsigned int)(addrs.regs_macc + 0xb00 + 0x1c);
     		ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0xb00 + 0x14);
+			interrupt_enable = readl(ve_int_ctrl_reg) &(0x7);
     		status = readl(ve_int_status_reg);
     		status &= 0xf;
     	}
@@ -148,11 +150,12 @@ static irqreturn_t VideoEngineInterupt(int irq, void *dev)
     	{
     		ve_int_status_reg = (unsigned int)(addrs.regs_macc + 0xa00 + 0x10);
     		ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0xa00 + 0x08);
+			interrupt_enable = readl(ve_int_ctrl_reg) &(0x1);
     		status = readl(ve_int_status_reg);
     		status &= 0x1;
     	}
     	
-    	if(status)
+    	if(status && interrupt_enable) //modify by fangning 2013-05-22
     	{
     		//disable interrupt
     		if(modual_sel&(1<<7))//avc enc
@@ -184,28 +187,34 @@ static irqreturn_t VideoEngineInterupt(int irq, void *dev)
 	        case 0: //mpeg124  
 	        	ve_int_status_reg = (unsigned int)(addrs.regs_macc + 0x100 + 0x1c);    
 	            ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0x100 + 0x14);
+				interrupt_enable = readl(ve_int_ctrl_reg) & (0x7c);
 	            break;
 	        case 1: //h264    
 	        	ve_int_status_reg = (unsigned int)(addrs.regs_macc + 0x200 + 0x28);          
 	            ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0x200 + 0x20);
+				interrupt_enable = readl(ve_int_ctrl_reg) & (0xf);
 	            break;
 	        case 2: //vc1  
 	        	ve_int_status_reg = (unsigned int)(addrs.regs_macc + 0x300 + 0x2c);           
 	            ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0x300 + 0x24);
+				interrupt_enable = readl(ve_int_ctrl_reg) & (0xf);
 	            break;
 	        case 3: //rmvb      
 	        	ve_int_status_reg = (unsigned int)(addrs.regs_macc + 0x400 + 0x1c);        
 	            ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0x400 + 0x14);
+				interrupt_enable = readl(ve_int_ctrl_reg) & (0xf);
 	            break;
 	        default:   
 	        	ve_int_status_reg = (unsigned int)(addrs.regs_macc + 0x100 + 0x1c);           
 	            ve_int_ctrl_reg = (unsigned int)(addrs.regs_macc + 0x100 + 0x14);
+				interrupt_enable = readl(ve_int_ctrl_reg) & (0xf);
 	            printk("macc modual sel not defined!modual_sel:%x\n", modual_sel);
 	            break;
 	    }
 	
 		status = readl(ve_int_status_reg);
-    	if(status&0xf)
+
+    	if((status&0xf) && interrupt_enable) //modify by fangning 2013-05-22
     	{
 		    //disable interrupt
 		    if(modual_sel == 0) {
@@ -1025,7 +1034,7 @@ static int __init cedardev_init(void)
         printk("cannot map region for macc");
     }
     cedar_devp->iomap_addrs.regs_avs = ioremap(AVS_REGS_BASE, 1024);
-	
+
 	/*VE_SRAM mapping to AC320*/
 	val = readl(0xf1c00000);
 	val &= 0x80000000;

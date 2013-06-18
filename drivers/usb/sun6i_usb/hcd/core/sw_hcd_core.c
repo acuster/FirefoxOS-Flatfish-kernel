@@ -702,6 +702,7 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 		//DMSG_INFO("\n\n------------IRQ SOF-------------\n\n");
 
 		USBC_INT_ClearMiscPending(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_SOF));
+		handled = IRQ_HANDLED;
 
 		USBC_INT_DisableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_SOF));
 	}
@@ -714,7 +715,6 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 		DMSG_INFO("\n------------IRQ RESUME-------------\n\n");
 
 		USBC_INT_ClearMiscPending(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_RESUME));
-
 		handled = IRQ_HANDLED;
 
 		if (devctl & (1 << USBC_BP_DEVCTL_HOST_MODE)) {
@@ -745,11 +745,12 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 		DMSG_INFO("\n------------IRQ SESSION_REQ-------------\n\n");
 
 		USBC_INT_ClearMiscPending(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_SESSION_REQ));
-               USBC_INT_DisableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSBE_EN_SESSION_REQ));
-               sw_hcd->session_req_flag = 1;
+		handled = IRQ_HANDLED;
+
+		USBC_INT_DisableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSBE_EN_SESSION_REQ));
+		sw_hcd->session_req_flag = 1;
 
 		sw_hcd->ep0_stage = SW_HCD_EP0_START;
-		handled = IRQ_HANDLED;
 	}
 
 	if (int_usb & (1 << USBC_BP_INTUSB_VBUS_ERROR)) {
@@ -758,6 +759,7 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 		DMSG_INFO("\n------------IRQ VBUS_ERROR-------------\n\n");
 
 		USBC_INT_ClearMiscPending(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_VBUS_ERROR));
+		handled = IRQ_HANDLED;
 
         /* recovery is dicey once we've gotten past the
 		 * initial stages of enumeration, but if VBUS
@@ -778,12 +780,10 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 
         /* go through A_WAIT_VFALL then start a new session */
 		if (!ignore){
-                       USBC_INT_DisableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_VBUS_ERROR));
-                       sw_hcd->vbus_error_flag = 1;
+			USBC_INT_DisableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_VBUS_ERROR));
+			sw_hcd->vbus_error_flag = 1;
 			sw_hcd->ep0_stage = SW_HCD_EP0_START;
 		}
-
-		handled = IRQ_HANDLED;
     }
 
 	if (int_usb & (1 << USBC_BP_INTUSB_CONNECT)) {
@@ -792,9 +792,10 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 		DMSG_INFO("\n------------IRQ CONNECT-------------\n\n");
 
 		USBC_INT_ClearMiscPending(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_CONNECT));
-
 		handled = IRQ_HANDLED;
+
 		sw_hcd->is_active = 1;
+		sw_hcd->is_connected = 1;
 //		set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
 
 		sw_hcd->ep0_stage = SW_HCD_EP0_START;
@@ -827,8 +828,11 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 	    DMSG_INFO("\n------------IRQ Reset or Babble-------------\n\n");
 
 		USBC_INT_ClearMiscPending(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_RESET));
-                USBC_INT_DisableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_RESET));
-                sw_hcd->reset_flag = 1;
+	    handled = IRQ_HANDLED;
+
+        USBC_INT_DisableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_RESET));
+        sw_hcd->reset_flag = 1;
+		//sw_hcd->is_connected = 0;
 
         //把babble当作disconnect处理
 		USBC_Host_SetFunctionAddress_Deafult(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_EP_TYPE_TX, 0);
@@ -846,7 +850,6 @@ static irqreturn_t sw_hcd_stage0_irq(struct sw_hcd *sw_hcd, u8 int_usb, u8 devct
 		USBC_INT_ClearEpPendingAll(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_EP_TYPE_TX);
 		USBC_INT_ClearEpPendingAll(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_EP_TYPE_RX);
 
-	    handled = IRQ_HANDLED;
     }
 
     schedule_work(&sw_hcd->irq_work);
@@ -886,11 +889,12 @@ static irqreturn_t sw_hcd_stage2_irq(struct sw_hcd *sw_hcd,
 		DMSG_INFO("\n------------IRQ DISCONNECT-------------\n\n");
 
 		USBC_INT_ClearMiscPending(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_DISCONNECT));
-
 		handled = IRQ_HANDLED;
 
 		usb_hcd_resume_root_hub(sw_hcd_to_hcd(sw_hcd));
 		sw_hcd_root_disconnect(sw_hcd);
+
+		sw_hcd->is_connected = 0;
 
         schedule_work(&sw_hcd->irq_work);
     }
@@ -899,7 +903,6 @@ static irqreturn_t sw_hcd_stage2_irq(struct sw_hcd *sw_hcd,
 		DMSG_INFO("\n------------IRQ SUSPEND-------------\n\n");
 
 		USBC_INT_ClearMiscPending(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_SUSPEND));
-
 		handled = IRQ_HANDLED;
 
         /* "should not happen" */
@@ -1097,8 +1100,8 @@ irqreturn_t generic_interrupt(int irq, void *__hci)
 	spin_lock_irqsave(&sw_hcd->lock, flags);
 
 	sw_hcd->int_usb = USBC_Readb(USBC_REG_INTUSB(usbc_base));
-	sw_hcd->int_tx  = USBC_Readb(USBC_REG_INTTx(usbc_base));
-	sw_hcd->int_rx  = USBC_Readb(USBC_REG_INTRx(usbc_base));
+	sw_hcd->int_tx  = USBC_Readw(USBC_REG_INTTx(usbc_base));
+	sw_hcd->int_rx  = USBC_Readw(USBC_REG_INTRx(usbc_base));
 
 	if (sw_hcd->int_usb || sw_hcd->int_tx || sw_hcd->int_rx){
 		retval = sw_hcd_interrupt(sw_hcd);
@@ -1110,7 +1113,10 @@ irqreturn_t generic_interrupt(int irq, void *__hci)
 	 * not clear why...
 	 */
 	if (retval != IRQ_HANDLED){
-		DMSG_INFO("spurious?\n");
+		DMSG_INFO("spurious?, int_usb=0x%x, int_tx=0x%x, int_rx=0x%x\n",
+			      USBC_Readb(USBC_REG_INTUSB(usbc_base)),
+			      USBC_Readw(USBC_REG_INTTx(usbc_base)),
+			      USBC_Readw(USBC_REG_INTRx(usbc_base)));
     }
 
 	return IRQ_HANDLED;

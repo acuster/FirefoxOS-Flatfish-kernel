@@ -103,7 +103,6 @@ int ar100_dvfs_cfg_vf_table(void)
 	for (index = 0; index < AR100_DVFS_VF_TABLE_MAX; index++) {
 		/* initialize message */
 		pmessage->type       = AR100_CPUX_DVFS_CFG_VF_REQ;
-		pmessage->attr       = AR100_MESSAGE_ATTR_HARDSYN;
 		pmessage->paras[0]   = index;
 		pmessage->paras[1]   = ar100_vf_table[index].freq;
 		pmessage->paras[2]   = ar100_vf_table[index].voltage;
@@ -160,7 +159,6 @@ int ar100_dvfs_set_cpufreq(unsigned int freq, unsigned long mode, ar100_cb_t cb,
 	
 	/* initialize message */
 	pmessage->type       = AR100_CPUX_DVFS_REQ;
-	pmessage->attr       = (unsigned char)msg_attr;
 	pmessage->paras[0]   = freq;
 	pmessage->state      = AR100_MESSAGE_INITIALIZED;
 	pmessage->cb.handler = cb;

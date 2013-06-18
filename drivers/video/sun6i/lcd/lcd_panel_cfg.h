@@ -24,10 +24,6 @@ extern void LCD_CPU_WR(__u32 sel, __u32 index, __u32 data);
 extern void LCD_CPU_WR_INDEX(__u32 sel,__u32 index);
 extern void LCD_CPU_WR_DATA(__u32 sel, __u32 data);
 extern void LCD_CPU_AUTO_FLUSH(__u32 sel, __bool en);
-extern void pwm_clock_enable(__u32 sel);
-extern void pwm_clock_disable(__u32 sel);
-extern __s32 LCD_POWER_ELDO3_EN(__u32 sel, __bool b_en, __u32 voltage);
-extern __s32 LCD_POWER_DLDO1_EN(__u32 sel, __bool b_en, __u32 voltage);
 
 extern __s32 lcd_iic_write(__u8 slave_addr, __u8 sub_addr, __u8 value);
 extern __s32 lcd_iic_read(__u8 slave_addr, __u8 sub_addr, __u8* value);

@@ -56,14 +56,14 @@ typedef struct ar100_message
 	unsigned char   		 attr;		/* message attribute : SYN OR ASYN           */
 	unsigned char   		 type;		/* message type : DVFS_REQ                   */
 	unsigned char   		 result;	/* message process result                    */
-	struct ar100_message	*next;		/* pointer of next message frame             */
+	struct ar100_message		 *next;	/* pointer of next message frame             */
 	struct ar100_msg_cb		 cb;		/* the callback function and arg of message  */
-	void    	   			*private;	/* message private data                      */
+	void    	   		 *private;	/* message private data                      */
 	unsigned int   			 paras[11];	/* the parameters of message                 */
 } ar100_message_t;
 
 /* the base of messages */
-#define	AR100_MESSAGE_BASE		 	(0x10)
+#define	AR100_MESSAGE_BASE		 (0x10)
 
 /* standby commands */
 #define	AR100_SSTANDBY_ENTER_REQ         (AR100_MESSAGE_BASE + 0x00)  /* request to enter       (ac327 to ar100) */
@@ -72,9 +72,11 @@ typedef struct ar100_message
 #define	AR100_NSTANDBY_WAKEUP_NOTIFY     (AR100_MESSAGE_BASE + 0x03)  /* wakeup notify          (ar100 to ac327) */
 #define	AR100_NSTANDBY_RESTORE_REQ       (AR100_MESSAGE_BASE + 0x04)  /* request to restore     (ac327 to ar100) */
 #define	AR100_NSTANDBY_RESTORE_COMPLETE  (AR100_MESSAGE_BASE + 0x05)  /* ar100 restore complete (ar100 to ac327) */
-#define	AR100_TSTANDBY_ENTER_REQ	 	 (AR100_MESSAGE_BASE + 0x06)  /* request to enter(ac327 to ar100)        */
-#define	AR100_TSTANDBY_RESTORE_NOTIFY    (AR100_MESSAGE_BASE + 0x07)  /* restore finished(ac327 to ar100)		 */
-#define	AR100_FAKE_POWER_OFF_REQ         (AR100_MESSAGE_BASE + 0x08)  /* request to enter(ac327 to ar100)        */
+#define	AR100_ESSTANDBY_ENTER_REQ        (AR100_MESSAGE_BASE + 0x06)  /* request to enter       (ac327 to ar100) */
+#define	AR100_FAKE_POWER_OFF_REQ         (AR100_MESSAGE_BASE + 0x07)  /* request to enter(ac327 to ar100)        */
+#define AR100_TSTANDBY_ENTER_REQ         (AR100_MESSAGE_BASE + 0x08)  /* request to enter(ac327 to ar100)        */
+#define AR100_TSTANDBY_RESTORE_NOTIFY    (AR100_MESSAGE_BASE + 0x09)  /* restore finished(ac327 to ar100)        */
+
 
 /* dvfs commands */
 #define	AR100_CPUX_DVFS_REQ              (AR100_MESSAGE_BASE + 0x20)  /* request dvfs           (ac327 to ar100) */
@@ -86,6 +88,8 @@ typedef struct ar100_message
 #define AR100_AXP_INT_COMING_NOTIFY      (AR100_MESSAGE_BASE + 0x45)  /* interrupt coming notify(ar100 to ac327) */
 #define AR100_AXP_DISABLE_IRQ            (AR100_MESSAGE_BASE + 0x46)  /* disable axp irq of ar100                */
 #define AR100_AXP_ENABLE_IRQ             (AR100_MESSAGE_BASE + 0x47)  /* enable axp irq of ar100                 */
+#define AR100_AXP_CLR_REGS_BITS_SYNC     (AR100_MESSAGE_BASE + 0x48)  /* clear registers bits sync   (ac327 to ar100) */
+#define AR100_AXP_SET_REGS_BITS_SYNC     (AR100_MESSAGE_BASE + 0x49)  /* set registers bits sync   (ac327 to ar100) */
 
 /* set ar100 debug level commands */
 #define AR100_SET_DEBUG_LEVEL            (AR100_MESSAGE_BASE + 0x50)  /* set ar100 debug level  (ac327 to ar100) */

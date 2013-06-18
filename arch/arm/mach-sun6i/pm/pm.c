@@ -37,6 +37,7 @@
 
 #include <mach/sys_config.h>
 #include <mach/system.h>
+#include <linux/extended_standby.h>
 
 //#define CROSS_MAPPING_STANDBY
 
@@ -365,6 +366,7 @@ int aw_suspend_cpu_die(void)
 static int aw_early_suspend(void)
 {
 #define MAX_RETRY_TIMES (5)
+	const extended_standby_manager_t *extended_standby_manager = NULL;
 
 	//backup device state
 	mem_ccu_save((__ccmu_reg_list_t *)(IO_ADDRESS(AW_CCM_BASE)));
@@ -419,9 +421,16 @@ static int aw_early_suspend(void)
 
 	}
 
+	extended_standby_manager = get_extended_standby_manager();
+	extended_standby_show_state();
+
 	//clean all the data into dram
 	memcpy((void *)phys_to_virt(DRAM_MEM_PARA_INFO_PA), (void *)&mem_para_info, sizeof(mem_para_info));
-	dmac_flush_range((void *)phys_to_virt(DRAM_MEM_PARA_INFO_PA), (void *)(phys_to_virt(DRAM_MEM_PARA_INFO_PA + DRAM_MEM_PARA_INFO_SIZE)));
+	if ((NULL != extended_standby_manager) && (NULL != extended_standby_manager->pextended_standby))
+		memcpy((void *)(phys_to_virt(DRAM_EXTENDED_STANDBY_INFO_PA)),
+				(void *)(extended_standby_manager->pextended_standby),
+				sizeof(*(extended_standby_manager->pextended_standby)));
+	dmac_flush_range((void *)phys_to_virt(DRAM_MEM_PARA_INFO_PA), (void *)(phys_to_virt(DRAM_EXTENDED_STANDBY_INFO_PA) + DRAM_EXTENDED_STANDBY_INFO_SIZE));
 
 	mem_arch_suspend();
 	save_processor_state();
@@ -432,11 +441,19 @@ static int aw_early_suspend(void)
 #ifdef ENTER_SUPER_STANDBY
 	//print_call_info();
 	super_standby_para_info.event = mem_para_info.axp_event;
-
+	if (NULL != extended_standby_manager) {
+		super_standby_para_info.event |= extended_standby_manager->event;
+		super_standby_para_info.gpio_enable_bitmap = extended_standby_manager->wakeup_gpio_map;
+		super_standby_para_info.cpux_gpiog_bitmap = extended_standby_manager->wakeup_gpio_group;
+	}
 #ifdef RESUME_FROM_RESUME1
 	super_standby_para_info.resume_code_src = (unsigned long)(virt_to_phys((void *)&resume1_bin_start));
 	super_standby_para_info.resume_code_length = ((int)&resume1_bin_end - (int)&resume1_bin_start);
 	super_standby_para_info.resume_entry = SRAM_FUNC_START_PA;
+	if ((NULL != extended_standby_manager) && (NULL != extended_standby_manager->pextended_standby))
+		super_standby_para_info.pextended_standby = (extended_standby_t *)(DRAM_EXTENDED_STANDBY_INFO_PA);
+	else
+		super_standby_para_info.pextended_standby = NULL;
 #endif
 
 	super_standby_para_info.timeout = 0;
@@ -897,24 +914,9 @@ static int __init aw_pm_init(void)
 	if(0 != wakeup_src_cnt){
 		while(wakeup_src_cnt--){
 			gpio = (list + (i++) )->gpio.gpio;
-			//pr_info("gpio == 0x%x.\n", gpio);
-			if( gpio > GPIO_INDEX_END){
-				pr_info("gpio config err. \n");
-			}else if( gpio >= AXP_NR_BASE){
-				mem_para_info.cpus_gpio_wakeup |= (WAKEUP_GPIO_AXP((gpio - AXP_NR_BASE)));
-				//pr_info("gpio - AXP_NR_BASE == 0x%x.\n", gpio - AXP_NR_BASE);
-			}else if( gpio >= PM_NR_BASE){
-				mem_para_info.cpus_gpio_wakeup |= (WAKEUP_GPIO_PM((gpio - PM_NR_BASE)));
-				//pr_info("gpio - PM_NR_BASE == 0x%x.\n", gpio - PM_NR_BASE);
-			}else if( gpio >= PL_NR_BASE){
-				mem_para_info.cpus_gpio_wakeup |= (WAKEUP_GPIO_PL((gpio - PL_NR_BASE)));
-				//pr_info("gpio - PL_NR_BASE == 0x%x.\n", gpio - PL_NR_BASE);
-			}else{
-				pr_info("cpux need care gpio %d. but, notice, currently, \
-					cpux not support it.\n", gpio);
-			}
+			extended_standby_enable_wakeup_src(CPUS_GPIO_SRC, gpio);
 		}
-		super_standby_para_info.gpio_enable_bitmap = mem_para_info.cpus_gpio_wakeup;
+
 		pr_info("cpus need care gpio: mem_para_info.cpus_gpio_wakeup = 0x%x. \n",\
 			mem_para_info.cpus_gpio_wakeup);
 	}

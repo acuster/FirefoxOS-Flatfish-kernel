@@ -87,6 +87,8 @@ typedef struct _RESMAN_MAP_DEVICE_MEM_DATA_
 	PVRSRV_KERNEL_MEM_INFO	*psSrcMemInfo;
 } RESMAN_MAP_DEVICE_MEM_DATA;
 
+#if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
+
 /*
 	map device class resman memory storage structure
 */
@@ -98,6 +100,8 @@ typedef struct _PVRSRV_DC_MAPINFO_
 	IMG_UINT32				ui32TilingStride;
 	PVRSRV_DEVICECLASS_BUFFER	*psDeviceClassBuffer;
 } PVRSRV_DC_MAPINFO;
+
+#endif /* defined(SUPPORT_PVRSRV_DEVICE_CLASS) */
 
 static IMG_UINT32 g_ui32SyncUID = 0;
 
@@ -1437,6 +1441,7 @@ PVRSRV_ERROR PVRSRVMapIonHandleKM(PVRSRV_PER_PROCESS_DATA *psPerProc,
 	psNewKernelMemInfo->sDevVAddr = psMemBlock->sDevVirtAddr;
 	psNewKernelMemInfo->uAllocSize = uiMapSize;
 	psNewKernelMemInfo->memType = PVRSRV_MEMTYPE_ION;
+	psNewKernelMemInfo->ppLinAddrKM = (IMG_PVOID)pasAdjustedSysPhysAddr->uiAddr;//aw
 	PVRSRVKernelMemInfoIncRef(psNewKernelMemInfo);
 
 	/* Clear the Backup buffer pointer as we do not have one at this point. We only allocate this as we are going up/down */
@@ -2226,6 +2231,7 @@ ErrorExit:
 	return eError;
 }
 
+#if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
 
 /*!
 ******************************************************************************
@@ -2587,6 +2593,7 @@ ErrorExitPhase1:
 	return eError;
 }
 
+#endif /* defined(SUPPORT_PVRSRV_DEVICE_CLASS) */
 
 IMG_EXPORT
 PVRSRV_ERROR IMG_CALLCONV PVRSRVChangeDeviceMemoryAttributesKM(IMG_HANDLE hKernelMemInfo, IMG_UINT32 ui32Attribs)

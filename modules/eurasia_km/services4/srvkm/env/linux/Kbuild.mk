@@ -53,7 +53,6 @@ pvrsrvkm-y += \
 	services4/srvkm/env/linux/osperproc.o \
 	services4/srvkm/common/buffer_manager.o \
 	services4/srvkm/common/devicemem.o \
-	services4/srvkm/common/deviceclass.o \
 	services4/srvkm/common/handle.o \
 	services4/srvkm/common/hash.o \
 	services4/srvkm/common/lists.o \
@@ -65,7 +64,6 @@ pvrsrvkm-y += \
 	services4/srvkm/common/perproc.o \
 	services4/srvkm/common/power.o \
 	services4/srvkm/common/pvrsrv.o \
-	services4/srvkm/common/queue.o \
 	services4/srvkm/common/ra.o \
 	services4/srvkm/common/refcount.o \
 	services4/srvkm/common/resman.o \
@@ -73,6 +71,12 @@ pvrsrvkm-y += \
 	services4/srvkm/bridged/bridged_pvr_bridge.o \
 	services4/system/$(PVR_SYSTEM)/sysconfig.o \
 	services4/system/$(PVR_SYSTEM)/sysutils.o
+
+ifeq ($(SUPPORT_PVRSRV_DEVICE_CLASS),1)
+pvrsrvkm-y += \
+	services4/srvkm/common/deviceclass.o \
+	services4/srvkm/common/queue.o
+endif
 
 pvrsrvkm-$(CONFIG_ION_OMAP) += \
 	services4/srvkm/env/linux/ion.o

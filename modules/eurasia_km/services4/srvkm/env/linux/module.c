@@ -170,9 +170,11 @@ extern struct ion_device *omap_ion_device;
 struct ion_client *gpsIONClient;
 #endif /* defined(CONFIG_ION_OMAP) */
 
+#if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
 /* PRQA S 3207 2 */ /* ignore 'not used' warning */
 EXPORT_SYMBOL(PVRGetDisplayClassJTable);
 EXPORT_SYMBOL(PVRGetBufferClassJTable);
+#endif /* defined(SUPPORT_PVRSRV_DEVICE_CLASS) */
 
 #if defined(PVR_LDM_DEVICE_CLASS) && !defined(SUPPORT_DRI_DRM)
 /*
@@ -220,7 +222,9 @@ static int PVRSRVIONClientCreate(void)
 {
 #if defined(CONFIG_ION_OMAP)
 	gpsIONClient = ion_client_create(omap_ion_device,
+#if defined(SUPPORT_OLD_ION_API)
 									 1 << OMAP_ION_HEAP_TYPE_TILER,
+#endif
 									 "pvr");
 	if (IS_ERR_OR_NULL(gpsIONClient))
 	{

@@ -5337,7 +5337,7 @@ static int sensor_s_single_af(struct v4l2_subdev *sd)
 			ret = -EFAULT;
   		goto af_out;
   	} else {
-			mdelay(15);
+			usleep_range(15000,20000);
 			cnt++;
 			if(cnt>60) {
 				vfe_dev_err("Single AF 1st is timeout,value = 0x%4x\n",rdval);
@@ -5367,7 +5367,7 @@ static int sensor_s_single_af(struct v4l2_subdev *sd)
   		vfe_dev_err("sensor_s_single_af read error !\n");
   		goto af_out;
   	}
-  	mdelay(5);
+  	usleep_range(5000,10000);
   	
 		cnt++;
 		if(cnt>300) {
@@ -5685,7 +5685,7 @@ static int sensor_s_af_zone(struct v4l2_subdev *sd,
 	vfe_dev_dbg("af zone 1st window stx=%d,sty=%d,width=%d,height=%d\n",fst_win_start_x,fst_win_start_y,fst_win_size_x,fst_win_size_y);
 	vfe_dev_dbg("af zone 2nd window stx=%d,sty=%d,width=%d,height=%d\n",scnd_win_start_x,scnd_win_start_y,scnd_win_size_x,scnd_win_size_y);
 	
-	mdelay(30);
+	usleep_range(30000,31000);
 	return 0;
 }
 
@@ -5749,7 +5749,7 @@ static int sensor_s_autowb(struct v4l2_subdev *sd, int value)
 		return ret;
 	}
 	
-	mdelay(10);
+	usleep_range(10000,12000);
 	info->autowb = value;
 	
 	return 0;
@@ -5807,7 +5807,7 @@ static int sensor_s_band_filter(struct v4l2_subdev *sd,
 		case V4L2_CID_POWER_LINE_FREQUENCY_AUTO:
 		  break;
 	}
-	//mdelay(10);
+	//usleep_range(10000,12000);
 	info->band_filter = value;
 	return ret;
 }
@@ -6028,7 +6028,7 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 //      ret = sensor_write_array(sd, sensor_sw_stby_on_regs, ARRAY_SIZE(sensor_sw_stby_on_regs));
 //      if(ret < 0)
 //        vfe_dev_err("soft stby falied!\n");
-//      mdelay(10);
+//      usleep_range(10000,12000);
 //			//disable io oe
 //			vfe_dev_print("disalbe oe!\n");
 //			ret = sensor_write_array(sd, sensor_oe_disable_regs, ARRAY_SIZE(sensor_oe_disable_regs));
@@ -6039,10 +6039,10 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			i2c_lock_adapter(client->adapter);
 			//reset on io
       vfe_gpio_write(sd,RESET,CSI_RST_ON);
-			mdelay(1);
+			usleep_range(1000,1200);
 			//standby on io
       vfe_gpio_write(sd,PWDN,CSI_STBY_ON);
-			mdelay(1);
+			usleep_range(1000,1200);
       //inactive mclk after stadby in
       vfe_set_mclk(sd,OFF);
 			//remember to unlock i2c adapter, so the device can access the i2c bus again
@@ -6055,20 +6055,20 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			i2c_lock_adapter(client->adapter);
 			//active mclk before stadby out
 			vfe_set_mclk(sd,ON);
-			mdelay(1);
+			usleep_range(1000,1200);
 			//standby off io
       vfe_gpio_write(sd,PWDN,CSI_STBY_OFF);
-			mdelay(1);
+			usleep_range(1000,1200);
 			//reset on io
       vfe_gpio_write(sd,RESET,CSI_RST_OFF);
-			mdelay(1);
+			usleep_range(1000,1200);
 			//remember to unlock i2c adapter, so the device can access the i2c bus again
 			i2c_unlock_adapter(client->adapter);
 //      //software standby
 //      ret = sensor_write_array(sd, sensor_sw_stby_off_regs, ARRAY_SIZE(sensor_sw_stby_off_regs));
 //      if(ret < 0)
 //        vfe_dev_err("soft stby off falied!\n");
-//      mdelay(10);	
+//      usleep_range(10000,12000);	
 			break;
 		case CSI_SUBDEV_PWR_ON:
 			vfe_dev_dbg("CSI_SUBDEV_PWR_ON\n");
@@ -6088,14 +6088,14 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       vfe_set_pmu_channel(sd,AVDD,ON);
       vfe_set_pmu_channel(sd,DVDD,ON);
       vfe_set_pmu_channel(sd,AFVDD,ON);
-			mdelay(10);
+			usleep_range(10000,12000);
 			//active mclk power on reset
       vfe_set_mclk(sd,ON);
 			//power on reset
       vfe_gpio_write(sd,PWDN,CSI_STBY_OFF);
-			mdelay(10);
+			usleep_range(10000,12000);
       vfe_gpio_write(sd,RESET,CSI_RST_OFF);
-			mdelay(10);
+			usleep_range(10000,12000);
 			//remember to unlock i2c adapter, so the device can access the i2c bus again
 			i2c_unlock_adapter(client->adapter);	
 			break;
@@ -6137,11 +6137,11 @@ static int sensor_reset(struct v4l2_subdev *sd, u32 val)
   {
     case 0:
       vfe_gpio_write(sd,RESET,CSI_RST_OFF);
-      mdelay(10);
+      usleep_range(10000,12000);
       break;
     case 1:
       vfe_gpio_write(sd,RESET,CSI_RST_ON);
-      mdelay(10);
+      usleep_range(10000,12000);
       break;
     default:
       return -EINVAL;

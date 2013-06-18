@@ -355,7 +355,7 @@ static int mma8452_init_client(struct i2c_client *client)
 	assert(result==0);
 	mutex_unlock(&init_mutex);
 	
-	mdelay(MODE_CHANGE_DELAY_MS);
+	msleep(MODE_CHANGE_DELAY_MS);
 
 	dprintk(DEBUG_INIT, "mma8452 device init end\n");
 

@@ -37,20 +37,20 @@ int platform_cpu_kill(unsigned int cpu)
     for (k = 0; k < 1000; k++) {
         if (cpumask_test_cpu(cpu, &dead_cpus) && IS_WFI_MODE(cpu)) {
 
-		/* step9: set up power-off signal */
-		pwr_reg = readl(IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPU_PWROFF_REG);
-		pwr_reg |= (1<<cpu);
-		writel(pwr_reg, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPU_PWROFF_REG);
-		mdelay(1);
+            /* step9: set up power-off signal */
+            pwr_reg = readl(IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPU_PWROFF_REG);
+            pwr_reg |= (1<<cpu);
+            writel(pwr_reg, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPU_PWROFF_REG);
+            usleep_range(1000, 1000);
 
-		/* step10: active the power output clamp */
-		writel(0xff, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
-		pr_info("[hotplug]: cpu%d is killed! .\n", cpu);
+            /* step10: active the power output clamp */
+            writel(0xff, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
+            pr_info("[hotplug]: cpu%d is killed! .\n", cpu);
 
-		return 1;
+            return 1;
         }
 
-        mdelay(1);
+        msleep(1);
     }
 
     pr_err("[hotplug]: try to kill cpu:%d failed!\n", cpu);

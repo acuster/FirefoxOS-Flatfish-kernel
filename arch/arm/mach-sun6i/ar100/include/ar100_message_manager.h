@@ -64,4 +64,6 @@ void ar100_message_free(struct ar100_message *pmessage);
  */
 int ar100_message_coming_notify(struct ar100_message *pmessage);
 
+int ar100_semaphore_used_num_query(void);
+
 #endif	/* __MESSAGE_MANAGER_H */

@@ -55,7 +55,7 @@ extern void dhd_bus_getidletime(dhd_pub_t *dhdp, int *idletime);
 extern void dhd_bus_setidletime(dhd_pub_t *dhdp, int idle_time);
 
 /* Send a data frame to the dongle.  Callee disposes of txp. */
-extern int dhd_bus_txdata(struct dhd_bus *bus, void *txp);
+extern int dhd_bus_txdata(struct dhd_bus *bus, void *txp, bool wlfc_locked);
 
 /* Send/receive a control message to/from the dongle.
  * Expects caller to enforce a single outstanding transaction.

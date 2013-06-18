@@ -290,7 +290,7 @@ __s32 Scaler_event_proc(__s32 irq, void *parg)
 __s32 Scaler_event_proc(void *parg)
 #endif
 {
-    __u8 fe_intflags, be_intflags;
+    __u8 fe_intflags = 0, be_intflags = 0;
     __u32 sel = (__u32)parg;
 
     if(gdisp.scaler[sel].status & SCALER_USED)

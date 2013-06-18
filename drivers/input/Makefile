@@ -29,3 +29,4 @@ obj-$(CONFIG_INPUT_E_COMPASS)	+= ls/
 obj-$(CONFIG_INPUT_APMPOWER)	+= apm-power.o
 obj-$(CONFIG_INPUT_KEYRESET)	+= keyreset.o
 obj-$(CONFIG_INPUT_INIT_CTP)	+= init_ctp.o
+obj-$(CONFIG_INPUT_DEVICE)	+= device.o

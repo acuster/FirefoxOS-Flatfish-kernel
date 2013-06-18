@@ -339,59 +339,23 @@ static IMG_BOOL PVRSyncIsSyncInfoInUse(PVRSRV_KERNEL_SYNC_INFO *psSyncInfo)
 			 psSyncInfo->psSyncData->ui32ReadOps2Complete);
 }
 
+/* Releases a sync info by adding it to a deferred list to be freed later. */
 static void
-PVRSyncAddToDeferFreeList(struct PVR_SYNC_KERNEL_SYNC_INFO *psSyncInfo)
+PVRSyncReleaseSyncInfo(struct PVR_SYNC_KERNEL_SYNC_INFO *psSyncInfo)
 {
 	unsigned long flags;
+
 	spin_lock_irqsave(&gSyncInfoFreeListLock, flags);
 	list_add_tail(&psSyncInfo->sHead, &gSyncInfoFreeList);
 	spin_unlock_irqrestore(&gSyncInfoFreeListLock, flags);
-}
 
-/* Releases a sync info - freeing it if there are no outstanding
- * operations, else adding it to a deferred list to be freed later.
- * Returns IMG_TRUE if the free was deferred, IMG_FALSE otherwise.
- */
-static IMG_BOOL
-PVRSyncReleaseSyncInfo(struct PVR_SYNC_KERNEL_SYNC_INFO *psSyncInfo)
-{
-	/* Freeing the sync needs us to take the services bridge mutex,
-	 * but this function may be called from the sync driver in
-	 * interrupt context (for example a sw_sync user incs a timeline).
-	 * In such a case we must defer processing to the WQ.
-	 */
-	if(in_atomic() || in_interrupt())
-	{
-		PVRSyncAddToDeferFreeList(psSyncInfo);
-		return IMG_TRUE;
-	}
-
-	/* Lock the mutex *before* checking if the sync is in use. Another
-	 * driver thread may still be updating defer-freed syncs.
-	 */
-	LinuxLockMutexNested(&gPVRSRVLock, PVRSRV_LOCK_CLASS_BRIDGE);
-
-	if (PVRSyncIsSyncInfoInUse(psSyncInfo->psBase))
-	{
-		LinuxUnLockMutex(&gPVRSRVLock);
-		PVRSyncAddToDeferFreeList(psSyncInfo);
-		return IMG_TRUE;
-	}
-	else
-	{
-		PVRSRVReleaseSyncInfoKM(psSyncInfo->psBase);
-		psSyncInfo->psBase = NULL;
-		LinuxUnLockMutex(&gPVRSRVLock);
-		kfree(psSyncInfo);
-		return IMG_FALSE;
-	}
+	queue_work(gpsWorkQueue, &gsWork);
 }
 
 static void PVRSyncFreeSyncData(struct PVR_SYNC_DATA *psSyncData)
 {
 	PVR_ASSERT(atomic_read(&psSyncData->sRefcount) == 0);
-	if(PVRSyncReleaseSyncInfo(psSyncData->psSyncInfo))
-		queue_work(gpsWorkQueue, &gsWork);
+	PVRSyncReleaseSyncInfo(psSyncData->psSyncInfo);
 	psSyncData->psSyncInfo = NULL;
 	kfree(psSyncData);
 }
@@ -511,8 +475,7 @@ static void PVRSyncReleaseTimeline(struct sync_timeline *psObj)
 	list_del(&psTimeline->sTimelineList);
 	mutex_unlock(&gTimelineListLock);
 
-	if(PVRSyncReleaseSyncInfo(psTimeline->psSyncInfo))
-		queue_work(gpsWorkQueue, &gsWork);
+	PVRSyncReleaseSyncInfo(psTimeline->psSyncInfo);
 	psTimeline->psSyncInfo = NULL;
 }
 
@@ -829,6 +792,10 @@ PVRSyncIOCTLDebug(struct PVR_SYNC_TIMELINE *psObj, void __user *pvData)
 		psPt = (struct PVR_SYNC *)
 			container_of(psEntry, struct sync_pt, pt_list);
 
+		/* Don't dump foreign points */
+		if(psPt->pt.parent->ops != &gsTimelineOps)//aw
+			continue;
+
 		psTimeline = (struct PVR_SYNC_TIMELINE *)psPt->pt.parent;
 		psKernelSyncInfo = psPt->psSyncData->psSyncInfo->psBase;
 		PVR_ASSERT(psKernelSyncInfo != NULL);
@@ -865,8 +832,7 @@ static int PVRSyncFenceAllocRelease(struct inode *inode, struct file *file)
 
 	if(psAllocSyncData->psSyncInfo)
 	{
-		if(PVRSyncReleaseSyncInfo(psAllocSyncData->psSyncInfo))
-			queue_work(gpsWorkQueue, &gsWork);
+		PVRSyncReleaseSyncInfo(psAllocSyncData->psSyncInfo);
 		psAllocSyncData->psSyncInfo = NULL;
 	}
 
@@ -1012,6 +978,7 @@ static void PVRSyncWorkQueueFunction(struct work_struct *data)
 		(PVRSRV_DEVICE_NODE*)gsSyncServicesConnection.hDevCookie;
 	struct list_head sFreeList, *psEntry, *n;
 	unsigned long flags;
+    PVRSRV_SGXDEV_INFO 	*psDevInfo = psDevNode->pvDevice;//aw
 
 	/* We lock the bridge mutex here for two reasons.
 	 *
@@ -1033,8 +1000,24 @@ static void PVRSyncWorkQueueFunction(struct work_struct *data)
 	 */
 	LinuxLockMutexNested(&gPVRSRVLock, PVRSRV_LOCK_CLASS_BRIDGE);
 
-	/* A completed SW operation may un-block the GPU */
-	SGXScheduleProcessQueuesKM(psDevNode);
+    if(!psDevInfo)//aw
+    {
+        PVR_DPF((PVR_DBG_ERROR, "############ !psDevInfo"));
+    }
+    else if(!psDevInfo->psKernelSGXHostCtlMemInfo)
+    {
+        PVR_DPF((PVR_DBG_ERROR, "############ !psDevInfo->psKernelSGXHostCtlMemInfo"));
+    }
+    else if(!psDevInfo->psKernelSGXHostCtlMemInfo->pvLinAddrKM)
+    {
+        PVR_DPF((PVR_DBG_ERROR, "############ !psDevInfo->psKernelSGXHostCtlMemInfo->pvLinAddrKM"));
+    }
+    else
+    {
+    	/* A completed SW operation may un-block the GPU */
+    	SGXScheduleProcessQueuesKM(psDevNode);
+    }
+
 
 	/* We can't call PVRSRVReleaseSyncInfoKM directly in this loop because
 	 * that will take the mmap mutex. We can't take mutexes while we have
@@ -1071,10 +1054,14 @@ static void PVRSyncWorkQueueFunction(struct work_struct *data)
 
 	LinuxUnLockMutex(&gPVRSRVLock);
 
-	/* We can't call sync_fence_put() directly in this loop because that may
-	 * call PVRSyncFreeSync(), which calls PVRSyncReleaseSyncInfo() which
-	 * needs to take the bridge mutex. We can't take mutexes while we have
-	 * this list locked with a spinlock. Do the same as above.
+	/* Copying from one list to another (so a spinlock isn't held) used to
+	 * work around the problem that PVRSyncReleaseSyncInfo() would hold the
+	 * services mutex. However, we no longer do this, so this code could
+	 * potentially be simplified.
+	 *
+	 * Note however that sync_fence_put must be called from process/WQ
+	 * context because it uses fput(), which is not allowed to be called
+	 * from interrupt context in kernels <3.6.
 	 */
 	INIT_LIST_HEAD(&sFreeList);
 	spin_lock_irqsave(&gFencePutListLock, flags);
@@ -1264,7 +1251,6 @@ static void ForeignSyncPtSignaled(struct sync_fence *fence,
 
 	PVRSyncSWCompleteOp(psWaiter->psSyncInfo->psBase);
 
-	/* Can ignore retval because we queue_work anyway */
 	PVRSyncReleaseSyncInfo(psWaiter->psSyncInfo);
 	psWaiter->psSyncInfo = NULL;
 
@@ -1276,8 +1262,8 @@ static void ForeignSyncPtSignaled(struct sync_fence *fence,
 	psWaiter->psSyncFence = NULL;
 	spin_unlock_irqrestore(&gFencePutListLock, flags);
 
-	/* This complete may unblock the GPU. */
-	queue_work(gpsWorkQueue, &gsWork);
+	/* The PVRSyncReleaseSyncInfo() call above already queued work */
+	/*queue_work(gpsWorkQueue, &gsWork);*/
 
 	kfree(psWaiter);
 }
@@ -1469,8 +1455,9 @@ ExpandAndDeDuplicateFenceSyncs(IMG_UINT32 ui32NumSyncs,
 							   IMG_UINT32 *pui32NumRealSyncs,
 							   PVRSRV_KERNEL_SYNC_INFO *apsSyncInfo[])
 {
+	IMG_UINT32 i, j, ui32FenceIndex = 0;//CL2503319
 	IMG_BOOL bRet = IMG_TRUE;
-	IMG_UINT32 i, j;
+	//IMG_UINT32 i, j;//CL2503319
 
 	*pui32NumRealSyncs = 0;
 
@@ -1501,8 +1488,8 @@ ExpandAndDeDuplicateFenceSyncs(IMG_UINT32 ui32NumSyncs,
 		 * patched in userspace. That's really a userspace driver bug, so
 		 * just fail here instead of not synchronizing.
 		 */
-		apsFence[i] = sync_fence_fdget(aiFenceFds[i]);
-		if(!apsFence[i])
+		apsFence[ui32FenceIndex] = sync_fence_fdget(aiFenceFds[i]);//CL2503319
+		if(!apsFence[ui32FenceIndex])//CL2503319
 		{
 			PVR_DPF((PVR_DBG_ERROR, "%s: Failed to get fence from fd=%d",
 									__func__, aiFenceFds[i]));
@@ -1520,7 +1507,7 @@ ExpandAndDeDuplicateFenceSyncs(IMG_UINT32 ui32NumSyncs,
 		 * schedule to update the GPU part of the fence (normally the ukernel
 		 * would be able to make the update directly).
 		 */
-		if(FenceHasForeignPoints(apsFence[i]))
+		if(FenceHasForeignPoints(apsFence[ui32FenceIndex]))//CL2503319
 		{
 			psSyncInfo = ForeignSyncPointToSyncInfo(aiFenceFds[i]);
 			if(psSyncInfo)
@@ -1532,13 +1519,14 @@ ExpandAndDeDuplicateFenceSyncs(IMG_UINT32 ui32NumSyncs,
 					goto err_out;
 				}
 			}
+			ui32FenceIndex++;//CL2503319
 			continue;
 		}
 
 		/* FIXME: The ForeignSyncPointToSyncInfo() path optimizes away already
 		 *        signalled fences. Consider optimizing this path too.
 		 */
-		list_for_each(psEntry, &apsFence[i]->pt_list_head)
+		list_for_each(psEntry, &apsFence[ui32FenceIndex]->pt_list_head)//CL2503319
 		{
 			struct sync_pt *psPt =
 				container_of(psEntry, struct sync_pt, pt_list);
@@ -1570,6 +1558,8 @@ ExpandAndDeDuplicateFenceSyncs(IMG_UINT32 ui32NumSyncs,
 					goto err_out;
 			}
 		}
+
+		ui32FenceIndex++;//CL2503319
 	}
 
 err_out:
@@ -1631,8 +1621,7 @@ PVRSyncPatchCCBKickSyncInfos(IMG_HANDLE    ahSyncs[SGX_MAX_SRC_SYNCS_TA],
 
 err_put_fence:
 	for(i = 0; i < SGX_MAX_SRC_SYNCS_TA && apsFence[i]; i++)
-		if(apsFence[i])
-			sync_fence_put(apsFence[i]);
+		sync_fence_put(apsFence[i]);//CL2503319
 	return eError;
 }
 
@@ -1721,9 +1710,8 @@ PVRSyncFencesToSyncInfos(PVRSRV_KERNEL_SYNC_INFO *apsSyncs[],
 									   &ui32NumRealSrcSyncs,
 									   apsSyncInfo))
 	{
-		for(i = 0; apsFence[i]; i++)
-			if(apsFence[i])
-				sync_fence_put(apsFence[i]);
+		for(i = 0; i < SGX_MAX_SRC_SYNCS_TA && apsFence[i]; i++)//CL2503319
+			sync_fence_put(apsFence[i]);
 		return PVRSRV_ERROR_HANDLE_NOT_FOUND;
 	}
 

@@ -1171,12 +1171,7 @@ void rtw_stop_drv_threads (_adapter *padapter)
 	if(padapter->isprimary == _TRUE)
 #endif //CONFIG_CONCURRENT_MODE
 	{
-		//Below is to termindate rtw_cmd_thread & event_thread...
-		_rtw_up_sema(&padapter->cmdpriv.cmd_queue_sema);
-		//_rtw_up_sema(&padapter->cmdpriv.cmd_done_sema);
-		if(padapter->cmdThread){
-			_rtw_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);
-		}
+		rtw_stop_cmd_thread(padapter);
 	}	
 
 #ifdef CONFIG_EVENT_THREAD_MODE

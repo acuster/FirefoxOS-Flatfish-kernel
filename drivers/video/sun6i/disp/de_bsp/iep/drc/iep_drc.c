@@ -337,6 +337,7 @@ static __inline __s32 PWRSAVE_CORE(__u32 sel)
 	__u32 min_adj_index;
 	__u32 lgcaddr;
 	__u32 drc_filter_total=0, drc_filter_tmp=0;
+	__u32 backlight, thres_low, thres_high;
 
 	if(BSP_disp_lcd_get_bright(sel) < PWRSAVE_PROC_THRES)
 	{
@@ -428,10 +429,19 @@ static __inline __s32 PWRSAVE_CORE(__u32 sel)
 
 #endif
 
+		backlight = BSP_disp_lcd_get_bright(sel);
+		thres_low = PWRSAVE_PROC_THRES;
+		thres_high = PWRSAVE_PROC_THRES + ((255 - PWRSAVE_PROC_THRES)/5);
+
+		if(backlight < thres_high) {
+			min_adj_index = min_adj_index + (255 - min_adj_index)*(thres_high - backlight)
+			    / (thres_high - thres_low);
+		}
+
 		min_adj_index = (min_adj_index >= 255)?255:((min_adj_index<hist_thres_pwrsv[0])?hist_thres_pwrsv[0]:min_adj_index);
 
         BSP_disp_lcd_set_bright_dimming(sel, min_adj_index+1);
-		BSP_disp_lcd_set_bright(sel, BSP_disp_lcd_get_bright(sel), 1);
+		BSP_disp_lcd_set_bright(sel, backlight, 1);
 
 		//lgcaddr = (__u32)pwrsv_lgc_tab[min_adj_index-128];
 		lgcaddr = (__u32)pttab[sel] + ((min_adj_index - 128)<<9);

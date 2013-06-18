@@ -64,7 +64,7 @@ struct nand_disk disk_array[ND_MAX_PART_COUNT];
 #define NAND_CACHE_FLUSH_EVERY_SEC
 #define NAND_CACHE_RW
 #define NAND_LOG_AUTO_MERGE
-#define NAND_LOG_RELEASE_LEVEL   4
+#define NAND_LOG_RELEASE_LEVEL   32
 
 /**
 *USE_BIO_MERGE level description:
@@ -152,7 +152,10 @@ static unsigned char volatile IS_IDLE = 1;
 static int nand_flush(struct nand_blk_dev *dev);
 static int nand_logrelease(struct nand_blk_dev *dev);
 
+#if((USE_BIO_MERGE==2) || (USE_BIO_MERGE == 3) || (USE_BIO_MERGE == 4))
 static int nand_flush_force(__u32 dev_num);
+#endif
+
 static int nand_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg);
 static int nand_getglobalvalue(int *value);
 static void nand_clearglobalvalue(int *value);
@@ -417,8 +420,10 @@ int io_cnt_for_page[64],sec_cnt_for_page[64];
 static int nand_blktrans_thread(void *arg)
 {
 	struct nand_blk_ops *nandr = arg;
-	struct request_queue *rq = nandr->rq;
+	struct request_queue *rq = NULL;
 	struct request *req = NULL;
+    int dev_number;
+
 #if NAND_TEST_TICK
 	unsigned long tick=0;
 #endif
@@ -456,7 +461,7 @@ static int nand_blktrans_thread(void *arg)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	spin_lock_irq(rq->queue_lock);
+	spin_lock_irq(&nandr->queue_lock);
 
 	while (!nandr->quit) {
 
@@ -466,11 +471,22 @@ static int nand_blktrans_thread(void *arg)
 	#endif
 		DECLARE_WAITQUEUE(wait, current);
 
-		if (!req && !(req = blk_fetch_request(rq))) {
+        if(!req) {
+            for(dev_number=0; dev_number<MAX_NAND_DEV; dev_number++) {
+                rq = nandr->rq[dev_number];
+                if(rq) {
+                    req = blk_fetch_request(rq);
+                    if(req)
+                        break;
+                }
+            }
+        }
+
+		if (!req) {
 			//printk("[N]wait req\n");
 			add_wait_queue(&nandr->thread_wq, &wait);
 			set_current_state(TASK_INTERRUPTIBLE);
-			spin_unlock_irq(rq->queue_lock);
+			spin_unlock_irq(&nandr->queue_lock);
 		#ifdef NAND_LOG_AUTO_MERGE
 			//nand_io_clear = 1;
 			if(nand_getglobalvalue(&nand_io_clear) == 1)
@@ -480,7 +496,7 @@ static int nand_blktrans_thread(void *arg)
 			}
 		#endif
 			schedule();
-			spin_lock_irq(rq->queue_lock);
+			spin_lock_irq(&nandr->queue_lock);
 			remove_wait_queue(&nandr->thread_wq, &wait);
 			continue;
 		}
@@ -492,7 +508,7 @@ static int nand_blktrans_thread(void *arg)
 
 		dev = req->rq_disk->private_data;
 	#if USE_BIO_MERGE==1
-		//spin_unlock_irq(rq->queue_lock);
+		//spin_unlock_irq(&nandr->queue_lock);
 		IS_IDLE = 0;
 		//printk("[N]request start\n");
 		__rq_for_each_bio(rq_iter.bio,req){
@@ -509,7 +525,7 @@ static int nand_blktrans_thread(void *arg)
 						//printk("[N]go on\n");
 					}else{
 						rq_len += bvec->bv_len;
-						spin_unlock_irq(rq->queue_lock);
+						spin_unlock_irq(&nandr->queue_lock);
 						down(&nandr->nand_ops_mutex);
 						#if NAND_TEST_TICK
 						tick = jiffies;
@@ -519,14 +535,14 @@ static int nand_blktrans_thread(void *arg)
 						nand_transfer(dev, sector, rq_len>>9, buffer, bio_data_dir(rq_iter.bio));
 						#endif
 						up(&nandr->nand_ops_mutex);
-						spin_lock_irq(rq->queue_lock);
+						spin_lock_irq(&nandr->queue_lock);
 						sector += rq_len>>9;
 						rq_len = 0;
 						buffer = nand_bio_kmap(rq_iter.bio, rq_iter.i+1, KM_USER0);
 					}
 				}else{
 					rq_len += bvec->bv_len;
-					spin_unlock_irq(rq->queue_lock);
+					spin_unlock_irq(&nandr->queue_lock);
 					down(&nandr->nand_ops_mutex);
 					#if NAND_TEST_TICK
 					tick = jiffies;
@@ -536,7 +552,7 @@ static int nand_blktrans_thread(void *arg)
 					nand_transfer(dev, sector,  rq_len>>9, buffer, bio_data_dir(rq_iter.bio));
 					#endif
 					up(&nandr->nand_ops_mutex);
-					spin_lock_irq(rq->queue_lock);
+					spin_lock_irq(&nandr->queue_lock);
 					rq_len=0;
 				}
 			}
@@ -559,7 +575,7 @@ static int nand_blktrans_thread(void *arg)
 		}
 		#endif
 
-		//spin_lock_irq(rq->queue_lock);
+		//spin_lock_irq(&nandr->queue_lock);
 		__blk_end_request_all(req,0);
 		req = NULL;
 	#elif USE_BIO_MERGE==2
@@ -580,7 +596,7 @@ static int nand_blktrans_thread(void *arg)
 					//printk("[N]bio merge\n");
 				}else{
 					/*flush last bio data here*/
-					spin_unlock_irq(rq->queue_lock);
+					spin_unlock_irq(&nandr->queue_lock);
 					down(&nandr->nand_ops_mutex);
 				#if NAND_TEST_TICK
 					tick = jiffies;
@@ -592,7 +608,7 @@ static int nand_blktrans_thread(void *arg)
 					nand_transfer(dev, sector, rq_len>>9, (__u32)buffer, rw_flag, 0);
 				#endif
 					up(&nandr->nand_ops_mutex);
-					spin_lock_irq(rq->queue_lock);
+					spin_lock_irq(&nandr->queue_lock);
 					/*update new bio*/
 					sector = (rq_iter.bio)->bi_sector;
 					buffer = 0;
@@ -609,7 +625,7 @@ static int nand_blktrans_thread(void *arg)
 					}else{
 						/*flush previous data*/
 						if(rq_len){
-							spin_unlock_irq(rq->queue_lock);
+							spin_unlock_irq(&nandr->queue_lock);
 							down(&nandr->nand_ops_mutex);
 						#if NAND_TEST_TICK
 							tick = jiffies;
@@ -621,7 +637,7 @@ static int nand_blktrans_thread(void *arg)
 							nand_transfer(dev, sector, rq_len>>9, (__u32)buffer, rw_flag, 0);
 						#endif
 							up(&nandr->nand_ops_mutex);
-							spin_lock_irq(rq->queue_lock);
+							spin_lock_irq(&nandr->queue_lock);
 						}
 						/*update new*/
 						sector += rq_len>>9;
@@ -633,7 +649,7 @@ static int nand_blktrans_thread(void *arg)
 		}
 
 		if(rq_len){
-			spin_unlock_irq(rq->queue_lock);
+			spin_unlock_irq(&nandr->queue_lock);
 			down(&nandr->nand_ops_mutex);
 		#if NAND_TEST_TICK
 			tick = jiffies;
@@ -645,7 +661,7 @@ static int nand_blktrans_thread(void *arg)
 			nand_transfer(dev, sector, rq_len>>9, (__u32)buffer, rw_flag, 0);
 		#endif
 			up(&nandr->nand_ops_mutex);
-			spin_lock_irq(rq->queue_lock);
+			spin_lock_irq(&nandr->queue_lock);
 			sector = ULLONG_MAX;
 			rq_len = 0;
 			buffer = NULL;
@@ -658,12 +674,12 @@ static int nand_blktrans_thread(void *arg)
 
 		if((req->cmd_flags&REQ_SYNC)&&(req->cmd_flags&REQ_WRITE)&&((part_secur[dev->devnum]&0x2))){
 		    //printk("req sync: 0x%x form part: 0x%x \n", req->cmd_flags, dev->devnum);
-		    spin_unlock_irq(rq->queue_lock);
+		    spin_unlock_irq(&nandr->queue_lock);
 			down(&nandr->nand_ops_mutex);
 			nand_current_dev_num = dev->devnum;
 		    nand_flush_force(nand_current_dev_num);
 		    up(&nandr->nand_ops_mutex);
-			spin_lock_irq(rq->queue_lock);
+			spin_lock_irq(&nandr->queue_lock);
 		}
 
 		#ifdef NAND_CACHE_FLUSH_EVERY_SEC
@@ -677,7 +693,7 @@ static int nand_blktrans_thread(void *arg)
 
 		#endif
 
-		//spin_lock_irq(rq->queue_lock);
+		//spin_lock_irq(&nandr->queue_lock);
 		__blk_end_request_all(req,0);
 		req = NULL;
 	#elif USE_BIO_MERGE==3
@@ -699,7 +715,7 @@ static int nand_blktrans_thread(void *arg)
     					//printk("[N]bio merge\n");
     				}else{
     					/*flush last bio data here*/
-    					spin_unlock_irq(rq->queue_lock);
+    					spin_unlock_irq(&nandr->queue_lock);
     					down(&nandr->nand_ops_mutex);
     				#if NAND_TEST_TICK
     					tick = jiffies;
@@ -711,7 +727,7 @@ static int nand_blktrans_thread(void *arg)
     					nand_transfer(dev, sector, rq_len>>9, buffer, rw_flag, partial_flag);
     				#endif
     					up(&nandr->nand_ops_mutex);
-    					spin_lock_irq(rq->queue_lock);
+    					spin_lock_irq(&nandr->queue_lock);
     					/*update new bio*/
     					sector = (rq_iter.bio)->bi_sector;
     					buffer = 0;
@@ -728,7 +744,7 @@ static int nand_blktrans_thread(void *arg)
     					}else{
     						/*flush previous data*/
     						if(rq_len){
-    							spin_unlock_irq(rq->queue_lock);
+    							spin_unlock_irq(&nandr->queue_lock);
     							down(&nandr->nand_ops_mutex);
     						#if NAND_TEST_TICK
     							tick = jiffies;
@@ -740,7 +756,7 @@ static int nand_blktrans_thread(void *arg)
     							nand_transfer(dev, sector, rq_len>>9, buffer, rw_flag, partial_flag);
     						#endif
     							up(&nandr->nand_ops_mutex);
-    							spin_lock_irq(rq->queue_lock);
+    							spin_lock_irq(&nandr->queue_lock);
     						}
     						/*update new*/
     						sector += rq_len>>9;
@@ -752,7 +768,7 @@ static int nand_blktrans_thread(void *arg)
     		}
 
     		if(rq_len){
-    			spin_unlock_irq(rq->queue_lock);
+    			spin_unlock_irq(&nandr->queue_lock);
     			down(&nandr->nand_ops_mutex);
     		#if NAND_TEST_TICK
     			tick = jiffies;
@@ -764,7 +780,7 @@ static int nand_blktrans_thread(void *arg)
     			nand_transfer(dev, sector, rq_len>>9, buffer, rw_flag, partial_flag);
     		#endif
     			up(&nandr->nand_ops_mutex);
-    			spin_lock_irq(rq->queue_lock);
+    			spin_lock_irq(&nandr->queue_lock);
     			sector = ULLONG_MAX;
     			rq_len = 0;
     			buffer = NULL;
@@ -777,12 +793,12 @@ static int nand_blktrans_thread(void *arg)
 
     		if((req->cmd_flags&REQ_SYNC)&&(req->cmd_flags&REQ_WRITE)&&((part_secur[dev->devnum]&0x2))){
     		    //printk("req sync: 0x%x form part: 0x%x \n", req->cmd_flags, dev->devnum);
-    		    spin_unlock_irq(rq->queue_lock);
+    		    spin_unlock_irq(&nandr->queue_lock);
     			down(&nandr->nand_ops_mutex);
     			nand_current_dev_num = dev->devnum;
     		    nand_flush_force(nand_current_dev_num);
     		    up(&nandr->nand_ops_mutex);
-    			spin_lock_irq(rq->queue_lock);
+    			spin_lock_irq(&nandr->queue_lock);
     		}
 		}
 		else //read
@@ -864,7 +880,7 @@ static int nand_blktrans_thread(void *arg)
     		    partial_flag = 1;
     		    //partial_flag = 0;
 
-    		    spin_unlock_irq(rq->queue_lock);
+    		    spin_unlock_irq(&nandr->queue_lock);
     			down(&nandr->nand_ops_mutex);
     		#if NAND_TEST_TICK
     			tick = jiffies;
@@ -876,7 +892,7 @@ static int nand_blktrans_thread(void *arg)
     			nand_transfer(dev, rw_io[0][0],  rw_io[0][1], rw_io[0][2], rw_io[0][3], partial_flag);
     		#endif
     			up(&nandr->nand_ops_mutex);
-    			spin_lock_irq(rq->queue_lock);
+    			spin_lock_irq(&nandr->queue_lock);
 
     		}
     		else if(io_cnt>1)//muti io
@@ -885,7 +901,7 @@ static int nand_blktrans_thread(void *arg)
 
     		    partial_flag = 1;
 
-    		    spin_unlock_irq(rq->queue_lock);
+    		    spin_unlock_irq(&nandr->queue_lock);
     			down(&nandr->nand_ops_mutex);
         	    #if NAND_TEST_TICK
         			tick = jiffies;
@@ -903,7 +919,7 @@ static int nand_blktrans_thread(void *arg)
             		}
         		#endif
     			up(&nandr->nand_ops_mutex);
-    			spin_lock_irq(rq->queue_lock);
+    			spin_lock_irq(&nandr->queue_lock);
     		}
 
 
@@ -924,7 +940,7 @@ static int nand_blktrans_thread(void *arg)
 
 		#endif
 
-		//spin_lock_irq(rq->queue_lock);
+		//spin_lock_irq(&nandr->queue_lock);
 		__blk_end_request_all(req,0);
 		req = NULL;
 	#elif USE_BIO_MERGE==4
@@ -949,7 +965,7 @@ static int nand_blktrans_thread(void *arg)
     					//printk("[N]bio merge\n");
     				}else{
     					/*flush last bio data here*/
-    					spin_unlock_irq(rq->queue_lock);
+    					spin_unlock_irq(&nandr->queue_lock);
     					down(&nandr->nand_ops_mutex);
     				#if NAND_TEST_TICK
     					tick = jiffies;
@@ -962,7 +978,7 @@ static int nand_blktrans_thread(void *arg)
 						
     				#endif
     					up(&nandr->nand_ops_mutex);
-    					spin_lock_irq(rq->queue_lock);
+    					spin_lock_irq(&nandr->queue_lock);
     					/*update new bio*/
     					sector = (rq_iter.bio)->bi_sector;
     					buffer = 0;
@@ -979,7 +995,7 @@ static int nand_blktrans_thread(void *arg)
     					}else{
     						/*flush previous data*/
     						if(rq_len){
-    							spin_unlock_irq(rq->queue_lock);
+    							spin_unlock_irq(&nandr->queue_lock);
     							down(&nandr->nand_ops_mutex);
     						#if NAND_TEST_TICK
     							tick = jiffies;
@@ -991,7 +1007,7 @@ static int nand_blktrans_thread(void *arg)
     							nand_transfer(dev, sector,  rq_len>>9, (__u32)buffer, rw_flag, partial_flag);
     						#endif
     							up(&nandr->nand_ops_mutex);
-    							spin_lock_irq(rq->queue_lock);
+    							spin_lock_irq(&nandr->queue_lock);
     						}
     						/*update new*/
     						sector += rq_len>>9;
@@ -1003,7 +1019,7 @@ static int nand_blktrans_thread(void *arg)
     		}
 
     		if(rq_len){
-    			spin_unlock_irq(rq->queue_lock);
+    			spin_unlock_irq(&nandr->queue_lock);
     			down(&nandr->nand_ops_mutex);
     		#if NAND_TEST_TICK
     			tick = jiffies;
@@ -1015,7 +1031,7 @@ static int nand_blktrans_thread(void *arg)
 			nand_transfer(dev, sector,  rq_len>>9, (__u32)buffer, rw_flag, partial_flag);
     		#endif
     			up(&nandr->nand_ops_mutex);
-    			spin_lock_irq(rq->queue_lock);
+    			spin_lock_irq(&nandr->queue_lock);
     			sector = ULLONG_MAX;
     			rq_len = 0;
     			buffer = NULL;
@@ -1028,12 +1044,12 @@ static int nand_blktrans_thread(void *arg)
 
     		if((req->cmd_flags&REQ_SYNC)&&(req->cmd_flags&REQ_WRITE)&&((part_secur[dev->devnum]&0x2))){
     		    //printk("req sync: 0x%x form part: 0x%x \n", req->cmd_flags, dev->devnum);
-    		    spin_unlock_irq(rq->queue_lock);
+    		    spin_unlock_irq(&nandr->queue_lock);
     			down(&nandr->nand_ops_mutex);
     			nand_current_dev_num = dev->devnum;
     		    nand_flush_force(nand_current_dev_num);
     		    up(&nandr->nand_ops_mutex);
-    			spin_lock_irq(rq->queue_lock);
+    			spin_lock_irq(&nandr->queue_lock);
     		}
 		}
 		else //read
@@ -1210,7 +1226,7 @@ static int nand_blktrans_thread(void *arg)
 				else
 					partial_flag = 1;
 				#endif
-				spin_unlock_irq(rq->queue_lock);
+				spin_unlock_irq(&nandr->queue_lock);
     			down(&nandr->nand_ops_mutex);
     		
     			nand_current_dev_num = dev->devnum;
@@ -1225,7 +1241,7 @@ static int nand_blktrans_thread(void *arg)
 				}
 				
     			up(&nandr->nand_ops_mutex);
-    			spin_lock_irq(rq->queue_lock);
+    			spin_lock_irq(&nandr->queue_lock);
 
 			}
 
@@ -1242,12 +1258,12 @@ static int nand_blktrans_thread(void *arg)
 
 		#endif
 
-		//spin_lock_irq(rq->queue_lock);
+		//spin_lock_irq(&nandr->queue_lock);
 		__blk_end_request_all(req,0);
 		req = NULL;
 	#else
 		nandr = dev->nandr;
-		spin_unlock_irq(rq->queue_lock);
+		spin_unlock_irq(&nandr->queue_lock);
 		down(&nandr->nand_ops_mutex);
 		IS_IDLE = 0;
 
@@ -1263,7 +1279,7 @@ static int nand_blktrans_thread(void *arg)
 		#endif
 		up(&nandr->nand_ops_mutex);
 		IS_IDLE = 1;
-		spin_lock_irq(rq->queue_lock);
+		spin_lock_irq(&nandr->queue_lock);
 
 		if(!__blk_end_request_cur(req, res)){
 			req = NULL;
@@ -1277,7 +1293,7 @@ static int nand_blktrans_thread(void *arg)
 
 	if(req)
 		__blk_end_request_all(req, -EIO);
-	spin_unlock_irq(rq->queue_lock);
+	spin_unlock_irq(&nandr->queue_lock);
 
 	complete_and_exit(&nandr->thread_exit, 0);
 
@@ -1351,6 +1367,7 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_disk *part)
 	struct list_head *this;
 	struct gendisk *gd;
 	unsigned long temp;
+    struct request_queue    *rq;
 
 	int last_devnum = -1;
 
@@ -1428,6 +1445,15 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_disk *part)
 	gd->first_minor = (dev->devnum) << nandr->minorbits;
 	gd->fops = &nand_blktrans_ops;
 
+    /* create request queue */
+	rq = blk_init_queue(nand_blk_request, &nandr->queue_lock);
+	if (!rq) {
+		unregister_blkdev(nandr->major, nandr->name);
+		up(&nand_mutex);
+		return  -1;
+	}
+    nandr->rq[dev->devnum] = rq;
+
 	snprintf(gd->disk_name, sizeof(gd->disk_name),
 		 "%s%c", nandr->name, (nandr->minorbits?'a':'0') + dev->devnum);
 	//snprintf(gd->devfs_name, sizeof(gd->devfs_name),
@@ -1440,7 +1466,8 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_disk *part)
 
 	gd->private_data = dev;
 	dev->blkcore_priv = gd;
-	gd->queue = nandr->rq;
+	gd->queue = rq;
+    rq->queuedata = nandr;
 
 	/*set rw partition*/
 	if(part->type == PART_NO_ACCESS)
@@ -1540,6 +1567,7 @@ static int nandlogrelease_thread(void *tmparg)
 	{
 		//ret = wait_event_interruptible(arg->wait,nand_io_clear);
 		ret = wait_event_interruptible(arg->wait,nand_getglobalvalue(&nand_io_clear));
+		printk("[NAND] after wakeup in log release thread\n");
 		if(ret==0)
 		{
 		#if 0
@@ -1588,23 +1616,11 @@ int nand_blk_register(struct nand_blk_ops *nandr)
 	init_waitqueue_head(&nandr->thread_wq);
 	sema_init(&nandr->nand_ops_mutex, 1);
 
-	nandr->rq= blk_init_queue(nand_blk_request, &nandr->queue_lock);
-	if (!nandr->rq) {
-		unregister_blkdev(nandr->major, nandr->name);
-		up(&nand_mutex);
-		return  -1;
-	}
+    for(i=0; i<MAX_NAND_DEV; i++)
+        nandr->rq[i] = NULL;
 
-	ret = elevator_change(nandr->rq, "noop");
-	if(ret){
-		blk_cleanup_queue(nandr->rq);
-		return ret;
-	}
-
-	nandr->rq->queuedata = nandr;
 	ret = kernel_thread(nand_blktrans_thread, nandr, CLONE_KERNEL);
 	if (ret < 0) {
-		blk_cleanup_queue(nandr->rq);
 		unregister_blkdev(nandr->major, nandr->name);
 		up(&nand_mutex);
 		return ret;
@@ -1658,6 +1674,7 @@ int nand_blk_register(struct nand_blk_ops *nandr)
 
 void nand_blk_unregister(struct nand_blk_ops *nandr)
 {
+    int     i;
 	struct list_head *this, *next;
 	down(&nand_mutex);
 	/* Clean up the kernel thread */
@@ -1686,7 +1703,10 @@ void nand_blk_unregister(struct nand_blk_ops *nandr)
 	}
 
 	//devfs_remove(nandr->name);
-	blk_cleanup_queue(nandr->rq);
+    for(i=0; i<MAX_NAND_DEV; i++) {
+        if(nandr->rq[i])
+	        blk_cleanup_queue(nandr->rq[i]);
+	}
 
 	unregister_blkdev(nandr->major, nandr->name);
 
@@ -1952,6 +1972,7 @@ static int nand_logrelease(struct nand_blk_dev *dev)
 	return -1;
 }
 
+#if((USE_BIO_MERGE==2) || (USE_BIO_MERGE == 3) || (USE_BIO_MERGE == 4))
 static int nand_flush_force(__u32 dev_num)
 {
 #if 1
@@ -1965,6 +1986,7 @@ static int nand_flush_force(__u32 dev_num)
 #endif
 	return 0;
 }
+#endif
 
 
 #if 0
@@ -2119,6 +2141,7 @@ static int __init init_blklayer(void)
 	nand_clearglobalvalue(&nand_shut_down_flag);
 
 	printk("[NAND] nand IO Merge: 0x%x \n", USE_BIO_MERGE);
+	printk("[NAND] turn off log release thread\n");
 
 	ret = PHY_Init();
 	if (ret) {
@@ -2356,7 +2379,7 @@ static int nand_resume(struct platform_device *plat_dev)
 #endif
 {
     __s32 ret;
-        int nand_ch_cnt=NAND_GetChannelCnt();
+    int nand_ch_cnt=NAND_GetChannelCnt();
 	__u32 nand_index_bak = NAND_GetCurrentCH();
 	__u32 bank = 0;
 	
@@ -2400,46 +2423,60 @@ static int nand_resume(struct platform_device *plat_dev)
 		}
 	}
 		
-        //reset all chip
-        for(j=0;j<nand_ch_cnt;j++)
+    //reset all chip
+    for(j=0;j<nand_ch_cnt;j++)
+    {
+		bank = 0;
+		
+		NAND_SetCurrentCH(j);
+		
+    	for(i=0; i<4; i++)
         {
-        	NAND_SetCurrentCH(j);
-		//printk("nand ch %d, chipconnectinfo: 0x%x\n ", j, NAND_GetChipConnect());
-        	for(i=0; i<4; i++)
-	        {
-	            if(NAND_GetChipConnect()&(0x1<<i)) //chip valid
-	            {
-	                //printk("nand reset ch %d, chip %d!\n",j, i);
-	                ret = PHY_ResetChip(i);
-	                ret |= PHY_SynchBank(bank, 0);
-					bank++;
-	                if(ret)
-	                    printk("nand reset ch %d, chip %d failed!\n",j, i);
-			
-	            }
+            if(NAND_GetChipConnect()&(0x1<<i)) //chip valid
+            {
+                //printk("nand reset ch %d, chip %d!\n",j, i);
+                ret = PHY_ResetChip(i);
+                ret |= PHY_SynchBank(bank, 0);
+				bank++;
+                if(ret)
+                    printk("nand reset ch %d, chip %d failed!\n",j, i);
+		
+            }
 		    else
 		    {
 		    	//printk("nand skip ch %d, chip %d!\n",j, i);
 		    }
-				
-		    
-	        }
+			
+	    
+        }
 
 		PHY_ChangeMode(1);
 
-        }
+    }
+
+	bank = 0;
+	for(i=0; i<4; i++)
+	{
+		if(NAND_GetChipConnect()&(0x1<<i)) //chip valid
+		{
+			PHY_SetDefaultParam(bank);
+			bank++;
+		}
+	}
+	//init retry count
+	for(i=0;i<4;i++)
+	{
+		RetryCount[0][i] = 0;
+		RetryCount[1][i] = 0;
+	}
+
 
 	NAND_SetCurrentCH(nand_index_bak);
     	
-    	//init retry count
-    	for(i=0;i<4;i++)
-    	{
-    		RetryCount[0][i] = 0;
-		RetryCount[1][i] = 0;
-    	}
+
     	    
-		//process for super standby
-		//restore reg state
+	//process for super standby
+	//restore reg state
 	for(j=0;j<nand_ch_cnt;j++)
 	{
 		for(i=0; i<(NAND_REG_LENGTH); i++){
@@ -2474,15 +2511,9 @@ static int nand_resume(struct platform_device *plat_dev)
 	//printk("reg 0xf1c20900, value: 0x%x\n", *(volatile __u32 *)(0xf1c20900));
 	//printk("reg 0xf1c20908, value: 0x%x\n", *(volatile __u32 *)(0xf1c20908));
 	
-	
-
-	
-	
-
-		up(&mytr.nand_ops_mutex);
+	up(&mytr.nand_ops_mutex);
 		
 	}
-
 
 	return 0;
 }

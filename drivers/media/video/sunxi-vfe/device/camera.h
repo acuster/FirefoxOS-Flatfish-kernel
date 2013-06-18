@@ -7,6 +7,7 @@
 
 #include <media/v4l2-subdev.h>
 #include <linux/videodev2.h>
+#include "../vfe.h"
 #include "../vfe_subdev.h"
 #include "cci.h"
 #include "camera_cfg.h"
@@ -77,6 +78,7 @@ struct sensor_info {
 //  enum v4l2_autofocus_ctrl af_ctrl;
   struct v4l2_fract                     tpf; 
   struct sensor_win_size                *current_wins;
+  struct flash_dev_info                 *fl_dev_info;
 };
 
 #endif //__CAMERA__H__

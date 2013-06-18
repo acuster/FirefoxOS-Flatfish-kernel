@@ -43,3 +43,11 @@ config BCMDHD_SDIO_IRQ
 	---help---
 		Interrupt through SDIO DAT[1]
 endchoice
+
+config BCMDHD_OOB_LOW_LEVEL_TRIGGER
+	depends on BCMDHD_OOB
+	bool "Low level trigger for OOB interrupt"
+	default n
+	---help---
+	  This macro is needed while an inverter between wl_host_wake pin and cpu.
+	  Please check PCB to confirm whether define this macro, default is no.

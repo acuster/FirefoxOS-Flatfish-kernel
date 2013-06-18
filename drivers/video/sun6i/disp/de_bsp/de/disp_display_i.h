@@ -9,11 +9,13 @@
 #define DE_INF __inf
 #define DE_MSG __msg
 #define DE_WRN __wrn
+#define DE_DBG __debug
 #define OSAL_IRQ_RETURN IRQ_HANDLED
 #else
 #define DE_INF(msg...)
 #define DE_MSG __msg
 #define DE_WRN __wrn
+#define DE_DBG __debug
 #ifndef OSAL_IRQ_RETURN
 #define OSAL_IRQ_RETURN DIS_SUCCESS
 #endif

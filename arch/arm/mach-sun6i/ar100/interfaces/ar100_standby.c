@@ -19,7 +19,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
  
-#include "..//ar100_i.h"
+#include "../ar100_i.h"
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <mach/sys_config.h>
@@ -44,7 +44,7 @@ int ar100_standby_super(struct super_standby_para *para, ar100_cb_t cb, void *cb
 	struct ar100_message *pmessage;
 	
 	/* allocate a message frame */
-	pmessage = ar100_message_allocate(AR100_MESSAGE_ATTR_HARDSYN);
+	pmessage = ar100_message_allocate(0);
 	if (pmessage == NULL) {
 		AR100_ERR("allocate message for super-standby request failed\n");
 		return -ENOMEM;
@@ -55,10 +55,12 @@ int ar100_standby_super(struct super_standby_para *para, ar100_cb_t cb, void *cb
 		AR100_ERR("super-standby parameters number too long\n");
 		return -EINVAL;
 	}
-	
 	/* initialize message */
-	pmessage->type       = AR100_SSTANDBY_ENTER_REQ;
-	pmessage->attr       = 0;
+	if (para->pextended_standby == NULL) {
+		pmessage->type       = AR100_SSTANDBY_ENTER_REQ;
+	} else {
+		pmessage->type       = AR100_ESSTANDBY_ENTER_REQ;
+	}
 	pmessage->cb.handler = cb;
 	pmessage->cb.arg     = cb_arg;
 	memcpy(pmessage->paras, para, sizeof(struct super_standby_para));
@@ -139,7 +141,6 @@ int ar100_cpux_ready_notify(void)
 	
 	/* initialize message */
 	pmessage->type     = AR100_SSTANDBY_RESTORE_NOTIFY;
-	pmessage->attr     = AR100_MESSAGE_ATTR_HARDSYN;
 	pmessage->state    = AR100_MESSAGE_INITIALIZED;
 	
 	ar100_hwmsgbox_send_message(pmessage, AR100_SEND_MSG_TIMEOUT);
@@ -171,7 +172,7 @@ int ar100_standby_talk(struct super_standby_para *para, ar100_cb_t cb, void *cb_
 	struct ar100_message *pmessage;
 	
 	/* allocate a message frame */
-	pmessage = ar100_message_allocate(AR100_MESSAGE_ATTR_HARDSYN);
+	pmessage = ar100_message_allocate(0);
 	if (pmessage == NULL) {
 		AR100_ERR("allocate message for talk-standby request failed\n");
 		return -ENOMEM;
@@ -185,7 +186,6 @@ int ar100_standby_talk(struct super_standby_para *para, ar100_cb_t cb, void *cb_
 	
 	/* initialize message */
 	pmessage->type       = AR100_TSTANDBY_ENTER_REQ;
-	pmessage->attr       = 0;
 	pmessage->cb.handler = cb;
 	pmessage->cb.arg     = cb_arg;
 	memcpy(pmessage->paras, para, sizeof(struct super_standby_para));
@@ -221,7 +221,6 @@ int ar100_cpux_talkstandby_ready_notify(void)
 	
 	/* initialize message */
 	pmessage->type     = AR100_TSTANDBY_RESTORE_NOTIFY;
-	pmessage->attr     = AR100_MESSAGE_ATTR_HARDSYN;
 	pmessage->state    = AR100_MESSAGE_INITIALIZED;
 	
 	ar100_hwmsgbox_send_message(pmessage, AR100_SEND_MSG_TIMEOUT);
@@ -251,7 +250,7 @@ void ar100_fake_power_off(void)
 	script_item_value_type_e type;
 	
 	/* allocate a message frame */
-	pmessage = ar100_message_allocate(AR100_MESSAGE_ATTR_HARDSYN);
+	pmessage = ar100_message_allocate(0);
 	if (pmessage == NULL) {
 		AR100_ERR("allocate message for fake power off request failed\n");
 	}
@@ -264,7 +263,6 @@ void ar100_fake_power_off(void)
 	
 	/* initialize message */
 	pmessage->type       = AR100_FAKE_POWER_OFF_REQ;
-	pmessage->attr       = 0;
 	pmessage->state      = AR100_MESSAGE_INITIALIZED;
 	pmessage->paras[0]   = script_val.val;
 	

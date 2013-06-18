@@ -35,13 +35,11 @@
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/suspend.h>
+#include <linux/scenelock.h>
+#include <linux/regulator/consumer.h>
 #include <mach/sys_config.h>
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif
-
-#if defined(CONFIG_HAS_EARLYSUSPEND) || defined(CONFIG_PM)
+#ifdef CONFIG_PM
 #include <linux/pm.h>
 #endif
 
@@ -63,7 +61,7 @@
  *  input device framework and control via sysfs attributes.
  */
 
-#define PS_DISTANCE  500
+#define PS_DISTANCE  100
 
 enum {
 	LIGHT_ENABLED = BIT(0),
@@ -76,6 +74,7 @@ struct sensor_config{
 	int twi_id;
 	int int1;
 	int int_mode;
+	char* ldo;
 };
 static struct sensor_config sensor_config ;
 
@@ -107,9 +106,6 @@ struct ltr_data {
 	struct workqueue_struct *wq;
 	atomic_t ltr558_init;
 	atomic_t ltr558_suspend;
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	struct early_suspend early_suspend;
-#endif
 };
 
 static void ltr558_resume_events(struct work_struct *work);
@@ -123,7 +119,6 @@ struct ltr_data *ltr558_data;
 int ltr558_als_read(void)
 {
 	int div_tmp;
-	u8 als_tmp;
 	
 	int alsval_ch0_lo, alsval_ch0_hi;
 	int alsval_ch1_lo, alsval_ch1_hi;
@@ -132,18 +127,13 @@ int ltr558_als_read(void)
 	int alsval_ch0, alsval_ch1;
 	int ch0_coeff, ch1_coeff;
 
-	als_tmp = ltr558_i2c_read_reg(LTR558_ALS_DATA_CH1_0);
-	alsval_ch1_lo = als_tmp;
-	als_tmp = ltr558_i2c_read_reg(LTR558_ALS_DATA_CH1_1);
-	alsval_ch1_hi = als_tmp;
-	als_tmp = ltr558_i2c_read_reg(LTR558_ALS_DATA_CH0_0);
-	alsval_ch0_lo = als_tmp;
-	als_tmp = ltr558_i2c_read_reg(LTR558_ALS_DATA_CH0_1);
-	alsval_ch0_hi = als_tmp;
+	alsval_ch0_lo = ltr558_i2c_read_reg(LTR558_ALS_DATA_CH0_0);
+	alsval_ch0_hi = ltr558_i2c_read_reg(LTR558_ALS_DATA_CH0_1);
+	alsval_ch1_lo = ltr558_i2c_read_reg(LTR558_ALS_DATA_CH1_0);
+	alsval_ch1_hi = ltr558_i2c_read_reg(LTR558_ALS_DATA_CH1_1);
 	
-	alsval_ch1 = (alsval_ch1_hi * 256) + alsval_ch1_lo;
-	alsval_ch0 = (alsval_ch0_hi * 256) + alsval_ch0_lo;
-
+	alsval_ch0 = (alsval_ch0_hi << 8) + alsval_ch0_lo;
+	alsval_ch1 = (alsval_ch1_hi << 8) + alsval_ch1_lo;
 	dprintk(DEBUG_REPORT_ALS_DATA, "light alsval_ch1=%d alsval_ch0=%d\n",  alsval_ch1, alsval_ch0);
 
 	div_tmp = ( (alsval_ch1 + alsval_ch0) != 0)?(alsval_ch1 + alsval_ch0):1;
@@ -176,11 +166,7 @@ int ltr558_als_read(void)
 }
 int ltr558_ps_read(void)
 {
-	int psval_lo, psval_hi, psdata, temp;
-
-	temp = ltr558_i2c_read_reg(LTR558_ALS_PS_STATUS);
-
-	dprintk(DEBUG_REPORT_PS_DATA, "ps temp = %d\n",  temp);
+	int psval_lo, psval_hi, psdata;
 
 	psval_lo = ltr558_i2c_read_reg(LTR558_PS_DATA_0);
 	if (psval_lo < 0){
@@ -188,21 +174,16 @@ int ltr558_ps_read(void)
 		goto out;
 	}
 
-	dprintk(DEBUG_REPORT_PS_DATA, "ps psval_lo = %d\n",  psval_lo);
-		
 	psval_hi = ltr558_i2c_read_reg(LTR558_PS_DATA_1);
 	if (psval_hi < 0){
 		psdata = psval_hi;
 		goto out;
 	}
-
-	dprintk(DEBUG_REPORT_PS_DATA, "ps psval_hi = %d\n",  psval_hi);
 		
-	psdata = ((psval_hi & 7)* 256) + psval_lo;
-
+	psdata = ((psval_hi & 7) << 8) + psval_lo;
+	dprintk(DEBUG_REPORT_PS_DATA, " ps val =%d\n", psdata);
 
 	out:
-
 	return psdata;
 }
 #if 0
@@ -215,8 +196,6 @@ struct ltr558_data {
 	struct i2c_client *client;
 };
 static struct ltr558_data the_data;
-
-
 
 // I2C Read
 int ltr558_i2c_read_reg(unsigned char regnum)
@@ -265,7 +244,7 @@ static int ltr558_ps_enable(void)
 {
 	int error;
 	int setgain;
-	int gainrange = MODE_PS_ON_Gain1;
+	int gainrange = PS_RANGE8;
 
 	switch (gainrange) {
 		case PS_RANGE1:
@@ -290,7 +269,7 @@ static int ltr558_ps_enable(void)
 	}
 
 	error = ltr558_i2c_write_reg(LTR558_PS_CONTR, setgain | (1<<1)); 
-	mdelay(WAKEUP_DELAY);
+	msleep(WAKEUP_DELAY);
 
 	/* =============== 
 	 * ** IMPORTANT **
@@ -323,7 +302,7 @@ static int ltr558_als_enable(void)
 	else
 		error = -1;
 
-	mdelay(WAKEUP_DELAY);
+	msleep(WAKEUP_DELAY);
 
 	/* =============== 
 	 * ** IMPORTANT **
@@ -374,9 +353,12 @@ int ltr558_devinit(void)
 {
 	int error;
 
-	mdelay(PON_DELAY);
+	msleep(PON_DELAY);
 
 	mutex_lock(&ltr558_data->power_lock);
+	error = ltr558_i2c_write_reg(LTR558_INTERRUPT, 0x1); // 0 active, ps interrupt, latched until read
+	if (error < 0)
+		goto out;
 	// Enable PS to Gain1 at startup
 	error = ltr558_ps_enable();
 	if (error < 0)
@@ -390,6 +372,12 @@ int ltr558_devinit(void)
 	ltr558_i2c_write_reg(LTR558_PS_LED, 0x7f );
 	ltr558_i2c_write_reg(LTR558_PS_N_PULSES, 0x08);
 	
+	ltr558_i2c_write_reg(LTR558_INTERRUPT_PERSIST, 0x70);
+	/* 0 ~ 500 */
+	ltr558_i2c_write_reg(LTR558_PS_THRES_LOW_0, 0xf4);
+	ltr558_i2c_write_reg(LTR558_PS_THRES_LOW_1, 0x1);
+	ltr558_i2c_write_reg(LTR558_PS_THRES_UP_0, 0xff);
+	ltr558_i2c_write_reg(LTR558_PS_THRES_UP_1, 0x07);
 	mutex_unlock(&ltr558_data->power_lock);
 
 	error = 0;
@@ -565,7 +553,9 @@ static ssize_t light_enable_store(struct device *dev,
 	}
 
 	if ((atomic_read(&ltr->ltr558_init) == 0) || (atomic_read(&ltr->ltr558_suspend) == 1)) {
+		mutex_lock(&ltr->power_lock);
 		ltr->power_state |= LIGHT_ENABLED;
+		mutex_unlock(&ltr->power_lock);
 		return size;
 	}
 
@@ -604,7 +594,9 @@ static ssize_t proximity_enable_store(struct device *dev,
 	}
 
 	if ((atomic_read(&ltr->ltr558_init) == 0) || (atomic_read(&ltr->ltr558_suspend) == 1)) {
+		mutex_lock(&ltr->power_lock);
 		ltr->power_state |= PROXIMITY_ENABLED;
+		mutex_unlock(&ltr->power_lock);
 		return size;
 	}
 
@@ -666,6 +658,7 @@ static void ltr_work_func_light(struct work_struct *work)
 	if (adc < 0)
 	{
 		printk("light val err");
+		adc = 0; // no light
 	}
 
 	dprintk(DEBUG_REPORT_ALS_DATA, "light val=%d\n",  adc);
@@ -685,16 +678,14 @@ static enum hrtimer_restart ltr_timer_func(struct hrtimer *timer)
 	return HRTIMER_RESTART;
 }
 
-#if 0
 /* interrupt happened due to transition/change of near/far proximity state */
 static u32 ltr_irq_handler(void *data)
 {
-	struct ltr_data *ltr =(struct ltr_data *)data;
+//	struct ltr_data *ltr =(struct ltr_data *)data;
 //	schedule_work(&ltr->irq_workqueue);
-
+	dprintk(DEBUG_CONTROL_INFO, "in irq\n");
 	return 0;
 }
-#endif
 
 static void ltr558_schedwork(struct work_struct *work)
 {
@@ -742,7 +733,7 @@ static void ltr558_schedwork(struct work_struct *work)
 	dprintk(DEBUG_REPORT_PS_DATA, " ps val =%d\n", val);
 	
 	/* 0 is close, 1 is far */
-	val = val >= PS_DISTANCE ? 0: 1;
+	val = val >= PS_DISTANCE ? 0:1;
 
 	input_report_abs(ltr->proximity_input_dev, ABS_DISTANCE, val);
 	input_sync(ltr->proximity_input_dev);
@@ -751,17 +742,14 @@ static void ltr558_schedwork(struct work_struct *work)
 	//wake_lock_timeout(&ip->prx_wake_lock, 3*HZ);
 }
 
-#if 0
 static int ltr_setup_irq(struct ltr_data *ltr)
 {
 	int ret = -EIO;
 
-	debug(" enter %s\n", __func__);
-
 	if (ltr->sensor_config->int1 >= 0) {
-		ret = sw_gpio_irq_request(ltr->sensor_config->int1, TRIG_LEVL_LOW, ltr_irq_handler, ltr);
+		ret = sw_gpio_irq_request(ltr->sensor_config->int1, TRIG_EDGE_NEGATIVE, (peint_handle)ltr_irq_handler, ltr);//TRIG_LEVL_LOW
 		if (!ret) {
-			info("Failed to request gpio irq \n");
+			printk("Failed to request gpio irq \n");
 			ret = -EIO;
 		} else {
 			ltr->gpio_irq_handle = ret ;
@@ -769,15 +757,8 @@ static int ltr_setup_irq(struct ltr_data *ltr)
 	}
 
 	ret = 0;
-	debug("success\n");
 	return ret;
 }
-#endif
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void ltr_early_suspend(struct early_suspend *handler);
-static void ltr_late_resume(struct early_suspend *handler);
-#endif
 
 static void ltr558_init_events (struct work_struct *work)
 {
@@ -820,7 +801,7 @@ static int ltr_i2c_probe(struct i2c_client *client,
 	ltr->i2c_client = client;
 	i2c_set_clientdata(client, ltr);
 	ltr->sensor_config = &sensor_config;
-	ltr->irq = sensor_config.int1; 
+	ltr->irq =  __gpio_to_irq(sensor_config.int1);
 	ltr->ps_poll_delay = 100;
 
 	/* the timer just fires off a work queue request.  we need a thread
@@ -921,13 +902,12 @@ static int ltr_i2c_probe(struct i2c_client *client,
 
 	/* Initialize the ltr558 chip */
 	queue_work(ltr558_init_wq, &ltr558_init_work);
+	ret = ltr_setup_irq(ltr);
+	if (ret) {
+		printk("%s: could not setup irq\n", __func__);
+		goto err_sysfs_create_group_light;
+	}
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	ltr->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	ltr->early_suspend.suspend = ltr_early_suspend;
-	ltr->early_suspend.resume = ltr_late_resume;
-	register_early_suspend(&ltr->early_suspend);
-#endif
 	dprintk(DEBUG_INIT, "LTR probe OK!");
 	return 0;
 
@@ -954,10 +934,6 @@ static int ltr_i2c_remove(struct i2c_client *client)
 {
 	struct ltr_data *ltr = i2c_get_clientdata(client);
 
-	
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&ltr->early_suspend);
-#endif
 	cancel_work_sync(&ltr558_init_work);
 	destroy_workqueue(ltr558_init_wq);
 	cancel_work_sync(&ltr558_resume_work);
@@ -968,8 +944,8 @@ static int ltr_i2c_remove(struct i2c_client *client)
 	sysfs_remove_group(&ltr->proximity_input_dev->dev.kobj,
 			   &proximity_attribute_group);
 	input_unregister_device(ltr->proximity_input_dev);
-	/*if (ltr->gpio_irq_handle)
-		sw_gpio_irq_free(ltr->gpio_irq_handle);*/
+	if (ltr->gpio_irq_handle)
+		sw_gpio_irq_free(ltr->gpio_irq_handle);
 	if (ltr->power_state) {
 		if (ltr->power_state & LIGHT_ENABLED)
 			ltr_light_disable(ltr);
@@ -1002,47 +978,6 @@ static void ltr558_resume_events (struct work_struct *work)
 	atomic_set(&ltr558_data->ltr558_suspend, 0);
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void ltr_early_suspend(struct early_suspend *handler)
-{
-	struct ltr_data *ltr =
-		container_of(handler, struct ltr_data, early_suspend);
-	
-        dprintk(DEBUG_SUSPEND, "==early suspend=\n");
-
-	atomic_set(&ltr->ltr558_suspend, 1);
-	
-	if (ltr->power_state & LIGHT_ENABLED){
-		ltr_light_disable(ltr);
-		ltr558_als_power(false);
-	}
-
-	if (ltr->power_state & PROXIMITY_ENABLED){
-		ltr_ps_disable(ltr);
-		ltr558_ps_power(false);
-	} 
-}
-static void ltr_late_resume(struct early_suspend *handler)
-{
-	struct ltr_data *ltr =
-		container_of(handler, struct ltr_data, early_suspend);
-	
-        dprintk(DEBUG_SUSPEND, "==early resume=\n");
-
-	if (NORMAL_STANDBY == standby_type) {
-		if (ltr->power_state & LIGHT_ENABLED) {
-			ltr558_als_power(true);
-			ltr_light_enable(ltr);
-		}
-		if (ltr->power_state & PROXIMITY_ENABLED) {
-			ltr558_ps_power(true);
-			ltr_ps_enable(ltr);
-		}
-		atomic_set(&ltr->ltr558_suspend, 0);
-	} else if (SUPER_STANDBY == standby_type)
-		queue_work(ltr558_resume_wq, &ltr558_resume_work);
-}
-#else
 #ifdef CONFIG_PM
 static int ltr_suspend(struct i2c_client *client, pm_message_t mesg)
 {
@@ -1064,6 +999,7 @@ static int ltr_suspend(struct i2c_client *client, pm_message_t mesg)
 
 	if (ltr->power_state & PROXIMITY_ENABLED){
 		ltr_ps_disable(ltr);
+		if (check_scene_locked(SCENE_TALKING_STANDBY) != 0)
 		ltr558_ps_power(false);
 	}
 
@@ -1083,6 +1019,7 @@ static int ltr_resume(struct i2c_client *client)
 		}
 
 		if (ltr->power_state & PROXIMITY_ENABLED){
+			if (check_scene_locked(SCENE_TALKING_STANDBY) != 0)
 			ltr558_ps_power(true);
 			ltr_ps_enable(ltr);
 		}
@@ -1094,8 +1031,6 @@ static int ltr_resume(struct i2c_client *client)
 		
 }
 #endif
-#endif /*CONFIG_HAS_EARLYSUSPEND*/
-
 
 static const struct i2c_device_id ltr_device_id[] = {
 	{LTR558_NAME, 0},
@@ -1109,15 +1044,11 @@ static struct i2c_driver ltr_i2c_driver = {
 	.remove		= __devexit_p(ltr_i2c_remove),
 	.id_table	= ltr_device_id,
 	.address_list   = normal_i2c,
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#else
 #ifdef CONFIG_PM
-	.suspend  = ltr_suspend, 
-	.resume   = ltr_resume,
+	.suspend  	= ltr_suspend,
+	.resume  	= ltr_resume,
 #endif
-#endif
-
-	.driver = {
+	.driver 	= {
 		.name = LTR558_NAME,
 		.owner = THIS_MODULE,
 	 },
@@ -1141,10 +1072,10 @@ static int ls_detect(struct i2c_client *client, struct i2c_board_info *info)
 			client->addr = i2c_address[i2c_num];
 			dprintk(DEBUG_INIT, "%s:addr= 0x%x,i2c_num:%d\n",__func__,client->addr,i2c_num);
 			ret = i2c_smbus_read_byte_data(client,LTR558_MANUFACTURER_ID);
-			dprintk(DEBUG_INIT, "Read MID value is :%d",ret);
+			dprintk(DEBUG_INIT, "Read MID value is :0x%x\n",ret);
 			if ((ret &0x00FF) == LTR558_MID) {
 				ret = i2c_smbus_read_byte_data(client,LTR558_REG_PORT_ID);
-				dprintk(DEBUG_INIT, "Read PID value is :%d",ret);
+				dprintk(DEBUG_INIT, "Read PID value is :0x%x\n",ret);
 				if ((ret &0x00FF) == LTR558_PID) {
 					dprintk(DEBUG_INIT, "LS Device detected!\n" );
 					strlcpy(info->type, LTR558_NAME, I2C_NAME_SIZE);
@@ -1173,6 +1104,7 @@ static int ls_fetch_sysconfig_para(void)
 	int device_used = -1;
 	int twi_id = 0;
 	int sensor_int = 0;
+	char* ldo_str = NULL;
 	script_item_u	val;
 	script_item_value_type_e  type;	
 		
@@ -1206,13 +1138,18 @@ static int ls_fetch_sysconfig_para(void)
 		dprintk(DEBUG_INIT, "%s: INT gpio is %d. \n", __func__, sensor_int);
 		
 		ret = 0;
-		
+		type = script_get_item("ls_para", "ls_ldo", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_STR != type)
+			pr_err("%s: no ldo for light distance sensor, ignore it\n", __func__);
+		else
+			ldo_str = val.str;
 	} else {
 		pr_err("%s: ls_unused. \n",  __func__);
 		ret = -1;
 	}
 	sensor_config.twi_id = twi_id;
 	sensor_config.int1 = sensor_int;
+	sensor_config.ldo = ldo_str;
 
 	return ret;
 
@@ -1224,6 +1161,7 @@ script_get_err:
 
 static int ltr_init(void)
 {
+	struct regulator *ldo = NULL;
 	dprintk(DEBUG_INIT, "%s:  sysfs driver init\n", __func__ );
 
 	if (ls_fetch_sysconfig_para()) {
@@ -1231,13 +1169,38 @@ static int ltr_init(void)
 		return -1;
 	}
 
+	/* enalbe ldo if it exist */
+	if (sensor_config.ldo) {
+		ldo = regulator_get(NULL, sensor_config.ldo);
+		if (!ldo) {
+			pr_err("%s: could not get sensor ldo '%s' in probe, maybe config error,"
+					"ignore firstly !!!!!!!\n", __func__, sensor_config.ldo);
+		}
+		regulator_set_voltage(ldo, 3000000, 3000000);
+		regulator_enable(ldo);
+		regulator_put(ldo);
+		usleep_range(10000, 15000);
+	}
 	ltr_i2c_driver.detect = ls_detect;
 	return i2c_add_driver(&ltr_i2c_driver);
 }
 
 static void ltr_exit(void)
 {
+	struct regulator *ldo = NULL;
 	i2c_del_driver(&ltr_i2c_driver);
+
+	/* disable ldo if it exist */
+	if (sensor_config.ldo) {
+		ldo = regulator_get(NULL, sensor_config.ldo);
+		if (!ldo) {
+			pr_err("%s: could not get ldo '%s' in remove, something error ???, "
+					"ignore it here !!!!!!!!!\n", __func__, sensor_config.ldo);
+		} else {
+			regulator_disable(ldo);
+			regulator_put(ldo);
+		}
+	}
 }
 
 module_init(ltr_init);

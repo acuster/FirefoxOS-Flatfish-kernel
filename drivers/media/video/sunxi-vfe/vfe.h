@@ -23,6 +23,7 @@
 #include <linux/earlysuspend.h>
 
 
+#include "flash_light/flash.h"
 #include "actuator/actuator.h"
 #include "bsp_csi.h"
 #include "bsp_mipi_csi.h"
@@ -98,17 +99,6 @@
 #endif
 
 
-static unsigned int vfe_dbg_en = 0;
-static unsigned int vfe_dbg_lv = 1;
-
-//for internel driver debug
-#define vfe_dbg(l,x,arg...) if(vfe_dbg_en && l <= vfe_dbg_lv) printk(KERN_DEBUG"[VFE_DEBUG]"x,##arg)
-//print when error happens
-#define vfe_err(x,arg...) printk(KERN_ERR"[VFE_ERR]"x,##arg)
-#define vfe_warn(x,arg...) printk(KERN_WARNING"[VFE_WARN]"x,##arg)
-//print unconditional, for important info
-#define vfe_print(x,arg...) printk(KERN_NOTICE"[VFE]"x,##arg)
-
 #define MAX_CH_NUM      4
 #define MAX_INPUT_NUM   2     //the maximum number of device connected to the same bus
 #define MAX_VFE_INPUT   2     //the maximum number of input source of video front end
@@ -158,6 +148,7 @@ struct vfe_channel {
 struct vfe_buffer {
   struct videobuf_buffer    vb;
   struct vfe_fmt            *fmt;
+  int image_quality;
 };
 
 struct vfe_dmaqueue {
@@ -322,6 +313,7 @@ struct ccm_config {
   unsigned int            act_slave;
   struct actuator_ctrl_t  *act_ctrl;
   struct v4l2_subdev      *sd_act;
+  int                     flash_used;
 };
 
 struct sunxi_vip_platform_data {
@@ -338,6 +330,7 @@ struct vfe_dev {
   struct v4l2_device      v4l2_dev;
   struct v4l2_subdev      *sd;
   struct v4l2_subdev	  	*sd_act;
+  int                     flash_used;
   struct platform_device  *pdev;
   unsigned int            id;
   spinlock_t              slock;
@@ -423,7 +416,8 @@ struct vfe_dev {
   struct work_struct      isp_isr_set_sensor_task;
   struct mipi_para        mipi_para;
   struct mipi_fmt         mipi_fmt;
-  struct vfe_ctrl_para    ctrl_para;
+  struct vfe_ctrl_para    ctrl_para;  
+  struct flash_dev_info                   *fl_dev_info;
 };
 
 #endif  /* __VFE__H__ */

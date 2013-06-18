@@ -949,6 +949,13 @@ error_exit:
 }
 #endif
 
+static void dump_xmitbuf_cnt(_adapter *adapter)
+{
+    struct xmit_priv *xmitpriv = &adapter->xmitpriv;
+    DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" free_xmitbuf_cnt: %d, free_xmit_extbuf_cnt: %d\n", 
+                    FUNC_ADPT_ARG(adapter), xmitpriv->free_xmitbuf_cnt, xmitpriv->free_xmit_extbuf_cnt);
+}
+
 static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 {
 	struct dvobj_priv *dvobj = usb_get_intfdata(pusb_intf);
@@ -967,6 +974,12 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	_func_enter_;
 
 	DBG_871X("==> %s (%s:%d)\n",__FUNCTION__, current->comm, current->pid);
+
+    dump_xmitbuf_cnt(padapter);
+    #ifdef CONFIG_CONCURRENT_MODE
+    if (padapter->pbuddy_adapter)
+        dump_xmitbuf_cnt(padapter->pbuddy_adapter);
+    #endif
 
 #ifdef CONFIG_WOWLAN
 	if (check_fwstate(pmlmepriv, _FW_LINKED))
@@ -999,6 +1012,8 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	pwrpriv->bInSuspend = _TRUE;		
 	rtw_cancel_all_timer(padapter);		
 	LeaveAllPowerSaveMode(padapter);
+
+	rtw_stop_cmd_thread(padapter);
 
 	_enter_pwrlock(&pwrpriv->lock);
 	//padapter->net_closed = _TRUE;
@@ -1060,6 +1075,12 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 		rtw_indicate_disconnect(padapter);
 	
 exit:
+    dump_xmitbuf_cnt(padapter);
+    #ifdef CONFIG_CONCURRENT_MODE
+    if (padapter->pbuddy_adapter)
+        dump_xmitbuf_cnt(padapter->pbuddy_adapter);
+    #endif
+
 	printk("<===  %s return %d.............. in %dms\n", __FUNCTION__
 		, ret, rtw_get_passing_time_ms(start_time));
 

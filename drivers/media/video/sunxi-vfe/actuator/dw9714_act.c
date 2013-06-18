@@ -70,10 +70,12 @@ static int subdev_set_code(struct actuator_ctrl_t *act_ctrl,
                            unsigned short sr)
 {
   int ret=0;
-  unsigned short halfword;
   unsigned short last_code;
+  #ifndef DLC
+  unsigned short halfword;
   unsigned short target_code;
   unsigned short delta_code;
+  #endif
   unsigned short dir;
   unsigned short diff;
   unsigned short range=act_ctrl->active_max-act_ctrl->active_min;
@@ -142,7 +144,7 @@ static int subdev_set_code(struct actuator_ctrl_t *act_ctrl,
       {
         act_ctrl->curr_code=target_code;
       }
-      mdelay(delay);
+      usleep_range(delay*1000,delay*1100);
     }
     else if(diff>(range/6) && new_code<act_ctrl->active_min+(range/6))//
     {
@@ -180,7 +182,7 @@ static int subdev_set_code(struct actuator_ctrl_t *act_ctrl,
         {
           act_ctrl->curr_code=target_code;
         }
-        mdelay(10);
+        usleep_range(10000,12000);
       }
     }
     //last step
@@ -220,7 +222,7 @@ static int subdev_set_code(struct actuator_ctrl_t *act_ctrl,
       {
         act_ctrl->curr_code=target_code;
       }
-      mdelay(delay);
+      usleep_range(delay*1000,delay*1100);
     }
     if(target_code<new_code)
     {
@@ -448,7 +450,7 @@ static int subdev_pwdn(struct actuator_ctrl_t *act_ctrl,
     act_ctrl->work_status=ACT_STA_HALT;
 //    ret=subdev_i2c_write(act_ctrl,0x0001, NULL);
     ret=subdev_set_code(act_ctrl,act_ctrl->active_min,0);
-    mdelay(10);
+    usleep_range(10000,12000);
     ret=subdev_i2c_write(act_ctrl,0x8000,0);
     //if(ret==0)
       act_ctrl->work_status=ACT_STA_SOFT_PWDN;

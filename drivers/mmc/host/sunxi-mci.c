@@ -288,7 +288,7 @@ struct sw_mmc_clk_dly {
 	u32 oclk_dly;
 	u32 sclk_dly;
 } mmc_clk_dly [MMC_CLK_MOD_NUM] = {
-	{MMC_CLK_400K,        0, 7},
+	{MMC_CLK_400K,        0, 0},
 	{MMC_CLK_25M,         0, 5},
 	{MMC_CLK_50M,         3, 5},
 	{MMC_CLK_50MDDR,      2, 4},
@@ -2148,12 +2148,15 @@ static int __devinit sw_mci_probe(struct platform_device *pdev)
 		smc_host->present = 1;
 	} else if (smc_host->cd_mode == CARD_DETECT_BY_GPIO_IRQ) {
 		u32 cd_hdle;
+		struct gpio_eint_debounce dbc = {1, 2}; //debounce clock:24M/2^2 = 6MHz
 		cd_hdle = sw_gpio_irq_request(smc_host->pdata->cd.gpio, TRIG_EDGE_DOUBLE,
 					&sw_mci_cd_irq, smc_host);
 		if (!cd_hdle) {
 			SMC_ERR(smc_host, "Failed to get gpio irq for card detection\n");
 		}
 		smc_host->cd_hdle = cd_hdle;
+		/* set debounce clock */
+		sw_gpio_eint_set_debounce(smc_host->pdata->cd.gpio, dbc);
 		smc_host->present = !__gpio_get_value(smc_host->pdata->cd.gpio);
 	} else if (smc_host->cd_mode == CARD_DETECT_BY_GPIO_POLL) {
 		init_timer(&smc_host->cd_timer);
@@ -2330,7 +2333,7 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 			| MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50
 			| MMC_CAP_UHS_DDR50
 			| MMC_CAP_SET_XPC_330 | MMC_CAP_DRIVER_TYPE_A,
-		.f_min = 400000,
+		.f_min = 150000,
 		.f_max = 50000000,
 		.f_ddr_max = 47000000,
 		.dma_tl= 0x20070008,
@@ -2341,7 +2344,7 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 				| MMC_VDD_32_33 | MMC_VDD_33_34,
 		.caps = MMC_CAP_4_BIT_DATA | MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED
 			| MMC_CAP_SDIO_IRQ,
-		.f_min = 400000,
+		.f_min = 150000,
 		.f_max = 50000000,
 		.dma_tl= 0x20070008,
 		.regulator=NULL,
@@ -2360,7 +2363,7 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 			| MMC_CAP_SDIO_IRQ
 			| MMC_CAP_SET_XPC_330 | MMC_CAP_DRIVER_TYPE_A,
 		.caps2 = MMC_CAP2_HS200_1_8V_SDR,
-		.f_min = 400000,
+		.f_min = 150000,
 		.f_max = 120000000,
 		.f_ddr_max = 50000000,
 		.dma_tl= 0x20070008,
@@ -2378,7 +2381,7 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 			| MMC_CAP_SDIO_IRQ
 			| MMC_CAP_SET_XPC_330 | MMC_CAP_DRIVER_TYPE_A,
 		.caps2 = MMC_CAP2_HS200_1_8V_SDR,
-		.f_min = 400000,
+		.f_min = 150000,
 		.f_max = 120000000,
 		.f_ddr_max = 50000000,
 		.dma_tl= MMC3_DMA_TL,

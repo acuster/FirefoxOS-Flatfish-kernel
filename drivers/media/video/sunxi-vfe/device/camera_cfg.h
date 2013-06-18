@@ -8,6 +8,7 @@
 typedef enum tag_CAMERA_IO_CMD {
   GET_CURRENT_WIN_CFG,
   SET_FPS,
+  SET_FLASH_CTRL,
   ISP_SET_EXP_GAIN,
 }__camera_cmd_t;
 

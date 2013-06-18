@@ -380,6 +380,7 @@ IMG_EXPORT PVRSRV_ERROR SGXSubmitTransferKM(IMG_HANDLE hDevHandle, PVRSRV_TRANSF
 			{
 				if (abSrcSyncEnable[loop])
 				{
+					IMG_UINT32 ui32PDumpReadOp2 = 0;
 					psSyncInfo = psKick->ahSrcSyncInfo[loop];
 
 					PDUMPCOMMENT("Tweak src surface write op in transfer cmd\r\n");
@@ -395,6 +396,14 @@ IMG_EXPORT PVRSRV_ERROR SGXSubmitTransferKM(IMG_HANDLE hDevHandle, PVRSRV_TRANSF
 							psCCBMemInfo,
 							psKick->ui32CCBDumpWOff + (IMG_UINT32)(offsetof(SGXMKIF_TRANSFERCMD_SHARED, asSrcSyncs) + i * sizeof(PVRSRV_DEVICE_SYNC_OBJECT) + offsetof(PVRSRV_DEVICE_SYNC_OBJECT, ui32ReadOpsPendingVal)),
 							sizeof(psSyncInfo->psSyncData->ui32LastReadOpDumpVal),
+							psKick->ui32PDumpFlags,
+							MAKEUNIQUETAG(psCCBMemInfo));
+
+					PDUMPCOMMENT("Tweak srv surface read op2 in transfer cmd\r\n");
+					PDUMPMEM(&ui32PDumpReadOp2,
+							psCCBMemInfo,
+							psKick->ui32CCBDumpWOff + (IMG_UINT32)(offsetof(SGXMKIF_TRANSFERCMD_SHARED, asSrcSyncs) + i * sizeof(PVRSRV_DEVICE_SYNC_OBJECT) + offsetof(PVRSRV_DEVICE_SYNC_OBJECT, ui32ReadOps2PendingVal)),
+							sizeof(ui32PDumpReadOp2),
 							psKick->ui32PDumpFlags,
 							MAKEUNIQUETAG(psCCBMemInfo));
 					i++;
@@ -455,7 +464,7 @@ IMG_EXPORT PVRSRV_ERROR SGXSubmitTransferKM(IMG_HANDLE hDevHandle, PVRSRV_TRANSF
 			{
 				if (abDstSyncEnable[loop])
 				{
-					psSyncInfo = (PVRSRV_KERNEL_SYNC_INFO *)psKick->ahDstSyncInfo[0];
+					psSyncInfo = (PVRSRV_KERNEL_SYNC_INFO *)psKick->ahDstSyncInfo[loop];
 					psSyncInfo->psSyncData->ui32LastOpDumpVal++;
 				}
 			}

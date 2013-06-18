@@ -591,6 +591,7 @@ int bcmsdh_set_drvdata(void * dhdp)
 
 #if defined(OOB_INTR_ONLY)
 #define CONFIG_ARCH_SUN6I_BCMDHD 1
+static int wl_host_wake = 0;
 
 extern int gpio_request(unsigned gpio, const char *label);
 extern void gpio_free(unsigned gpio);
@@ -602,10 +603,19 @@ void bcmsdh_oob_intr_set(bool enable)
 
 	spin_lock_irqsave(&sdhcinfo->irq_lock, flags);
 	if (curstate != enable) {
-		if (enable)
-			enable_irq(sdhcinfo->oob_irq);
-		else
-			disable_irq_nosync(sdhcinfo->oob_irq);
+		if (enable) {
+#ifndef CONFIG_ARCH_SUN6I_BCMDHD
+            enable_irq(sdhcinfo->oob_irq);
+#else
+            sw_gpio_eint_set_enable(wl_host_wake, 1);
+#endif
+		} else {
+#ifndef CONFIG_ARCH_SUN6I_BCMDHD
+            disable_irq_nosync(sdhcinfo->oob_irq);
+#else
+            sw_gpio_eint_set_enable(wl_host_wake, 0);
+#endif
+		}
 		curstate = enable;
 	}
 	spin_unlock_irqrestore(&sdhcinfo->irq_lock, flags);
@@ -630,11 +640,14 @@ static irqreturn_t wlan_oob_irq(int irq, void *dev_id)
 }
 
 #if 1
-static int wl_host_wake = 0;
 u32 irq_hand = NULL;
 u32 eint_handle(void *para)
 {
-	wlan_oob_irq(0, NULL);
+	unsigned int penable = 0;
+	int ret = -1;
+	ret = sw_gpio_eint_get_enable(wl_host_wake, &penable);
+	if (ret == 0 && penable == 1)
+		wlan_oob_irq(0, NULL);
 	return 0;
 }
 #endif
@@ -659,8 +672,12 @@ int bcmsdh_register_oob_intr(void * dhdp)
 	if (!sdhcinfo->oob_irq_registered) {
 		SDLX_MSG(("%s IRQ=%d Type=%X \n", __FUNCTION__,
 			(int)sdhcinfo->oob_irq, (int)sdhcinfo->oob_flags));
-		
+
+#ifndef BCMDHD_OOB_LOW_LEVEL_TRIGGER
 	irq_hand = sw_gpio_irq_request(wl_host_wake, TRIG_LEVL_HIGH, eint_handle, NULL);
+#else
+	irq_hand = sw_gpio_irq_request(wl_host_wake, TRIG_LEVL_LOW, eint_handle, NULL);
+#endif
 	if(0 == irq_hand)
 		printk("sw_gpio_irq_request err\n");
 

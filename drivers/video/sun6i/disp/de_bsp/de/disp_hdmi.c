@@ -187,7 +187,7 @@ __s32 BSP_disp_hdmi_close(__u32 sel)
 }
 
 __s32 BSP_disp_hdmi_set_mode(__u32 sel, __disp_tv_mode_t  mode)
-{ 	
+{
     if(mode >= DISP_TV_MODE_NUM)
     {
         DE_WRN("unsupported hdmi mode:%d in BSP_disp_hdmi_set_mode\n", mode);

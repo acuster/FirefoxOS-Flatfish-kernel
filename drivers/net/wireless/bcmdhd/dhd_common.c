@@ -353,17 +353,17 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 	case IOV_SVAL(IOV_WLMSGLEVEL):
 #if defined(CONFIG_WIRELESS_EXT)
 		if (int_val & DHD_IW_VAL) {
-			iw_msg_level = int_val;
+			iw_msg_level = (uint)(int_val & 0xFFFF);
 			printk("iw_msg_level=0x%x\n", iw_msg_level);
 		} else
 #endif
 #ifdef WL_CFG80211
 		if (int_val & DHD_CFG_VAL) {
-			wl_cfg80211_enable_trace(int_val);
+			wl_cfg80211_enable_trace((u32)(int_val & 0xFFFF));
 		} else
 #endif
 		{
-			android_msg_level = int_val;
+			android_msg_level = (uint)int_val;
 			printk("android_msg_level=0x%x\n", android_msg_level);
 		}
 		break;

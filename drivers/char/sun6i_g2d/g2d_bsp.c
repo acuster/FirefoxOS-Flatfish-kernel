@@ -716,7 +716,7 @@ __s32 mixer_blt(g2d_blt *para){
 	}
 	
 	/* palette format */
-	if (para->src_image.format>0x1C)
+	if ((para->src_image.format>0x1C)&&(para->src_image.format<0x21))
 	{
 		reg_val |= 0x2;
 	}
@@ -1478,41 +1478,41 @@ __u32 mixer_premultiply_set(__u32 flag)
 
 __u32 mixer_micro_block_set(g2d_blt *para)
 {
-	__u32 reg_val;
+	__u32 reg_val,bppnum;
 	__u64 addr_val;
 
 	if(para->src_image.format>0x20)
 	{
-		addr_val = (__u64)(para->src_image.addr[0]-0x40000000)*8;
-		reg_val = (addr_val>>32)&0xF;/* high addr in bits */
-		write_wvalue(G2D_DMA_HADDR_REG, reg_val);
-		reg_val = addr_val&0xFFFFFFFF;/* low addr in bits */
-		write_wvalue(G2D_DMA0_LADDR_REG, reg_val);
-
-		addr_val = (__u64)(para->src_image.addr[0]-0x40000000)*8+(__u64)(para->src_image.w*para->src_image.h);
+		if((para->src_image.format == G2D_FMT_PYUV411UVC_MB16)||(para->src_image.format == G2D_FMT_PYUV411UVC_MB32)||
+		   (para->src_image.format == G2D_FMT_PYUV411UVC_MB64)||(para->src_image.format == G2D_FMT_PYUV411UVC_MB128)) bppnum = 4;
+		else bppnum = 8;
+		if((para->src_image.format == G2D_FMT_PYUV420UVC_MB16)||(para->src_image.format == G2D_FMT_PYUV420UVC_MB32)||
+		   (para->src_image.format == G2D_FMT_PYUV420UVC_MB64)||(para->src_image.format == G2D_FMT_PYUV420UVC_MB128))
+			addr_val = (__u64)(para->src_image.addr[1]-0x40000000)*8+(__u64)((para->src_image.w*(para->src_rect.y/2)+para->src_rect.x)*bppnum);
+		else addr_val = (__u64)(para->src_image.addr[1]-0x40000000)*8+(__u64)((para->src_image.w*para->src_rect.y+para->src_rect.x)*bppnum);
 		reg_val = read_wvalue(G2D_DMA_HADDR_REG);
 		reg_val |= ((addr_val>>32)&0xF)<<8;/* high addr in bits */
 		write_wvalue(G2D_DMA_HADDR_REG, reg_val);
 		reg_val = addr_val&0xFFFFFFFF;/* low addr in bits */
 		write_wvalue(G2D_DMA1_LADDR_REG, reg_val);
 
-		if		(para->src_image.format>0x23 && para->src_image.format<0x27)reg_val = 0x5<<20;
-		else if (para->src_image.format>0x26 && para->src_image.format<0x2A)reg_val = 0x6<<20;
-		else if (para->src_image.format>0x29 && para->src_image.format<0x2D)reg_val = 0x7<<20;
-		else reg_val = 0x4<<20;
-		reg_val |= (read_wvalue(G2D_DMA0_CONTROL_REG)&0xff8fffff);
-		write_wvalue(G2D_DMA0_CONTROL_REG, reg_val);
-
-		write_wvalue(G2D_DMA1_STRIDE_REG, para->src_image.w*8);
+		write_wvalue(G2D_DMA1_STRIDE_REG, para->src_image.w*bppnum);
 		write_wvalue(G2D_DMA1_SIZE_REG, (para->src_rect.w -1) | ((para->src_rect.h -1)<<16));
-		reg_val = (read_wvalue(G2D_DMA0_CONTROL_REG)>>20)&0x7;
+		reg_val = read_wvalue(G2D_DMA1_CONTROL_REG);
 		reg_val |= (5<<8) | G2D_IDMA_ENABLE;
 
 		/* rotate/mirror */
 		reg_val |= mixer_set_rotate_reg(para->flag);
 		write_wvalue(G2D_DMA1_CONTROL_REG, reg_val);
+		if		(para->src_image.format>0x23 && para->src_image.format<0x27)reg_val = 0x5<<20;
+		else if	(para->src_image.format>0x26 && para->src_image.format<0x2A)reg_val = 0x6<<20;
+		else if	(para->src_image.format>0x29 && para->src_image.format<0x2D)reg_val = 0x7<<20;
+		else reg_val = 0x4<<20;
+		write_wvalue(G2D_DMA0_CONTROL_REG, (reg_val|(read_wvalue(G2D_DMA0_CONTROL_REG)&0xff8fffff)));
+		write_wvalue(G2D_DMA1_CONTROL_REG, (reg_val|(read_wvalue(G2D_DMA1_CONTROL_REG)&0xff8fffff)));
 		write_wvalue(G2D_DMA0_MBCTL_REG,(para->src_rect.y&0xFFFF)<<16|(para->src_rect.x&0xFFFF));
 		write_wvalue(G2D_DMA1_MBCTL_REG,(para->src_rect.y&0xFFFF)<<16|(para->src_rect.x&0xFFFF));
+
 	}
 
 	return 0;

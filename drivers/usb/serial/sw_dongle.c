@@ -126,3 +126,24 @@ int zte_mu350_init(struct usb_interface *intf)
     return 0;
 }
 
+int sw_dongle_init(struct usb_serial *serial, struct usb_interface *intf)
+{
+	if (serial->dev->descriptor.idVendor == 0x19d2 &&
+		serial->dev->descriptor.idProduct == 0x0079 &&
+		serial->interface->cur_altsetting->desc.bInterfaceClass == 0xff &&
+		serial->interface->cur_altsetting->desc.bInterfaceSubClass == 0xff &&
+		serial->interface->cur_altsetting->desc.bInterfaceProtocol == 0xff){
+		zte_a355_init(serial->interface);
+	}
+
+	if (serial->dev->descriptor.idVendor == 0x19d2 &&
+		serial->dev->descriptor.idProduct == 0x0003 &&
+		serial->interface->cur_altsetting->desc.bInterfaceClass == 0xff &&
+		serial->interface->cur_altsetting->desc.bInterfaceSubClass == 0xff &&
+		serial->interface->cur_altsetting->desc.bInterfaceProtocol == 0xff){
+		zte_mu350_init(serial->interface);
+	}
+
+    return 0;
+}
+

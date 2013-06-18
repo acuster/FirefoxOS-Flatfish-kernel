@@ -32,6 +32,10 @@
 #include <mach/sys_config.h>
 #include <linux/clk.h>
 
+#include <mach/ar100.h>
+#include <linux/power/aw_pm.h>
+#include <linux/scenelock.h>
+
 //#include  <mach/clock.h>
 #include "sw_hci_sun6i.h"
 
@@ -47,6 +51,8 @@ static const char ohci_name[]       = SW_OHCI_NAME;
 
 static struct sw_hci_hcd *g_sw_ohci[3];
 static u32 ohci_first_probe[3] = {1, 1, 1};
+
+struct scene_lock  ohci_standby_lock[3];
 
 /*.......................................................................................*/
 //                                      º¯ÊýÇø
@@ -420,6 +426,10 @@ static int sw_ohci_hcd_probe(struct platform_device *pdev)
         }
     }
 
+    if(sw_ohci->not_suspend){
+		scene_lock_init(&ohci_standby_lock[sw_ohci->usbc_no], SCENE_USB_STANDBY,  "ohci_standby");
+	}
+
     return 0;
 
 ERR3:
@@ -478,6 +488,10 @@ static int sw_ohci_hcd_remove(struct platform_device *pdev)
 	DMSG_INFO("[%s%d]: remove, pdev->name: %s, pdev->id: %d, sw_ohci: 0x%p\n",
 		      ohci_name, sw_ohci->usbc_no, pdev->name, pdev->id, sw_ohci);
 
+    if(sw_ohci->not_suspend){
+		scene_lock_destroy(&ohci_standby_lock[sw_ohci->usbc_no]);
+    }
+
 	usb_remove_hcd(hcd);
 
 	sw_stop_ohc(sw_ohci);
@@ -532,6 +546,10 @@ void sw_ohci_hcd_shutdown(struct platform_device* pdev)
 	}
 
  	DMSG_INFO("[%s]: ohci shutdown start\n", sw_ohci->hci_name);
+
+    if(sw_ohci->not_suspend){
+		scene_lock_destroy(&ohci_standby_lock[sw_ohci->usbc_no]);
+    }
 
     usb_hcd_platform_shutdown(pdev);
     sw_stop_ohc(sw_ohci);
@@ -598,6 +616,8 @@ static int sw_ohci_hcd_suspend(struct device *dev)
 
     if(sw_ohci->not_suspend){
  	    DMSG_INFO("[%s]: not suspend\n", sw_ohci->hci_name);
+		scene_lock(&ohci_standby_lock[sw_ohci->usbc_no]);
+		enable_wakeup_src(CPUS_USBMOUSE_SRC, 0);
     }else{
  	    DMSG_INFO("[%s]: sw_ohci_hcd_suspend\n", sw_ohci->hci_name);
 
@@ -671,6 +691,8 @@ static int sw_ohci_hcd_resume(struct device *dev)
 
     if(sw_ohci->not_suspend){
  	    DMSG_INFO("[%s]: controller not suspend, need not resume\n", sw_ohci->hci_name);
+		scene_unlock(&ohci_standby_lock[sw_ohci->usbc_no]);
+		disable_wakeup_src(CPUS_USBMOUSE_SRC, 0);
     }else{
      	DMSG_INFO("[%s]: sw_ohci_hcd_resume\n", sw_ohci->hci_name);
 

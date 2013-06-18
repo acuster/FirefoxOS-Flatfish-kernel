@@ -63,8 +63,6 @@ __s32 BSP_disp_init(__disp_bsp_init_para * para)
     BSP_disp_close_lcd_backlight(0);
     BSP_disp_close_lcd_backlight(1);
 
-	
-
     Scaler_Init(0);
     Scaler_Init(1);
     Image_init(0);

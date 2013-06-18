@@ -151,7 +151,7 @@ DHD_SPINWAIT_SLEEP_INIT(sdioh_spinwait_sleep);
 extern void bcmsdh_set_irq(int flag);
 #endif 
 #ifdef PROP_TXSTATUS
-extern void dhd_wlfc_txcomplete(dhd_pub_t *dhd, void *txp, bool success);
+extern void dhd_wlfc_txcomplete(dhd_pub_t *dhd, void *txp, bool success, bool wlfc_locked);
 extern void dhd_wlfc_trigger_pktcommit(dhd_pub_t *dhd);
 #endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
@@ -1779,7 +1779,7 @@ done:
 #ifdef PROP_TXSTATUS
 	if (bus->dhd->wlfc_state) {
 		dhd_os_sdunlock(bus->dhd);
-		dhd_wlfc_txcomplete(bus->dhd, pkt, ret == 0);
+		dhd_wlfc_txcomplete(bus->dhd, pkt, ret == 0, FALSE);
 		dhd_os_sdlock(bus->dhd);
 	} else {
 #endif /* PROP_TXSTATUS */
@@ -1810,7 +1810,7 @@ done:
 }
 
 int
-dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
+dhd_bus_txdata(struct dhd_bus *bus, void *pkt, bool wlfc_locked)
 {
 	int ret = BCME_ERROR;
 	osl_t *osh;
@@ -1895,7 +1895,7 @@ dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 #endif
 #ifdef PROP_TXSTATUS
 			if (bus->dhd->wlfc_state)
-				dhd_wlfc_txcomplete(bus->dhd, pkt, FALSE);
+				dhd_wlfc_txcomplete(bus->dhd, pkt, FALSE, wlfc_locked);
 			else
 #endif
 			dhd_txcomplete(bus->dhd, pkt, FALSE);
@@ -7040,6 +7040,12 @@ dhd_bus_select_firmware_name_by_chip(struct dhd_bus *bus, char *dst, char *src)
 	static uint chip, chiprev, first=1;
 	int i;
 
+	if (first) {
+		chip = bus->sih->chip;
+		chiprev = bus->sih->chiprev;
+		first = 0;
+	}
+
 	if (src[0] == '\0') {
 #ifdef CONFIG_BCMDHD_FW_PATH
 		bcm_strncpy_s(src, sizeof(fw_path), CONFIG_BCMDHD_FW_PATH, MOD_PARAM_PATHLEN-1);
@@ -7071,12 +7077,6 @@ dhd_bus_select_firmware_name_by_chip(struct dhd_bus *bus, char *dst, char *src)
 		FW_TYPE_MFG : (strstr(&dst[i], "_apsta") ?
 		FW_TYPE_APSTA : (strstr(&dst[i], "_p2p") ?
 		FW_TYPE_P2P : FW_TYPE_STA)));
-
-	if (first) {
-		chip = bus->sih->chip;
-		chiprev = bus->sih->chiprev;
-		first = 0;
-	}
 
 	switch (chip) {
 		case BCM4330_CHIP_ID:
@@ -7132,6 +7132,8 @@ dhdsdio_download_firmware(struct dhd_bus *bus, osl_t *osh, void *sdh)
 	/* Download the firmware */
 	dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
 
+	printk("Final fw_path=%s\n", bus->fw_path);
+	printk("Final nv_path=%s\n", bus->nv_path);
 	ret = _dhdsdio_download_firmware(bus) == 0;
 
 	dhdsdio_clkctl(bus, CLK_SDONLY, FALSE);
@@ -7440,7 +7442,7 @@ dhdsdio_download_code_file(struct dhd_bus *bus, char *pfw_path)
 		if (dhd_msg_level & DHD_TRACE_VAL) {
 			bcmerror = dhdsdio_membytes(bus, FALSE, offset, memptr_tmp, len);
 			if (bcmerror) {
-				DHD_ERROR(("%s: error %d on writing %d membytes at 0x%08x\n",
+				DHD_ERROR(("%s: error %d on reading %d membytes at 0x%08x\n",
 				        __FUNCTION__, bcmerror, MEMBLOCK, offset));
 				goto err;
 			}

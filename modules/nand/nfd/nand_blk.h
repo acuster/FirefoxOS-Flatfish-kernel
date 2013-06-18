@@ -5,7 +5,7 @@
 #define __LINUX_NAND_SUPPORT_INT__
 #define __LINUX_SUPPORT_DMA_INT__
 #define __LINUX_SUPPORT_RB_INT__
-
+#define MAX_NAND_DEV                16
 
 struct nand_blk_ops;
 struct list_head;
@@ -51,8 +51,8 @@ struct nand_blk_ops{
 	struct completion thread_exit;
 	int quit;
 	wait_queue_head_t thread_wq;
-	struct request_queue *rq;
-	spinlock_t queue_lock;	
+	struct request_queue *rq[MAX_NAND_DEV];
+	spinlock_t queue_lock;
 	struct semaphore nand_ops_mutex;
 	
 	struct list_head devs;	

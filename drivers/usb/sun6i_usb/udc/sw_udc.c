@@ -75,7 +75,13 @@ extern int axp_usbcur(void);
 
 #ifdef CONFIG_USB_SW_SUN6I_USB0_OTG
 static struct platform_device *g_udc_pdev = NULL;
+extern atomic_t thread_suspend_flag;
 #endif
+
+__u32 dma_working = 0;
+
+atomic_t vfs_read_flag;
+atomic_t vfs_write_flag;
 
 #define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
 
@@ -633,6 +639,7 @@ static int dma_write_fifo(struct sw_udc_ep *ep, struct sw_udc_request *req)
     left_len = left_len - (left_len % ep->ep.maxpacket);
 
 	ep->dma_working	= 1;
+	dma_working = 1;
 	ep->dma_transfer_len = left_len;
 
     if(g_dma_debug){
@@ -883,6 +890,7 @@ static int dma_read_fifo(struct sw_udc_ep *ep, struct sw_udc_request *req)
     }
 
 	ep->dma_working	= 1;
+	dma_working = 1;
 	ep->dma_transfer_len = left_len;
 
 	spin_unlock(&ep->dev->lock);
@@ -1664,6 +1672,7 @@ void sw_udc_clean_dma_status(struct sw_udc_ep *ep)
 	}
 
     ep->dma_working = 0;
+	dma_working = 0;
 
 	return;
 }
@@ -1776,6 +1785,10 @@ static irqreturn_t sw_udc_irq(int dummy, void *_dev)
 	/* RESET */
 	if (usb_irq & USBC_INTUSB_RESET) {
 		DMSG_INFO_UDC("IRQ: reset\n");
+		if(g_msc_write_debug){
+			printk("flag(1:star,2:end) vfs_read_flag:%d, vfs_write_flag:%d,dma_working:%d\n",
+				atomic_read(&vfs_read_flag), atomic_read(&vfs_write_flag), dma_working);
+		}
 
         USBC_INT_ClearMiscPending(g_sw_udc_io.usb_bsp_hdle, USBC_INTUSB_RESET);
         clear_all_irq();
@@ -1986,6 +1999,7 @@ void sw_udc_dma_completion(struct sw_udc *dev, struct sw_udc_ep *ep, struct sw_u
     }
 
 	ep->dma_working = 0;
+	dma_working = 0;
 	ep->dma_transfer_len = 0;
 
     /* 如果本次传输有数据没有传输完毕，得接着传输 */
@@ -3746,6 +3760,8 @@ static int sw_udc_suspend(struct platform_device *pdev, pm_message_t message)
     DMSG_INFO_UDC("sw_udc_suspend start\n");
 	device_insmod_delay = 0;
 
+	atomic_set(&thread_suspend_flag, 1);
+
 	if(!is_peripheral_active()){
 		DMSG_INFO_UDC("udc is disable, need not enter to suspend\n");
 		return 0;
@@ -3801,6 +3817,8 @@ static int sw_udc_resume(struct platform_device *pdev)
 
     DMSG_INFO_UDC("sw_udc_resume start\n");
 	device_insmod_delay = 0;
+
+	atomic_set(&thread_suspend_flag, 0);
 
 	if(!is_peripheral_active()){
 		DMSG_INFO_UDC("udc is disable, need not enter to resume\n");
@@ -3904,6 +3922,9 @@ static int __init udc_init(void)
 	DMSG_INFO_UDC("udc_init: version %s\n", DRIVER_VERSION);
 
     usb_connect = 0;
+
+	atomic_set(&vfs_read_flag, 0);
+	atomic_set(&vfs_write_flag, 0);
 
     /* driver register */
 	retval = platform_driver_probe(&sw_udc_driver, sw_udc_probe);

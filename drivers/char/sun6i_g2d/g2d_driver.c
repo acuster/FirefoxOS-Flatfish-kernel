@@ -459,7 +459,20 @@ long g2d_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		    ret = -1;
 		}
 		break;
-
+	case G2D_CMD_MEM_FLUSH_CACHE:
+	{
+		g2d_cache_range cache_range;
+		if(copy_from_user(&cache_range, (u32 *)arg, sizeof(cache_range))) {
+			ret = -1;
+			goto err_noput;
+		}
+		pr_debug("%s, G2D_CMD_FUSH_CACHE_RANGE, start 0x%08x, end 0x%08x\n", __func__,
+			(u32)cache_range.start, (u32)cache_range.end);
+		ret = flush_clean_user_range(cache_range.start, cache_range.end);
+		if(0 != ret)
+			pr_err("%s, G2D_CMD_FUSH_CACHE_RANGE return %d\n", __func__, ret);
+		break;
+	}
 	/* Invalid IOCTL call */
 	default:
 		return -EINVAL;

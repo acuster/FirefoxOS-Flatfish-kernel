@@ -20,8 +20,14 @@ __s32 Hdmi_hal_video_enable(__bool enable)
 	{
 		hdmi_state 			= HDMI_State_Video_config;
 	}
-    video_enable = enable;
-    
+	if((enable == 0) && (hdmi_state >= HDMI_State_Wait_Video_config) )
+	{
+		hdmi_state = HDMI_State_Wait_Video_config;
+		video_en(enable);
+  }
+
+	video_enable = enable;
+
     return 0;
 }
 

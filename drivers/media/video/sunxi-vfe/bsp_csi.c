@@ -152,7 +152,8 @@ int bsp_csi_set_fmt(unsigned int sel, struct bus_info *bus_info, struct frame_in
            frame_info->ch_field[ch] == FIELD_INTERLACED_TB || \
            frame_info->ch_field[ch] == FIELD_INTERLACED_BT)
       is_buf_itl[ch] = 1;
-
+    else
+      is_buf_itl[ch] = 0;
     
   //set input/output format and size/line stride/offset
   //depends on bus format,bus precision,target frame format, field format
@@ -440,6 +441,8 @@ int bsp_csi_set_size(unsigned int sel, struct bus_info *bus_info, struct frame_i
            frame_info->ch_field[ch] == FIELD_INTERLACED_TB || \
            frame_info->ch_field[ch] == FIELD_INTERLACED_BT)
       is_buf_itl[ch] = 1;
+    else
+      is_buf_itl[ch] = 0;
 
     bus_width[ch] = find_bus_width(bus_info->bus_ch_fmt[ch]);
     bus_precision[ch] = find_bus_precision(bus_info->bus_ch_fmt[ch]);

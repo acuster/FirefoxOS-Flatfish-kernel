@@ -407,6 +407,8 @@ typedef struct _PVRSRV_CLIENT_MEM_INFO_
 	/* CPU Virtual Address (for kernel mode) */
 	IMG_PVOID				pvLinAddrKM;
 
+	IMG_PVOID				ppLinAddrKM;//aw
+
 	/* Device Virtual Address */
 	IMG_DEV_VIRTADDR		sDevVAddr;
 
@@ -845,6 +847,7 @@ IMG_IMPORT IMG_BOOL PVRSRVTestAllOpsNotComplete(PPVRSRV_CLIENT_MEM_INFO psMemInf
 IMG_IMPORT PVRSRV_SYNCVAL PVRSRVGetPendingOpSyncVal(PPVRSRV_CLIENT_MEM_INFO psMemInfo,
 	PVRSRV_SYNCVAL_MODE eMode);
 
+#if defined(SUPPORT_PVRSRV_DEVICE_CLASS)
 
 /******************************************************************************
  * Common Device Class Enumeration
@@ -979,6 +982,7 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVGetBCBuffer(IMG_HANDLE hDevice,
 												IMG_HANDLE *phBuffer
 	);
 
+#endif /* #if defined(SUPPORT_PVRSRV_DEVICE_CLASS) */
 
 /******************************************************************************
  * PDUMP Function prototypes...

@@ -302,6 +302,7 @@ config ARCH_SUN6I
 	select HAVE_SCHED_CLOCK
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAS_CPUFREQ
+	select SWP_EMULATE if (SMP && CPU_V7)
 	help
 	  This enables support for AllWinner Ltd develop boards.
 

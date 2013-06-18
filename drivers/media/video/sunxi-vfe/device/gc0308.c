@@ -1194,7 +1194,7 @@ static int sensor_s_hflip(struct v4l2_subdev *sd, int value)
 		return ret;
 	}
 	
-	mdelay(10);
+	usleep_range(10000,12000);
 	
 	info->hflip = value;
 	return 0;
@@ -1261,7 +1261,7 @@ static int sensor_s_vflip(struct v4l2_subdev *sd, int value)
 		return ret;
 	}
 	
-	mdelay(10);
+	usleep_range(10000,12000);
 	
 	info->vflip = value;
 	return 0;
@@ -1348,7 +1348,7 @@ static int sensor_s_autoexp(struct v4l2_subdev *sd,
 		return ret;
 	}
 	
-	mdelay(10);
+	usleep_range(10000,12000);
 	
 	info->autoexp = value;
 	return 0;
@@ -1420,7 +1420,7 @@ static int sensor_s_autowb(struct v4l2_subdev *sd, int value)
 		return ret;
 	}
 	
-	mdelay(10);
+	usleep_range(10000,12000);
 	
 	info->autowb = value;
 	return 0;
@@ -1683,7 +1683,7 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       vfe_dev_dbg("CSI_SUBDEV_STBY_ON\n");
       //standby on io
       vfe_gpio_write(sd,PWDN,CSI_STBY_ON);
-      mdelay(30);
+      usleep_range(30000,31000);
       //inactive mclk after stadby in
       vfe_set_mclk(sd,OFF);
       break;
@@ -1692,20 +1692,20 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       //active mclk before stadby out
       vfe_set_mclk_freq(sd,MCLK);
       vfe_set_mclk(sd,ON);
-      mdelay(30);
+      usleep_range(30000,31000);
       //standby off io
       vfe_gpio_write(sd,PWDN,CSI_STBY_OFF);
-      mdelay(10);
+      usleep_range(10000,12000);
 //			//reset off io
 //			csi_gpio_write(sd,&dev->reset_io,CSI_RST_OFF);
-//			mdelay(30);
+//			usleep_range(30000,31000);
       break;
     case CSI_SUBDEV_PWR_ON:
       vfe_dev_dbg("CSI_SUBDEV_PWR_ON\n");
       //power on reset
       vfe_gpio_set_status(sd,PWDN,1);//set the gpio to output
       vfe_gpio_set_status(sd,RESET,1);//set the gpio to output
-      mdelay(10);
+      usleep_range(10000,12000);
       //standby off io
       vfe_gpio_write(sd,PWDN,CSI_STBY_ON);
 			//reset on io
@@ -1716,27 +1716,27 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       vfe_set_pmu_channel(sd,AVDD,ON);
       vfe_set_pmu_channel(sd,DVDD,ON);
       vfe_set_pmu_channel(sd,AFVDD,ON);
-      mdelay(20);
+      usleep_range(20000,22000);
       //standby off io
       vfe_gpio_write(sd,PWDN,CSI_STBY_OFF);
-      mdelay(10);
+      usleep_range(10000,12000);
 			//active mclk
       vfe_set_mclk_freq(sd,MCLK);
       vfe_set_mclk(sd,ON);
-      mdelay(10);
+      usleep_range(10000,12000);
 			//reset on io
       vfe_gpio_write(sd,RESET,CSI_RST_ON);
-			mdelay(30);
+			usleep_range(30000,31000);
 			//reset off io
       vfe_gpio_write(sd,RESET,CSI_RST_OFF);
-			mdelay(30);
+			usleep_range(30000,31000);
 			break;
 		case CSI_SUBDEV_PWR_OFF:
       vfe_dev_dbg("CSI_SUBDEV_PWR_OFF\n");
       //reset io
-      mdelay(10);
+      usleep_range(10000,12000);
       vfe_gpio_write(sd,RESET,CSI_RST_ON);
-			mdelay(10);
+			usleep_range(10000,12000);
 			//inactive mclk after power off
       vfe_set_mclk(sd,OFF);
       //power supply off
@@ -1745,11 +1745,11 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       vfe_set_pmu_channel(sd,DVDD,OFF);
       vfe_set_pmu_channel(sd,AVDD,OFF);
       vfe_set_pmu_channel(sd,IOVDD,OFF);  
-      mdelay(10);
+      usleep_range(10000,12000);
       //standby and reset io
 			//standby of io
       vfe_gpio_write(sd,PWDN,CSI_STBY_ON);
-      mdelay(10);
+      usleep_range(10000,12000);
       //set the io to hi-z
       vfe_gpio_set_status(sd,RESET,0);//set the gpio to input
       vfe_gpio_set_status(sd,PWDN,0);//set the gpio to input
@@ -1769,11 +1769,11 @@ static int sensor_reset(struct v4l2_subdev *sd, u32 val)
   {
     case 0:
       vfe_gpio_write(sd,RESET,CSI_RST_OFF);
-      mdelay(10);
+      usleep_range(10000,12000);
       break;
     case 1:
       vfe_gpio_write(sd,RESET,CSI_RST_ON);
-      mdelay(10);
+      usleep_range(10000,12000);
       break;
     default:
       return -EINVAL;

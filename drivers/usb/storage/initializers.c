@@ -118,7 +118,22 @@ int usb_stor_huawei_e303_init(struct us_data *us)
 	return -ENODEV;
 }
 
-/*for huawei ril.  */
+//-----------------------------------------------------------------------------
+//  for huawei ril
+//-----------------------------------------------------------------------------
+int usb_stor_huawei_e220_init_ex(struct us_data *us)
+{
+	int result;
+
+	result = usb_stor_control_msg(us, us->send_ctrl_pipe,
+								USB_REQ_SET_FEATURE,
+								USB_TYPE_STANDARD | USB_RECIP_DEVICE,
+								0x01, 0x0, NULL, 0x0, 1000);
+	US_DEBUGP("Huawei mode set result is %d\n", result);
+
+	return 0;
+}
+
 #define IS_HUAWEI_DONGLES 1
 #define NOT_HUAWEI_DONGLES 0
 
@@ -140,11 +155,8 @@ static int usb_stor_huawei_dongles_pid(struct us_data *us)
                 } else {
                     ret = IS_HUAWEI_DONGLES;
                 }
-
             }
-
         }
-
     }
 
     return ret;
@@ -159,12 +171,6 @@ int usb_stor_huawei_scsi_init(struct us_data *us)
                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11,
                              0x06, 0x30, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00,
                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-/*  E1731
-    unsigned char cmd[32] = {0x55, 0x53, 0x42, 0x43, 0x00, 0x00, 0x00, 0x00,
-                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11,
-                             0x06, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-*/
 
     printk("====usb_stor_huawei_scsi_init===>\n"); //
 
@@ -184,7 +190,7 @@ int usb_stor_huawei_init(struct us_data *us)
         if ((0x1446 <= us->pusb_dev->descriptor.idProduct)) {
             result = usb_stor_huawei_scsi_init(us);
         } else {
-            result = usb_stor_huawei_e220_init(us);
+            result = usb_stor_huawei_e220_init_ex(us);
         }
     }
 
@@ -264,5 +270,129 @@ int usb_modem_init(struct us_data *us)
     usb_stor_control_msg(us, us->send_ctrl_pipe, USB_REQ_CLEAR_FEATURE,
 		USB_TYPE_STANDARD | USB_RECIP_ENDPOINT,0x0, 0x85, NULL, 0x0, 1000);
     return -ENODEV;
+}
+
+static int usb_stor_send_message(struct us_data *us, void * buf, int len)
+{
+    int result = 0;
+    int act_len = 0;
+
+    result = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe, buf, len, &act_len);
+
+    return result;
+}
+
+/*
+static unsigned char ChinaMobileCmd[] = {
+
+};
+
+static unsigned char ChinaUnicomCmd[6] = {
+	0x55, 0x53, 0x42, 0x43, 0x12, 0x34, 0x56, 0x78,
+	0xC0, 0x00, 0x00, 0x00, 0x80, 0x00, 0x06, 0x71,
+	0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+static unsigned char ChinaTelecomCmd[] = {
+
+};
+*/
+
+static unsigned char eject[] = {
+	0x55, 0x53, 0x42, 0x43, 0x12, 0x34, 0x56, 0x78,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x1B,
+	0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+static unsigned int dongle_vid[] = {
+	0x05c6,   //Qualcomm
+    0x12d1,   //huawei
+	0x19d2,   //ZTE
+	0x1e89,   //strongrising
+	0x257A,   //yuga
+};
+#define DONGLE_VID_SIZE  sizeof(dongle_vid)/sizeof(dongle_vid[0])
+
+static int usb_stor_inquiry(struct us_data *us, void *buffer, int len)
+{
+	unsigned char inquiry_msg[] = {
+	  0x55, 0x53, 0x42, 0x43, 0x12, 0x34, 0x56, 0x78,
+	  0x24, 0x00, 0x00, 0x00, 0x80, 0x00, 0x06, 0x12,
+	  0x00, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00,
+	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	};
+	char csw[13] = {0};
+	int result;
+
+	result = usb_stor_bulk_transfer_buf(us,
+			us->send_bulk_pipe,
+			inquiry_msg, sizeof(inquiry_msg), NULL);
+	if (result != USB_STOR_XFER_GOOD) {
+		result = USB_STOR_XFER_ERROR;
+		goto out;
+	}
+
+	result = usb_stor_bulk_transfer_buf(us,
+			us->recv_bulk_pipe,
+			buffer, len, NULL);
+	if (result != USB_STOR_XFER_GOOD) {
+		result = USB_STOR_XFER_ERROR;
+		goto out;
+	}
+
+	/* Read the CSW */
+	usb_stor_bulk_transfer_buf(us,
+			us->recv_bulk_pipe,
+			csw, 13, NULL);
+
+out:
+	return result;
+}
+
+/* ���������Ϊ�����ˡ���ͨ��CD_ROM������ȥת�� */
+int usb_stor_dongle_change_command(struct us_data *us)
+{
+    char buffer[36];
+	int result;
+	int i = 0;
+
+	for(i = 0; i < DONGLE_VID_SIZE; i++){
+		if(dongle_vid[i] == us->pusb_dev->descriptor.idVendor){
+			printk("%s: find vid_pid: 0x%x_0x%x\n", __func__,
+				   us->pusb_dev->descriptor.idVendor, us->pusb_dev->descriptor.idProduct);
+
+		    result = usb_stor_inquiry(us, buffer, 36);
+			if(result == 0){
+				/* is cd-rom ? */
+				if((buffer[0] & 0x1f) == 0x5){
+					usb_stor_send_message(us, (void *)eject, sizeof(eject));
+				}
+			}
+		}
+	}
+
+    /* maybe is really a cdrom device, so must return zero */
+    return 0;
+}
+
+int usb_stor_dongle_not_report_disk(struct us_data *us)
+{
+    printk("====usb_stor_dongle_not_report_disk===>\n");
+
+    return -ENODEV;
+}
+
+int usb_stor_dongle_common_init(struct us_data *us)
+{
+	int result;
+
+    printk("====usb_stor_dongle_common_init===>\n");
+
+	result = usb_stor_send_message(us, (void *)eject, sizeof(eject));
+    printk("usb_stor_dongle_common_init: result=%d\n", result);
+
+	return 0;
 }
 

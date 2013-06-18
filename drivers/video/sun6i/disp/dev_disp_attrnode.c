@@ -257,6 +257,10 @@ static ssize_t disp_debug_store(struct device *dev,
 	{
         bsp_disp_set_print_level(0);
     }
+    else if (strnicmp(buf, "2", 1) == 0)
+	{
+        bsp_disp_set_print_level(2);
+    }
     else
     {
         return -EINVAL;
@@ -467,35 +471,6 @@ static ssize_t disp_lcd_bl_store(struct device *dev,
 
 static DEVICE_ATTR(lcd_bl, S_IRUGO|S_IWUSR|S_IWGRP,
 		disp_lcd_bl_show, disp_lcd_bl_store);
-
-static ssize_t disp_lcd_bright_curve_en_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "bright_curve_en=%d\n", bsp_disp_lcd_get_bright_curve_en(sel));
-}
-
-static ssize_t disp_lcd_bright_curve_en_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
-{
-	int err;
-    unsigned long val;
-    
-	err = strict_strtoul(buf, 10, &val);
-	if (err) {
-		printk("Invalid size\n");
-		return err;
-	}
-
-    val = (val == 0)? 0:1;
-    bsp_disp_lcd_set_bright_curve_en(sel, val);
-    
-	return count;
-}
-
-static DEVICE_ATTR(lcd_bright_curve_en, S_IRUGO|S_IWUSR|S_IWGRP,
-		disp_lcd_bright_curve_en_show, disp_lcd_bright_curve_en_store);
-
 
 static ssize_t disp_lcd_src_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -1706,7 +1681,6 @@ static struct attribute *disp_attributes[] = {
     &dev_attr_cmd_print.attr,
     &dev_attr_gamma_test.attr,
     &dev_attr_debug.attr,
-    &dev_attr_lcd_bright_curve_en.attr,
     &dev_attr_fps.attr,
     &dev_attr_video_info.attr,
     &dev_attr_video_fps.attr,

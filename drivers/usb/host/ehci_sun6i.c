@@ -30,9 +30,14 @@
 #include <mach/sys_config.h>
 #include <linux/clk.h>
 
+#include <mach/ar100.h>
+#include <linux/power/aw_pm.h>
+#include <linux/scenelock.h>
+
 //#include  <mach/clock.h>
 #include "sw_hci_sun6i.h"
 
+struct scene_lock  ehci_standby_lock[3];
 
 
 /*.......................................................................................*/
@@ -428,6 +433,10 @@ static int sw_ehci_hcd_probe(struct platform_device *pdev)
         }
     }
 
+	if(sw_ehci->not_suspend){
+	    scene_lock_init(&ehci_standby_lock[sw_ehci->usbc_no], SCENE_USB_STANDBY,  "ehci_standby");
+	}
+
 	return 0;
 
 ERR3:
@@ -484,6 +493,10 @@ static int sw_ehci_hcd_remove(struct platform_device *pdev)
 
 	DMSG_INFO("[%s%d]: remove, pdev->name: %s, pdev->id: %d, sw_ehci: 0x%p\n",
 		      ehci_name, sw_ehci->usbc_no, pdev->name, pdev->id, sw_ehci);
+
+	if(sw_ehci->not_suspend){
+		scene_lock_destroy(&ehci_standby_lock[sw_ehci->usbc_no]);
+	}
 
 	usb_remove_hcd(hcd);
 
@@ -544,6 +557,10 @@ void sw_ehci_hcd_shutdown(struct platform_device* pdev)
 	}
 
  	DMSG_INFO("[%s]: ehci shutdown start\n", sw_ehci->hci_name);
+
+    if(sw_ehci->not_suspend){
+		scene_lock_destroy(&ehci_standby_lock[sw_ehci->usbc_no]);
+	}
 
     usb_hcd_platform_shutdown(pdev);
 
@@ -611,6 +628,8 @@ static int sw_ehci_hcd_suspend(struct device *dev)
 
     if(sw_ehci->not_suspend){
  	    DMSG_INFO("[%s]: not suspend\n", sw_ehci->hci_name);
+		enable_wakeup_src(CPUS_USBMOUSE_SRC, 0);
+		scene_lock(&ehci_standby_lock[sw_ehci->usbc_no]);
     }else{
      	DMSG_INFO("[%s]: sw_ehci_hcd_suspend\n", sw_ehci->hci_name);
 
@@ -683,6 +702,8 @@ static int sw_ehci_hcd_resume(struct device *dev)
 
     if(sw_ehci->not_suspend){
  	    DMSG_INFO("[%s]: controller not suspend, need not resume\n", sw_ehci->hci_name);
+		scene_unlock(&ehci_standby_lock[sw_ehci->usbc_no]);
+		disable_wakeup_src(CPUS_USBMOUSE_SRC, 0);
     }else{
      	DMSG_INFO("[%s]: sw_ehci_hcd_resume\n", sw_ehci->hci_name);
 

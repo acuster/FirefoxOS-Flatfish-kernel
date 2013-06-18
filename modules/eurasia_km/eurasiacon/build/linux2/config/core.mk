@@ -330,6 +330,11 @@ endif
 #
 PVRSRV_MODNAME ?= pvrsrvkm
 
+# Normally builds don't touch this, but we use it to influence the components
+# list. Make sure it is defined early enough to make this possible.
+#
+SUPPORT_PVRSRV_DEVICE_CLASS ?= 1
+
 # The user didn't set CROSS_COMPILE. There's probably nothing wrong
 # with that, but we'll let them know anyway.
 #
@@ -555,6 +560,7 @@ $(eval $(call TunableBothConfigC,PVRSRV_NEED_PVR_TRACE,))
 $(eval $(call TunableBothConfigC,SUPPORT_SECURE_33657_FIX,))
 $(eval $(call TunableBothConfigC,SUPPORT_ION,))
 $(eval $(call TunableBothConfigC,SUPPORT_HWRECOVERY_TRACE_LIMIT,))
+$(eval $(call TunableBothConfigC,SUPPORT_PVRSRV_DEVICE_CLASS,))
 $(eval $(call TunableBothConfigC,SUPPORT_PVRSRV_GET_DC_SYSTEM_BUFFER,1))
 $(eval $(call TunableBothConfigC,SUPPORT_NV12_FROM_2_HWADDRS,))
 $(eval $(call TunableBothConfigC,SGX_FEATURE_36BIT_MMU,))
@@ -582,13 +588,14 @@ $(eval $(call TunableKernelConfigC,PVRSRV_REFCOUNT_DEBUG,))
 $(eval $(call TunableKernelConfigC,PVRSRV_MMU_MAKE_READWRITE_ON_DEMAND,))
 $(eval $(call TunableKernelConfigC,HYBRID_SHARED_PB_SIZE,))
 $(eval $(call TunableKernelConfigC,SUPPORT_LARGE_GENERAL_HEAP,))
+$(eval $(call TunableKernelConfigC,SUPPORT_OLD_ION_API,))
 $(eval $(call TunableKernelConfigC,TTRACE,))
 
 
-$(eval $(call TunableBothConfigMake,SUPPORT_ION,))
-
 
 $(eval $(call TunableBothConfigMake,OPTIM,))
+$(eval $(call TunableBothConfigMake,SUPPORT_ION,))
+$(eval $(call TunableBothConfigMake,SUPPORT_PVRSRV_DEVICE_CLASS,))
 
 
 $(eval $(call TunableKernelConfigMake,TTRACE,))

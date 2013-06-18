@@ -631,11 +631,11 @@ static int open_clock(struct sw_hci_hcd *sw_hci, u32 ohci)
         }
 		clk_reset(sw_hci->mod_usb, AW_CCU_CLK_NRESET);
 
-        mdelay(10);
+        udelay(100);
 
    	    clk_enable(sw_hci->ahb);
 
-        mdelay(10);
+        udelay(100);
 
     	UsbPhyInit(sw_hci->usbc_no);
     }else{

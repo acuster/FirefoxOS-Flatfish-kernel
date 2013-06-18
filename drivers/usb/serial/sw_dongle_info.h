@@ -9,6 +9,5 @@
     .bInterfaceSubClass = (sc), \
     .bInterfaceProtocol = (pr)
 
-
 #endif  //__SW_DONGLE_INFO_H__
 

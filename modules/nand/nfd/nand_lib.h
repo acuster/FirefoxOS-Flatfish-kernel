@@ -109,6 +109,8 @@ extern __s32 PHY_ScanDDRParam(void);
 extern __s32 PHY_SynchBank(__u32 nBank, __u32 bMode);
 extern __s32 PHY_ResetChip(__u32 nChip);
 extern __s32 PHY_Readretry_reset(void);
+extern __s32 PHY_SetDefaultParam(__u32 bank);
+
 
 //for simplie(boot0)
 extern __s32 PHY_SimpleErase(struct boot_physical_param * eraseop);

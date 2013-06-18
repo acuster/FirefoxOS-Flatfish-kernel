@@ -23,7 +23,7 @@ MODULE_DESCRIPTION("A low-level driver for s5k4e1_mipi sensors");
 MODULE_LICENSE("GPL");
 
 //for internel driver debug
-#define DEV_DBG_EN      1 
+#define DEV_DBG_EN      0
 #if(DEV_DBG_EN == 1)    
 #define vfe_dev_dbg(x,arg...) printk("[s5k4e1_mipi]"x,##arg)
 #else
@@ -799,7 +799,7 @@ static int sensor_s_hflip(struct v4l2_subdev *sd, int value)
   
   LOG_ERR_RET(sensor_write(sd, 0x3821, rdval))
   
-  mdelay(10);
+  usleep_range(10000,12000);
   info->hflip = value;
   return 0;
 }
@@ -842,7 +842,7 @@ static int sensor_s_vflip(struct v4l2_subdev *sd, int value)
 
   LOG_ERR_RET(sensor_write(sd, 0x3820, rdval))
   
-  mdelay(10);
+  usleep_range(10000,12000);
   info->vflip = value;
   return 0;
 }
@@ -870,8 +870,6 @@ static int sensor_s_exp(struct v4l2_subdev *sd, unsigned int exp_val)
 	exp_val=(exp_val+8)>>4;//rounding to 1
 	
 	vfe_dev_dbg("sensor_set_exposure real= %d\n", exp_val);
-	if(info->exp == exp_val)
-		return 0;
   
     exphigh = (unsigned char) ( (0xff00&exp_val)>>8);
     explow  = (unsigned char) ( (0x00ff&exp_val) );
@@ -902,8 +900,6 @@ static int sensor_s_gain(struct v4l2_subdev *sd, int gain_val)
 //	printk("org gain=%d\n",gain_val);
 	gain_val=gain_val*2;//shift to 1/32 step
 //	printk("re gain=%d\n",gain_val);
-	if(info->gain == gain_val)
-		return 0;
 	
 	gainlow=(unsigned char)(gain_val&0xff);
 	gainhigh=(unsigned char)((gain_val>>8)&0xff);
@@ -963,7 +959,7 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       ret = sensor_s_sw_stby(sd, CSI_STBY_ON);
       if(ret < 0)
         vfe_dev_err("soft stby falied!\n");
-      mdelay(10);
+      usleep_range(10000,12000);
       //make sure that no device can access i2c bus during sensor initial or power down
       //when using i2c_lock_adpater function, the following codes must not access i2c bus before calling i2c_unlock_adapter
       i2c_lock_adapter(client->adapter);
@@ -982,17 +978,17 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       //active mclk before stadby out
       vfe_set_mclk_freq(sd,MCLK);
       vfe_set_mclk(sd,ON);
-      mdelay(10);
+      usleep_range(10000,12000);
       //standby off io
       vfe_gpio_write(sd,PWDN,CSI_STBY_OFF);
-      mdelay(10);
+      usleep_range(10000,12000);
       //remember to unlock i2c adapter, so the device can access the i2c bus again
       i2c_unlock_adapter(client->adapter);        
       //software standby
       ret = sensor_s_sw_stby(sd, CSI_STBY_OFF);
       if(ret < 0)
         vfe_dev_err("soft stby off falied!\n");
-      mdelay(10);
+      usleep_range(10000,12000);
 //      vfe_dev_print("enable oe!\n");
 //      ret = sensor_write_array(sd, sensor_oe_enable_regs);
 //      if(ret < 0)
@@ -1010,11 +1006,11 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       vfe_gpio_write(sd,PWDN,CSI_STBY_ON);
       //reset on io
       vfe_gpio_write(sd,RESET,CSI_RST_ON);
-      mdelay(1);
+      usleep_range(1000,1200);
       //active mclk before power on
       vfe_set_mclk_freq(sd,MCLK);
       vfe_set_mclk(sd,ON);
-      mdelay(10);
+      usleep_range(10000,12000);
       //power supply
       vfe_gpio_write(sd,POWER_EN,CSI_PWR_ON);
       vfe_set_pmu_channel(sd,IOVDD,ON);
@@ -1023,10 +1019,10 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       vfe_set_pmu_channel(sd,AFVDD,ON);
       //standby off io
       vfe_gpio_write(sd,PWDN,CSI_STBY_OFF);
-      mdelay(10);
+      usleep_range(10000,12000);
       //reset after power on
       vfe_gpio_write(sd,RESET,CSI_RST_OFF);
-      mdelay(30);
+      usleep_range(30000,31000);
       //remember to unlock i2c adapter, so the device can access the i2c bus again
       i2c_unlock_adapter(client->adapter);  
       break;
@@ -1044,7 +1040,7 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
       vfe_set_pmu_channel(sd,AVDD,OFF);
       vfe_set_pmu_channel(sd,IOVDD,OFF);  
       //standby and reset io
-      mdelay(10);
+      usleep_range(10000,12000);
       vfe_gpio_write(sd,POWER_EN,CSI_STBY_OFF);
       vfe_gpio_write(sd,RESET,CSI_RST_ON);
       //set the io to hi-z
@@ -1066,11 +1062,11 @@ static int sensor_reset(struct v4l2_subdev *sd, u32 val)
   {
     case 0:
       vfe_gpio_write(sd,RESET,CSI_RST_OFF);
-      mdelay(10);
+      usleep_range(10000,12000);
       break;
     case 1:
       vfe_gpio_write(sd,RESET,CSI_RST_ON);
-      mdelay(10);
+      usleep_range(10000,12000);
       break;
     default:
       return -EINVAL;

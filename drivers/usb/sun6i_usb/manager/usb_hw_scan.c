@@ -52,6 +52,9 @@
 
 static struct usb_scan_info g_usb_scan_info;
 extern int axp_usb_det(void);
+#ifdef CONFIG_USB_SW_SUN6I_USB0_OTG
+extern atomic_t thread_suspend_flag;
+#endif
 int device_insmod_delay = 0;
 void (*__usb_hw_scan) (struct usb_scan_info *);
 
@@ -310,6 +313,9 @@ static void do_vbus0_id0(struct usb_scan_info *info)
 	switch(role){
 		case USB_ROLE_NULL:
 			/* delay for vbus is stably */
+			if(atomic_read(&thread_suspend_flag)){
+				break;
+			}
 			if(info->host_insmod_delay < USB_SCAN_INSMOD_HOST_DRIVER_DELAY){
 				info->host_insmod_delay++;
 				break;
@@ -326,6 +332,9 @@ static void do_vbus0_id0(struct usb_scan_info *info)
 
 		case USB_ROLE_DEVICE:
 			/* rmmod usb device */
+			if(atomic_read(&thread_suspend_flag)){
+				break;
+			}
 			hw_rmmod_usb_device();
 		break;
 
@@ -368,10 +377,16 @@ static void do_vbus0_id1(struct usb_scan_info *info)
 		break;
 
 		case USB_ROLE_HOST:
+			if(atomic_read(&thread_suspend_flag)){
+				break;
+			}
 			hw_rmmod_usb_host();
 		break;
 
 		case USB_ROLE_DEVICE:
+			if(atomic_read(&thread_suspend_flag)){
+				break;
+			}
 			hw_rmmod_usb_device();
 		break;
 
@@ -409,6 +424,10 @@ static void do_vbus1_id0(struct usb_scan_info *info)
 
 	switch(role){
 		case USB_ROLE_NULL:
+
+			if(atomic_read(&thread_suspend_flag)){
+				break;
+			}
 			/* delay for vbus is stably */
 			if(info->host_insmod_delay < USB_SCAN_INSMOD_HOST_DRIVER_DELAY){
 				info->host_insmod_delay++;
@@ -424,6 +443,9 @@ static void do_vbus1_id0(struct usb_scan_info *info)
 		break;
 
 		case USB_ROLE_DEVICE:
+			if(atomic_read(&thread_suspend_flag)){
+				break;
+			}
 			hw_rmmod_usb_device();
 		break;
 
@@ -459,10 +481,17 @@ static void do_vbus1_id1(struct usb_scan_info *info)
 	role = get_usb_role();
 	info->host_insmod_delay = 0;
 
+	if(g_msc_read_debug)
+		printk("dp_dm=%d, device_insmod_delay=%d\n",
+				get_dp_dm_status(info), device_insmod_delay);
+
 	switch(role){
 		case USB_ROLE_NULL:
 #ifndef  SW_USB_FPGA
 			if(get_dp_dm_status(info) == 0x00){
+				if(atomic_read(&thread_suspend_flag)){
+					break;
+				}
     			/* delay for vbus is stably */
     			if(device_insmod_delay < USB_SCAN_INSMOD_DEVICE_DRIVER_DELAY){
     				device_insmod_delay++;
@@ -478,6 +507,9 @@ static void do_vbus1_id1(struct usb_scan_info *info)
 		break;
 
 		case USB_ROLE_HOST:
+			if(atomic_read(&thread_suspend_flag)){
+				break;
+			}
 			hw_rmmod_usb_host();
 		break;
 
@@ -563,7 +595,10 @@ static void vbus_id_hw_scan(struct usb_scan_info *info)
 
 	vbus_id_state = get_vbus_id_state(info);
 
-	DMSG_DBG_MANAGER("vbus_id=%d, role=%d\n", vbus_id_state, get_usb_role());
+	if(g_msc_read_debug)
+		printk("vbus_id=%d,role=%d,suspend_flag=%d,host_delay=%d,dp_dm=%d,dev_delay=%d\n",
+				vbus_id_state, get_usb_role(), atomic_read(&thread_suspend_flag),
+				info->host_insmod_delay, get_dp_dm_status(info), device_insmod_delay);
 
 	switch(vbus_id_state){
 		case  0x00:

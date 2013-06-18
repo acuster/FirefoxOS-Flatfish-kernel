@@ -36,6 +36,8 @@ static struct ar100_message_cache message_cache;
 /* semaphore cache manager */
 static struct ar100_semaphore_cache sem_cache;
 
+static atomic_t sem_used_num;
+
 /**
  * initialize message manager.
  * @para:  none.
@@ -61,7 +63,8 @@ int ar100_message_manager_init(void)
 		sem_cache.cache[i] = NULL;
 	}
 	atomic_set(&(sem_cache.number), 0);
-	
+	atomic_set(&sem_used_num, 0);
+
 	/* initialize message manager spinlock */
 	spin_lock_init(&(msg_mgr_lock));
 	msg_mgr_flag = 0;
@@ -96,7 +99,7 @@ static int ar100_semaphore_invalid(struct semaphore *psemaphore)
 static struct semaphore *ar100_semaphore_allocate(void)
 {
 	struct semaphore *sem = NULL;
-	
+
 	/* try to allocate from cache first */
 	spin_lock_irqsave(&(msg_mgr_lock), msg_mgr_flag);
 	if (atomic_read(&(sem_cache.number))) {
@@ -121,6 +124,7 @@ static struct semaphore *ar100_semaphore_allocate(void)
 	
 	/* initialize allocated semaphore */
 	sema_init(sem, 0);
+	atomic_inc(&sem_used_num);
 	
 	return sem;
 }
@@ -148,8 +152,17 @@ static int ar100_semaphore_free(struct semaphore *sem)
 		/* free to kmem */
 		kfree(free_sem);
 	}
+
+	atomic_dec(&sem_used_num);
+	
 	return 0;
 }
+
+int ar100_semaphore_used_num_query(void)
+{
+	return atomic_read(&sem_used_num);
+}
+
 
 static int ar100_message_invalid(struct ar100_message *pmessage)
 {

@@ -94,6 +94,7 @@ static __u32 usbc_no = 0;
 
 #ifdef  CONFIG_USB_SW_SUN6I_USB0_OTG
 static struct platform_device *g_hcd0_pdev = NULL;
+extern atomic_t thread_suspend_flag;
 #endif
 
 static struct sw_hcd_context_registers sw_hcd_context;
@@ -194,13 +195,13 @@ static s32 open_usb_clock(sw_hcd_io_t *sw_hcd_io)
 
 	if(sw_hcd_io->ahb_otg && sw_hcd_io->mod_usbotg && sw_hcd_io->mod_usbphy && !sw_hcd_io->clk_is_open){
 	   	clk_enable(sw_hcd_io->ahb_otg);
-		mdelay(10);
+		udelay(100);
 
 	    //clk_enable(sw_hcd_io->mod_usbotg); /*NO SCLK_GATING_OTG */
 		clk_reset(sw_hcd_io->mod_usbotg, AW_CCU_CLK_NRESET);
 	    clk_enable(sw_hcd_io->mod_usbphy);
 		clk_reset(sw_hcd_io->mod_usbphy, AW_CCU_CLK_NRESET);
-		mdelay(10);
+		udelay(100);
 
 		sw_hcd_io->clk_is_open = 1;
 	}else{
@@ -641,7 +642,7 @@ static void sw_hcd_shutdown(struct platform_device *pdev)
     DMSG_INFO_HCD0("Set aside some time to AXP\n");
 
     /* Set aside some time to AXP */
-    mdelay(200);
+    msleep(200);
 
     DMSG_INFO_HCD0("sw_hcd shutdown end\n");
 
@@ -1074,78 +1075,80 @@ static int sw_hcd_core_init(u16 sw_hcd_type, struct sw_hcd *sw_hcd)
 static void sw_hcd_irq_work(struct work_struct *data)
 {
 	struct sw_hcd *sw_hcd = container_of(data, struct sw_hcd, irq_work);
-       void __iomem *usbc_base = sw_hcd->mregs;
-       int reg_val = 0;
+	void __iomem *usbc_base = sw_hcd->mregs;
+	int reg_val = 0;
 
-	   if( sw_hcd == NULL || !sw_hcd->enable){
-		   DMSG_PANIC("ERR: sw_hcd_irq_work: sw_hcd is null\n");
-			return;
-	   }
-	   	
-       if(sw_hcd->vbus_error_flag){
-               sw_hcd->vbus_error_flag = 0;
-               /* power down */
-               sw_hcd_set_vbus(sw_hcd, 0);
+	if( sw_hcd == NULL || !sw_hcd->enable){
+		DMSG_PANIC("ERR: sw_hcd_irq_work: sw_hcd is null\n");
+		return;
+	}
 
-               USBC_INT_EnableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_VBUS_ERROR));
-       }
+	if(sw_hcd->vbus_error_flag){
+		sw_hcd->vbus_error_flag = 0;
+		/* power down */
+		sw_hcd_set_vbus(sw_hcd, 0);
 
-       if(sw_hcd->session_req_flag){
-               sw_hcd->session_req_flag = 0;
-               /* power down */
-               reg_val = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
-               reg_val &= ~(1 << USBC_BP_DEVCTL_SESSION);
-               USBC_Writeb(reg_val, USBC_REG_DEVCTL(usbc_base));
+		USBC_INT_EnableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_VBUS_ERROR));
+	}
 
-               USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_LOW);
+	if(sw_hcd->session_req_flag){
+		sw_hcd->session_req_flag = 0;
+		/* power down */
+		reg_val = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
+		reg_val &= ~(1 << USBC_BP_DEVCTL_SESSION);
+		USBC_Writeb(reg_val, USBC_REG_DEVCTL(usbc_base));
 
-               sw_hcd_set_vbus(sw_hcd, 0);
+		USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_LOW);
 
-               /* delay */
-               mdelay(100);
+		sw_hcd_set_vbus(sw_hcd, 0);
 
-               /* power on */
-               reg_val = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
-               reg_val |= (1 << USBC_BP_DEVCTL_SESSION);
-               USBC_Writeb(reg_val, USBC_REG_DEVCTL(usbc_base));
+		/* delay */
+		msleep(100);
 
-               USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_HIGH);
+		/* power on */
+		reg_val = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
+		reg_val |= (1 << USBC_BP_DEVCTL_SESSION);
+		USBC_Writeb(reg_val, USBC_REG_DEVCTL(usbc_base));
 
-               sw_hcd_set_vbus(sw_hcd, 1);
+		USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_HIGH);
 
-               USBC_INT_EnableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSBE_EN_SESSION_REQ));
-       }
+		sw_hcd_set_vbus(sw_hcd, 1);
 
-       if(sw_hcd->reset_flag){
-               sw_hcd->reset_flag = 0;
-               /* power down */
-               reg_val = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
-               reg_val &= ~(1 << USBC_BP_DEVCTL_SESSION);
-               USBC_Writeb(reg_val, USBC_REG_DEVCTL(usbc_base));
+		USBC_INT_EnableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSBE_EN_SESSION_REQ));
+	}
 
-               USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_LOW);
+	if(sw_hcd->reset_flag){
+		sw_hcd->reset_flag = 0;
+		/* power down */
+		reg_val = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
+		reg_val &= ~(1 << USBC_BP_DEVCTL_SESSION);
+		USBC_Writeb(reg_val, USBC_REG_DEVCTL(usbc_base));
 
-               sw_hcd_set_vbus(sw_hcd, 0);
+		USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_LOW);
 
-               /* delay */
-               mdelay(100);
+		sw_hcd_set_vbus(sw_hcd, 0);
 
-               /* power on */
-               reg_val = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
-               reg_val |= (1 << USBC_BP_DEVCTL_SESSION);
-               USBC_Writeb(reg_val, USBC_REG_DEVCTL(usbc_base));
+		/* delay */
+		msleep(100);
 
-               USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_HIGH);
+		/* power on */
+		reg_val = USBC_Readb(USBC_REG_DEVCTL(usbc_base));
+		reg_val |= (1 << USBC_BP_DEVCTL_SESSION);
+		USBC_Writeb(reg_val, USBC_REG_DEVCTL(usbc_base));
 
-               sw_hcd_set_vbus(sw_hcd, 1);
+		USBC_ForceVbusValid(sw_hcd->sw_hcd_io->usb_bsp_hdle, USBC_VBUS_TYPE_HIGH);
 
-               /* disconnect */
-               sw_hcd->ep0_stage = SW_HCD_EP0_START;
-               usb_hcd_resume_root_hub(sw_hcd_to_hcd(sw_hcd));
-               sw_hcd_root_disconnect(sw_hcd);
+		sw_hcd_set_vbus(sw_hcd, 1);
 
-               USBC_INT_EnableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_RESET));
-       }
+		/* disconnect */
+		sw_hcd->ep0_stage = SW_HCD_EP0_START;
+		usb_hcd_resume_root_hub(sw_hcd_to_hcd(sw_hcd));
+		sw_hcd_root_disconnect(sw_hcd);
+
+		USBC_INT_EnableUsbMiscUint(sw_hcd->sw_hcd_io->usb_bsp_hdle, (1 << USBC_BP_INTUSB_RESET));
+
+		sw_hcd->is_connected = 0;
+	}
 
 	sysfs_notify(&sw_hcd->controller->kobj, NULL, "mode");
 
@@ -1230,6 +1233,7 @@ static struct sw_hcd *allocate_instance(struct device *dev,
 	sw_hcd->ctrl_base         = mbase;
 	sw_hcd->nIrq              = -ENODEV;
 	sw_hcd->config            = config;
+	sw_hcd->ignore_disconnect = false;
 
 #ifndef  CONFIG_USB_SW_SUN6I_USB0_OTG
 	g_sw_hcd0 = sw_hcd;
@@ -1487,7 +1491,7 @@ fail:
 
 	device_init_wakeup(dev, 0);
 	sw_hcd_free(sw_hcd);
-	
+
 	sw_hcd->init_controller = 0;
 
 	return status;
@@ -1542,7 +1546,10 @@ int sw_usb_host0_enable(void)
 	g_sw_hcd0 = sw_hcd;
 
 	spin_lock_irqsave(&sw_hcd->lock, flags);
-	sw_hcd->enable = 1;
+	sw_hcd->enable       = 1;
+	sw_hcd->is_connected = 0;
+	sw_hcd->is_reset     = 0;
+	sw_hcd->is_suspend   = 0;
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
 
 	/* request usb irq */
@@ -1555,7 +1562,6 @@ int sw_usb_host0_enable(void)
 
 	sw_hcd_soft_disconnect(sw_hcd);
 	sw_hcd_io_init(usbc_no, pdev, &g_sw_hcd_io);
-
 
 	/* enable usb controller */
 	spin_lock_irqsave(&sw_hcd->lock, flags);
@@ -1571,6 +1577,27 @@ int sw_usb_host0_enable(void)
     return 0;
 }
 EXPORT_SYMBOL(sw_usb_host0_enable);
+
+static void sw_hcd_wait_for_disconnect(struct sw_hcd *sw_hcd)
+{
+	int cnt = 0;
+
+	while(cnt < 500){
+		/*
+		 * 1. disconnect
+		 * 2. not reset
+		 * 3. not suspend
+		 */
+		if (!sw_hcd->is_connected && !sw_hcd->is_reset && !sw_hcd->is_suspend){
+			break;
+		}
+
+		cnt++;
+		msleep(1);
+	}
+
+	DMSG_INFO_HCD0("sw_hcd_wait_for_disconnect cnt=%d\n", cnt);
+}
 
 /*
 *******************************************************************************
@@ -1616,13 +1643,19 @@ int sw_usb_host0_disable(void)
 		return -EBUSY;
 	}
 
+	sw_hcd_wait_for_disconnect(sw_hcd);
+
+	spin_lock_irqsave(&sw_hcd->lock, flags);
+	sw_hcd->enable = 0;
+	spin_unlock_irqrestore(&sw_hcd->lock, flags);
+	sw_hcd_set_vbus(sw_hcd, 0);
+
 	/* nuke all urb and disconnect */
 	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd_soft_disconnect(sw_hcd);
-	sw_hcd_port_suspend_ex(sw_hcd);
+	//sw_hcd_port_suspend_ex(sw_hcd);
 	sw_hcd_stop(sw_hcd);
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
-	sw_hcd_set_vbus(sw_hcd, 0);
 
 	/* release usb irq */
 	if (sw_hcd->nIrq >= 0) {
@@ -1642,7 +1675,7 @@ int sw_usb_host0_disable(void)
 	sw_hcd_io_exit(usbc_no, pdev, &g_sw_hcd_io);
 
 	spin_lock_irqsave(&sw_hcd->lock, flags);
-	sw_hcd->enable = 0;
+	//sw_hcd->enable = 0;
 	g_sw_hcd0 = NULL;
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
 
@@ -2223,6 +2256,8 @@ static int sw_hcd_suspend(struct device *dev)
 
 	DMSG_INFO_HCD0("sw_hcd_suspend start\n");
 
+	atomic_set(&thread_suspend_flag, 1);
+
 	if(!sw_hcd->enable){
 		DMSG_INFO("wrn: hcd is disable, need not enter to suspend\n");
 		return 0;
@@ -2272,6 +2307,8 @@ static int sw_hcd_resume(struct device *dev)
 	struct sw_hcd	*sw_hcd = dev_to_sw_hcd(&pdev->dev);
 
 	DMSG_INFO_HCD0("sw_hcd_resume start\n");
+
+	atomic_set(&thread_suspend_flag, 0);
 
 	if(!sw_hcd->enable){
 		DMSG_INFO("wrn: hcd is disable, need not resume\n");

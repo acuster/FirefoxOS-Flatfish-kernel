@@ -57,6 +57,7 @@ void enable_aw_cpu(int cpu)
     long paddr;
     u32 pwr_reg;
 
+    spin_lock(&boot_lock);
     paddr = virt_to_phys(sun6i_secondary_startup);
     writel(paddr, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_P_REG0);
 
@@ -70,7 +71,6 @@ void enable_aw_cpu(int cpu)
     pwr_reg = readl(IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_GENCTL);
     pwr_reg &= ~(1<<cpu);
     writel(pwr_reg, IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUCFG_GENCTL);
-
     /* step2: release power clamp */
     //write bit3, bit4 to 0
     writel(0xe7, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
@@ -80,18 +80,21 @@ void enable_aw_cpu(int cpu)
     writel(0x00, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPUX_PWR_CLAMP(cpu));
     while((0x00) != readl(IO_ADDRESS(AW_R_CPUCFG_BASE) + AW_CPUX_PWR_CLAMP_STATUS(cpu)))
 	    ;
-    mdelay(2);
+    spin_unlock(&boot_lock);
 
+    usleep_range(2000, 2000);
 
+    spin_lock(&boot_lock);
     /* step3: clear power-off gating */
     pwr_reg = readl(IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPU_PWROFF_REG);
     pwr_reg &= ~(0x00000001<<cpu);
     writel(pwr_reg, IO_ADDRESS(AW_R_PRCM_BASE) + AW_CPU_PWROFF_REG);
-    mdelay(1);
+    spin_unlock(&boot_lock);
+
+    usleep_range(1000, 1000);
 
     /* step4: de-assert core reset */
     writel(3, IO_ADDRESS(AW_R_CPUCFG_BASE) + CPUX_RESET_CTL(cpu));
-
 }
 
 void __init smp_init_cpus(void)
@@ -136,9 +139,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
     pr_debug("[%s] enter\n", __FUNCTION__);
-    spin_lock(&boot_lock);
     enable_aw_cpu(cpu);
-    spin_unlock(&boot_lock);
     return 0;
 }
 

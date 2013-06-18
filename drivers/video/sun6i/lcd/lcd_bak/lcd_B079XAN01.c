@@ -29,11 +29,30 @@ void spi_24bit_3wire(__u32 tx)
 
 void lp079x01_init(__panel_para_t * info)
 {
+	__u32 pll_config = 0;
+
+	if(info->lcd_xtal_freq == 12)
+	{
+		/* 12M xtal freq */
+		pll_config = 0xc02D;
+	} else if(info->lcd_xtal_freq == 27)
+	{
+		pll_config = 0xc013;
+	} else if(info->lcd_xtal_freq == 24)
+	{
+		pll_config = 0xc22d;
+	} else
+	{
+		/* default 12Mhz */
+		pll_config = 0xc02D;
+	}
+
 	spi_24bit_3wire(0x7000B7); //enter LP mode
 	spi_24bit_3wire(0x720340);
 	ssd2828_rst(0);
-	LCD_delay_ms(20);
-	ssd2828_rst(1);	
+	panel_rst(0);
+	ssd2828_rst(1);
+	panel_rst(1);
 	LCD_delay_ms(10);
 
 	spi_24bit_3wire(0x7000B1);  //VSA=50, HAS=64
@@ -65,8 +84,10 @@ void lp079x01_init(__panel_para_t * info)
 	spi_24bit_3wire(0x7000B9); //disable PLL
 	spi_24bit_3wire(0x720000);
 
+	pll_config |= 0x720000;
+	pr_warn("[MINI]pll_config=0x%x\n", pll_config);
 	spi_24bit_3wire(0x7000BA); //lane speed=560
-	spi_24bit_3wire(0x72C013); //may modify according to requirement, 500Mbps to  560Mbps, (n+1)*lcd_dclk_freq
+	spi_24bit_3wire(pll_config); //may modify according to requirement, 500Mbps to  560Mbps, clk_in / (bit12-8) * (bit7-0)
 	
 	spi_24bit_3wire(0x7000BB); //LP clock
 	spi_24bit_3wire(0x720008);
@@ -101,13 +122,14 @@ void lp079x01_exit(void)
 {
 	spi_24bit_3wire(0x7000B7); //enter LP mode
 	spi_24bit_3wire(0x720342);
-	
+
 	LCD_delay_ms(50);
 	spi_24bit_3wire(0x700028); //display off
 	LCD_delay_ms(10);	
 	spi_24bit_3wire(0x700010); //sleep in cmd
 	LCD_delay_ms(20);
 	ssd2828_rst(0);
+	panel_rst(0);
 }
 
 

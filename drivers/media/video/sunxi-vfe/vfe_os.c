@@ -1,21 +1,10 @@
 #include <linux/module.h>
 #include "vfe_os.h"
 
-//for internel driver debug
-#define DBG_EN      0   
-//debug level 0~3
-#define DBG_LEVEL   3
-
-//for internel driver debug
-#if(DBG_EN==1)    
-#define vfe_dbg(l,x,arg...) if(l <= DBG_LEVEL) printk(KERN_DEBUG"[VFE_DEBUG]"x,##arg)
-#else
-#define vfe_dbg(l,x,arg...) 
-#endif
-
-#define vfe_err(x,arg...) printk(KERN_ERR"[VFE_ERR]"x,##arg)
-#define vfe_warn(x,arg...) printk(KERN_WARNING"[VFE_WARN]"x,##arg)
-#define vfe_print(x,arg...) printk(KERN_NOTICE"[VFE]"x,##arg)
+unsigned int vfe_dbg_en = 0;
+EXPORT_SYMBOL_GPL(vfe_dbg_en);
+unsigned int vfe_dbg_lv = 1;
+EXPORT_SYMBOL_GPL(vfe_dbg_lv);
 
 extern int gpio_request(unsigned gpio, const char *label);
 extern int gpio_free(unsigned gpio);

@@ -14,7 +14,6 @@
  *
  */
 #include <linux/spinlock.h>
-#include <linux/module.h>
 
 #include <linux/err.h>
 #include <linux/genalloc.h>
@@ -34,17 +33,6 @@ struct ion_carveout_heap {
 	ion_phys_addr_t base;
 };
 
-void __iomem *sunxi_ioremap(unsigned long phys_addr, size_t size,
-			    unsigned int mtype)
-{
-	//printk(KERN_DEBUG "%s: phys 0x%08x, virt 0x%08x\n", __func__, phys_addr, phys_to_virt(phys_addr));
-	return phys_to_virt(phys_addr);
-}
-
-void sunxi_iounmap(volatile void __iomem *addr)
-{
-}
-
 ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 				      unsigned long size,
 				      unsigned long align)
@@ -56,7 +44,6 @@ ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 	if (!offset)
 		return ION_CARVEOUT_ALLOCATE_FAIL;
 
-    //printk("%s, line %d, addr 0x%08x, size %d\n", __func__, __LINE__, (u32)offset, size);
 	return offset;
 }
 
@@ -68,7 +55,6 @@ void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
 
 	if (addr == ION_CARVEOUT_ALLOCATE_FAIL)
 		return;
-    //printk("%s, line %d, addr 0x%08x, size %d\n", __func__, __LINE__, (u32)addr, size);
 	gen_pool_free(carveout_heap->pool, addr, size);
 }
 
@@ -76,7 +62,6 @@ static int ion_carveout_heap_phys(struct ion_heap *heap,
 				  struct ion_buffer *buffer,
 				  ion_phys_addr_t *addr, size_t *len)
 {
-    //printk("%s, line %d, buffer->priv_phys 0x%08x, size %d\n", __func__, __LINE__, (u32)buffer->priv_phys, buffer->size);
 	*addr = buffer->priv_phys;
 	*len = buffer->size;
 	return 0;
@@ -99,37 +84,47 @@ static void ion_carveout_heap_free(struct ion_buffer *buffer)
 	buffer->priv_phys = ION_CARVEOUT_ALLOCATE_FAIL;
 }
 
-struct scatterlist *ion_carveout_heap_map_dma(struct ion_heap *heap,
+struct sg_table *ion_carveout_heap_map_dma(struct ion_heap *heap,
 					      struct ion_buffer *buffer)
 {
-	struct scatterlist *sglist;
+	struct sg_table *table;
+	int ret;
 
-	sglist = vmalloc(sizeof(struct scatterlist));
-	if (!sglist)
+	table = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
+	if (!table)
 		return ERR_PTR(-ENOMEM);
-	sg_init_table(sglist, 1);
-	sg_set_page(sglist, virt_to_page(phys_to_virt(buffer->priv_phys)), buffer->size, 0);
-	return sglist;
+	ret = sg_alloc_table(table, 1, GFP_KERNEL);
+	if (ret) {
+		kfree(table);
+		return ERR_PTR(ret);
+	}
+	sg_set_page(table->sgl, phys_to_page(buffer->priv_phys), buffer->size,
+		    0);
+	return table;
 }
 
 void ion_carveout_heap_unmap_dma(struct ion_heap *heap,
 				 struct ion_buffer *buffer)
 {
-	if (buffer->sglist)
-		vfree(buffer->sglist);
+	sg_free_table(buffer->sg_table);
 }
 
 void *ion_carveout_heap_map_kernel(struct ion_heap *heap,
 				   struct ion_buffer *buffer)
 {
-	return sunxi_ioremap(buffer->priv_phys, buffer->size,
-			      MT_MEMORY_NONCACHED);
+	int mtype = MT_MEMORY_NONCACHED;
+
+	if (buffer->flags & ION_FLAG_CACHED)
+		mtype = MT_MEMORY;
+
+	return __arm_ioremap(buffer->priv_phys, buffer->size,
+			      mtype);
 }
 
 void ion_carveout_heap_unmap_kernel(struct ion_heap *heap,
 				    struct ion_buffer *buffer)
 {
-	sunxi_iounmap(buffer->vaddr);
+	__iounmap(buffer->vaddr);
 	buffer->vaddr = NULL;
 	return;
 }
@@ -137,12 +132,11 @@ void ion_carveout_heap_unmap_kernel(struct ion_heap *heap,
 int ion_carveout_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 			       struct vm_area_struct *vma)
 {	
- 	//printk("%s, line %d,  vma->vm_start is %8x \n", __func__, __LINE__, vma->vm_start);
 	return remap_pfn_range(vma, vma->vm_start,
 			       __phys_to_pfn(buffer->priv_phys) + vma->vm_pgoff,
-			       buffer->size,
-				   __pgprot_modify(vma->vm_page_prot, L_PTE_MT_MASK, L_PTE_MT_BUFFERABLE));
-			      // pgprot_noncached(vma->vm_page_prot));
+			       vma->vm_end - vma->vm_start,
+			       __pgprot_modify(vma->vm_page_prot, L_PTE_MT_MASK, L_PTE_MT_BUFFERABLE));
+			       //pgprot_noncached(vma->vm_page_prot));
 
 }
 
@@ -178,7 +172,6 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 
 	return &carveout_heap->heap;
 }
-EXPORT_SYMBOL(ion_carveout_heap_create);
 
 void ion_carveout_heap_destroy(struct ion_heap *heap)
 {
@@ -189,4 +182,3 @@ void ion_carveout_heap_destroy(struct ion_heap *heap)
 	kfree(carveout_heap);
 	carveout_heap = NULL;
 }
-EXPORT_SYMBOL(ion_carveout_heap_destroy);

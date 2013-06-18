@@ -62,3 +62,8 @@ int usb_stor_huawei_e303_init(struct us_data *us);
 
 int usb_stor_people_init(struct us_data *us);
 int usb_modem_init(struct us_data *us);
+
+int usb_stor_dongle_change_command(struct us_data *us);
+int usb_stor_dongle_not_report_disk(struct us_data *us);
+int usb_stor_dongle_common_init(struct us_data *us);
+

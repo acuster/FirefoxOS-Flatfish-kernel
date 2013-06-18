@@ -6166,8 +6166,6 @@ static s32 wl_inform_bss(struct wl_priv *wl)
 	for (i=0; node && i<WL_AP_MAX; i++) {
 		bi = node->results.bss_info;
 		err = wl_inform_single_bss(wl, bi, 0);
-		if (unlikely(err))
-			break;
 		node = node->next;
 	}
 	wl_run_bss_cache_timer(&g_bss_cache_ctrl, 0);
@@ -6176,8 +6174,6 @@ static s32 wl_inform_bss(struct wl_priv *wl)
 	bi = next_bss(bss_list, bi);
 	for_each_bss(bss_list, bi, i) {
 		err = wl_inform_single_bss(wl, bi, 0);
-		if (unlikely(err))
-			break;
 	}
 #endif
 	return err;
@@ -6201,7 +6197,7 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi, u8 i
 	u8 *ie_offset = NULL;
 
 	if (unlikely(dtoh32(bi->length) > WL_BSS_INFO_MAX)) {
-		WL_DBG(("Beacon is larger than buffer. Discarding\n"));
+		WL_ERR(("Beacon is larger than buffer. Discarding\n"));
 		return err;
 	}
 	aflags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
@@ -6286,7 +6282,7 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi, u8 i
 	freq = ieee80211_channel_to_frequency(notif_bss_info->channel, band->band);
 #endif
 	if (freq == 0) {
-		WL_ERR(("Invalid channel, fail to chcnage channel to freq\n"));
+		WL_ERR(("Invalid channel, fail to chcnag channel to freq\n"));
 		kfree(notif_bss_info);
 		return -EINVAL;
 	}
@@ -7824,14 +7820,26 @@ static s32 wl_iscan_thread(void *data)
 
 static void wl_scan_timeout(unsigned long data)
 {
+	wl_event_msg_t msg;
 	struct wl_priv *wl = (struct wl_priv *)data;
 
-	if (wl->scan_request) {
-		WL_ERR(("timer expired\n"));
-		if (wl->escan_on)
-			wl_notify_escan_complete(wl, wl->escan_info.ndev, true, true);
-		else
-			wl_notify_iscan_complete(wl_to_iscan(wl), true);
+	if (!(wl->scan_request)) {
+		WL_ERR(("timer expired but no scan request\n"));
+		return;
+	}
+	
+	bzero(&msg, sizeof(wl_event_msg_t));
+	WL_ERR(("timer expired\n"));
+	
+	if (wl->escan_on) {
+		msg.event_type = hton32(WLC_E_ESCAN_RESULT);
+		msg.status = hton32(WLC_E_STATUS_TIMEOUT);
+		msg.reason = 0xFFFFFFFF;
+		wl_cfg80211_event(wl_to_prmry_ndev(wl), &msg, NULL);
+	} else {
+		/* Need to check it try to access SDIO */
+		WL_ERR(("SCAN Timeout(ISCAN)\n"));
+		wl_notify_iscan_complete(wl_to_iscan(wl), true);
 	}
 }
 static void wl_iscan_timer(unsigned long data)
@@ -8016,6 +8024,9 @@ static s32 wl_escan_handler(struct wl_priv *wl,
 	u32 bi_length;
 	u32 i;
 	u8 *p2p_dev_addr = NULL;
+	struct wiphy *wiphy = wl_to_wiphy(wl);
+	u16 channel;
+	struct ieee80211_supported_band *band;
 
 	WL_DBG((" enter event type : %d, status : %d \n",
 		ntoh32(e->event_type), ntoh32(e->status)));
@@ -8058,6 +8069,18 @@ static s32 wl_escan_handler(struct wl_priv *wl,
 			goto exit;
 		}
 
+		/* +++++ terence 20130524: skip invalid bss */
+		channel = bi->ctl_ch ? bi->ctl_ch : CHSPEC_CHANNEL(wl_chspec_driver_to_host(bi->chanspec));
+		if (channel <= CH_MAX_2G_CHANNEL)
+			band = wiphy->bands[IEEE80211_BAND_2GHZ];
+		else
+			band = wiphy->bands[IEEE80211_BAND_5GHZ];
+		if (!band) {
+			WL_ERR(("No valid band"));
+			goto exit;
+		}
+		/* ----- terence 20130524: skip invalid bss */
+
 		if (!(wl_to_wiphy(wl)->interface_modes & BIT(NL80211_IFTYPE_ADHOC))) {
 			if (dtoh16(bi->capability) & DOT11_CAP_IBSS) {
 				WL_DBG(("Ignoring IBSS result\n"));
@@ -8080,7 +8103,7 @@ static s32 wl_escan_handler(struct wl_priv *wl,
 			}
 
 		} else {
-			int cur_len = 0;
+			int cur_len = WL_SCAN_RESULTS_FIXED_SIZE;
 			list = (wl_scan_results_t *)wl->escan_info.escan_buf;
 #if defined(WLP2P) && defined(WL_ENABLE_P2P_IF)
 			if (wl->p2p_net && wl->scan_request &&
@@ -8248,6 +8271,12 @@ static s32 wl_escan_handler(struct wl_priv *wl,
 		WL_ERR(("WLC_E_STATUS_NEWSCAN : scan_request[%p]\n", wl->scan_request));
 		WL_ERR(("sync_id[%d], bss_count[%d]\n", escan_result->sync_id,
 			escan_result->bss_count));
+	} else if (status == WLC_E_STATUS_TIMEOUT) {
+		WL_ERR(("WLC_E_STATUS_TIMEOUT : scan_request[%p]\n", wl->scan_request));
+		WL_ERR(("escan_on[%d], reason[0x%x]\n", wl->escan_on, e->reason));
+		if (e->reason == 0xFFFFFFFF) {
+			wl_notify_escan_complete(wl, wl->escan_info.ndev, true, true);
+		}
 	} else {
 		WL_ERR(("unexpected Escan Event %d : abort\n", status));
 		wl->escan_info.escan_state = WL_ESCAN_STATE_IDLE;
@@ -9906,7 +9935,7 @@ int wl_cfg80211_do_driver_init(struct net_device *net)
 void wl_cfg80211_enable_trace(u32 level)
 {
 	wl_dbg_level = level;
-	printk("%s: wl_dbg_level = %x\n", __FUNCTION__, wl_dbg_level);
+	printk("%s: wl_dbg_level = 0x%x\n", __FUNCTION__, wl_dbg_level);
 }
 
 #if defined(WL_SUPPORT_BACKPORTED_KPATCHES) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3, \

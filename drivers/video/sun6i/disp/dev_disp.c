@@ -467,9 +467,8 @@ __s32 DRV_DISP_Init(void)
     para.base_timer      = (__u32)g_fbi.base_timer;
     para.base_hdmi       = (__u32)g_fbi.base_hdmi;
 
-	para.disp_int_process       = DRV_disp_int_process;
+	para.disp_int_process       = DRV_disp_line_int_event;
     para.vsync_event            = DRV_disp_vsync_event;
-    para.take_effect            = DRV_disp_take_effect_event;
 
 	memset(&g_disp_drv, 0, sizeof(__disp_drv_t));
 
@@ -671,30 +670,10 @@ static int disp_remove(struct platform_device *pdev)
 void backlight_early_suspend(struct early_suspend *h)
 {
     int i = 0;
-    int r_count = 0;
 
     mutex_lock(&g_fbi.runtime_lock);
     g_fbi.b_no_output = 1;
-    r_count = g_fbi.cb_r_conut;
-    while(r_count != g_fbi.cb_w_conut)
-    {        
-        if(r_count >= 9)
-        {
-           r_count = 0; 
-        }
-        else
-        {
-            r_count++;
-        }
-
-        if(g_fbi.cb_arg[r_count] != 0)
-        {
-            g_fbi.cb_fn(g_fbi.cb_arg[r_count], 1);
-            g_fbi.cb_arg[r_count] = 0;
-            g_fbi.cb_r_conut = r_count;
-            //printk(KERN_WARNING "##es r_count:%d\n", r_count);
-        }
-    }
+    imp_finish_cb(1);
     mutex_unlock(&g_fbi.runtime_lock);
 
     for(i=1; i>=0; i--)
@@ -785,7 +764,7 @@ void backlight_late_resume(struct early_suspend *h)
 
 static struct early_suspend backlight_early_suspend_handler =
 {
-    .level   = EARLY_SUSPEND_LEVEL_DISABLE_FB,
+    .level   = EARLY_SUSPEND_LEVEL_DISABLE_FB + 200,
 	.suspend = backlight_early_suspend,
 	.resume = backlight_late_resume,
 };
@@ -801,30 +780,10 @@ int disp_suspend(struct platform_device *pdev, pm_message_t state)
     int i = 0;
     
 #ifndef CONFIG_HAS_EARLYSUSPEND
-    int r_count = 0;
 
     mutex_lock(&g_fbi.runtime_lock);
     g_fbi.b_no_output = 1;
-    r_count = g_fbi.cb_r_conut;
-    while(r_count != g_fbi.cb_w_conut)
-    {        
-        if(r_count >= 9)
-        {
-           r_count = 0; 
-        }
-        else
-        {
-            r_count++;
-        }
-
-        if(g_fbi.cb_arg[r_count] != 0)
-        {
-            g_fbi.cb_fn(g_fbi.cb_arg[r_count], 1);
-            g_fbi.cb_arg[r_count] = 0;
-            g_fbi.cb_r_conut = r_count;
-            //printk(KERN_WARNING "##es r_count:%d\n", r_count);
-        }
-    }
+    imp_finish_cb(1);
     mutex_unlock(&g_fbi.runtime_lock);
 
     pr_info("[DISP]>>disp_suspend call<<\n");
@@ -1110,7 +1069,15 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     		break;
 
     	case DISP_CMD_GET_OUTPUT_TYPE:
-    		ret =  BSP_disp_get_output_type(ubuffer[0]);
+            if(suspend_status != 0)
+            {
+                ret = suspend_output_type[ubuffer[0]];
+            }
+            else
+            {
+                ret =  BSP_disp_get_output_type(ubuffer[0]);
+            }
+
     		break;
 
     	case DISP_CMD_SCN_GET_WIDTH:
@@ -1772,10 +1739,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
     	case DISP_CMD_LCD_OFF:
     		ret = DRV_lcd_close(ubuffer[0]);
-            if(suspend_status != 0)
-            {
-                suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_NONE;
-            }
+            suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_NONE;
     		break;
 
     	case DISP_CMD_LCD_SET_BRIGHTNESS:
@@ -1871,10 +1835,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
     	case DISP_CMD_TV_OFF:
     		ret = BSP_disp_tv_close(ubuffer[0]);
-            if(suspend_status != 0)
-            {
-                suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_NONE;
-            }
+            suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_NONE;
     		break;
 
     	case DISP_CMD_TV_SET_MODE:
@@ -1938,10 +1899,8 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
     	case DISP_CMD_HDMI_OFF:
     		ret = BSP_disp_hdmi_close(ubuffer[0]);
-            if(suspend_status != 0)
-            {
-                suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_NONE;
-            }
+            suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_NONE;
+
     		break;
 
     	case DISP_CMD_HDMI_SET_MODE:
@@ -2329,7 +2288,13 @@ struct platform_device disp_device =
 	.id		        = -1,
 	.num_resources  = ARRAY_SIZE(disp_resource),
 	.resource	    = disp_resource,
-	.dev            = {}
+	.dev            =
+	{
+		.power =
+		{
+			.async_suspend = 1,
+		}
+	}
 };
 
 extern int disp_attr_node_init(void);
