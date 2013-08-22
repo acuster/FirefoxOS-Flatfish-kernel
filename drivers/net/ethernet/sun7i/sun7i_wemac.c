@@ -47,21 +47,23 @@
 
 #undef	PHY_POWER
 #undef	DYNAMIC_MAC_SYSCONFIG
-#undef	SYSCONFIG_GPIO
+#define	SYSCONFIG_GPIO
 #define	SYSCONFIG_CCMU
 
-#undef	PKT_DUMP
-#undef	PHY_DUMP
-#undef	MAC_DUMP
+#define	PKT_DUMP
+#define	PHY_DUMP
+#define	MAC_DUMP
 
 /* Board/System/Debug information/definition ---------------- */
-#define CONFIG_WEMAC_DEBUGLEVEL 0
+#define CONFIG_WEMAC_DEBUGLEVEL 10
+#define DEBUG
 
 #ifdef DEBUG
 
+/*dev_dbg(db->dev, msg);			*/
 #define wemac_dbg(db, lev, msg...) do {		\
 	if ((lev) < CONFIG_WEMAC_DEBUGLEVEL){	\
-		dev_dbg(db->dev, msg);			\
+		printk(KERN_INFO msg);			\
 	}						\
 } while (0)
 
@@ -501,6 +503,10 @@ void emac_sys_setup(wemac_board_info_t * db)
     if(!gpio_num){
        printk(KERN_ERR "ERROR: emac get  gpio resources from sysconfig failed!!!\n");
     } else {
+        /* someone maybe have a power pin, and we could not request it here*/
+        if (gpio_num > 18)
+            gpio_num = 18;
+
         for(i = 0; i < gpio_num; i++) {
             if (0 != gpio_request(db->gpio_list[i].gpio.gpio, NULL)){
                 printk(KERN_ERR"----------------------EMAC---------------------\n\n");
@@ -519,8 +525,11 @@ void emac_sys_setup(wemac_board_info_t * db)
 #ifdef SYSCONFIG_CCMU
 	/*  set up clock gating  */
 	db->emac_clk = clk_get(db->dev, CLK_AHB_EMAC);
-	if(IS_ERR(db->emac_clk))
+	if(!IS_ERR(db->emac_clk))
 		clk_enable(db->emac_clk);
+    else
+        printk(KERN_ERR "emac get clk failed!\n");
+
 #else
 	reg_val = readl(db->ccmu_vbase + CCM_AHB_GATING_REG0);
 	reg_val |= 0x1<<17;

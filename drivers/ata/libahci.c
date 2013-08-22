@@ -2071,9 +2071,10 @@ static int ahci_port_start(struct ata_port *ap)
 
 	//mem = dmam_alloc_coherent(dev, dma_sz, &mem_dma, GFP_KERNEL);
 	//danielwang
-	mem = kmalloc(dma_sz, GFP_DMA | GFP_KERNEL);
-	mem_dma = __pa(mem);
-	//printk("dmam_alloc_coherent mem = 0x%x, size = 0x%x, mem_dma=0x%x\n", (unsigned int)mem, (unsigned int)dma_sz, (unsigned int)mem_dma);
+	mem = dma_alloc_coherent(NULL, dma_sz, &mem_dma, GFP_KERNEL);
+	//mem = kmalloc(dma_sz, GFP_DMA | GFP_KERNEL);
+	//mem_dma = __pa(mem);
+	printk("dma_alloc_coherent mem = 0x%x, size = 0x%x, mem_dma=0x%x\n", (unsigned int)mem, (unsigned int)dma_sz, (unsigned int)mem_dma);  
 	if (!mem)
 		return -ENOMEM;
 	memset(mem, 0, dma_sz);

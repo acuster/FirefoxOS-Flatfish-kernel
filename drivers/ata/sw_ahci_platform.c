@@ -61,12 +61,15 @@ static struct resource sw_ahci_resources[] = {
     },
 };
 
+void sw_ahci_dump_reg(struct device *dev);
+
 static int sw_ahci_phy_init(unsigned int base)
 {
 	unsigned int tmp;
 	const unsigned int timeout_val = 0x100000;
 	unsigned int timeout = timeout_val;
 
+	printk("sw_ahci_phy_init\n"); 
 	for(tmp=0; tmp<0x1000; tmp++);
 
 	SW_AHCI_ACCESS_LOCK(base, 0);
@@ -147,6 +150,7 @@ static int sw_ahci_phy_init(unsigned int base)
 	for(tmp=0; tmp<0x3000; tmp++);
 
 	SW_AHCI_ACCESS_LOCK(base, 0x07);
+	printk("sw_ahci_phy_init: done\n"); 
 
 	return 0;
 }
@@ -156,17 +160,11 @@ static int sw_ahci_start(struct device *dev, void __iomem *addr)
 	struct clk *hclk;
 	struct clk *mclk;
 	u32 pio_hdle = 0;
-	int ctrl = 0;
 	int rc = 0;
 
-	script_parser_fetch(sw_ahci_para_name, sw_ahci_used_name, &ctrl, sizeof(int));
-	if(!ctrl)
-	{
-		dev_err(dev, "AHCI is disable\n");
-		rc = -EINVAL;
-	goto err2;
-	}
-
+	printk("sw_ahci_start: dump reg\n"); 
+	//sw_ahci_dump_reg(dev);
+	printk("sw_ahci_start: get mclk\n"); 
 	/*Enable mclk and hclk for AHCI*/
 	mclk = clk_get(dev, sw_ahci_mclk_name);
 	if (IS_ERR(mclk))
@@ -176,6 +174,7 @@ static int sw_ahci_start(struct device *dev, void __iomem *addr)
 	goto err2;
     }
 
+	printk("sw_ahci_start: get hclk\n"); 
 	hclk = clk_get(dev, sw_ahci_hclk_name);
 	if (IS_ERR(hclk))
 	{
@@ -184,20 +183,25 @@ static int sw_ahci_start(struct device *dev, void __iomem *addr)
 	goto err1;
 	}
 
+	printk("sw_ahci_start: enable pll\n"); 
 	/*Enable SATA Clock in SATA PLL*/
 	ahci_writel(CCMU_PLL6_VBASE, 0, ahci_readl(CCMU_PLL6_VBASE, 0)|(0x1<<14));
 	clk_enable(mclk);
 	clk_enable(hclk);
 
+	printk("sw_ahci_start: phy init\n"); 
 	sw_ahci_phy_init((unsigned int)addr);
 
+#if 0
 	pio_hdle = sw_gpio_request_ex(sw_ahci_para_name, NULL);
 	if(pio_hdle)
 	{
 		sw_gpio_write_one_pin_value(pio_hdle, 1, sw_ahci_gpio_name);
 		sw_gpio_release(pio_hdle, 2);
 	}
+#endif
 
+	printk("sw_ahci_start: clk put\n"); 
 	clk_put(hclk);
 err1:
 	clk_put(mclk);
@@ -212,6 +216,7 @@ static void sw_ahci_stop(struct device *dev)
 	u32 pio_hdle = 0;
 	int rc = 0;
 
+	printk("sw_ahci_stop: clk get mclk\n"); 
 	mclk = clk_get(dev, sw_ahci_mclk_name);
 	if (IS_ERR(mclk))
     {
@@ -220,6 +225,7 @@ static void sw_ahci_stop(struct device *dev)
 	goto err2;
     }
 
+	printk("sw_ahci_stop: clk get hclk\n"); 
 	hclk = clk_get(dev, sw_ahci_hclk_name);
 	if (IS_ERR(hclk))
 	{
@@ -228,13 +234,16 @@ static void sw_ahci_stop(struct device *dev)
 	goto err1;
 	}
 
+#if 0
 	pio_hdle = sw_gpio_request_ex(sw_ahci_para_name, NULL);
 	if(pio_hdle)
 	{
 		sw_gpio_write_one_pin_value(pio_hdle, 0, sw_ahci_gpio_name);
 		sw_gpio_release(pio_hdle, 2);
 	}
+#endif
 
+	printk("sw_ahci_stop: disable clks\n"); 
 	/*Disable mclk and hclk for AHCI*/
 	clk_disable(mclk);
 	clk_disable(hclk);
@@ -248,9 +257,9 @@ err2:
 static struct ata_port_info sw_ahci_port_info = {
 	.flags = AHCI_FLAG_COMMON,
 	//.link_flags = ,
-	.pio_mask = ATA_PIO4,
+	.pio_mask = ATA_PIO0,
 	//.mwdma_mask = ,
-	.udma_mask = ATA_UDMA6,
+	.udma_mask = ATA_UDMA1,
 	.port_ops = &ahci_ops,
 	.private_data = (void*)(AHCI_HFLAG_32BIT_ONLY | AHCI_HFLAG_NO_MSI
 							| AHCI_HFLAG_NO_PMP | AHCI_HFLAG_YES_NCQ),
@@ -315,6 +324,7 @@ static int __init sw_ahci_probe(struct platform_device *pdev)
 
 	hpriv->flags |= (unsigned long)pi.private_data;
 
+	printk("sw_ahci_platform: io remap\n"); 
 	hpriv->mmio = devm_ioremap(dev, mem->start, resource_size(mem));
 	if (!hpriv->mmio) {
 		dev_err(dev, "can't map %pR\n", mem);
@@ -333,6 +343,7 @@ static int __init sw_ahci_probe(struct platform_device *pdev)
 			return rc;
 	}
 
+	printk("sw_ahci_platform: save initial config\n"); 
 	ahci_save_initial_config(dev, hpriv,
 		pdata ? pdata->force_port_map : 0,
 		pdata ? pdata->mask_port_map  : 0);
@@ -344,6 +355,7 @@ static int __init sw_ahci_probe(struct platform_device *pdev)
 	if (hpriv->cap & HOST_CAP_PMP)
 		pi.flags |= ATA_FLAG_PMP;
 
+	printk("sw_ahci_platform: set_em_messages\n"); 
 	ahci_set_em_messages(hpriv, &pi);
 
 	/* CAP.NP sometimes indicate the index of the last enabled
@@ -353,6 +365,7 @@ static int __init sw_ahci_probe(struct platform_device *pdev)
 	 */
 	n_ports = max(ahci_nr_ports(hpriv->cap), fls(hpriv->port_map));
 
+	printk("sw_ahci_platform: alloc pinfo\n"); 
 	host = ata_host_alloc_pinfo(dev, ppi, n_ports);
 	if (!host) {
 		rc = -ENOMEM;
@@ -366,9 +379,11 @@ static int __init sw_ahci_probe(struct platform_device *pdev)
 	else
 		printk(KERN_INFO "ahci: SSS flag set, parallel bus scan disabled\n");
 
+	printk("sw_ahci_platform: about to reset\n"); 
 	if (pi.flags & ATA_FLAG_EM)
 		ahci_reset_em(host);
 
+	printk("sw_ahci_platform: checking ports\n"); 
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 
@@ -384,13 +399,16 @@ static int __init sw_ahci_probe(struct platform_device *pdev)
 			ap->ops = &ata_dummy_port_ops;
 	}
 
+	printk("sw_ahci_platform: about to reset controller\n"); 
 	rc = ahci_reset_controller(host);
 	if (rc)
 		goto err0;
 
+	printk("sw_ahci_platform: about to init controller\n"); 
 	ahci_init_controller(host);
 	ahci_print_info(host, "platform");
 
+	printk("sw_ahci_platform: about to activate\n"); 
 	rc = ata_host_activate(host, irq, ahci_interrupt, IRQF_SHARED,
 			       &ahci_platform_sht);
 	if (rc)

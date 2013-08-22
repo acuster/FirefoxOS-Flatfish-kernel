@@ -106,25 +106,25 @@
 #define PD_INT_REG         	(0xa0)
 
 //CCM register
-#define CCM_BASE           	0x01c20000
+#define CCM_BASE            SW_PA_CCM_IO_BASE
 #define CCM_AHB_GATING_REG0	(0x60)
 
 //SRAMC register
-#define SRAMC_BASE		0x01c00000
+#define SRAMC_BASE          SW_PA_SRAM_IO_BASE
 #define SRAMC_CFG_REG		(0x04)
 
 /*****************registers define******************/
 /* set up PHY */
-#define PHY_AUTO_NEGOTIOATION  1  // 0: Normal     1: Auto(default)
-#define PHY_SPEED              1  // 0: 10M        1: 100M(default)
-#define EMAC_MAC_FULL          1  //0: Half duplex   1: Full duplex(default)
+#define PHY_AUTO_NEGOTIOATION  0  // 0: Normal     1: Auto(default)
+#define PHY_SPEED              0  // 0: 10M        1: 100M(default)
+#define EMAC_MAC_FULL          0  //0: Half duplex   1: Full duplex(default)
 
 /* set up EMAC TX */
-#define EMAC_TX_TM          0  //0: CPU           1: DMA(default)
+#define EMAC_TX_TM          1  //0: CPU           1: DMA(default)
 #define EMAC_TX_AB_M        1  //0: Disable       1: Aborted frame enable(default)
 
 /* set up EMAC RX */
-#define EMAC_RX_TM          0  //0: CPU           1: DMA(default)
+#define EMAC_RX_TM          1  //0: CPU           1: DMA(default)
 #define EMAC_RX_DRQ_MODE    0  //0: DRQ asserted  1: DRQ automatically(default)
 
 #define EMAC_RX_PA          0  //0: Normal(default)   1: Pass all Frames
