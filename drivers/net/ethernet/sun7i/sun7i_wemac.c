@@ -47,23 +47,21 @@
 
 #undef	PHY_POWER
 #undef	DYNAMIC_MAC_SYSCONFIG
-#define	SYSCONFIG_GPIO
+#undef	SYSCONFIG_GPIO
 #define	SYSCONFIG_CCMU
 
-#define	PKT_DUMP
-#define	PHY_DUMP
-#define	MAC_DUMP
+#undef	PKT_DUMP
+#undef	PHY_DUMP
+#undef	MAC_DUMP
 
 /* Board/System/Debug information/definition ---------------- */
-#define CONFIG_WEMAC_DEBUGLEVEL 10
-#define DEBUG
+#define CONFIG_WEMAC_DEBUGLEVEL 0
 
 #ifdef DEBUG
 
-/*dev_dbg(db->dev, msg);			*/
 #define wemac_dbg(db, lev, msg...) do {		\
 	if ((lev) < CONFIG_WEMAC_DEBUGLEVEL){	\
-		printk(KERN_INFO msg);			\
+		dev_dbg(db->dev, msg);			\
 	}						\
 } while (0)
 
