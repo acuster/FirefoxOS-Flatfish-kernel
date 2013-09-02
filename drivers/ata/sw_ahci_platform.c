@@ -257,9 +257,9 @@ err2:
 static struct ata_port_info sw_ahci_port_info = {
 	.flags = AHCI_FLAG_COMMON,
 	//.link_flags = ,
-	.pio_mask = ATA_PIO0,
+	.pio_mask = ATA_PIO4,
 	//.mwdma_mask = ,
-	.udma_mask = ATA_UDMA1,
+	.udma_mask = ATA_UDMA6,
 	.port_ops = &ahci_ops,
 	.private_data = (void*)(AHCI_HFLAG_32BIT_ONLY | AHCI_HFLAG_NO_MSI
 							| AHCI_HFLAG_NO_PMP | AHCI_HFLAG_YES_NCQ),
