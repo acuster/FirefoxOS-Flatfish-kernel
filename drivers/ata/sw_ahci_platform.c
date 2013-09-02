@@ -70,7 +70,7 @@ static int sw_ahci_phy_init(unsigned int base)
 	unsigned int timeout = timeout_val;
 
 	printk("sw_ahci_phy_init\n"); 
-	for(tmp=0; tmp<0x1000; tmp++);
+	mdelay(5);
 
 	SW_AHCI_ACCESS_LOCK(base, 0);
 
@@ -113,7 +113,7 @@ static int sw_ahci_phy_init(unsigned int base)
 	tmp |= (0x19<<5);
 	ahci_writel(base, SW_AHCI_PHYCS2R_OFFSET, tmp);
 
-	for(tmp=0; tmp<0x1000; tmp++);
+	mdelay(5);
 
 	tmp = ahci_readl(base, SW_AHCI_PHYCS0R_OFFSET);
 	tmp |= 0x1<<19;
@@ -147,7 +147,7 @@ static int sw_ahci_phy_init(unsigned int base)
 		printk("SATA AHCI Phy Calibration Failed!!\n");
 	}
 
-	for(tmp=0; tmp<0x3000; tmp++);
+	mdelay(15);
 
 	SW_AHCI_ACCESS_LOCK(base, 0x07);
 	printk("sw_ahci_phy_init: done\n"); 
@@ -276,6 +276,7 @@ static struct platform_device sw_ahci_device = {
 	.id			= 0,
 	.dev 		= {
 		.platform_data = &sw_ahci_platform_data,
+        .coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 
 	.num_resources	= ARRAY_SIZE(sw_ahci_resources),
