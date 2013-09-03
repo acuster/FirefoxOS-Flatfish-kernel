@@ -245,6 +245,7 @@ static void sw_ahci_stop(struct device *dev)
 
 	printk("sw_ahci_stop: disable clks\n"); 
 	/*Disable mclk and hclk for AHCI*/
+	ahci_writel(CCMU_PLL6_VBASE, 0, ahci_readl(CCMU_PLL6_VBASE, 0)&~(0x1<<14));
 	clk_disable(mclk);
 	clk_disable(hclk);
 	clk_put(hclk);
