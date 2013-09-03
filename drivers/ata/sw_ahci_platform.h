@@ -50,7 +50,8 @@
 
 #define SW_AHCI_ACCESS_LOCK(base,x)		(*((volatile unsigned int *)((base)+SW_AHCI_RWCR_OFFSET)) = (x))
 
-#define INTC_IRQNO_AHCI				AW_IRQ_SATA
+//#define INTC_IRQNO_AHCI				AW_IRQ_SATA
+#define INTC_IRQNO_AHCI				(32+56)
 
 #define CCMU_PLL6_VBASE				0xF1C20028
 
