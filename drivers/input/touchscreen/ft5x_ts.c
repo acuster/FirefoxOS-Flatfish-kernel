@@ -48,6 +48,12 @@
 #include <linux/ctp.h>
 
 
+#define POLL_TS_IRQ
+
+#ifdef POLL_TS_IRQ
+#include <linux/timer.h>
+#include <linux/gpio.h>
+#endif
 
 #define FOR_TSLIB_TEST
 //#define TOUCH_KEY_SUPPORT
@@ -99,7 +105,11 @@ static int screen_max_y = 0;
 static int revert_x_flag = 0;
 static int revert_y_flag = 0;
 static int exchange_x_y_flag = 0;
+#ifndef POLL_TS_IRQ
 static u32 int_handle = 0;
+#else
+static struct timer_list poll_timer;
+#endif
 static __u32 twi_id = 0;
 static bool is_suspend = false;
 
@@ -1114,12 +1124,36 @@ static void ft5x_ts_pen_irq_work(struct work_struct *work)
 	dprintk(DEBUG_INT_INFO,"%s:ret:%d\n",__func__,ret);
 }
 
+#ifndef POLL_TS_IRQ
 static u32 ft5x_ts_interrupt(struct ft5x_ts_data *ft5x_ts)
 {
 	dprintk(DEBUG_INT_INFO,"==========ft5x_ts TS Interrupt============\n");
 	queue_work(ft5x_ts->ts_workqueue, &ft5x_ts->pen_event_work);
 	return 0;
 }
+#else
+static u32 start_timer(void)
+{
+  int ret;
+  //printk( "Starting timer to fire in 40ms (%ld)\n", jiffies );
+  ret = mod_timer( &poll_timer, jiffies + msecs_to_jiffies(40) );
+  if (ret) printk("Error in start_timer\n");
+  return ret;
+}
+
+static void timer_callback(unsigned long data)
+{
+	struct ft5x_ts_data *ft5x_ts = (struct ft5x_ts_data *)data;
+    queue_work(ft5x_ts->ts_workqueue, &ft5x_ts->pen_event_work);
+    if (__gpio_get_value(CTP_IRQ_NUMBER) == 0)
+    {
+        printk("CTP timer has fired\n");
+        //queue_work(ft5x_ts->ts_workqueue, &ft5x_ts->pen_event_work);
+    }
+    start_timer();
+}
+
+#endif
 
 static void ft5x_resume_events (struct work_struct *work)
 {
@@ -1129,7 +1163,11 @@ static void ft5x_resume_events (struct work_struct *work)
 	        msleep(100);
 	}
 #endif
+#ifndef POLL_TS_IRQ
 	sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,1);
+#else
+    start_timer();
+#endif
 }
 
 
@@ -1143,7 +1181,11 @@ static int ft5x_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	is_suspend = false;
 
 	flush_workqueue(ft5x_resume_wq);
+#ifndef POLL_TS_IRQ
 	sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,0);
+#else
+    del_timer( &poll_timer );
+#endif
 	cancel_work_sync(&data->pen_event_work);
 	flush_workqueue(data->ts_workqueue);
 	ft5x_set_reg(FT5X0X_REG_PMODE, PMODE_HIBERNATE);
@@ -1171,9 +1213,14 @@ static void ft5x_ts_early_suspend(struct early_suspend *handler)
 #endif
         if(is_suspend == true){
 	        flush_workqueue(ft5x_resume_wq);
+#ifndef POLL_TS_IRQ
 	        sw_gpio_eint_set_enable(CTP_IRQ_NUMBER,0);
+#endif
 	        cancel_work_sync(&data->pen_event_work);
 	        flush_workqueue(data->ts_workqueue);
+#ifdef POLL_TS_IRQ
+            del_timer( &poll_timer );
+#endif
 	        ft5x_set_reg(FT5X0X_REG_PMODE, PMODE_HIBERNATE);
 	}
 
@@ -1197,6 +1244,9 @@ static int ft5x_ts_probe(struct i2c_client *client, const struct i2c_device_id *
 	struct i2c_dev *i2c_dev;
 	int err = 0;
 
+//#ifdef POLL_TS_IRQ
+//   u32 gpio_status;
+//#endif
 
 #ifdef TOUCH_KEY_SUPPORT
 	int i = 0;
@@ -1305,14 +1355,31 @@ static int ft5x_ts_probe(struct i2c_client *client, const struct i2c_device_id *
 #ifdef CONFIG_FT5X0X_MULTITOUCH
 	dprintk(DEBUG_INIT,"CONFIG_FT5X0X_MULTITOUCH is defined. \n");
 #endif
+#ifndef POLL_TS_IRQ
         int_handle = sw_gpio_irq_request(CTP_IRQ_NUMBER,CTP_IRQ_MODE,(peint_handle)ft5x_ts_interrupt,ft5x_ts);
 	if (!int_handle) {
 		printk("ft5x_ts_probe: request irq failed\n");
 		goto exit_irq_request_failed;
 	}
-
 	ctp_set_int_port_rate(1);
 	ctp_set_int_port_deb(0x07);
+#else
+   err = gpio_request_one(CTP_IRQ_NUMBER, GPIOF_IN, NULL);
+   if(err != 0){
+        printk("CTP IRQ pin set to input function failure!\n");
+		goto exit_irq_request_failed;
+   }
+
+#if 0
+    gpio_status = sw_gpio_getcfg(CTP_IRQ_NUMBER);
+    if(gpio_status != 1){
+            sw_gpio_setcfg(CTP_IRQ_NUMBER, 1);
+    }
+#endif
+
+  setup_timer( &poll_timer, timer_callback, (unsigned long)ft5x_ts );
+  start_timer();
+#endif
 	dprintk(DEBUG_INIT,"reg clk: 0x%08x\n", readl(0xf1c20a18));
 
 	i2c_dev = get_free_i2c_dev(client->adapter);
@@ -1334,7 +1401,11 @@ static int ft5x_ts_probe(struct i2c_client *client, const struct i2c_device_id *
 	return 0;
 
 exit_irq_request_failed:
+#ifndef POLL_TS_IRQ
         sw_gpio_irq_free(int_handle);
+#else
+       gpio_free(CTP_IRQ_NUMBER);
+#endif
         cancel_work_sync(&ft5x_resume_work);
 	destroy_workqueue(ft5x_resume_wq);
 exit_input_register_device_failed:
@@ -1359,7 +1430,13 @@ static int __devexit ft5x_ts_remove(struct i2c_client *client)
 
 	printk("==ft5x_ts_remove=\n");
 	device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR,client->adapter->nr));
+#ifndef POLL_TS_IRQ
 	sw_gpio_irq_free(int_handle);
+#else
+    gpio_free(CTP_IRQ_NUMBER);
+    if (del_timer( &poll_timer ))
+        printk("The timer is still in use...\n");
+#endif
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&ft5x_ts->early_suspend);
 #endif
