@@ -70,7 +70,7 @@ static int sw_ahci_phy_init(unsigned int base)
 	unsigned int timeout = timeout_val;
 
 	printk("sw_ahci_phy_init\n"); 
-	mdelay(5);
+	for(tmp=0; tmp<0x1000; tmp++);
 
 	SW_AHCI_ACCESS_LOCK(base, 0);
 
@@ -113,7 +113,7 @@ static int sw_ahci_phy_init(unsigned int base)
 	tmp |= (0x19<<5);
 	ahci_writel(base, SW_AHCI_PHYCS2R_OFFSET, tmp);
 
-	mdelay(5);
+	for(tmp=0; tmp<0x1000; tmp++);
 
 	tmp = ahci_readl(base, SW_AHCI_PHYCS0R_OFFSET);
 	tmp |= 0x1<<19;
@@ -147,7 +147,7 @@ static int sw_ahci_phy_init(unsigned int base)
 		printk("SATA AHCI Phy Calibration Failed!!\n");
 	}
 
-	mdelay(15);
+	for(tmp=0; tmp<0x3000; tmp++);
 
 	SW_AHCI_ACCESS_LOCK(base, 0x07);
 	printk("sw_ahci_phy_init: done\n"); 
@@ -245,7 +245,7 @@ static void sw_ahci_stop(struct device *dev)
 
 	printk("sw_ahci_stop: disable clks\n"); 
 	/*Disable mclk and hclk for AHCI*/
-	ahci_writel(CCMU_PLL6_VBASE, 0, ahci_readl(CCMU_PLL6_VBASE, 0)&~(0x1<<14));
+    ahci_writel(CCMU_PLL6_VBASE, 0, ahci_readl(CCMU_PLL6_VBASE, 0)&~(0x1<<14));
 	clk_disable(mclk);
 	clk_disable(hclk);
 	clk_put(hclk);
@@ -258,9 +258,9 @@ err2:
 static struct ata_port_info sw_ahci_port_info = {
 	.flags = AHCI_FLAG_COMMON,
 	//.link_flags = ,
-	.pio_mask = ATA_PIO4,
+	.pio_mask = ATA_PIO0,
 	//.mwdma_mask = ,
-	.udma_mask = ATA_UDMA6,
+	.udma_mask = ATA_UDMA1,
 	.port_ops = &ahci_ops,
 	.private_data = (void*)(AHCI_HFLAG_32BIT_ONLY | AHCI_HFLAG_NO_MSI
 							| AHCI_HFLAG_NO_PMP | AHCI_HFLAG_YES_NCQ),
@@ -277,7 +277,6 @@ static struct platform_device sw_ahci_device = {
 	.id			= 0,
 	.dev 		= {
 		.platform_data = &sw_ahci_platform_data,
-        .coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 
 	.num_resources	= ARRAY_SIZE(sw_ahci_resources),

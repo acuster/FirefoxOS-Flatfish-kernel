@@ -46,6 +46,8 @@
 #include <linux/libata.h>
 #include "ahci.h"
 
+#include <linux/slab.h>
+
 static int ahci_skip_host_reset;
 int ahci_ignore_sss;
 EXPORT_SYMBOL_GPL(ahci_ignore_sss);
@@ -744,6 +746,7 @@ static void ahci_power_down(struct ata_port *ap)
 
 static void ahci_start_port(struct ata_port *ap)
 {
+	struct ahci_host_priv *hpriv = ap->host->private_data;
 	struct ahci_port_priv *pp = ap->private_data;
 	struct ata_link *link;
 	struct ahci_em_priv *emp;
@@ -752,6 +755,10 @@ static void ahci_start_port(struct ata_port *ap)
 
 	/* enable FIS reception */
 	ahci_start_fis_rx(ap);
+
+	/* enable DMA */
+	if (!(hpriv->flags & AHCI_HFLAG_DELAY_ENGINE))
+		ahci_start_engine(ap);
 
 	/* turn on LEDs */
 	if (ap->flags & ATA_FLAG_EM) {
@@ -2069,12 +2076,7 @@ static int ahci_port_start(struct ata_port *ap)
 		rx_fis_sz = AHCI_RX_FIS_SZ;
 	}
 
-	//mem = dmam_alloc_coherent(dev, dma_sz, &mem_dma, GFP_KERNEL);
-	//danielwang
-	mem = dma_alloc_coherent(NULL, dma_sz, &mem_dma, GFP_KERNEL);
-	//mem = kmalloc(dma_sz, GFP_DMA | GFP_KERNEL);
-	//mem_dma = __pa(mem);
-	printk("dma_alloc_coherent mem = 0x%x, size = 0x%x, mem_dma=0x%x\n", (unsigned int)mem, (unsigned int)dma_sz, (unsigned int)mem_dma);  
+	mem = dmam_alloc_coherent(dev, dma_sz, &mem_dma, GFP_KERNEL);
 	if (!mem)
 		return -ENOMEM;
 	memset(mem, 0, dma_sz);
