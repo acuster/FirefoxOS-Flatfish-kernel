@@ -81,11 +81,13 @@ static 	struct input_dev * powerkeydev;
 #define AXP22_DATA_BUFFERB					AXP22_BUFFERC
 
 const uint64_t AXP22_NOTIFIER_ON = (AXP22_IRQ_USBIN | AXP22_IRQ_USBRE |
-                                    AXP22_IRQ_ACIN  | AXP22_IRQ_ACRE |
-                                    AXP22_IRQ_BATIN | AXP22_IRQ_BATRE |
-				       				AXP22_IRQ_CHAST |  AXP22_IRQ_CHAOV | 
-				       				(uint64_t)AXP22_IRQ_PEKFE |
-				       				(uint64_t)AXP22_IRQ_PEKRE);
+					AXP22_IRQ_ACIN  | AXP22_IRQ_ACRE |
+					AXP22_IRQ_TEMOV | AXP22_IRQ_TEMLO |
+					AXP22_IRQ_BATIN | AXP22_IRQ_BATRE |
+					AXP22_IRQ_CHAST | AXP22_IRQ_CHAOV | 
+					AXP22_IRQ_EXTLOWARN1 | AXP22_IRQ_EXTLOWARN2 | // enable low power alert 1,2
+					(uint64_t)AXP22_IRQ_PEKFE |
+					(uint64_t)AXP22_IRQ_PEKRE);
 
 
 #define AXP_CHG_ATTR(_name)					\

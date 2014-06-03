@@ -64,8 +64,8 @@ build_nand_lib()
 	echo "build nand library ${NAND_ROOT}/lib"
 	if [ -d ${NAND_ROOT}/lib ]; then
 		echo "build nand library now"
-	make -C modules/nand/lib clean	2>/dev/null
-	make -C modules/nand/lib lib install
+	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -C modules/nand/lib clean	2>/dev/null
+	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -C modules/nand/lib lib install
 	else
 		echo "build nand with existing library"
 	fi
@@ -115,7 +115,7 @@ build_kernel()
 
 	build_standby
 	build_mdfs
-	make ARCH=arm CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage modules
+	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage modules
 
 	${OBJCOPY} -R .note.gnu.build-id -S -O binary vmlinux bImage
 
@@ -162,14 +162,14 @@ build_modules()
 	(
 	unset OUT
 	unset TOP
-	make -C modules/eurasia_km/eurasiacon/build/linux2/sunxi_android LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR}
+	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -C modules/eurasia_km/eurasiacon/build/linux2/sunxi_android LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR}
 	)
 
-	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
+	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
 		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
 
 	build_nand_lib
-	make -C modules/nand LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
+	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -C modules/nand LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
 		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
 	copy_nand_mod
 
@@ -246,8 +246,8 @@ clean_modules()
 #
 #####################################################################
 
-LICHEE_ROOT=`(cd ${LICHEE_KDIR}/..; pwd)`
-export PATH=${LICHEE_ROOT}/buildroot/output/external-toolchain/bin:${LICHEE_ROOT}/tools/pack/pctools/linux/android:$PATH
+#LICHEE_ROOT=`(cd ${LICHEE_KDIR}/..; pwd)`
+#export PATH=${LICHEE_ROOT}/buildroot/output/external-toolchain/bin:${LICHEE_ROOT}/tools/pack/pctools/linux/android:$PATH
 
 case "$1" in
 kernel)

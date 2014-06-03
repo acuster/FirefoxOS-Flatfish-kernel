@@ -36,6 +36,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/wakelock.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -64,6 +65,7 @@ static const char		gadget_name[] = "sw_usb_udc";
 static const char		driver_desc[] = DRIVER_DESC;
 
 static struct sw_udc	*the_controller = NULL;
+static struct wake_lock udc_wakelock;
 static u32              usbd_port_no = 0;
 static sw_udc_io_t      g_sw_udc_io;
 static u32 usb_connect = 0;
@@ -82,6 +84,8 @@ __u32 dma_working = 0;
 
 atomic_t vfs_read_flag;
 atomic_t vfs_write_flag;
+unsigned int vfs_amount = 0;
+loff_t vfs_file_offset = 0;
 
 #define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
 
@@ -1785,15 +1789,16 @@ static irqreturn_t sw_udc_irq(int dummy, void *_dev)
 	/* RESET */
 	if (usb_irq & USBC_INTUSB_RESET) {
 		DMSG_INFO_UDC("IRQ: reset\n");
-		if(g_msc_write_debug){
-			printk("flag(1:star,2:end) vfs_read_flag:%d, vfs_write_flag:%d,dma_working:%d\n",
-				atomic_read(&vfs_read_flag), atomic_read(&vfs_write_flag), dma_working);
-		}
+		printk("(1:star,2:end): vfs_read:%d, vfs_write:%d,dma_working:%d,amount:%u,file_offset:%llu\n",
+				atomic_read(&vfs_read_flag), atomic_read(&vfs_write_flag), dma_working, vfs_amount, (unsigned long long)vfs_file_offset);
 
         USBC_INT_ClearMiscPending(g_sw_udc_io.usb_bsp_hdle, USBC_INTUSB_RESET);
         clear_all_irq();
 
 		usb_connect = 1;
+
+		if( wake_lock_active(&udc_wakelock) == 0 )
+			wake_lock(&udc_wakelock);
 
 		USBC_SelectActiveEp(g_sw_udc_io.usb_bsp_hdle, 0);
 		USBC_Dev_SetAddress_default(g_sw_udc_io.usb_bsp_hdle);
@@ -1841,6 +1846,9 @@ static irqreturn_t sw_udc_irq(int dummy, void *_dev)
 
 		if(dev->gadget.speed != USB_SPEED_UNKNOWN){
 			usb_connect = 0;
+
+			if( wake_lock_active(&udc_wakelock) )
+				wake_unlock(&udc_wakelock);
 		}else{
 			DMSG_INFO_UDC("ERR: usb speed is unkown\n");
 		}
@@ -1866,6 +1874,9 @@ static irqreturn_t sw_udc_irq(int dummy, void *_dev)
         dev->ep0state = EP0_IDLE;
 
 		usb_connect = 0;
+
+		if( wake_lock_active(&udc_wakelock) )
+			wake_unlock(&udc_wakelock);
 	}
 
 	/* EP */
@@ -3351,6 +3362,9 @@ int sw_usb_device_enable(void)
 	crq_bRequest 	= 0;
 	is_controller_alive = 1;
 
+	if( wake_lock_active(&udc_wakelock) )
+		wake_unlock(&udc_wakelock);
+
     memset(&g_sw_udc_io, 0, sizeof(sw_udc_io_t));
 
     retval = sw_udc_io_init(usbd_port_no, pdev, &g_sw_udc_io);
@@ -3440,16 +3454,19 @@ __acquires(sw_udc.lock)
 
 	free_irq(udc->irq_no, udc);
 
+	usbd_port_no   = 0;
+	usb_connect    = 0;
+	crq_bRequest   = 0;
+	is_controller_alive = 0;
+
+	if( wake_lock_active(&udc_wakelock) )
+		wake_unlock(&udc_wakelock);
+
 	sw_udc_io_exit(usbd_port_no, pdev, &g_sw_udc_io);
 
     spin_lock_irqsave(&udc->lock, flags);
 
     memset(&g_sw_udc_io, 0, sizeof(sw_udc_io_t));
-
-	usbd_port_no   = 0;
-	usb_connect    = 0;
-	crq_bRequest   = 0;
-	is_controller_alive = 0;
 
     spin_unlock_irqrestore(&udc->lock, flags);
 
@@ -3934,6 +3951,9 @@ static int __init udc_init(void)
 		goto err;
     }
 
+	wake_lock_init(&udc_wakelock, WAKE_LOCK_SUSPEND,
+		       "udc_wake");
+
 	return 0;
 
 err:
@@ -3961,6 +3981,8 @@ err:
 static void __exit udc_exit(void)
 {
 	DMSG_INFO_UDC("udc_exit: version %s\n", DRIVER_VERSION);
+
+	wake_lock_destroy(&udc_wakelock);
 
 	platform_driver_unregister(&sw_udc_driver);
 

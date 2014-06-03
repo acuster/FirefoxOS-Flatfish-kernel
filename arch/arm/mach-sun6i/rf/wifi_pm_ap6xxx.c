@@ -7,10 +7,17 @@
 #include <mach/sys_config.h>
 #include <mach/gpio.h>
 #include <linux/regulator/consumer.h>
+#include <mach/system.h>
 #include "wifi_pm.h"
 
 #define ap6xxx_msg(...)    do {printk("[ap6xxx]: "__VA_ARGS__);} while(0)
 
+//static void tiwl18xx_config_pm_volt(void);
+static int tiwl18xx_config_pm_volt(void);//modify to fix the compile warning: ‘return’ with a value, in function returning void
+static void ap6xxx_config_32k_clk(void);
+
+//static int ap6xxx_powerup = 0;
+//static int ap6xxx_suspend = 0;
 static int ap6xxx_wl_regon = 0;
 static int ap6xxx_bt_regon = 0;
 static char * axp_name = NULL;
@@ -42,7 +49,7 @@ static int ap6xxx_module_power(int onoff)
 
 	if (onoff) {
 		ap6xxx_msg("regulator on.\n");
-		ret = regulator_set_voltage(wifi_ldo, 3300000, 3300000);
+		ret = regulator_set_voltage(wifi_ldo, 1800000, 1800000);
 		if (ret < 0) {
 			ap6xxx_msg("regulator_set_voltage fail, return %d.\n", ret);
 			regulator_put(wifi_ldo);
@@ -156,4 +163,54 @@ void ap6xxx_gpio_init(void)
 	ops->power = ap6xxx_power;
 
 	ap6xxx_module_power(1);
+	
+	tiwl18xx_config_pm_volt();
+	ap6xxx_config_32k_clk();
+}
+
+
+static char pm_axp_name[] = "axp22_ldoio1";
+//static void tiwl18xx_config_pm_volt(void)
+static int tiwl18xx_config_pm_volt(void)//modify to fix the compile warning: ‘return’ with a value, in function returning void
+{
+   struct regulator* pm_ldo = NULL;
+   int ret = 0;
+
+   pm_ldo = regulator_get(NULL, pm_axp_name);
+   if (!pm_ldo) {
+       printk("get power regulator failed.\n");
+       return -ret;
+   } 
+
+   ret = regulator_set_voltage(pm_ldo, 1800000, 1800000);
+   if (ret < 0) {
+      printk("regulator_set_voltage fail, return %d.\n", ret);
+      return ret;
+   }
+
+   ret = regulator_enable(pm_ldo);
+   if (ret < 0) {
+   printk("regulator_enable fail, return %d.\n", ret);
+      return ret;
+   }
+
+   printk("ret=%d\n", ret);
+   return ret;
+} 
+
+static void ap6xxx_config_32k_clk(void)
+{
+   unsigned int reg_addr, reg_val;
+   unsigned int tiwl18xx_32k_gpio;
+
+   tiwl18xx_32k_gpio = GPIOM(7);
+   gpio_request(tiwl18xx_32k_gpio, NULL);
+   sw_gpio_setpull(tiwl18xx_32k_gpio, 1);
+   sw_gpio_setdrvlevel(tiwl18xx_32k_gpio, 3);
+   sw_gpio_setcfg(tiwl18xx_32k_gpio, 0x03);
+
+//enable clk
+   reg_addr = 0xf1f01400 + 0xf0;
+   reg_val = readl(reg_addr);
+   writel( reg_val | (1<<31), reg_addr); 
 }

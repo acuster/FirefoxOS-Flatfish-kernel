@@ -640,7 +640,8 @@ static irqreturn_t wlan_oob_irq(int irq, void *dev_id)
 }
 
 #if 1
-u32 irq_hand = NULL;
+//u32 irq_hand = NULL;
+u32 irq_hand = 0;//modify to fix the compile warning "initialization makes integer from pointer without a cast"
 u32 eint_handle(void *para)
 {
 	unsigned int penable = 0;

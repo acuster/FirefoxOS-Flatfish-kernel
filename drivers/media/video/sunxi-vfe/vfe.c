@@ -1057,6 +1057,7 @@ static irqreturn_t vfe_isr(int irq, void *priv)
   struct csi_int_status status;
   struct vfe_isp_stat_buf_queue *isp_stat_bq = &dev->isp_stat_bq;  
   struct vfe_isp_stat_buf *stat_buf_pt;
+  struct timespec ts;
   
   FUNCTION_LOG;
   
@@ -1158,8 +1159,11 @@ isp_exp_handle:
 		vfe_warn(" Nobody is waiting on this video buffer,buf = 0x%p\n",buf);		   
 	}
 	list_del(&buf->vb.queue);
-	do_gettimeofday(&buf->vb.ts);
-	buf->vb.field_count++;
+	//do_gettimeofday(&buf->vb.ts);
+	ktime_get_ts(&ts);
+	buf->vb.ts.tv_sec = ts.tv_sec;
+    buf->vb.ts.tv_usec = ts.tv_nsec/1000;
+    buf->vb.field_count++;
 
 	vfe_dbg(2,"video buffer frame interval = %ld\n",buf->vb.ts.tv_sec*1000000+buf->vb.ts.tv_usec - (dev->sec*1000000+dev->usec));
 	dev->sec = buf->vb.ts.tv_sec;
@@ -1338,7 +1342,7 @@ static int buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
   struct vfe_buffer *buf = container_of(vb, struct vfe_buffer, vb);
   int rc;
 
-  vfe_dbg(1,"buffer_prepare\n");
+  //vfe_dbg(1,"buffer_prepare\n");   //potter del
 
   BUG_ON(NULL == dev->fmt);
 
@@ -1382,7 +1386,7 @@ static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
   struct vfe_buffer *buf = container_of(vb, struct vfe_buffer, vb);
   struct vfe_dmaqueue *vidq = &dev->vidq;
 
-  vfe_dbg(1,"buffer_queue\n");
+  //vfe_dbg(1,"buffer_queue\n");   //potter del
   buf->vb.state = VIDEOBUF_QUEUED;
   list_add_tail(&buf->vb.queue, &vidq->active);
 }
@@ -3915,13 +3919,6 @@ reg_sd:
     goto probe_hdl_unreg_dev;
   } 
 
-  /*video device register */
-  ret = -ENOMEM;
-  vfd = video_device_alloc();
-  if (!vfd) {
-    goto probe_hdl_unreg_dev;
-  } 
-
   *vfd = vfe_template;
   vfd->v4l2_dev = &dev->v4l2_dev;
   sprintf(vfe_name,"vfe-%d",dev->id);
@@ -4038,11 +4035,11 @@ static int vfe_probe(struct platform_device *pdev)
   }
   
 //  printk("read_ini_info 0\n");
-  if(dev->ccm_cfg[0]->is_isp_used || dev->ccm_cfg[1]->is_isp_used)
-  {
-  	if(read_ini_info(dev))
-    	vfe_warn("read ini info fail\n");
-  }
+if(0)                  //deleted by potter for no use isp of soc
+{
+  if(read_ini_info(dev))
+    vfe_err("read ini info error\n");
+ }
 //  printk("read_ini_info 1\n");
   
 //  printk("vfe_resource_request 0\n");
@@ -4054,12 +4051,14 @@ static int vfe_probe(struct platform_device *pdev)
   ret = bsp_csi_set_base_addr(dev->vip_sel, (unsigned int)dev->regs.csi_regs);
   if(ret < 0)
     goto free_resource;
+	if(dev->id == 0) {
   ret = bsp_mipi_csi_set_base_addr(dev->mipi_sel, (unsigned int)dev->regs.protocol_regs);
   if(ret < 0)
     goto free_resource;
   ret = bsp_mipi_dphy_set_base_addr(dev->mipi_sel, (unsigned int)dev->regs.dphy_regs);
   if(ret < 0)
     goto free_resource;
+    }
 
   bsp_isp_set_base_addr((unsigned int)dev->regs.isp_regs);
   bsp_isp_set_map_load_addr((unsigned int)dev->regs.isp_load_regs);
@@ -4094,7 +4093,9 @@ static int vfe_probe(struct platform_device *pdev)
   INIT_DELAYED_WORK(&dev->probe_work, probe_work_handle);
   mutex_init(&dev->standby_lock);
   sema_init(&dev->standby_seq_sema,1);
-  
+  int retry = 5;
+  while((dev->id == 1) && list_empty(&devlist) && retry-- )
+  	msleep(5);
   schedule_delayed_work(&dev->probe_work,msecs_to_jiffies(1));
 
   /* initial state */
@@ -4216,6 +4217,29 @@ static void resume_work_handle(struct work_struct *work)
   
   //open all the device power
   for (input_num=0; input_num<dev->dev_qty; input_num++) {
+       /*  potter */
+   if(strcmp(dev->ccm_cfg[input_num]->iovdd_str,"")) {
+      dev->ccm_cfg[input_num]->power.iovdd = regulator_get(NULL, dev->ccm_cfg[input_num]->iovdd_str);
+      if (dev->ccm_cfg[input_num]->power.iovdd == NULL) {
+        vfe_err("get regulator csi_iovdd error!input_num = %d\n",input_num);
+ 
+      }
+    }
+    if(strcmp(dev->ccm_cfg[input_num]->avdd_str,"")) {
+      dev->ccm_cfg[input_num]->power.avdd = regulator_get(NULL, dev->ccm_cfg[input_num]->avdd_str);
+      if (dev->ccm_cfg[input_num]->power.avdd == NULL) {
+        vfe_err("get regulator csi_avdd error!input_num = %d\n",input_num);
+  
+      }
+    }
+    if(strcmp(dev->ccm_cfg[input_num]->dvdd_str,"")) {
+      dev->ccm_cfg[input_num]->power.dvdd = regulator_get(NULL, dev->ccm_cfg[input_num]->dvdd_str);
+      if (dev->ccm_cfg[input_num]->power.dvdd == NULL) {
+        vfe_err("get regulator csi_dvdd error!input_num = %d\n",input_num);
+      
+      }
+    }
+
     /* update target device info and select it */
     update_ccm_info(dev, dev->ccm_cfg[input_num]);
     

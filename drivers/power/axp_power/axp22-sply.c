@@ -48,6 +48,9 @@
 #define DBG_PSY_MSG(format,args...)   do {} while (0)
 #endif
 
+#define DELAYTIME 60	// delay=60*10=600s=10min
+static int device_state = 0;	// record device's state for lowpower, 0 for on, 1 for sleep
+
 static int axp_debug = 0;
 static int vbus_curr_limit_debug = 1;
 static int long_key_power_off = 1;
@@ -439,20 +442,35 @@ static enum power_supply_property axp_usb_props[] = {
   POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
+static int axp_battery_check_status_counter=0;
 static void axp_battery_check_status(struct axp_charger *charger,
             union power_supply_propval *val)
 {
   if (charger->bat_det) {
     if (charger->ext_valid){
-    	if( charger->rest_vol == 100)
-        val->intval = POWER_SUPPLY_STATUS_FULL;
-    	else if(charger->charge_on)
-    		val->intval = POWER_SUPPLY_STATUS_CHARGING;
-    	else
+    	if( charger->rest_vol == 100){
+	       	val->intval = POWER_SUPPLY_STATUS_FULL;
+		axp_battery_check_status_counter|=0x4;
+	}
+    	else if((charger->charge_on) && (charger->bat_current_direction == 1)){
+		if( (axp_battery_check_status_counter&0x3) == 0x3 ) {
+    			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		}
+		else{
+	    		val->intval = POWER_SUPPLY_STATUS_CHARGING;
+			axp_battery_check_status_counter|=0x1;
+		}
+	}
+    	else{
     		val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		if( (axp_battery_check_status_counter&0x1) != 0 )
+			axp_battery_check_status_counter|=0x2;
+	}
     }
-    else
+    else{
       val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+      axp_battery_check_status_counter=0;
+    }
   }
   else
     val->intval = POWER_SUPPLY_STATUS_FULL;
@@ -570,10 +588,19 @@ static int axp_ac_get_property(struct power_supply *psy,
   case POWER_SUPPLY_PROP_MODEL_NAME:
     val->strval = charger->ac.name;break;
   case POWER_SUPPLY_PROP_PRESENT:
-    val->intval = charger->ac_det;
+//    val->intval = charger->ac_det;
+	if((1 == charger->ac_det) && (0 == axp_usbcurflag))
+		val->intval = 1;
+	else
+		val->intval = 0;
     break;
   case POWER_SUPPLY_PROP_ONLINE:
-    val->intval = charger->ac_valid;break;
+//    val->intval = charger->ac_valid;break;
+  	if((1 == charger->ac_valid) && (0 == axp_usbcurflag))
+		val->intval = 1;
+	else
+		val->intval = 0;
+	break;
   case POWER_SUPPLY_PROP_VOLTAGE_NOW:
     val->intval = charger->vac * 1000;
     break;
@@ -599,11 +626,19 @@ static int axp_usb_get_property(struct power_supply *psy,
   case POWER_SUPPLY_PROP_MODEL_NAME:
     val->strval = charger->usb.name;break;
   case POWER_SUPPLY_PROP_PRESENT:
-    val->intval = charger->usb_det;
-    break;
+//    val->intval = charger->usb_det;
+  	if(1 == axp_usbcurflag)
+		val->intval = 1;
+	else
+		val->intval = 0;
+	break;
   case POWER_SUPPLY_PROP_ONLINE:
-    val->intval = charger->usb_valid;
-    break;
+//    val->intval = charger->usb_valid;
+  	if(1 == axp_usbcurflag)
+		val->intval = 1;
+	else
+		val->intval = 0;
+	break;
   case POWER_SUPPLY_PROP_VOLTAGE_NOW:
     val->intval = charger->vusb * 1000;
     break;
@@ -760,11 +795,21 @@ static int axp_battery_event(struct notifier_block *nb, unsigned long event,
 				axp_capchange(charger);
 			}
 	
-			if(event & (AXP22_IRQ_ACIN|AXP22_IRQ_USBIN|AXP22_IRQ_ACOV|AXP22_IRQ_USBOV|AXP22_IRQ_CHAOV
-						|AXP22_IRQ_CHAST|AXP22_IRQ_TEMOV|AXP22_IRQ_TEMLO)) {
+//			if(event & (AXP22_IRQ_ACIN|AXP22_IRQ_USBIN|AXP22_IRQ_ACOV|AXP22_IRQ_USBOV|AXP22_IRQ_CHAOV
+//						|AXP22_IRQ_CHAST|AXP22_IRQ_TEMOV|AXP22_IRQ_TEMLO)) {
+
+			if(event & (AXP22_IRQ_ACIN|AXP22_IRQ_USBIN)){
+				printk("!!!!!!!!!!!!!!ac in or usb in\n");
+			}
+
+			if(event & (AXP22_IRQ_ACOV|AXP22_IRQ_USBOV|AXP22_IRQ_CHAOV|AXP22_IRQ_TEMOV|AXP22_IRQ_TEMLO)){
 				axp_change(charger);
 			}
 	
+			if(event & AXP22_IRQ_CHAST){
+				axp_change(charger);
+			}
+
 			if(event & (AXP22_IRQ_ACRE|AXP22_IRQ_USBRE)) {
 				axp_change(charger);
 			}
@@ -774,6 +819,11 @@ static int axp_battery_event(struct notifier_block *nb, unsigned long event,
 			}
 	
 			if(event & AXP22_IRQ_POKSH) {
+				axp_pressshort(charger);
+			}
+
+			/* imitate a powerkey event to wake up the device in low power */
+			if((event & (AXP22_IRQ_EXTLOWARN1 | AXP22_IRQ_EXTLOWARN2 )) && device_state) {
 				axp_pressshort(charger);
 			}
 			w[0] = (uint8_t) ((event) & 0xFF);
@@ -881,6 +931,14 @@ static int axp_battery_adc_set(struct axp_charger *charger)
   if (ret)
     return ret;
 
+   //set the TS output current to 40uA
+   axp_clr_bits(charger->master, AXP22_ADC_CONTROL3, 0x20);
+   axp_set_bits(charger->master, AXP22_ADC_CONTROL3, 0x10);
+   //set reg_84h to d1
+   axp_clr_bits(charger->master, AXP22_ADC_CONTROL3, 0x02);
+   axp_set_bits(charger->master, AXP22_ADC_CONTROL3, 0x01);
+   // axp_read(charger->master, AXP22_ADC_CONTROL3, &val);
+  // printk("val = %d\n", val);
   return 0;
 }
 #else
@@ -894,10 +952,43 @@ static int axp_battery_first_init(struct axp_charger *charger)
 {
    int ret;
    uint8_t val;
+
+   script_item_u chg_high_temp, chg_low_temp;                                                              
+   script_item_u dischg_high_temp, dischg_low_temp;           
+   script_item_value_type_e type;
+
    axp_set_charge(charger);
    ret = axp_battery_adc_set(charger);
    if(ret)
     return ret;
+
+   type = script_get_item("battery_para", "chg_high_temp", &chg_high_temp);              
+   if(SCIRPT_ITEM_VALUE_TYPE_INT != type){                         
+        printk("type error!\n");
+		chg_high_temp.val = 0x12;
+   }
+   axp_write(charger->master, 0x39, chg_high_temp.val);  //charge 40¡æ      
+		                    
+   type = script_get_item("battery_para", "chg_low_temp", &chg_low_temp);       
+   if(SCIRPT_ITEM_VALUE_TYPE_INT != type){      
+        printk("type error!\n");     
+		chg_low_temp.val = 0x57;
+   }
+   axp_write(charger->master, 0x38, chg_low_temp.val);   //charge 0¡æ        
+					          
+   type = script_get_item("battery_para", "dischg_high_temp", &dischg_high_temp);         
+   if(SCIRPT_ITEM_VALUE_TYPE_INT != type){
+        printk("type error!\n");     
+		dischg_high_temp.val = 0x0D;
+   }
+   axp_write(charger->master, 0x3D, dischg_high_temp.val);  //discharge 50¡æ    
+								                    
+   type = script_get_item("battery_para", "dischg_low_temp", &dischg_low_temp);       
+   if(SCIRPT_ITEM_VALUE_TYPE_INT != type){        
+       printk("type error!\n");           
+	   dischg_low_temp.val = 0x8B;
+   }
+   axp_write(charger->master, 0x3C, dischg_low_temp.val);  //discharge -10¡æ 
 
    ret = axp_read(charger->master, AXP22_ADC_CONTROL3, &val);
    switch ((val >> 6) & 0x03){
@@ -1252,7 +1343,8 @@ static void axp_earlysuspend(struct early_suspend *h)
 	uint8_t tmp;
 	if(axp_debug)
 		DBG_PSY_MSG("======early suspend=======\n");
-
+	
+	device_state = 1;
 #if defined (CONFIG_AXP_CHGCHANGE)
   	early_suspend_flag = 1;
   	if(pmu_earlysuspend_chgcur == 0)
@@ -1273,6 +1365,7 @@ static void axp_lateresume(struct early_suspend *h)
 	if(axp_debug)
 		DBG_PSY_MSG("======late resume=======\n");
 
+	device_state = 0;
 #if defined (CONFIG_AXP_CHGCHANGE)
 	early_suspend_flag = 0;
 	if(pmu_runtime_chgcur == 0)
@@ -1319,6 +1412,8 @@ static void axp_charging_monitor(struct work_struct *work)
 	struct axp_charger *charger;
 	uint8_t	val,temp_val[4];
 	int	pre_rest_vol,pre_bat_curr_dir;
+	static int state = 0;	// add to record if we have revised the volume
+	static int count = 0;	// record the count after the volume reach to 99%
 //	uint16_t tmp;
 	charger = container_of(work, struct axp_charger, work.work);
 	pre_rest_vol = charger->rest_vol;
@@ -1328,6 +1423,51 @@ static void axp_charging_monitor(struct work_struct *work)
 
 	axp_read(charger->master, AXP22_CAP,&val);
 	charger->rest_vol	= (int)	(val & 0x7F);
+	
+	/* When the volume reach to 99% and keep charging DELAYTIME*10 second,
+	 * we revise the voluem to 100% manualy.
+	 */
+	if (charger->rest_vol == 99) {
+		if (charger->bat_current_direction == 1) {
+			if (count == DELAYTIME)
+				count = DELAYTIME;
+			else
+				count++;
+		} else {
+			if (count == 0)
+				count = 0;
+			else
+				count--;
+		}
+
+		if (count == DELAYTIME && charger->bat_current_direction == 1) {
+			charger->rest_vol = 100;
+			state = 1;
+		}
+
+		/* After we have modified the volume to 100% and the user stop charging, 
+		 * we remain the volume of 100% DELAYTIME*10 second.
+		 */
+		if (count >= 0 && charger->bat_current_direction == 0 && state == 1)
+			charger->rest_vol = 100;
+
+		if (count == 0 && charger->bat_current_direction == 0 && state == 1)
+			state =0;
+	}
+
+	if (charger->rest_vol < 99)
+		count = 0;
+#if 0
+	/* Modify alert threshold in low power dynamically */
+	if (charger->rest_vol > 10) 
+		axp_write(charger->master, AXP22_WARNING_LEVEL, 0x50);	// set the 1st alert to 10
+	if (charger->rest_vol < 10 && charger->rest_vol > 5) 
+		axp_write(charger->master, AXP22_WARNING_LEVEL, 0x00);	// set the 1st alert to 5
+	if (charger->rest_vol < 5) {
+		/* volume is to low, poweroff the device */
+	}
+#endif
+
 #if 0	
 #if defined (CONFIG_AXP_CHGCHANGE)	
 #if defined CONFIG_HAS_EARLYSUSPEND
@@ -1440,7 +1580,7 @@ static void axp_usb(struct work_struct *work)
 			printk("set usbcur_pc %d mA\n",pmu_usbcur_pc);
 		}
 		if(pmu_usbcur_pc){
-			msleep(20*1000);
+			//msleep(20*1000);
 			axp_clr_bits(charger->master, AXP22_CHARGE_VBUS, 0x01);
 			var = pmu_usbcur_pc * 1000;
 			if(var >= 900000)
@@ -1610,14 +1750,14 @@ static int axp_battery_probe(struct platform_device *pdev)
   if (ret)
     goto err_ps_register;
 
-	axp_read(charger->master,AXP22_CHARGE_STATUS,&val);
-	if(!((val >> 1) & 0x01)){
+//	axp_read(charger->master,AXP22_CHARGE_STATUS,&val);
+//	if(!((val >> 1) & 0x01)){
   	ret = power_supply_register(&pdev->dev, &charger->ac);
   	if (ret){
     	power_supply_unregister(&charger->batt);
     	goto err_ps_register;
   	}
-  }
+//  }
 
   ret = power_supply_register(&pdev->dev, &charger->usb);
   if (ret){

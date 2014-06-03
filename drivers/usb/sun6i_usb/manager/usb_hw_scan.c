@@ -493,10 +493,10 @@ static void do_vbus1_id1(struct usb_scan_info *info)
 					break;
 				}
     			/* delay for vbus is stably */
-    			if(device_insmod_delay < USB_SCAN_INSMOD_DEVICE_DRIVER_DELAY){
+/*    			if(device_insmod_delay < USB_SCAN_INSMOD_DEVICE_DRIVER_DELAY){
     				device_insmod_delay++;
     				break;
-    			}
+     			}*/  /*delete for usb_pc charge*/
 
     			device_insmod_delay = 0;
 			    hw_insmod_usb_device();

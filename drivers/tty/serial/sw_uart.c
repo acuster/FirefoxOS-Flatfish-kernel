@@ -1186,6 +1186,10 @@ void sw_uart_procfs_remove(struct sw_uart_port *sw_uport)
 }
 #endif
 
+#ifdef CONFIG_BT_LPM
+extern void bluesleep_setup_uart_port(struct platform_device *uart_dev);
+#endif
+
 static int __devinit sw_uart_probe(struct platform_device *pdev)
 {
 	u32 id = pdev->id;
@@ -1236,6 +1240,20 @@ static int __devinit sw_uart_probe(struct platform_device *pdev)
 #ifdef CONFIG_PROC_FS
 	sw_uart_procfs_attach(sw_uport);
 #endif
+
+#ifdef CONFIG_BT_LPM
+	script_item_value_type_e type;
+	script_item_u val;
+	type = script_get_item("bt_para", "bt_uart_id", &val);
+	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+	SERIAL_MSG("failed to fetch bt uart configuration.");
+	return -1;
+	}
+	if (val.val != 0 && val.val == sw_uport->id) {
+	bluesleep_setup_uart_port(pdev);
+	}
+#endif
+
 	SERIAL_DBG("add uart%d port, port_type %d, uartclk %d\n",
 			id, port->type, port->uartclk);
 	return uart_add_one_port(&sw_uart_driver, port);

@@ -21,4 +21,16 @@ config INPUT_LTR501ALS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ltr501als.
+
+config INPUT_LTR303
+	tristate "LTR303 LIGHT SENSOR driver"
+	depends on I2C
+	default m
+	help
+	  Say Y here if you want to use LTR303
+	  through I2C interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ltr303.
+
 endif

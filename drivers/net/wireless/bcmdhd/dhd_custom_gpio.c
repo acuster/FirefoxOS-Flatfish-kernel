@@ -131,7 +131,8 @@ int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr)
 #endif 
 
 /* Customer function to control hw specific wlan gpios */
-void
+//void
+int  //modify to fix the compile warning: 'return' with a value, in function returning void
 dhd_customer_gpio_wlan_ctrl(int onoff)
 {
 	static int first = 1;
@@ -144,7 +145,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 		type = script_get_item("wifi_para", "wifi_sdc_id", &val);
 		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
 			WL_ERROR(("failed to fetch sdio card's sdcid\n"));
-			return ;
+			return -1;
 		}
 		sdc_id = val.val;
 		first = 0;
@@ -160,6 +161,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 #if defined(CUSTOMER_HW2)
 			wifi_set_power(0, 0);
 #endif
+			mdelay(100);
 			WL_ERROR(("=========== WLAN placed in RESET ========\n"));
 		break;
 
@@ -172,6 +174,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 #if defined(CUSTOMER_HW2)
 			wifi_set_power(1, 0);
 #endif
+			mdelay(100);
 			WL_ERROR(("=========== WLAN going back to live  ========\n"));
 		break;
 
@@ -197,6 +200,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 			WL_ERROR(("=========== WLAN placed in POWER ON ========\n"));
 		break;
 	}
+	return 0;//modify to fix the compile warning: 'return' with a value, in function returning void
 }
 
 #ifdef GET_CUSTOM_MAC_ENABLE

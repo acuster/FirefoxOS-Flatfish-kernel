@@ -21,7 +21,8 @@ static char* wifi_mod[] = {" ",
 	"rtl8188eu",  /* 6 - RTL8188EU*/
 	"mtk6620",	  /* 7 - MTK6620() */
 	"rtl8723au",  /* 8 - RTL8723AU*/
-	"ap6330",     /* 9 - AP6330*/
+	"gb9662",     /* 9 - BCM40181*/
+	"gb9663",     /* 10 - BCM40183*/
 };
 
 int wifi_pm_get_mod_type(void)
@@ -190,7 +191,10 @@ static int __devinit wifi_pm_probe(struct platform_device *pdev)
 		case 8: /* RTL8723AU */
 			rtl8723au_gpio_init();
 			break;
-		case 9: /* AP6330 */
+		case 9: /* BCM40181 */
+			ap6xxx_gpio_init();
+			break;
+		case 10: /* BCM40183 */
 			ap6xxx_gpio_init();
 			break;
 		default:

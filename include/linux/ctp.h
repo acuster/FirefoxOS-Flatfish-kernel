@@ -4,6 +4,7 @@
 struct ctp_config_info{
         int ctp_used;
         __u32 twi_id;
+		int enable_fwupdate;   //add by ethan 13/06/24
         int screen_max_x;
         int screen_max_y;
         int revert_x_flag;

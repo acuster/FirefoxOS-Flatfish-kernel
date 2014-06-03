@@ -26,7 +26,7 @@
 #define	AR100_VERSIONS				(100)
 
 /* debugger system */
-#define AR100_DEBUG_ON	
+//#define AR100_DEBUG_ON	
 #define	AR100_DEBUG_LEVEL			(3)	/* debug level */
 
 /* the max number of cached message frame */

@@ -136,7 +136,7 @@ struct gpio_switch_data {
 	int check_four_count;
 
 	enum headphone_mode_u mode;		/* mode for three/four sector headphone */
-	struct work_struct work;
+	struct delayed_work work;
 	struct semaphore sem;
 	struct timer_list timer;
 
@@ -236,7 +236,7 @@ static void earphone_switch_timer_poll(unsigned long data)
 	}
 }
 
-static void earphone_switch_work(struct work_struct *work)
+static void earphone_switch_work(struct delayed_work *work)
 {
 	struct gpio_switch_data	*switch_data =
 		container_of(work, struct gpio_switch_data, work);
@@ -271,10 +271,14 @@ static irqreturn_t audio_hmic_irq(int irq, void *dev_id)
 	tmp = hmic_rdreg(SUN6I_HMIC_DATA);
 	tmp &= 0x1f;
 SWITCH_DBG("%s,line:%d,tmp:%x\n", __func__, __LINE__, tmp);
-
+	del_timer(&switch_data->work.timer);
 	if (((&switch_data->timer) != NULL)) {
 		del_timer(&switch_data->timer);
 	}
+
+	work_clear_pending(&switch_data->work.work);
+
+//	printk("tmp=%x\n",tmp);
 	if (tmp) {
 		SWITCH_DBG("%s,line:%d,tmp:%x\n", __func__, __LINE__, tmp);
 		if (!headphone_direct_used) {
@@ -300,7 +304,8 @@ SWITCH_DBG("%s,line:%d,tmp:%x\n", __func__, __LINE__, tmp);
 		headphone_state = 0;
 		switch_data->state = 0;
 	}
-	schedule_work(&switch_data->work);
+
+	schedule_delayed_work(&switch_data->work,HZ);
 	return IRQ_HANDLED;
 }
 
@@ -455,11 +460,11 @@ static int gpio_switch_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, (void *)switch_data);
 
 	switch_data->sdev.state 		= 0;
-	switch_data->state				= -1;
+	switch_data->state				= 0;
 	switch_data->sdev.name 			= pdata->name;
 	switch_data->sdev.print_name 	= print_headset_name;
 	switch_data->sdev.print_state 	= switch_gpio_print_state;
-	INIT_WORK(&switch_data->work, earphone_switch_work);
+	INIT_DELAYED_WORK(&switch_data->work, earphone_switch_work);
 	INIT_WORK(&switch_data->resume_work, switch_resume_events);
  	/* create input device */
     switch_data->key = input_allocate_device();

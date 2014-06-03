@@ -472,7 +472,8 @@ extern void dhd_os_sdunlock_txq(dhd_pub_t * pub);
 extern void dhd_os_sdlock_rxq(dhd_pub_t * pub);
 extern void dhd_os_sdunlock_rxq(dhd_pub_t * pub);
 extern void dhd_os_sdlock_sndup_rxq(dhd_pub_t * pub);
-extern void dhd_customer_gpio_wlan_ctrl(int onoff);
+//extern void dhd_customer_gpio_wlan_ctrl(int onoff);
+extern int dhd_customer_gpio_wlan_ctrl(int onoff);//modify to fix the compile warning: 'return' with a value, in function returning void
 extern int dhd_custom_get_mac_address(unsigned char *buf);
 extern void dhd_os_sdunlock_sndup_rxq(dhd_pub_t * pub);
 extern void dhd_os_sdlock_eventq(dhd_pub_t * pub);

@@ -55,7 +55,7 @@
 #include <net/bluetooth/hci_core.h>
 #include "hci_uart.h"
 
-//#define BT_DEBUG 1
+#define BT_DEBUG 1
 #ifdef  BT_DEBUG
 #define BT_LPM_DBG(fmt, arg...)  printk(KERN_ERR "[BT_LPM] %s: " fmt "\n" , __func__ , ## arg)
 #else
@@ -98,7 +98,7 @@ DECLARE_DELAYED_WORK(sleep_workqueue, bluesleep_sleep_work);
 #define bluesleep_tx_idle()     schedule_delayed_work(&sleep_workqueue, 0)
 
 /* 10 second timeout */
-#define TX_TIMER_INTERVAL	10
+#define TX_TIMER_INTERVAL	3
 
 /* state variable names and bit positions */
 #define BT_PROTO	0x01

@@ -987,7 +987,10 @@ __s32 LCD_PWM_EN(__u32 sel, __bool b_en)
         }
         else
         {            
-            gpio_info->mul_sel = 7;
+            //gpio_info->mul_sel = 7;
+			//Force to make pwm pin output low
+            gpio_info->mul_sel = 1;//0:input 1:output
+			gpio_info->data = 0;//0:low 1:high,only vaild when mul_sel set to 0/1
             hdl = OSAL_GPIO_Request(gpio_info, 1);
             OSAL_GPIO_Release(hdl, 2);
         }
@@ -2193,8 +2196,9 @@ __s32 BSP_disp_lcd_set_bright(__u32 sel, __u32  bright, __u32 from_iep)
         backlight_bright = bright;
         backlight_dimming = gdisp.screen[sel].lcd_cfg.backlight_dimming;
         period_ns = gdisp.pwm[gdisp.screen[sel].lcd_cfg.lcd_pwm_ch].period_ns;
-        duty_ns = (backlight_bright * backlight_dimming *  period_ns/256 + 128) / 256;
-
+        //duty_ns = (backlight_bright * backlight_dimming *  period_ns/256 + 128) / 256;
+        //Change for duty_ns overflow 32 bit add by caitilin
+        duty_ns = (bright * gdisp.pwm[gdisp.screen[sel].lcd_cfg.lcd_pwm_ch].period_ns) / 256;
         DE_DBG("[PWM]bright=%d,backlight_dimming=%d, period_ns=%d, duty_ns=%d\n",
             bright,gdisp.screen[sel].lcd_cfg.backlight_dimming,  gdisp.pwm[gdisp.screen[sel].lcd_cfg.lcd_pwm_ch].period_ns,duty_ns);
         pwm_set_duty_ns(gdisp.screen[sel].lcd_cfg.lcd_pwm_ch, duty_ns);

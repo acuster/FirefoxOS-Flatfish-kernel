@@ -1,6 +1,6 @@
 /*
    BlueZ - Bluetooth protocol stack for Linux
-   Copyright (C) 2000-2001 Qualcomm Incorporated
+   Copyright (c) 2000-2001, 2011, The Linux Foundation. All rights reserved.
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
 
@@ -49,7 +49,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-static bool enable_mgmt;
+static bool enable_mgmt = 1;
 
 /* ----- HCI socket interface ----- */
 
@@ -180,38 +180,82 @@ static int hci_sock_release(struct socket *sock)
 	return 0;
 }
 
-static int hci_sock_blacklist_add(struct hci_dev *hdev, void __user *arg)
+struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr)
 {
-	bdaddr_t bdaddr;
-	int err;
+	struct list_head *p;
 
-	if (copy_from_user(&bdaddr, arg, sizeof(bdaddr)))
-		return -EFAULT;
+	list_for_each(p, &hdev->blacklist) {
+		struct bdaddr_list *b;
 
-	hci_dev_lock(hdev);
+		b = list_entry(p, struct bdaddr_list, list);
 
-	err = hci_blacklist_add(hdev, &bdaddr);
+		if (bacmp(bdaddr, &b->bdaddr) == 0)
+			return b;
+	}
 
-	hci_dev_unlock(hdev);
-
-	return err;
+	return NULL;
 }
 
-static int hci_sock_blacklist_del(struct hci_dev *hdev, void __user *arg)
+static int hci_blacklist_add(struct hci_dev *hdev, void __user *arg)
 {
 	bdaddr_t bdaddr;
-	int err;
+	struct bdaddr_list *entry;
 
 	if (copy_from_user(&bdaddr, arg, sizeof(bdaddr)))
 		return -EFAULT;
 
-	hci_dev_lock(hdev);
+	if (bacmp(&bdaddr, BDADDR_ANY) == 0)
+		return -EBADF;
 
-	err = hci_blacklist_del(hdev, &bdaddr);
+	if (hci_blacklist_lookup(hdev, &bdaddr))
+		return -EEXIST;
 
-	hci_dev_unlock(hdev);
+	entry = kzalloc(sizeof(struct bdaddr_list), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
 
-	return err;
+	bacpy(&entry->bdaddr, &bdaddr);
+
+	list_add(&entry->list, &hdev->blacklist);
+
+	return 0;
+}
+
+int hci_blacklist_clear(struct hci_dev *hdev)
+{
+	struct list_head *p, *n;
+
+	list_for_each_safe(p, n, &hdev->blacklist) {
+		struct bdaddr_list *b;
+
+		b = list_entry(p, struct bdaddr_list, list);
+
+		list_del(p);
+		kfree(b);
+	}
+
+	return 0;
+}
+
+static int hci_blacklist_del(struct hci_dev *hdev, void __user *arg)
+{
+	bdaddr_t bdaddr;
+	struct bdaddr_list *entry;
+
+	if (copy_from_user(&bdaddr, arg, sizeof(bdaddr)))
+		return -EFAULT;
+
+	if (bacmp(&bdaddr, BDADDR_ANY) == 0)
+		return hci_blacklist_clear(hdev);
+
+	entry = hci_blacklist_lookup(hdev, &bdaddr);
+	if (!entry)
+		return -ENOENT;
+
+	list_del(&entry->list);
+	kfree(entry);
+
+	return 0;
 }
 
 /* Ioctls that require bound socket */
@@ -246,12 +290,15 @@ static inline int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd, unsign
 	case HCIBLOCKADDR:
 		if (!capable(CAP_NET_ADMIN))
 			return -EACCES;
-		return hci_sock_blacklist_add(hdev, (void __user *) arg);
+		return hci_blacklist_add(hdev, (void __user *) arg);
 
 	case HCIUNBLOCKADDR:
 		if (!capable(CAP_NET_ADMIN))
 			return -EACCES;
-		return hci_sock_blacklist_del(hdev, (void __user *) arg);
+		return hci_blacklist_del(hdev, (void __user *) arg);
+
+	case HCISETAUTHINFO:
+		return hci_set_auth_info(hdev, (void __user *) arg);
 
 	default:
 		if (hdev->ioctl)
@@ -281,7 +328,12 @@ static int hci_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long a
 	case HCIDEVUP:
 		if (!capable(CAP_NET_ADMIN))
 			return -EACCES;
-		return hci_dev_open(arg);
+
+		err =  hci_dev_open(arg);
+		if (!err || err == -EALREADY)
+			return 0;
+		else
+			return err;
 
 	case HCIDEVDOWN:
 		if (!capable(CAP_NET_ADMIN))
@@ -343,11 +395,8 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_le
 	if (haddr.hci_channel > HCI_CHANNEL_CONTROL)
 		return -EINVAL;
 
-	if (haddr.hci_channel == HCI_CHANNEL_CONTROL) {
-		if (!enable_mgmt)
-			return -EINVAL;
-		set_bit(HCI_PI_MGMT_INIT, &hci_pi(sk)->flags);
-	}
+	if (haddr.hci_channel == HCI_CHANNEL_CONTROL && !enable_mgmt)
+		return -EINVAL;
 
 	lock_sock(sk);
 
@@ -474,6 +523,7 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	struct sock *sk = sock->sk;
 	struct hci_dev *hdev;
 	struct sk_buff *skb;
+	int reserve = 0;
 	int err;
 
 	BT_DBG("sock %p sk %p", sock, sk);
@@ -511,9 +561,17 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		goto done;
 	}
 
-	skb = bt_skb_send_alloc(sk, len, msg->msg_flags & MSG_DONTWAIT, &err);
+	/* Allocate extra headroom for Qualcomm PAL */
+	if (hdev->dev_type == HCI_AMP && hdev->manufacturer == 0x001d)
+		reserve = BT_SKB_RESERVE_80211;
+
+	skb = bt_skb_send_alloc(sk, len + reserve,
+					msg->msg_flags & MSG_DONTWAIT, &err);
 	if (!skb)
 		goto done;
+
+	if (reserve)
+		skb_reserve(skb, reserve);
 
 	if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
 		err = -EFAULT;
@@ -538,10 +596,10 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 		if (test_bit(HCI_RAW, &hdev->flags) || (ogf == 0x3f)) {
 			skb_queue_tail(&hdev->raw_q, skb);
-			queue_work(hdev->workqueue, &hdev->tx_work);
+			tasklet_schedule(&hdev->tx_task);
 		} else {
 			skb_queue_tail(&hdev->cmd_q, skb);
-			queue_work(hdev->workqueue, &hdev->cmd_work);
+			tasklet_schedule(&hdev->cmd_task);
 		}
 	} else {
 		if (!capable(CAP_NET_RAW)) {
@@ -550,7 +608,7 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		}
 
 		skb_queue_tail(&hdev->raw_q, skb);
-		queue_work(hdev->workqueue, &hdev->tx_work);
+		tasklet_schedule(&hdev->tx_task);
 	}
 
 	err = len;
@@ -767,6 +825,7 @@ static int hci_sock_dev_event(struct notifier_block *this, unsigned long event, 
 		/* Detach sockets from device */
 		read_lock(&hci_sk_list.lock);
 		sk_for_each(sk, node, &hci_sk_list.head) {
+			local_bh_disable();
 			bh_lock_sock_nested(sk);
 			if (hci_pi(sk)->hdev == hdev) {
 				hci_pi(sk)->hdev = NULL;
@@ -777,6 +836,7 @@ static int hci_sock_dev_event(struct notifier_block *this, unsigned long event, 
 				hci_dev_put(hdev);
 			}
 			bh_unlock_sock(sk);
+			local_bh_enable();
 		}
 		read_unlock(&hci_sk_list.lock);
 	}

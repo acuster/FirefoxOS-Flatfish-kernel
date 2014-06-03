@@ -23,11 +23,10 @@ static int rfkill_set_power(void *data, bool blocked)
 {
     unsigned int mod_sel = wifi_pm_get_mod_type();
     
-    RF_MSG("rfkill set power %d\n", blocked);
-    
     switch (mod_sel)
     {
         case 2: /* ap6210 */
+        case 10: /* gb9663 */
             if (!blocked) {
                 wifi_pm_gpio_ctrl("ap6xxx_bt_regon", 1);
             } else {

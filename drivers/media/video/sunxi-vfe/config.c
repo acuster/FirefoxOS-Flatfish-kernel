@@ -262,7 +262,7 @@ int fetch_config(struct vfe_dev *dev)
     type = script_get_item(vfe_para, dev_para, &val);
     if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
       dev->ccm_cfg[i]->gpio.power_en_io.gpio = GPIO_INDEX_INVALID;
-      vfe_dbg(0,"fetch vip_dev%d_power_en from sys_config failed\n", i);
+     // vfe_dbg(0,"fetch vip_dev%d_power_en from sys_config failed\n", i);    //potter del
     } else {
       dev->ccm_cfg[i]->gpio.power_en_io.gpio=val.gpio.gpio;
       dev->ccm_cfg[i]->gpio.power_en_io.mul_sel=val.gpio.mul_sel;
@@ -272,7 +272,7 @@ int fetch_config(struct vfe_dev *dev)
     if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
       dev->ccm_cfg[i]->gpio.flash_en_io.gpio = GPIO_INDEX_INVALID;
       dev->ccm_cfg[i]->flash_used=0;
-      vfe_dbg(0,"fetch vip_dev%d_flash_en from sys_config failed\n", i);
+     // vfe_dbg(0,"fetch vip_dev%d_flash_en from sys_config failed\n", i);   //potter del
     } else {
       dev->ccm_cfg[i]->gpio.flash_en_io.gpio=val.gpio.gpio;
       dev->ccm_cfg[i]->gpio.flash_en_io.mul_sel=val.gpio.mul_sel;
@@ -283,7 +283,7 @@ int fetch_config(struct vfe_dev *dev)
     type = script_get_item(vfe_para, dev_para, &val);
     if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
       dev->ccm_cfg[i]->gpio.flash_mode_io.gpio = GPIO_INDEX_INVALID;
-      vfe_dbg(0,"fetch vip_dev%d_flash_mode from sys_config failed\n", i); 
+     // vfe_dbg(0,"fetch vip_dev%d_flash_mode from sys_config failed\n", i);     //potter del
     } else {
       dev->ccm_cfg[i]->gpio.flash_mode_io.gpio=val.gpio.gpio;
       dev->ccm_cfg[i]->gpio.flash_mode_io.mul_sel=val.gpio.mul_sel;
@@ -294,7 +294,7 @@ int fetch_config(struct vfe_dev *dev)
     if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
       dev->ccm_cfg[i]->gpio.af_pwdn_io.gpio = GPIO_INDEX_INVALID;
 
-      vfe_dbg(0,"fetch vip_dev%d_af_pwdn from sys_config failed\n", i);
+     // vfe_dbg(0,"fetch vip_dev%d_af_pwdn from sys_config failed\n", i);   //potter del
     } else {
       dev->ccm_cfg[i]->gpio.af_pwdn_io.gpio=val.gpio.gpio;
       dev->ccm_cfg[i]->gpio.af_pwdn_io.mul_sel=val.gpio.mul_sel;
@@ -305,7 +305,7 @@ int fetch_config(struct vfe_dev *dev)
 	  type = script_get_item(vfe_para, dev_para, &val);
 	  if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
 		dev->ccm_cfg[i]->act_used= 0;
-		vfe_dbg(0,"fetch vip_dev%d_act_used from sys_config failed\n", i);
+	//	vfe_dbg(0,"fetch vip_dev%d_act_used from sys_config failed\n", i);   //potter del
 	  } else {
 		dev->ccm_cfg[i]->act_used=val.val;
 	  }
@@ -318,7 +318,7 @@ int fetch_config(struct vfe_dev *dev)
   	    if (SCIRPT_ITEM_VALUE_TYPE_STR != type) {
   	      char null_str[]="";
   	      strcpy(dev->ccm_cfg[i]->act_name,null_str);
-  	      vfe_dbg(0,"fetch vip_dev%d_act_name from sys_config failed\n", i);
+  	 //     vfe_dbg(0,"fetch vip_dev%d_act_name from sys_config failed\n", i);   //potter del
   	    } else {
   	      strcpy(dev->ccm_cfg[i]->act_name,val.str);
   	    }
@@ -328,7 +328,7 @@ int fetch_config(struct vfe_dev *dev)
   		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
   		  dev->ccm_cfg[i]->act_slave= 0;
   		
-  		  vfe_dbg(0,"fetch vip_dev%d_act_slave from sys_config failed\n", i);
+  	//	  vfe_dbg(0,"fetch vip_dev%d_act_slave from sys_config failed\n", i);   //potter del
   		} else {
   		  dev->ccm_cfg[i]->act_slave=val.val;
   		}

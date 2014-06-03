@@ -696,7 +696,7 @@ void backlight_early_suspend(struct early_suspend *h)
             BSP_disp_hdmi_close(i);
         }
     }
-    BSP_disp_hdmi_early_suspend();
+    //BSP_disp_hdmi_early_suspend();
 
     BSP_disp_clk_off(2);
 
@@ -714,7 +714,7 @@ void backlight_late_resume(struct early_suspend *h)
     {
         BSP_disp_clk_on(2);
     }
-    BSP_disp_hdmi_late_resume();
+    //BSP_disp_hdmi_late_resume();
     for(i=0; i<2; i++)
     {
         if(suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
@@ -1889,6 +1889,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             break;
 
     //----hdmi----
+#if 0
     	case DISP_CMD_HDMI_ON:
     		ret = BSP_disp_hdmi_open(ubuffer[0]);
             if(suspend_status != 0)
@@ -1929,6 +1930,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     	case DISP_CMD_HDMI_SET_SRC:
     		ret = BSP_disp_hdmi_set_src(ubuffer[0], (__disp_lcdc_src_t)ubuffer[1]);
     		break;
+#endif
 
     //----vga----
     	case DISP_CMD_VGA_ON:

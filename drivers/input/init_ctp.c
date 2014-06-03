@@ -284,6 +284,16 @@ static int ctp_fetch_sysconfig_para(void)
 		goto script_get_item_err;
 	}
 	config_info.screen_max_x = val.val;
+
+// add enable_fwupdate by ethan 13/06/24 ----begin
+
+	if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("ctp_para", "ctp_enable_fwupdate", &val)){
+		pr_err("%s: ctp_screen_max_x script_get_item err. \n",__func__ );
+		goto script_get_item_err;
+	}
+	config_info.enable_fwupdate = val.val;
+
+// add enable_fwupdate by ethan 13/06/24 ---end
 	
         if(SCIRPT_ITEM_VALUE_TYPE_INT != script_get_item("ctp_para", "ctp_screen_max_y", &val)){
         		pr_err("%s: ctp_screen_max_y script_get_item err. \n",__func__ );

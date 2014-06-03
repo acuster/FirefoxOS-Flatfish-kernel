@@ -1,9 +1,12 @@
 
 #include "lcd_panel_cfg.h"
-
+#include "linux/delay.h"
 //delete this line if you want to use the lcd para define in sys_config1.fex
-#define LCD_PARA_USE_CONFIG
-
+//#define LCD_PARA_USE_CONFIG
+static void LCD_power_on(__u32 sel);
+static void LCD_power_off(__u32 sel);
+static void LCD_bl_open(__u32 sel);
+static void LCD_bl_close(__u32 sel);
 #ifdef LCD_PARA_USE_CONFIG
 static __u8 g_gamma_tbl[][2] = 
 {
@@ -85,19 +88,18 @@ static void LCD_cfg_panel_info(__panel_para_t * info)
 
 static __s32 LCD_open_flow(__u32 sel)
 {
-	LCD_OPEN_FUNC(sel, LCD_power_on, 50);   //open lcd power, and delay 50ms
-	LCD_OPEN_FUNC(sel, TCON_open, 500);     //open lcd controller, and delay 500ms
-	LCD_OPEN_FUNC(sel, LCD_bl_open, 0);     //open lcd backlight, and delay 0ms
-
+	LCD_PWM_EN(sel,0);                      //first make pwm signal output low,not effect with dldo1 
+	LCD_OPEN_FUNC(sel, TCON_open, 250);     //open lcd controller, and delay more than 200ms
+	LCD_OPEN_FUNC(sel, LCD_power_on, 10);   //open lcd tcon power, and delay 10ms
+	LCD_OPEN_FUNC(sel, LCD_bl_open, 10);    //open lcd backlight, and delay 10ms
 	return 0;
 }
 
 static __s32 LCD_close_flow(__u32 sel)
 {	
-	LCD_CLOSE_FUNC(sel, LCD_bl_close, 0);       //close lcd backlight, and delay 0ms
-	LCD_CLOSE_FUNC(sel, TCON_close, 0);         //close lcd controller, and delay 0ms
-	LCD_CLOSE_FUNC(sel, LCD_power_off, 1000);   //close lcd power, and delay 1000ms
-
+	LCD_CLOSE_FUNC(sel, LCD_bl_close, 200);   //close lcd backlight, and delay more than 200ms
+	LCD_CLOSE_FUNC(sel, LCD_power_off, 10);   //close lcd power, and delay 10ms
+	LCD_CLOSE_FUNC(sel, TCON_close, 10);      //close lcd controller, and delay 10ms
 	return 0;
 }
 
@@ -113,14 +115,16 @@ static void LCD_power_off(__u32 sel)
 
 static void LCD_bl_open(__u32 sel)
 {
-    LCD_PWM_EN(sel, 1);//open pwm module
     LCD_BL_EN(sel, 1);//config lcd_bl_en pin to open lcd backlight
+ 	LCD_delay_ms(15);
+	LCD_PWM_EN(sel, 1);//open pwm module
 }
 
 static void LCD_bl_close(__u32 sel)
 {
+    LCD_PWM_EN(sel, 0);//close pwm module 
+    LCD_delay_ms(15);
     LCD_BL_EN(sel, 0);//config lcd_bl_en pin to close lcd backlight
-    LCD_PWM_EN(sel, 0);//close pwm module
 }
 
 //sel: 0:lcd0; 1:lcd1

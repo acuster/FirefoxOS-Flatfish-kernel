@@ -875,7 +875,8 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *by
 	//AW judge sdio read write timeout, 1s
 	ret = sw_mci_check_r1_ready(gInstance->func[func]->card->host, 1000);
 	if (ret != 0)
-		printk(("%s data timeout.\n", __FUNCTION__));	
+		//printk(("%s data timeout.\n", __FUNCTION__));	
+		printk("%s data timeout.\n", __FUNCTION__);	//modify to fix compile warning
 
 	if (err_ret) {
 		sd_err(("bcmsdh_sdmmc: Failed to %s byte F%d:@0x%05x=%02x, Err: %d\n",
@@ -929,7 +930,8 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 	//AW judge sdio read write timeout, 1s
 	ret = sw_mci_check_r1_ready(gInstance->func[func]->card->host, 1000);
 	if (ret != 0)
-		printk(("%s data timeout.\n", __FUNCTION__));
+		//printk(("%s data timeout.\n", __FUNCTION__));	
+		printk("%s data timeout.\n", __FUNCTION__);//modify to fix compile warning
 
 	/* Release host controller */
 	sdio_release_host(gInstance->func[func]);
@@ -1123,7 +1125,8 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 			//AW judge sdio read write timeout, 1s
 			ret = sw_mci_check_r1_ready(gInstance->func[func]->card->host, 1000);
 			if (ret != 0)
-				printk(("%s data timeout.\n", __FUNCTION__));
+				//printk(("%s data timeout.\n", __FUNCTION__));
+				printk("%s data timeout.\n", __FUNCTION__);	//modify to fix the compile warning
 			
 			if (err_ret)
 				sd_err(("%s: %s FAILED %p[%d], addr=0x%05x, pkt_len=%d, ERR=%d\n",

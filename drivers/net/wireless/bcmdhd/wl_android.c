@@ -159,7 +159,8 @@ typedef struct android_wifi_priv_cmd {
 /**
  * Extern function declarations (TODO: move them to dhd_linux.h)
  */
-void dhd_customer_gpio_wlan_ctrl(int onoff);
+//void dhd_customer_gpio_wlan_ctrl(int onoff);
+int dhd_customer_gpio_wlan_ctrl(int onoff);//modify to fix the compile warning: 'return' with a value, in function returning void
 int dhd_dev_reset(struct net_device *dev, uint8 flag);
 int dhd_dev_init_ioctl(struct net_device *dev);
 #ifdef WL_CFG80211

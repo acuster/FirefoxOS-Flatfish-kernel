@@ -222,7 +222,7 @@ ifneq ($(INTERNAL_CLOBBER_ONLY),true)
 # These are defined by the core build system, but we might need them
 # earlier to feature-check the compilers
 #
-_CC		:= $(CROSS_COMPILE)$(if $(filter default,$(origin CC)),gcc,$(CC))
+_CC		:= $(if $(filter default,$(origin CC)),gcc,$(CC))
 HOST_CC	?= gcc
 
 -include ../config/user-defs.mk

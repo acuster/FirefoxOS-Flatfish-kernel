@@ -378,6 +378,7 @@ static  void codec_init(void)
 *	the system voice come out from speaker
 * 	this function just used for the system voice(such as music and moive voice and so on).
 */
+static int s = 0;
 static int codec_pa_play_open(void)
 {
 	int pa_vol = 0;
@@ -443,11 +444,14 @@ static int codec_pa_play_open(void)
 	codec_wr_control(SUN6I_MIC_CTRL, 0x1f, LINEOUT_VOL, pa_vol);
 
 	usleep_range(2000, 3000);
+	if(s!=0){
 	item.gpio.data = 1;
 	/*config gpio info of audio_pa_ctrl open*/
 	if (0 != sw_gpio_setall_range(&item.gpio, 1)) {
 		printk("sw_gpio_setall_range failed\n");
 	}
+	}
+	s = 1;
 	msleep(62);
 
 	return 0;
@@ -791,13 +795,13 @@ static int codec_capture_open(void)
 
 	/*enable Master microphone bias*/
 	codec_wr_control(SUN6I_MIC_CTRL, 0x1, MBIASEN, 0x1);
-
-	if (codec_headsetmic_en){
+//	printk("codec_headsetmic_en = %d, codec_mainmic_en = %d",codec_headsetmic_en,codec_mainmic_en);
+//	if (codec_headsetmic_en){
 		type = script_get_item("audio_para", "headset_mic_vol", &val);
 		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
 		    printk("[audiocodec] codec_set_headsetmic type err!\n");
 	        }
-
+//		printk("headsetmic_en;;;;;;;;;;;;;;;;;;;;;;");
 		codec_wr_control(SUN6I_MIC_CTRL, 0x1, MIC2AMPEN, 0x1);
 		/*select mic3 source:0:mic3,1:mic2 */
 		codec_wr_control(SUN6I_MIC_CTRL, 0x1, MIC2_SEL, 0x1);
@@ -806,7 +810,7 @@ static int codec_capture_open(void)
 		codec_wr_control(SUN6I_ADC_ACTL, 0x1, RADCMIXMUTEMIC2BOOST, 0x1);
 		/*enable Left MIC2 Boost stage*/
 		codec_wr_control(SUN6I_ADC_ACTL, 0x1, LADCMIXMUTEMIC2BOOST, 0x1);
-	} else if (codec_mainmic_en){
+//	} else if (codec_mainmic_en){
 		type = script_get_item("audio_para", "main_mic_vol", &val);
 		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
 		        printk("[audiocodec] codec_set_mainmic type err!\n");
@@ -820,16 +824,16 @@ static int codec_capture_open(void)
 		codec_wr_control(SUN6I_ADC_ACTL, 0x1, RADCMIXMUTEMIC1BOOST, 0x1);
 		/*enable Left MIC1 Boost stage*/
 		codec_wr_control(SUN6I_ADC_ACTL, 0x1, LADCMIXMUTEMIC1BOOST, 0x1);
-	} else {
+//	} else {
 		/*enable mic1 pa*/
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1, MIC1AMPEN, 0x1);
+//		codec_wr_control(SUN6I_MIC_CTRL, 0x1, MIC1AMPEN, 0x1);
 		/*mic1 gain 36dB,if capture volume is too small, enlarge the mic1boost*/
-		codec_wr_control(SUN6I_MIC_CTRL, 0x7,MIC1BOOST,cap_vol);//36db
+//		codec_wr_control(SUN6I_MIC_CTRL, 0x7,MIC1BOOST,cap_vol);//36db
 		/*enable Right MIC1 Boost stage*/
-		codec_wr_control(SUN6I_ADC_ACTL, 0x1, RADCMIXMUTEMIC1BOOST, 0x1);
+//		codec_wr_control(SUN6I_ADC_ACTL, 0x1, RADCMIXMUTEMIC1BOOST, 0x1);
 		/*enable Left MIC1 Boost stage*/
-		codec_wr_control(SUN6I_ADC_ACTL, 0x1, LADCMIXMUTEMIC1BOOST, 0x1);
-	} 
+//		codec_wr_control(SUN6I_ADC_ACTL, 0x1, LADCMIXMUTEMIC1BOOST, 0x1);
+//	} 
 
 	/*enable adc_r adc_l analog*/
 	codec_wr_control(SUN6I_ADC_ACTL, 0x1,  ADCREN, 0x1);

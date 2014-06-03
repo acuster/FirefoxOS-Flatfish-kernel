@@ -1044,7 +1044,7 @@ static void sw_set_vbus(struct sw_hci_hcd *sw_hci, int is_on)
         }else{
             usb1_set_vbus_cnt--;
         }
-    }if(sw_hci->usbc_no == 2){
+    }else if(sw_hci->usbc_no == 2){
         if(is_on && usb2_set_vbus_cnt == 0){
             __sw_set_vbus(sw_hci, is_on);  /* power on */
         }else if(!is_on && usb2_set_vbus_cnt == 1){

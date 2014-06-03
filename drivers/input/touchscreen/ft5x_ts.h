@@ -1,10 +1,22 @@
 #ifndef __LINUX_FT5X_TS_H__
 #define __LINUX_FT5X_TS_H__
 
+#define CFG_MAX_TOUCH_POINTS	10
+#define FT_TOUCH_STEP			6
+#define FT_TOUCH_X_H_POS		3
+#define FT_TOUCH_X_L_POS		4
+#define FT_TOUCH_Y_H_POS		5
+#define FT_TOUCH_Y_L_POS		6
+#define FT_TOUCH_EVENT_POS		3
+#define FT_TOUCH_ID_POS			5
+
+#define POINT_READ_BUF	(3 + FT_TOUCH_STEP * CFG_MAX_TOUCH_POINTS)
+
 // gpio base address
 #define CONFIG_FT5X0X_MULTITOUCH     (1)
 #define CALIBRATION  (1)
 #define UPGRADE   (5)
+#define VERSION_READ (4) //define by ethan for version reading
 //#define CALIBRATION _IO(CALIBRATION_FLAG,0)
 //#define UPDRAGE _IO(UPDRAGE_FLAG,0)
 #define I2C_MINORS 	256

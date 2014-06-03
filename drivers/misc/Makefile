@@ -35,6 +35,7 @@ obj-$(CONFIG_DS1682)		+= ds1682.o
 obj-$(CONFIG_TI_DAC7512)	+= ti_dac7512.o
 obj-$(CONFIG_UID_STAT)		+= uid_stat.o
 obj-$(CONFIG_C2PORT)		+= c2port/
+obj-$(CONFIG_MPU_SENSORS_MPU6050B1)		+= inv_mpu/
 obj-$(CONFIG_SW_3G_MODULE)	+= sw_3g_module/
 obj-$(CONFIG_IWMC3200TOP)      += iwmc3200top/
 obj-$(CONFIG_HMC6352)		+= hmc6352.o

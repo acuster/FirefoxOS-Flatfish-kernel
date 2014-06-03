@@ -59,7 +59,11 @@ static struct map_desc sun6i_io_desc[] __initdata = {
 };
 
 #if defined(CONFIG_ION) || defined(CONFIG_ION_MODULE)
-static struct tag_mem32 ion_mem __initdata = {
+/*static struct tag_mem32 ion_mem __initdata = {
+	.start	= ION_CARVEOUT_MEM_BASE,
+	.size	= ION_CARVEOUT_MEM_SIZE,
+};*/
+struct tag_mem32 ion_mem = {
 	.start	= ION_CARVEOUT_MEM_BASE,
 	.size	= ION_CARVEOUT_MEM_SIZE,
 };
@@ -150,10 +154,12 @@ static int __init early_ion_reserve(char *p)
 {
 	char *endp;
 
-	ion_mem.start= ION_CARVEOUT_MEM_BASE;
+	//ion_mem.start= ION_CARVEOUT_MEM_BASE;
 	ion_mem.size  = memparse(p, &endp);
 	if (*endp == '@')
 		ion_mem.start = memparse(endp + 1, NULL);
+	else
+		ion_mem.start = PLAT_PHYS_OFFSET + PLAT_MEM_SIZE - ion_mem.size;
 
 	pr_debug("[%s]: ION memory reserve: [0x%016x - 0x%016x]\n",
 			__func__, ion_mem.start, ion_mem.size);

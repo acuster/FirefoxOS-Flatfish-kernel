@@ -5,6 +5,7 @@
 #include <linux/init.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/interrupt.h>
 #include <linux/module.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -24,8 +25,6 @@ static inline char *link_typetostr(int type)
 		return "SCO";
 	case ESCO_LINK:
 		return "eSCO";
-	case LE_LINK:
-		return "LE";
 	default:
 		return "UNKNOWN";
 	}
@@ -89,34 +88,10 @@ static struct device_type bt_link = {
 	.release = bt_link_release,
 };
 
-/*
- * The rfcomm tty device will possibly retain even when conn
- * is down, and sysfs doesn't support move zombie device,
- * so we should move the device before conn device is destroyed.
- */
-static int __match_tty(struct device *dev, void *data)
+static void add_conn(struct work_struct *work)
 {
-	return !strncmp(dev_name(dev), "rfcomm", 6);
-}
-
-void hci_conn_init_sysfs(struct hci_conn *conn)
-{
+	struct hci_conn *conn = container_of(work, struct hci_conn, work_add);
 	struct hci_dev *hdev = conn->hdev;
-
-	BT_DBG("conn %p", conn);
-
-	conn->dev.type = &bt_link;
-	conn->dev.class = bt_class;
-	conn->dev.parent = &hdev->dev;
-
-	device_initialize(&conn->dev);
-}
-
-void hci_conn_add_sysfs(struct hci_conn *conn)
-{
-	struct hci_dev *hdev = conn->hdev;
-
-	BT_DBG("conn %p", conn);
 
 	dev_set_name(&conn->dev, "%s:%d", hdev->name, conn->handle);
 
@@ -130,8 +105,19 @@ void hci_conn_add_sysfs(struct hci_conn *conn)
 	hci_dev_hold(hdev);
 }
 
-void hci_conn_del_sysfs(struct hci_conn *conn)
+/*
+ * The rfcomm tty device will possibly retain even when conn
+ * is down, and sysfs doesn't support move zombie device,
+ * so we should move the device before conn device is destroyed.
+ */
+static int __match_tty(struct device *dev, void *data)
 {
+	return !strncmp(dev_name(dev), "rfcomm", 6);
+}
+
+static void del_conn(struct work_struct *work)
+{
+	struct hci_conn *conn = container_of(work, struct hci_conn, work_del);
 	struct hci_dev *hdev = conn->hdev;
 
 	if (!device_is_registered(&conn->dev))
@@ -151,6 +137,36 @@ void hci_conn_del_sysfs(struct hci_conn *conn)
 	put_device(&conn->dev);
 
 	hci_dev_put(hdev);
+}
+
+void hci_conn_init_sysfs(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+
+	BT_DBG("conn %p", conn);
+
+	conn->dev.type = &bt_link;
+	conn->dev.class = bt_class;
+	conn->dev.parent = &hdev->dev;
+
+	device_initialize(&conn->dev);
+
+	INIT_WORK(&conn->work_add, add_conn);
+	INIT_WORK(&conn->work_del, del_conn);
+}
+
+void hci_conn_add_sysfs(struct hci_conn *conn)
+{
+	BT_DBG("conn %p", conn);
+
+	queue_work(conn->hdev->workqueue, &conn->work_add);
+}
+
+void hci_conn_del_sysfs(struct hci_conn *conn)
+{
+	BT_DBG("conn %p", conn);
+
+	queue_work(conn->hdev->workqueue, &conn->work_del);
 }
 
 static inline char *host_bustostr(int bus)
@@ -386,7 +402,7 @@ static int inquiry_cache_show(struct seq_file *f, void *p)
 	struct inquiry_cache *cache = &hdev->inq_cache;
 	struct inquiry_entry *e;
 
-	hci_dev_lock(hdev);
+	hci_dev_lock_bh(hdev);
 
 	for (e = cache->list; e; e = e->next) {
 		struct inquiry_data *data = &e->data;
@@ -399,7 +415,7 @@ static int inquiry_cache_show(struct seq_file *f, void *p)
 			   data->rssi, data->ssp_mode, e->timestamp);
 	}
 
-	hci_dev_unlock(hdev);
+	hci_dev_unlock_bh(hdev);
 
 	return 0;
 }
@@ -419,14 +435,19 @@ static const struct file_operations inquiry_cache_fops = {
 static int blacklist_show(struct seq_file *f, void *p)
 {
 	struct hci_dev *hdev = f->private;
-	struct bdaddr_list *b;
+	struct list_head *l;
 
-	hci_dev_lock(hdev);
+	hci_dev_lock_bh(hdev);
 
-	list_for_each_entry(b, &hdev->blacklist, list)
+	list_for_each(l, &hdev->blacklist) {
+		struct bdaddr_list *b;
+
+		b = list_entry(l, struct bdaddr_list, list);
+
 		seq_printf(f, "%s\n", batostr(&b->bdaddr));
+	}
 
-	hci_dev_unlock(hdev);
+	hci_dev_unlock_bh(hdev);
 
 	return 0;
 }
@@ -463,14 +484,19 @@ static void print_bt_uuid(struct seq_file *f, u8 *uuid)
 static int uuids_show(struct seq_file *f, void *p)
 {
 	struct hci_dev *hdev = f->private;
-	struct bt_uuid *uuid;
+	struct list_head *l;
 
-	hci_dev_lock(hdev);
+	hci_dev_lock_bh(hdev);
 
-	list_for_each_entry(uuid, &hdev->uuids, list)
+	list_for_each(l, &hdev->uuids) {
+		struct bt_uuid *uuid;
+
+		uuid = list_entry(l, struct bt_uuid, list);
+
 		print_bt_uuid(f, uuid->uuid);
+	}
 
-	hci_dev_unlock(hdev);
+	hci_dev_unlock_bh(hdev);
 
 	return 0;
 }
@@ -487,57 +513,22 @@ static const struct file_operations uuids_fops = {
 	.release	= single_release,
 };
 
-static int auto_accept_delay_set(void *data, u64 val)
-{
-	struct hci_dev *hdev = data;
-
-	hci_dev_lock(hdev);
-
-	hdev->auto_accept_delay = val;
-
-	hci_dev_unlock(hdev);
-
-	return 0;
-}
-
-static int auto_accept_delay_get(void *data, u64 *val)
-{
-	struct hci_dev *hdev = data;
-
-	hci_dev_lock(hdev);
-
-	*val = hdev->auto_accept_delay;
-
-	hci_dev_unlock(hdev);
-
-	return 0;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(auto_accept_delay_fops, auto_accept_delay_get,
-					auto_accept_delay_set, "%llu\n");
-
-void hci_init_sysfs(struct hci_dev *hdev)
-{
-	struct device *dev = &hdev->dev;
-
-	dev->type = &bt_host;
-	dev->class = bt_class;
-
-	dev_set_drvdata(dev, hdev);
-	device_initialize(dev);
-}
-
-int hci_add_sysfs(struct hci_dev *hdev)
+int hci_register_sysfs(struct hci_dev *hdev)
 {
 	struct device *dev = &hdev->dev;
 	int err;
 
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
+	dev->type = &bt_host;
+	dev->class = bt_class;
 	dev->parent = hdev->parent;
+
 	dev_set_name(dev, "%s", hdev->name);
 
-	err = device_add(dev);
+	dev_set_drvdata(dev, hdev);
+
+	err = device_register(dev);
 	if (err < 0)
 		return err;
 
@@ -556,12 +547,10 @@ int hci_add_sysfs(struct hci_dev *hdev)
 
 	debugfs_create_file("uuids", 0444, hdev->debugfs, hdev, &uuids_fops);
 
-	debugfs_create_file("auto_accept_delay", 0444, hdev->debugfs, hdev,
-						&auto_accept_delay_fops);
 	return 0;
 }
 
-void hci_del_sysfs(struct hci_dev *hdev)
+void hci_unregister_sysfs(struct hci_dev *hdev)
 {
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
